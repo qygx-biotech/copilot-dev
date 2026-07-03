@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BioDesign Copilot | 生物设计副驾驶</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="chat-pane" aria-label="对话界面">
+        <header class="chat-header">
+          <div>
+            <p class="eyebrow">合成生物学工作台</p>
+            <h1>BioDesign Copilot</h1>
+            <p class="subtitle">
+              面向合成生物学团队的 AI 设计评审副驾驶
+            </p>
+          </div>
+          <div class="status-pill" aria-label="演示模式已启用">
+            <span></span>
+            演示模式
+          </div>
+        </header>
+
+        <div class="prompt-row" aria-label="演示提示词">
+          <button class="prompt-button" type="button">
+            设计一个用于教学荧光演示的大肠杆菌 GFP 表达构建设想。
+          </button>
+          <button class="prompt-button" type="button">
+            评审这个项目想法：工程化酵母产生一种无害色素，用作教学工具。
+          </button>
+          <button class="prompt-button" type="button">
+            帮我把这个粗略想法整理成项目备忘录：构建一个检测乳糖并用荧光报告的生物传感器概念。
+          </button>
+        </div>
+
+        <section id="messageHistory" class="message-history" aria-live="polite">
+          <article class="message assistant">
+            <div class="avatar">BC</div>
+            <div class="message-card">
+              <p>
+                输入一个项目概念，我会把它整理成结构化项目评审，标出缺失信息，并起草适合投资人演示的备忘录。
+              </p>
+            </div>
+          </article>
+        </section>
+
+        <section class="reference-uploader" aria-label="参考文件上传">
+          <div class="reference-copy">
+            <strong>参考文件</strong>
+            <p>
+              参考文件会在你的浏览器本地处理。只有提取出的文本会在提交消息时发送到后端。
+            </p>
+            <p class="reference-warning">
+              本演示只会使用有限长度的提取文本。
+            </p>
+          </div>
+          <div class="reference-actions">
+            <label class="file-picker" for="referenceFileInput">
+              添加文件
+            </label>
+            <button id="clearReferencesButton" class="secondary-button" type="button">
+              清空参考文件
+            </button>
+          </div>
+          <input
+            id="referenceFileInput"
+            class="sr-only"
+            type="file"
+            accept=".pdf,.txt,.csv,.xlsx,.xls"
+            multiple
+          />
+          <div id="referenceFileList" class="reference-file-list" aria-live="polite"></div>
+        </section>
+
+        <form id="chatForm" class="chat-composer">
+          <label class="sr-only" for="chatInput">项目想法</label>
+          <textarea
+            id="chatInput"
+            rows="3"
+            placeholder="描述一个合成生物学项目想法..."
+            required
+          ></textarea>
+          <button id="sendButton" type="submit">发送</button>
+        </form>
+      </section>
+
+      <aside class="project-panel" aria-label="结构化项目面板">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">实时项目简报</p>
+            <h2>项目面板</h2>
+          </div>
+          <button id="exportButton" class="export-button" type="button">
+            导出 Markdown
+          </button>
+        </div>
+
+        <div class="panel-section">
+          <h3>项目摘要</h3>
+          <p id="panelSummary">
+            开始对话后将生成简洁的项目摘要。
+          </p>
+        </div>
+
+        <div class="panel-grid">
+          <div class="panel-section compact">
+            <h3>生物体 / 系统</h3>
+            <p id="panelOrganism">未指定</p>
+          </div>
+          <div class="panel-section compact">
+            <h3>安全等级</h3>
+            <p id="panelSafetyLevel">待评审</p>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h3>缺失信息</h3>
+          <ul id="panelMissingInfo">
+            <li>目标生物体或底盘系统</li>
+            <li>项目目标</li>
+            <li>预期场景和受众</li>
+          </ul>
+        </div>
+
+        <div class="panel-section">
+          <h3>安全说明</h3>
+          <p id="panelSafetyNotes">
+            生成评审后，这里会显示安全说明。
+          </p>
+        </div>
+
+        <div class="panel-section memo-section">
+          <h3>备忘录草稿</h3>
+          <div id="panelMemo" class="memo-preview">
+            暂无备忘录。
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- pdf.js is used in-browser to extract text from local PDF reference files. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- SheetJS/xlsx is used in-browser to extract visible cell values from Excel reference files. -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
