@@ -36,12 +36,90 @@ body {
 }
 
 button,
+input,
 textarea {
   font: inherit;
 }
 
 button {
   cursor: pointer;
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.login-panel {
+  display: grid;
+  width: 100%;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px 16px;
+}
+
+.login-card {
+  width: min(480px, 100%);
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(219, 230, 225, 0.95);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.login-copy h1 {
+  margin-bottom: 10px;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  line-height: 1;
+}
+
+.login-subtitle {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.login-fields {
+  display: grid;
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.login-field {
+  display: grid;
+  gap: 7px;
+  color: #2f3f38;
+  font-size: 0.88rem;
+  font-weight: 760;
+}
+
+.login-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  color: var(--ink);
+  background: #fbfdfc;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.login-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(18, 107, 95, 0.13);
+  outline: none;
+}
+
+.login-error {
+  min-height: 22px;
+  margin: 0;
+  color: #9a3412;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .app-shell {
@@ -121,6 +199,14 @@ h3 {
   font-size: 1.05rem;
 }
 
+.header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
 .status-pill {
   display: inline-flex;
   flex: 0 0 auto;
@@ -141,6 +227,49 @@ h3 {
   height: 8px;
   background: #1aa179;
   border-radius: 50%;
+}
+
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  min-height: 36px;
+  padding: 6px 6px 6px 12px;
+  color: #27362f;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 760;
+}
+
+.current-account {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-button {
+  min-height: 30px;
+  padding: 6px 10px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border: 1px solid #cbe7de;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 760;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.logout-button:hover,
+.logout-button:focus-visible {
+  background: #d4ece4;
+  outline: none;
+  transform: translateY(-1px);
 }
 
 .prompt-row {
@@ -406,6 +535,7 @@ textarea:focus {
   outline: none;
 }
 
+#loginButton,
 #sendButton,
 .export-button {
   align-self: stretch;
@@ -421,6 +551,8 @@ textarea:focus {
     transform 160ms ease;
 }
 
+#loginButton:hover,
+#loginButton:focus-visible,
 #sendButton:hover,
 #sendButton:focus-visible,
 .export-button:hover,
@@ -428,6 +560,10 @@ textarea:focus {
   background: var(--accent-dark);
   outline: none;
   transform: translateY(-1px);
+}
+
+#loginButton {
+  min-height: 48px;
 }
 
 .project-panel {
@@ -550,6 +686,29 @@ textarea:focus {
   .panel-header,
   .chat-composer {
     flex-direction: column;
+  }
+
+  .login-panel {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .login-card {
+    min-height: 100vh;
+    padding: 28px 18px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .header-actions {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .account-chip {
+    max-width: 100%;
   }
 
   .chat-header,

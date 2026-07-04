@@ -1,4 +1,5 @@
 node_modules/
+alibaba-fc/node_modules/
 worker/node_modules/
 .wrangler/
 worker/.wrangler/

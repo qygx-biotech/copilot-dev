@@ -5,16 +5,16 @@
 // Required env vars:
 //   REQUESTY_API_KEY
 //   REQUESTY_MODEL
+//   ADMIN_ACCOUNT
+//   ADMIN_PASSWORD_HASH
+//   JWT_SECRET
 
 const REQUESTY_URL = "https://router.requesty.ai/v1/chat/completions";
 const MAX_REFERENCE_DOCUMENTS = 3;
 const TOTAL_REFERENCE_TEXT_LIMIT = 24000;
 
 const corsHeaders = {
-  "Content-Type": "application/json",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,Authorization"
+  "Content-Type": "application/json"
 };
 
 const systemPrompt = `
@@ -62,11 +62,20 @@ The JSON must exactly follow this shape:
 }
 `.trim();
 
-function jsonResponse(data, statusCode = 200) {
+function jsonResponse(data, statusCode = 200, event = null, extraHeaders = {}) {
   return {
     statusCode,
-    headers: corsHeaders,
+    headers: {
+      ...getApiHeaders(event),
+      ...extraHeaders
+    },
     body: JSON.stringify(data)
+  };
+}
+
+function getApiHeaders(event) {
+  return {
+    ...corsHeaders
   };
 }
 
@@ -126,6 +135,21 @@ function getRoute(rawEvent) {
   return { method, path, event };
 }
 
+function getRequestHeader(event, name) {
+  const headers = event?.headers || {};
+  const target = name.toLowerCase();
+  const key = Object.keys(headers).find(
+    (headerName) => headerName.toLowerCase() === target
+  );
+
+  return key ? String(headers[key]) : "";
+}
+
+function getEnvString(env, name) {
+  const value = env?.[name];
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function getRequestBody(event) {
   if (!event) return {};
 
@@ -156,6 +180,240 @@ function getRequestBody(event) {
   }
 
   return {};
+}
+
+function getAuthConfig(env) {
+  const adminAccount = getEnvString(env, "ADMIN_ACCOUNT");
+  const adminPasswordHash = getEnvString(env, "ADMIN_PASSWORD_HASH");
+  const jwtSecret = getEnvString(env, "JWT_SECRET");
+
+  if (!adminAccount || !adminPasswordHash || !jwtSecret) {
+    return {
+      error:
+        "Authentication is not configured. Missing ADMIN_ACCOUNT, ADMIN_PASSWORD_HASH, or JWT_SECRET."
+    };
+  }
+
+  return {
+    adminAccount,
+    adminPasswordHash,
+    jwtSecret
+  };
+}
+
+function getJwtConfig(env) {
+  const jwtSecret = getEnvString(env, "JWT_SECRET");
+
+  if (!jwtSecret) {
+    return {
+      error: "Authentication is not configured. Missing JWT_SECRET."
+    };
+  }
+
+  return { jwtSecret };
+}
+
+async function handleLogin(event, env) {
+  const authConfig = getAuthConfig(env);
+
+  if (authConfig.error) {
+    return jsonResponse(
+      {
+        error: authConfig.error
+      },
+      500,
+      event
+    );
+  }
+
+  const body = getRequestBody(event);
+  const account = typeof body.account === "string" ? body.account.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+
+  if (!account || !password) {
+    return jsonResponse(
+      {
+        error: "Account and password are required."
+      },
+      400,
+      event
+    );
+  }
+
+  const bcrypt = require("bcryptjs");
+  const passwordMatches = bcrypt.compareSync(
+    password,
+    authConfig.adminPasswordHash
+  );
+
+  if (account !== authConfig.adminAccount || !passwordMatches) {
+    return jsonResponse(
+      {
+        error: "Invalid account or password"
+      },
+      401,
+      event
+    );
+  }
+
+  const user = {
+    account,
+    role: "admin"
+  };
+  const token = signAuthToken(user, authConfig.jwtSecret);
+
+  return jsonResponse(
+    {
+      ok: true,
+      token,
+      user
+    },
+    200,
+    event
+  );
+}
+
+function handleMe(event, env) {
+  if (!getBearerToken(event)) {
+    return unauthorizedResponse(event);
+  }
+
+  const jwtConfig = getJwtConfig(env);
+
+  if (jwtConfig.error) {
+    return jsonResponse(
+      {
+        error: jwtConfig.error
+      },
+      500,
+      event
+    );
+  }
+
+  const user = verifyAuthToken(event, jwtConfig.jwtSecret);
+
+  if (!user) {
+    return unauthorizedResponse(event);
+  }
+
+  return jsonResponse(
+    {
+      user
+    },
+    200,
+    event
+  );
+}
+
+function unauthorizedResponse(event) {
+  return jsonResponse(
+    {
+      error: "Unauthorized"
+    },
+    401,
+    event
+  );
+}
+
+function internalServerErrorResponse(event) {
+  return jsonResponse(
+    {
+      error: "Internal server error"
+    },
+    500,
+    event
+  );
+}
+
+function handleLogout(event) {
+  return jsonResponse(
+    {
+      ok: true
+    },
+    200,
+    event
+  );
+}
+
+function requireAuth(req, env) {
+  const jwtConfig = getJwtConfig(env);
+
+  if (jwtConfig.error) {
+    return {
+      ok: false,
+      response: jsonResponse(
+        {
+          error: jwtConfig.error
+        },
+        500,
+        req
+      )
+    };
+  }
+
+  const user = verifyAuthToken(req, jwtConfig.jwtSecret);
+
+  if (!user) {
+    return {
+      ok: false,
+      response: unauthorizedResponse(req)
+    };
+  }
+
+  req.user = user;
+  return {
+    ok: true,
+    user
+  };
+}
+
+function signAuthToken(user, jwtSecret) {
+  const jwt = require("jsonwebtoken");
+
+  return jwt.sign(
+    {
+      account: user.account,
+      role: user.role
+    },
+    jwtSecret,
+    {
+      expiresIn: "12h"
+    }
+  );
+}
+
+function verifyAuthToken(event, jwtSecret) {
+  const token = getBearerToken(event);
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const jwt = require("jsonwebtoken");
+    const payload = jwt.verify(token, jwtSecret);
+
+    if (
+      !payload ||
+      typeof payload.account !== "string" ||
+      payload.role !== "admin"
+    ) {
+      return null;
+    }
+
+    return {
+      account: payload.account,
+      role: "admin"
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getBearerToken(event) {
+  const authorization = getRequestHeader(event, "authorization");
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
 }
 
 function makeFallbackResponse(reason) {
@@ -423,98 +681,137 @@ async function callRequesty(messages, env, referenceDocuments = []) {
 }
 
 exports.handler = async function handler(rawEvent, context) {
-  const { method, path, event } = getRoute(rawEvent);
+  let method = "GET";
+  let path = "/";
+  let event = null;
 
-  console.log("Incoming request:", {
-    method,
-    path
-  });
+  try {
+    ({ method, path, event } = getRoute(rawEvent));
 
-  if (method === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: corsHeaders,
-      body: ""
-    };
-  }
-
-  if (method === "GET" && (path === "/" || path === "/health")) {
-    return jsonResponse({
-      ok: true,
-      service: "BioDesign Copilot Alibaba FC"
-    });
-  }
-
-  // Temporary debug endpoint. Remove later when everything works.
-  if (path === "/debug") {
-    return jsonResponse({
-      method,
-      path,
-      eventType: typeof rawEvent,
-      isBuffer: Buffer.isBuffer(rawEvent),
-      eventKeys: Object.keys(event || {}),
-      requestContext: event.requestContext || null,
-      rawPath: event.rawPath || null,
-      pathValue: event.path || null,
-      requestPath: event.requestPath || null,
-      url: event.url || null,
-      httpMethod: event.httpMethod || null,
-      methodValue: event.method || null,
-      headers: event.headers || null,
-      hasBody: Boolean(event.body || event.rawBody),
-      bodyPreview: event.body
-        ? String(event.body).slice(0, 300)
-        : event.rawBody
-          ? String(event.rawBody).slice(0, 300)
-          : null
-    });
-  }
-
-  if (method === "POST" && path === "/chat") {
-    const body = getRequestBody(event);
-    const messages = body.messages;
-    const rawReferenceDocuments = body.referenceDocuments;
-
-    if (
-      rawReferenceDocuments !== undefined &&
-      !Array.isArray(rawReferenceDocuments)
-    ) {
-      return jsonResponse(
-        makeFallbackResponse(
-          'The optional "referenceDocuments" field must be an array.'
-        ),
-        400
-      );
+    if (method === "OPTIONS") {
+      return {
+        statusCode: 204,
+        headers: getApiHeaders(event),
+        body: ""
+      };
     }
 
-    const referenceDocuments = sanitizeReferenceDocuments(
-      rawReferenceDocuments || []
-    );
-    const result = await callRequesty(
-      messages,
-      process.env,
-      referenceDocuments
-    );
+    console.log("Incoming request:", {
+      method,
+      path
+    });
 
-    if (!result.ok) {
-      return jsonResponse(makeFallbackResponse(result.reason), 200);
+    if (method === "GET" && (path === "/" || path === "/health")) {
+      return jsonResponse({
+        ok: true,
+        service: "BioDesign Copilot Alibaba FC"
+      }, 200, event);
+    }
+
+    // Temporary debug endpoint. Remove later when everything works.
+    if (path === "/debug") {
+      return jsonResponse({
+        method,
+        path,
+        eventType: typeof rawEvent,
+        isBuffer: Buffer.isBuffer(rawEvent),
+        eventKeys: Object.keys(event || {}),
+        requestContext: event.requestContext || null,
+        rawPath: event.rawPath || null,
+        pathValue: event.path || null,
+        requestPath: event.requestPath || null,
+        url: event.url || null,
+        httpMethod: event.httpMethod || null,
+        methodValue: event.method || null,
+        headers: event.headers || null,
+        hasBody: Boolean(event.body || event.rawBody),
+        bodyPreview: event.body
+          ? String(event.body).slice(0, 300)
+          : event.rawBody
+            ? String(event.rawBody).slice(0, 300)
+            : null
+      }, 200, event);
+    }
+
+    if (method === "POST" && path === "/api/login") {
+      try {
+        return await handleLogin(event, process.env);
+      } catch (error) {
+        console.error("Login route error:", error);
+        return internalServerErrorResponse(event);
+      }
+    }
+
+    if (method === "GET" && path === "/api/me") {
+      try {
+        return handleMe(event, process.env);
+      } catch (error) {
+        console.error("Current user route error:", error);
+        return internalServerErrorResponse(event);
+      }
+    }
+
+    if (method === "POST" && path === "/api/logout") {
+      return handleLogout(event);
+    }
+
+    if (method === "POST" && path === "/chat") {
+      const auth = requireAuth(event, process.env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const body = getRequestBody(event);
+      const messages = body.messages;
+      const rawReferenceDocuments = body.referenceDocuments;
+
+      if (
+        rawReferenceDocuments !== undefined &&
+        !Array.isArray(rawReferenceDocuments)
+      ) {
+        return jsonResponse(
+          makeFallbackResponse(
+            'The optional "referenceDocuments" field must be an array.'
+          ),
+          400,
+          event
+        );
+      }
+
+      const referenceDocuments = sanitizeReferenceDocuments(
+        rawReferenceDocuments || []
+      );
+      const result = await callRequesty(
+        messages,
+        process.env,
+        referenceDocuments
+      );
+
+      if (!result.ok) {
+        return jsonResponse(makeFallbackResponse(result.reason), 200, event);
+      }
+
+      return jsonResponse(
+        {
+          ...result.data,
+          referencesUsed: referenceDocuments.map((document) => document.filename)
+        },
+        200,
+        event
+      );
     }
 
     return jsonResponse(
       {
-        ...result.data,
-        referencesUsed: referenceDocuments.map((document) => document.filename)
+        error: "Not found",
+        method,
+        path
       },
-      200
+      404,
+      event
     );
+  } catch (error) {
+    console.error("Unhandled backend error:", error);
+    return internalServerErrorResponse(event);
   }
-
-  return jsonResponse(
-    {
-      error: "Not found",
-      method,
-      path
-    },
-    404
-  );
 };

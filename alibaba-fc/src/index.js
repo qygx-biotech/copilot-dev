@@ -4,10 +4,7 @@ const REQUESTY_CHAT_COMPLETIONS_URL =
   "https://router.requesty.ai/v1/chat/completions";
 
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400",
+  "Content-Type": "application/json",
 };
 
 const SYSTEM_PROMPT = `You are BioDesign Copilot, an AI design-review copilot for synthetic biology teams.

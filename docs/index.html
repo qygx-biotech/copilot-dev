@@ -7,7 +7,46 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="app-shell">
+    <section id="loginPanel" class="login-panel" aria-label="登录">
+      <form id="loginForm" class="login-card" novalidate>
+        <div class="login-copy">
+          <p class="eyebrow">账户登录</p>
+          <h1>BioDesign Copilot</h1>
+          <p class="login-subtitle">
+            登录后继续使用合成生物学项目评审工作台。
+          </p>
+        </div>
+
+        <div class="login-fields">
+          <label class="login-field" for="loginAccount">
+            账号
+            <input
+              id="loginAccount"
+              name="account"
+              type="text"
+              autocomplete="username"
+              required
+            />
+          </label>
+
+          <label class="login-field" for="loginPassword">
+            密码
+            <input
+              id="loginPassword"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+
+          <button id="loginButton" type="submit">登录</button>
+          <p id="loginError" class="login-error" role="alert" aria-live="polite"></p>
+        </div>
+      </form>
+    </section>
+
+    <main id="appShell" class="app-shell is-hidden" hidden>
       <section class="chat-pane" aria-label="对话界面">
         <header class="chat-header">
           <div>
@@ -17,9 +56,17 @@
               面向合成生物学团队的 AI 设计评审副驾驶
             </p>
           </div>
-          <div class="status-pill" aria-label="演示模式已启用">
-            <span></span>
-            演示模式
+          <div class="header-actions">
+            <div class="status-pill" aria-label="演示模式已启用">
+              <span></span>
+              演示模式
+            </div>
+            <div class="account-chip" aria-label="当前账户">
+              <span id="currentAccountName" class="current-account">未登录</span>
+              <button id="logoutButton" class="logout-button" type="button">
+                退出
+              </button>
+            </div>
           </div>
         </header>
 

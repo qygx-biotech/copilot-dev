@@ -1,3 +1,12 @@
+const loginPanel = document.querySelector("#loginPanel");
+const loginForm = document.querySelector("#loginForm");
+const loginAccountInput = document.querySelector("#loginAccount");
+const loginPasswordInput = document.querySelector("#loginPassword");
+const loginButton = document.querySelector("#loginButton");
+const loginError = document.querySelector("#loginError");
+const appShell = document.querySelector("#appShell");
+const currentAccountName = document.querySelector("#currentAccountName");
+const logoutButton = document.querySelector("#logoutButton");
 const chatForm = document.querySelector("#chatForm");
 const chatInput = document.querySelector("#chatInput");
 const messageHistory = document.querySelector("#messageHistory");
@@ -26,6 +35,8 @@ const CLOUDFLARE_WORKER_URL = "https://biodesign-copilot-worker.zhangjatsh666.wo
 const ALIBABA_FC_URL = "https://biodesi-api-dev-jvvowibabk.cn-beijing.fcapp.run";
 const WORKER_URL = BACKEND_PROVIDER === "alibaba" ? ALIBABA_FC_URL : CLOUDFLARE_WORKER_URL;
 const USE_BACKEND = true;
+const ACCESS_TOKEN_STORAGE_KEY = "access_token";
+const ACCOUNT_STORAGE_KEY = "account";
 
 console.log("BACKEND_PROVIDER:", BACKEND_PROVIDER);
 console.log("WORKER_URL:", WORKER_URL);
@@ -43,6 +54,83 @@ let currentProject = createProjectState(
 );
 const chatMessages = [];
 let referenceDocuments = [];
+let authToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "";
+let currentAccount = sessionStorage.getItem(ACCOUNT_STORAGE_KEY) || "";
+
+class AuthRequiredError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AuthRequiredError";
+  }
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  loginError.textContent = "";
+
+  const account = loginAccountInput.value.trim();
+
+  if (!account || !loginPasswordInput.value) {
+    loginError.textContent = "请输入账号和密码。";
+    return;
+  }
+
+  setLoginBusy(true, "登录中...");
+
+  try {
+    const loginRequest = fetch(backendUrl("/api/login"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        account,
+        password: loginPasswordInput.value,
+      }),
+    });
+
+    loginPasswordInput.value = "";
+
+    const response = await loginRequest;
+    const data = await readOptionalJson(response);
+
+    if (response.status === 401) {
+      showLoggedOut(getAuthErrorMessage(data) || "账号或密码不正确。");
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(getAuthErrorMessage(data) || "登录失败，请检查账号和密码。");
+    }
+
+    const loggedInAccount =
+      typeof data.user?.account === "string" ? data.user.account.trim() : "";
+
+    if (typeof data.token !== "string" || !data.token) {
+      throw new Error("登录响应缺少 token。");
+    }
+
+    if (!loggedInAccount) {
+      throw new Error("登录响应缺少账户信息。");
+    }
+
+    setAuthSession(data.token, loggedInAccount);
+    showAuthenticated(loggedInAccount);
+  } catch (error) {
+    console.warn("Login failed.", error);
+    showLoggedOut(error.message || "登录失败，请稍后重试。");
+  } finally {
+    loginPasswordInput.value = "";
+    setLoginBusy(false);
+  }
+});
+
+logoutButton.addEventListener("click", () => {
+  clearAuthSession();
+  showLoggedOut("已退出登录。");
+});
+
+checkCurrentUser();
 
 promptButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -111,6 +199,11 @@ chatForm.addEventListener("submit", async (event) => {
     addMessage("assistant", formatBackendReply(backendResponse.reply), true);
     updateProjectPanel(currentProject);
   } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      console.warn("Backend auth required.", error);
+      return;
+    }
+
     console.warn("Backend chat failed; using local mock response.", error);
     addMessage(
       "assistant",
@@ -137,6 +230,176 @@ exportButton.addEventListener("click", () => {
   URL.revokeObjectURL(url);
   showToast("Markdown 备忘录已导出");
 });
+
+async function checkCurrentUser() {
+  if (!authToken) {
+    showLoggedOut("");
+    return;
+  }
+
+  setLoginBusy(true, "检查中...");
+
+  try {
+    const response = await fetch(backendUrl("/api/me"), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    const data = await readOptionalJson(response);
+
+    if (response.status === 401) {
+      showLoggedOut("请先登录。");
+      return;
+    }
+
+    if (!response.ok) {
+      showLoggedOut("");
+      return;
+    }
+
+    const accountName = getAccountName(data) || currentAccount || "已登录";
+    if (accountName !== "已登录") {
+      setAuthSession(authToken, accountName);
+    }
+    showAuthenticated(accountName);
+  } catch (error) {
+    console.warn("Session check failed.", error);
+    showLoggedOut("");
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+function showAuthenticated(accountName) {
+  currentAccountName.textContent = accountName || "已登录";
+  loginError.textContent = "";
+  loginPasswordInput.value = "";
+  loginPanel.hidden = true;
+  loginPanel.classList.add("is-hidden");
+  appShell.hidden = false;
+  appShell.classList.remove("is-hidden");
+  chatInput.focus();
+}
+
+function showLoggedOut(message) {
+  clearAuthSession();
+  currentAccountName.textContent = "未登录";
+  appShell.hidden = true;
+  appShell.classList.add("is-hidden");
+  loginPanel.hidden = false;
+  loginPanel.classList.remove("is-hidden");
+  loginPasswordInput.value = "";
+  loginError.textContent = message || "";
+  loginAccountInput.focus();
+}
+
+function setLoginBusy(isBusy, label = "请稍候...") {
+  loginAccountInput.disabled = isBusy;
+  loginPasswordInput.disabled = isBusy;
+  loginButton.disabled = isBusy;
+  loginButton.textContent = isBusy ? label : "登录";
+}
+
+function requireLoginForUnauthorized(response) {
+  if (response.status !== 401) return;
+
+  const message = "登录状态已失效，请重新登录。";
+  clearAuthSession();
+  showLoggedOut(message);
+  throw new AuthRequiredError(message);
+}
+
+function backendUrl(path) {
+  return `${WORKER_URL}${path}`;
+}
+
+function setAuthSession(token, account) {
+  authToken = typeof token === "string" ? token : "";
+  currentAccount = typeof account === "string" ? account : "";
+
+  if (authToken) {
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, authToken);
+  } else {
+    sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  }
+
+  if (currentAccount) {
+    sessionStorage.setItem(ACCOUNT_STORAGE_KEY, currentAccount);
+  } else {
+    sessionStorage.removeItem(ACCOUNT_STORAGE_KEY);
+  }
+}
+
+function clearAuthSession() {
+  setAuthSession("", "");
+}
+
+function getAuthHeaders(extraHeaders = {}) {
+  const headers = { ...extraHeaders };
+
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
+  return headers;
+}
+
+async function readOptionalJson(response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    return {};
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function getAccountName(data) {
+  if (!data || typeof data !== "object") return "";
+
+  const candidates = [
+    data.account,
+    data.accountName,
+    data.username,
+    data.email,
+    data.name,
+    data.user?.account,
+    data.user?.accountName,
+    data.user?.username,
+    data.user?.email,
+    data.user?.name,
+    data.data?.account,
+    data.data?.accountName,
+    data.data?.username,
+    data.data?.email,
+    data.data?.name,
+    data.data?.user?.account,
+    data.data?.user?.accountName,
+    data.data?.user?.username,
+    data.data?.user?.email,
+    data.data?.user?.name,
+  ];
+
+  const accountName = candidates.find(
+    (candidate) => typeof candidate === "string" && candidate.trim()
+  );
+
+  return accountName ? accountName.trim() : "";
+}
+
+function getAuthErrorMessage(data) {
+  if (!data || typeof data !== "object") return "";
+
+  const candidates = [data.error, data.message, data.reason, data.detail];
+  const message = candidates.find(
+    (candidate) => typeof candidate === "string" && candidate.trim()
+  );
+
+  return message ? message.trim() : "";
+}
 
 async function parseReferenceFile(file) {
   const extension = getFileExtension(file.name);
@@ -481,13 +744,15 @@ async function sendMessageToBackend(messages, references = []) {
     requestBody.referenceDocuments = references;
   }
 
-  const response = await fetch(`${WORKER_URL}/chat`, {
+  const response = await fetch(backendUrl("/chat"), {
     method: "POST",
-    headers: {
+    headers: getAuthHeaders({
       "Content-Type": "application/json",
-    },
+    }),
     body: JSON.stringify(requestBody),
   });
+
+  requireLoginForUnauthorized(response);
 
   if (!response.ok) {
     throw new Error(`Worker returned ${response.status}`);
