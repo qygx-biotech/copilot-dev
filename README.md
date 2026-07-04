@@ -38,9 +38,28 @@ Files are parsed locally in the browser. Raw files are not uploaded, stored, or 
 
 Per-file upload size is limited to 5 MB. Extracted text is capped per file and capped across the full request, so this is not a full RAG system yet. It is a lightweight context-passing MVP for lab reports, spreadsheets, notes, and literature PDFs.
 
+## BioDesign Workbench layout
+
+After login, the frontend opens a simpler evidence-driven BioDesign Workbench for human-in-the-loop synthetic-biology planning.
+
+- Optional project context: one freeform field for plain-language goals, questions, and messy project framing.
+- Literature/reference uploads: add PDFs, notes, CSVs, Excel files, and text references. Files are parsed locally in the browser and shown with filename, type, extracted character count, and remove controls.
+- Experiment result uploads and notes: add batches of Excel, CSV, PDF, or TXT result files plus informal notes about what changed, what looked surprising, or what the agent should focus on.
+- One main action: **Analyze & Recommend** sends `mode: "agent_instruction"` to the existing `/chat` endpoint and updates the Current Recommendation panel.
+- Side chat for questions: sends `mode: "side_chat"` and answers in the side panel without changing the current recommendation.
+- Current recommendation output: shows Current Interpretation, Key Evidence Used, Possible Explanation, Recommended Next Step, Additional Analysis Suggested, Missing Information, Human Review Notes, and Draft Summary.
+
+Current limitation: the workbench uses frontend/session state only. There is no persistent cloud workspace, database, or permanent file storage yet.
+
 ## Run
 
-Open `docs/index.html` directly in a browser for the frontend.
+For a visual-only static check, open `docs/index.html` directly in a browser.
+
+For login and backend calls, serve the GitHub Pages frontend from `http://localhost:3000` so it matches the backend CORS allowlist:
+
+```bash
+python3 -m http.server 3000 --directory docs
+```
 
 To run the Worker locally:
 
@@ -57,16 +76,6 @@ The frontend expects the Worker at `http://127.0.0.1:8787`.
 
 ## Demo Behavior
 
-Use one of the prompt buttons or type a project idea. The app returns a mocked assistant response with:
+Add optional project context, upload any relevant files, write an agent instruction, and click **Analyze & Recommend**. When the backend is available, the frontend calls `POST /chat` with `projectContext`, `referenceDocuments`, `experimentDocuments`, and `experimentNotes`. If the backend is unavailable, it falls back to a local demo recommendation.
 
-- Project Summary
-- Key Assumptions
-- Clarifying Questions
-- Design Considerations
-- Safety & Compliance Notes
-- Recommended Next Steps
-- Draft Memo
-
-When the Worker is available, the frontend calls `POST /chat` and renders the returned reply and project object. If the Worker is unavailable, it falls back to the local mock response.
-
-The right-side project panel updates from the current project state. The **Export Markdown** button downloads the current project memo as `biodesign-copilot-project-memo.md`.
+The side chat uses the same backend endpoint for questions but does not update the Current Recommendation panel. The **Export Markdown** button downloads the current recommendation as `biodesign-workbench-recommendation.md`.

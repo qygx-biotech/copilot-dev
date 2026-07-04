@@ -10,8 +10,11 @@
 //   JWT_SECRET
 
 const REQUESTY_URL = "https://router.requesty.ai/v1/chat/completions";
-const MAX_REFERENCE_DOCUMENTS = 3;
-const TOTAL_REFERENCE_TEXT_LIMIT = 24000;
+const MAX_REFERENCE_DOCUMENTS = 8;
+const MAX_EXPERIMENT_DOCUMENTS = 12;
+const MAX_EXPERIMENT_NOTES = 12;
+const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
+const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
 
 const corsHeaders = {
   "Content-Type": "application/json"
@@ -20,14 +23,19 @@ const corsHeaders = {
 const systemPrompt = `
 You are BioDesign Copilot, an AI design-review copilot for synthetic biology teams.
 
-Your job is to help users convert rough synthetic-biology ideas into structured project briefs, design review notes, safety-aware planning notes, missing-information lists, and investor-ready memos.
+Your job is to support a human-in-the-loop BioDesign Workbench for synthetic biology design, literature review, messy experiment interpretation, and planning-level recommendations.
 
-Uploaded references may include literature, notes, lab reports, or spreadsheet data. Treat uploaded references as unverified user-provided context. Use references to improve project review, missing-information detection, and memo drafting, but do not blindly trust them. Do not claim references say something unless it is present in the extracted text. Mention filenames when using reference information. If references are insufficient, say what is missing.
+The project may be about many goals: pathway improvement, failed experiment interpretation, enzyme variant comparison, literature synthesis, assay troubleshooting, strain/design comparison, or another synthetic-biology planning question. Do not assume the project is only about production volume, titer, yield, or productivity.
+
+Uploaded context may include messy literature PDFs, notes, lab reports, spreadsheet batches, CSV files, TXT files, and informal experiment notes. Treat all uploaded context as unverified user-provided evidence. Use it to interpret evidence, identify possible explanations, suggest useful next analyses, and recommend human-reviewed next steps. Do not assume every project has clean metrics, complete metadata, or comparable experiments. Mention filenames when relying on uploaded evidence and say what is missing when evidence is insufficient.
 
 You should help with:
 - benign project scoping
 - documentation
 - high-level design review
+- evidence interpretation
+- possible explanation generation
+- next-analysis recommendations
 - educational synthetic biology concepts
 - safety and compliance reminders
 - clarifying questions
@@ -41,7 +49,7 @@ You must avoid:
 - detailed wet-lab protocols for harmful biological work
 - instructions that enable unsafe or unsupervised experimentation
 
-Keep wet-lab guidance high-level and safety-aware.
+Keep wet-lab guidance high-level and safety-aware. For side_chat requests, answer the question without claiming to update the official recommendation. Human scientists remain responsible for interpreting evidence and approving experimental decisions.
 
 Return ONLY valid JSON.
 Do not use markdown fences.
@@ -517,10 +525,28 @@ function parseModelResponse(modelText) {
 }
 
 function sanitizeReferenceDocuments(referenceDocuments) {
-  let remainingCharacters = TOTAL_REFERENCE_TEXT_LIMIT;
+  return sanitizeUploadedDocuments(
+    referenceDocuments,
+    MAX_REFERENCE_DOCUMENTS,
+    TOTAL_REFERENCE_TEXT_LIMIT,
+    "unnamed-reference"
+  );
+}
 
-  return referenceDocuments
-    .slice(0, MAX_REFERENCE_DOCUMENTS)
+function sanitizeExperimentDocuments(experimentDocuments) {
+  return sanitizeUploadedDocuments(
+    experimentDocuments,
+    MAX_EXPERIMENT_DOCUMENTS,
+    TOTAL_EXPERIMENT_TEXT_LIMIT,
+    "unnamed-experiment-file"
+  );
+}
+
+function sanitizeUploadedDocuments(documents, maxDocuments, totalTextLimit, fallbackName) {
+  let remainingCharacters = totalTextLimit;
+
+  return documents
+    .slice(0, maxDocuments)
     .filter(
       (document) =>
         document &&
@@ -536,7 +562,7 @@ function sanitizeReferenceDocuments(referenceDocuments) {
         filename:
           typeof document.filename === "string" && document.filename.trim()
             ? document.filename.trim().slice(0, 180)
-            : "unnamed-reference",
+            : fallbackName,
         type:
           typeof document.type === "string" && document.type.trim()
             ? document.type.trim().slice(0, 120)
@@ -548,18 +574,69 @@ function sanitizeReferenceDocuments(referenceDocuments) {
     .filter((document) => document.text);
 }
 
-function buildReferenceContext(referenceDocuments) {
-  if (!referenceDocuments.length) return null;
-
-  const sections = referenceDocuments.map((document, index) => {
-    const truncatedNote = document.truncated ? " (truncated)" : "";
-    return `Reference ${index + 1}: ${document.filename} [${document.type}]${truncatedNote}\n${document.text}`;
-  });
-
-  return `The user attached reference documents. Use them only as unverified supporting context. Mention filenames when relying on them, do not invent claims beyond the extracted text, and say what is missing if they are insufficient.\n\n${sections.join("\n\n---\n\n")}`;
+function sanitizeExperimentNotes(experimentNotes) {
+  return experimentNotes
+    .slice(0, MAX_EXPERIMENT_NOTES)
+    .filter((note) => note && typeof note.text === "string" && note.text.trim())
+    .map((note) => ({
+      text: note.text.trim().slice(0, 3000),
+      createdAt:
+        typeof note.createdAt === "string" ? note.createdAt.slice(0, 80) : ""
+    }));
 }
 
-async function callRequesty(messages, env, referenceDocuments = []) {
+function buildDocumentContext(label, documents) {
+  if (!documents.length) return null;
+
+  const sections = documents.map((document, index) => {
+    const truncatedNote = document.truncated ? " (truncated)" : "";
+    return `${label} ${index + 1}: ${document.filename} [${document.type}]${truncatedNote}\n${document.text}`;
+  });
+
+  return sections.join("\n\n---\n\n");
+}
+
+function buildWorkspaceContext({
+  projectContext,
+  referenceDocuments,
+  experimentDocuments,
+  experimentNotes
+}) {
+  const contextSections = [];
+
+  if (projectContext) {
+    contextSections.push(`Project context / goal:\n${projectContext}`);
+  }
+
+  const referenceContext = buildDocumentContext("Reference", referenceDocuments);
+  if (referenceContext) {
+    contextSections.push(`Literature and reference evidence:\n${referenceContext}`);
+  }
+
+  const experimentContext = buildDocumentContext(
+    "Experiment file",
+    experimentDocuments
+  );
+  if (experimentContext) {
+    contextSections.push(`Experiment result evidence:\n${experimentContext}`);
+  }
+
+  if (experimentNotes.length) {
+    const notes = experimentNotes
+      .map((note, index) => {
+        const timestamp = note.createdAt ? ` (${note.createdAt})` : "";
+        return `Experiment note ${index + 1}${timestamp}:\n${note.text}`;
+      })
+      .join("\n\n---\n\n");
+    contextSections.push(`Informal experiment notes:\n${notes}`);
+  }
+
+  if (!contextSections.length) return null;
+
+  return `The user attached browser-session workspace context. Use it only as unverified supporting evidence. Mention filenames when relying on uploaded files, do not invent claims beyond extracted text, and say what is missing if context is insufficient.\n\n${contextSections.join("\n\n===\n\n")}`;
+}
+
+async function callRequesty(messages, env, workspaceContext = {}) {
   const apiKey = env.REQUESTY_API_KEY;
   const model = env.REQUESTY_MODEL;
 
@@ -598,12 +675,12 @@ async function callRequesty(messages, env, referenceDocuments = []) {
       content: systemPrompt
     }
   ];
-  const referenceContext = buildReferenceContext(referenceDocuments);
+  const contextMessage = buildWorkspaceContext(workspaceContext);
 
-  if (referenceContext) {
+  if (contextMessage) {
     requestMessages.push({
       role: "system",
-      content: referenceContext
+      content: contextMessage
     });
   }
 
@@ -763,7 +840,13 @@ exports.handler = async function handler(rawEvent, context) {
 
       const body = getRequestBody(event);
       const messages = body.messages;
+      const projectContext =
+        typeof body.projectContext === "string"
+          ? body.projectContext.trim().slice(0, 4000)
+          : "";
       const rawReferenceDocuments = body.referenceDocuments;
+      const rawExperimentDocuments = body.experimentDocuments;
+      const rawExperimentNotes = body.experimentNotes;
 
       if (
         rawReferenceDocuments !== undefined &&
@@ -778,13 +861,48 @@ exports.handler = async function handler(rawEvent, context) {
         );
       }
 
+      if (
+        rawExperimentDocuments !== undefined &&
+        !Array.isArray(rawExperimentDocuments)
+      ) {
+        return jsonResponse(
+          makeFallbackResponse(
+            'The optional "experimentDocuments" field must be an array.'
+          ),
+          400,
+          event
+        );
+      }
+
+      if (
+        rawExperimentNotes !== undefined &&
+        !Array.isArray(rawExperimentNotes)
+      ) {
+        return jsonResponse(
+          makeFallbackResponse(
+            'The optional "experimentNotes" field must be an array.'
+          ),
+          400,
+          event
+        );
+      }
+
       const referenceDocuments = sanitizeReferenceDocuments(
         rawReferenceDocuments || []
       );
+      const experimentDocuments = sanitizeExperimentDocuments(
+        rawExperimentDocuments || []
+      );
+      const experimentNotes = sanitizeExperimentNotes(rawExperimentNotes || []);
       const result = await callRequesty(
         messages,
         process.env,
-        referenceDocuments
+        {
+          projectContext,
+          referenceDocuments,
+          experimentDocuments,
+          experimentNotes
+        }
       );
 
       if (!result.ok) {
@@ -794,7 +912,10 @@ exports.handler = async function handler(rawEvent, context) {
       return jsonResponse(
         {
           ...result.data,
-          referencesUsed: referenceDocuments.map((document) => document.filename)
+          referencesUsed: referenceDocuments.map((document) => document.filename),
+          experimentFilesUsed: experimentDocuments.map(
+            (document) => document.filename
+          )
         },
         200,
         event

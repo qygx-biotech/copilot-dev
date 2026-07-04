@@ -1,25 +1,32 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BioDesign Copilot | 生物设计副驾驶</title>
+    <title>BioDesign Workbench</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <section id="loginPanel" class="login-panel" aria-label="登录">
+    <section id="loginPanel" class="login-panel" aria-label="Login">
       <form id="loginForm" class="login-card" novalidate>
+        <div class="language-control login-language-control">
+          <label for="loginLanguageSelect" data-i18n="languageLabel">Language</label>
+          <select id="loginLanguageSelect" data-language-select>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
         <div class="login-copy">
-          <p class="eyebrow">账户登录</p>
-          <h1>BioDesign Copilot</h1>
-          <p class="login-subtitle">
-            登录后继续使用合成生物学项目评审工作台。
+          <p class="eyebrow" data-i18n="loginEyebrow">Account Login</p>
+          <h1 data-i18n="loginTitle">BioDesign Copilot</h1>
+          <p class="login-subtitle" data-i18n="loginSubtitle">
+            Sign in to continue to the synthetic biology design workbench.
           </p>
         </div>
 
         <div class="login-fields">
           <label class="login-field" for="loginAccount">
-            账号
+            <span data-i18n="accountLabel">Account</span>
             <input
               id="loginAccount"
               name="account"
@@ -30,7 +37,7 @@
           </label>
 
           <label class="login-field" for="loginPassword">
-            密码
+            <span data-i18n="passwordLabel">Password</span>
             <input
               id="loginPassword"
               name="password"
@@ -40,151 +47,250 @@
             />
           </label>
 
-          <button id="loginButton" type="submit">登录</button>
+          <button id="loginButton" type="submit" data-i18n="loginButton">Log In</button>
           <p id="loginError" class="login-error" role="alert" aria-live="polite"></p>
         </div>
       </form>
     </section>
 
     <main id="appShell" class="app-shell is-hidden" hidden>
-      <section class="chat-pane" aria-label="对话界面">
-        <header class="chat-header">
-          <div>
-            <p class="eyebrow">合成生物学工作台</p>
-            <h1>BioDesign Copilot</h1>
-            <p class="subtitle">
-              面向合成生物学团队的 AI 设计评审副驾驶
-            </p>
-          </div>
-          <div class="header-actions">
-            <div class="status-pill" aria-label="演示模式已启用">
-              <span></span>
-              演示模式
-            </div>
-            <div class="account-chip" aria-label="当前账户">
-              <span id="currentAccountName" class="current-account">未登录</span>
-              <button id="logoutButton" class="logout-button" type="button">
-                退出
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <div class="prompt-row" aria-label="演示提示词">
-          <button class="prompt-button" type="button">
-            设计一个用于教学荧光演示的大肠杆菌 GFP 表达构建设想。
-          </button>
-          <button class="prompt-button" type="button">
-            评审这个项目想法：工程化酵母产生一种无害色素，用作教学工具。
-          </button>
-          <button class="prompt-button" type="button">
-            帮我把这个粗略想法整理成项目备忘录：构建一个检测乳糖并用荧光报告的生物传感器概念。
-          </button>
+      <header class="workbench-header">
+        <div class="workbench-title-group">
+          <p class="eyebrow" data-i18n="workspaceEyebrow">Workspace</p>
+          <h1 data-i18n="workbenchTitle">BioDesign Workbench</h1>
+          <p class="workbench-subtitle" data-i18n="workbenchSubtitle">
+            Human-in-the-loop AI workspace for synthetic biology design,
+            literature review, and experiment interpretation.
+          </p>
         </div>
 
-        <section id="messageHistory" class="message-history" aria-live="polite">
-          <article class="message assistant">
-            <div class="avatar">BC</div>
-            <div class="message-card">
-              <p>
-                输入一个项目概念，我会把它整理成结构化项目评审，标出缺失信息，并起草适合投资人演示的备忘录。
-              </p>
-            </div>
-          </article>
-        </section>
-
-        <section class="reference-uploader" aria-label="参考文件上传">
-          <div class="reference-copy">
-            <strong>参考文件</strong>
-            <p>
-              参考文件会在你的浏览器本地处理。只有提取出的文本会在提交消息时发送到后端。
-            </p>
-            <p class="reference-warning">
-              本演示只会使用有限长度的提取文本。
-            </p>
+        <div class="header-actions">
+          <div class="language-control">
+            <label for="workbenchLanguageSelect" data-i18n="languageLabel">Language</label>
+            <select id="workbenchLanguageSelect" data-language-select>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
           </div>
-          <div class="reference-actions">
-            <label class="file-picker" for="referenceFileInput">
-              添加文件
-            </label>
-            <button id="clearReferencesButton" class="secondary-button" type="button">
-              清空参考文件
+          <div id="backendStatusLabel" class="status-pill" aria-label="Backend status">
+            <span></span>
+            Alibaba FC backend
+          </div>
+          <div class="account-chip" aria-label="Current account">
+            <span id="currentAccountName" class="current-account">Not signed in</span>
+            <button id="logoutButton" class="logout-button" type="button" data-i18n="logoutButton">
+              Logout
             </button>
           </div>
-          <input
-            id="referenceFileInput"
-            class="sr-only"
-            type="file"
-            accept=".pdf,.txt,.csv,.xlsx,.xls"
-            multiple
-          />
-          <div id="referenceFileList" class="reference-file-list" aria-live="polite"></div>
-        </section>
+        </div>
 
-        <form id="chatForm" class="chat-composer">
-          <label class="sr-only" for="chatInput">项目想法</label>
-          <textarea
-            id="chatInput"
-            rows="3"
-            placeholder="描述一个合成生物学项目想法..."
-            required
-          ></textarea>
-          <button id="sendButton" type="submit">发送</button>
-        </form>
+      </header>
+
+      <section class="workbench-grid" aria-label="BioDesign Workbench">
+        <div class="workspace-column inputs-column">
+          <section class="workbench-panel project-context-panel" aria-label="Project context">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="projectContextEyebrow">Project Context</p>
+                <h2 data-i18n="projectContextTitle">Project context / goal</h2>
+              </div>
+            </div>
+            <label class="project-context-field" for="projectContext">
+              <span class="sr-only" data-i18n="projectContextTitle">Project context / goal</span>
+              <textarea
+                id="projectContext"
+                rows="5"
+                placeholder="Describe the project goal in plain language, e.g. We are trying to improve a pathway, understand failed experiments, compare enzyme variants, or summarize recent literature."
+                data-i18n-placeholder="projectContextPlaceholder"
+              ></textarea>
+            </label>
+          </section>
+
+          <section class="workbench-panel reference-panel" aria-label="Literature and references">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="referencesEyebrow">Literature & References</p>
+                <h2 data-i18n="referencesTitle">Literature & References</h2>
+              </div>
+              <div class="panel-actions">
+                <label class="file-picker" for="referenceFileInput" data-i18n="uploadReferences">Upload references</label>
+                <button id="clearReferencesButton" class="secondary-button" type="button" data-i18n="clearReferences">
+                  Clear references
+                </button>
+              </div>
+            </div>
+            <p class="panel-helper" data-i18n="referencesHelper">
+              Files are processed locally for this MVP. Extracted text is sent to the backend only when you run the agent or ask a question.
+            </p>
+            <input
+              id="referenceFileInput"
+              class="sr-only"
+              type="file"
+              accept=".pdf,.txt,.csv,.xlsx,.xls"
+              multiple
+            />
+            <div id="referenceFileList" class="file-list" aria-live="polite"></div>
+          </section>
+
+          <section class="workbench-panel experiment-panel" aria-label="Experiment results">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="experimentEyebrow">Experiment Evidence</p>
+                <h2 data-i18n="experimentTitle">Experiment Results & Lab Notes</h2>
+              </div>
+              <div class="panel-actions">
+                <label class="file-picker" for="experimentFileInput" data-i18n="uploadResults">Upload results</label>
+                <button id="clearExperimentFilesButton" class="secondary-button" type="button" data-i18n="clearExperimentFiles">
+                  Clear experiment files
+                </button>
+              </div>
+            </div>
+            <p class="panel-helper" data-i18n="experimentHelper">
+              Upload batches of Excel sheets, CSVs, PDFs, TXT files, or informal notes.
+              Treat these as evidence for interpretation, not a permanent record.
+            </p>
+            <input
+              id="experimentFileInput"
+              class="sr-only"
+              type="file"
+              accept=".pdf,.txt,.csv,.xlsx,.xls"
+              multiple
+            />
+            <label class="experiment-note-field" for="experimentNotesField">
+              <span data-i18n="experimentNotesLabel">Experiment notes</span>
+              <textarea
+                id="experimentNotesField"
+                rows="5"
+                placeholder="Add any context about these results: what was tested, what changed, what looked surprising, what you want the agent to focus on."
+                data-i18n-placeholder="experimentNotesPlaceholder"
+              ></textarea>
+            </label>
+            <div class="inline-actions single-row-actions">
+              <button id="addExperimentNoteButton" class="secondary-button" type="button" data-i18n="addNote">
+                Add note
+              </button>
+            </div>
+            <div id="experimentFileList" class="file-list" aria-live="polite"></div>
+            <div id="experimentNoteList" class="note-list" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <div class="workspace-column center-column">
+          <section class="workbench-panel agent-panel" aria-label="Agent instruction">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="agentEyebrow">Agent Instruction</p>
+                <h2 data-i18n="agentTitle">Agent Instruction</h2>
+              </div>
+            </div>
+            <label class="sr-only" for="agentInstruction" data-i18n="agentTitle">Agent Instruction</label>
+            <textarea
+              id="agentInstruction"
+              rows="7"
+              placeholder="Tell the agent what to do with the current references, experiment files, and notes. Example: Review all uploaded results and literature, identify what may explain the performance change, and recommend the next useful analysis or experiment direction."
+              data-i18n-placeholder="agentPlaceholder"
+            ></textarea>
+            <div class="agent-actions">
+              <button id="analyzeRecommendButton" class="primary-button" type="button" data-i18n="analyzeRecommend">
+                Analyze & Recommend
+              </button>
+              <button id="clearInstructionButton" class="text-button" type="button" data-i18n="clearInstruction">
+                Clear Instruction
+              </button>
+            </div>
+            <p id="agentStatus" class="agent-status" aria-live="polite"></p>
+          </section>
+
+          <section class="workbench-panel recommendation-panel" aria-label="Current output and recommendation">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="recommendationEyebrow">Current Output</p>
+                <h2 data-i18n="recommendationTitle">Current recommendation</h2>
+              </div>
+              <div class="panel-actions">
+                <button id="exportButton" class="secondary-button" type="button" data-i18n="exportMarkdown">
+                  Export Markdown
+                </button>
+                <button id="copyRecommendationButton" class="secondary-button" type="button" data-i18n="copyRecommendation">
+                  Copy Recommendation
+                </button>
+                <button id="markReviewedButton" class="secondary-button" type="button" data-i18n="markReviewed">
+                  Mark as Reviewed
+                </button>
+              </div>
+            </div>
+            <div id="reviewStatus" class="review-status">Human review required</div>
+            <div class="recommendation-sections">
+              <section>
+                <h3 data-i18n="currentInterpretationHeading">Current Interpretation</h3>
+                <p id="currentInterpretation"></p>
+              </section>
+              <section>
+                <h3 data-i18n="keyEvidenceHeading">Key Evidence Used</h3>
+                <ul id="keyEvidenceUsed"></ul>
+              </section>
+              <section>
+                <h3 data-i18n="possibleExplanationHeading">Possible Explanation</h3>
+                <p id="possibleExplanation"></p>
+              </section>
+              <section>
+                <h3 data-i18n="recommendedNextStepHeading">Recommended Next Step</h3>
+                <p id="recommendedNextStep"></p>
+              </section>
+              <section>
+                <h3 data-i18n="additionalAnalysisHeading">Additional Analysis Suggested</h3>
+                <p id="additionalAnalysisSuggested"></p>
+              </section>
+              <section>
+                <h3 data-i18n="missingInformationHeading">Missing Information</h3>
+                <ul id="missingInformation"></ul>
+              </section>
+              <section>
+                <h3 data-i18n="humanReviewHeading">Human Review Notes</h3>
+                <p id="humanReviewNotes"></p>
+              </section>
+              <section class="memo-section">
+                <h3 data-i18n="draftSummaryHeading">Draft Summary</h3>
+                <div id="draftSummary" class="memo-preview"></div>
+              </section>
+            </div>
+          </section>
+        </div>
+
+        <aside class="workspace-column side-column">
+          <section class="workbench-panel side-chat-panel" aria-label="Side chat">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" data-i18n="sideChatEyebrow">Side Chat</p>
+                <h2 data-i18n="sideChatTitle">Side Chat</h2>
+                <p class="panel-helper compact-helper" data-i18n="sideChatHelper">
+                  Ask questions without changing the current recommendation.
+                </p>
+              </div>
+            </div>
+            <div class="side-examples" aria-label="Example side questions">
+              <button class="side-example-button" type="button" data-i18n="sideExampleFiles">Summarize the uploaded files.</button>
+              <button class="side-example-button" type="button" data-i18n="sideExamplePatterns">What patterns do you see in the experiment sheets?</button>
+              <button class="side-example-button" type="button" data-i18n="sideExamplePaper">What does this paper suggest?</button>
+              <button class="side-example-button" type="button" data-i18n="sideExampleClarify">What should I clarify before running the main analysis?</button>
+            </div>
+            <div id="sideChatHistory" class="side-chat-history" aria-live="polite"></div>
+            <form id="sideChatForm" class="side-chat-form">
+              <label class="sr-only" for="sideChatInput" data-i18n="sideQuestionLabel">Side question</label>
+              <textarea
+                id="sideChatInput"
+                rows="3"
+                placeholder="Ask a question without updating the project plan..."
+                data-i18n-placeholder="sideChatPlaceholder"
+                required
+              ></textarea>
+              <button id="sendSideChatButton" class="primary-button" type="submit" data-i18n="askButton">
+                Ask
+              </button>
+            </form>
+          </section>
+        </aside>
       </section>
-
-      <aside class="project-panel" aria-label="结构化项目面板">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">实时项目简报</p>
-            <h2>项目面板</h2>
-          </div>
-          <button id="exportButton" class="export-button" type="button">
-            导出 Markdown
-          </button>
-        </div>
-
-        <div class="panel-section">
-          <h3>项目摘要</h3>
-          <p id="panelSummary">
-            开始对话后将生成简洁的项目摘要。
-          </p>
-        </div>
-
-        <div class="panel-grid">
-          <div class="panel-section compact">
-            <h3>生物体 / 系统</h3>
-            <p id="panelOrganism">未指定</p>
-          </div>
-          <div class="panel-section compact">
-            <h3>安全等级</h3>
-            <p id="panelSafetyLevel">待评审</p>
-          </div>
-        </div>
-
-        <div class="panel-section">
-          <h3>缺失信息</h3>
-          <ul id="panelMissingInfo">
-            <li>目标生物体或底盘系统</li>
-            <li>项目目标</li>
-            <li>预期场景和受众</li>
-          </ul>
-        </div>
-
-        <div class="panel-section">
-          <h3>安全说明</h3>
-          <p id="panelSafetyNotes">
-            生成评审后，这里会显示安全说明。
-          </p>
-        </div>
-
-        <div class="panel-section memo-section">
-          <h3>备忘录草稿</h3>
-          <div id="panelMemo" class="memo-preview">
-            暂无备忘录。
-          </div>
-        </div>
-      </aside>
     </main>
 
     <!-- pdf.js is used in-browser to extract text from local PDF reference files. -->

@@ -7,22 +7,52 @@ const loginError = document.querySelector("#loginError");
 const appShell = document.querySelector("#appShell");
 const currentAccountName = document.querySelector("#currentAccountName");
 const logoutButton = document.querySelector("#logoutButton");
-const chatForm = document.querySelector("#chatForm");
-const chatInput = document.querySelector("#chatInput");
-const messageHistory = document.querySelector("#messageHistory");
-const promptButtons = document.querySelectorAll(".prompt-button");
-const exportButton = document.querySelector("#exportButton");
+const backendStatusLabel = document.querySelector("#backendStatusLabel");
+const languageSelects = document.querySelectorAll("[data-language-select]");
+
+const projectContextInput = document.querySelector("#projectContext");
 const referenceFileInput = document.querySelector("#referenceFileInput");
 const referenceFileList = document.querySelector("#referenceFileList");
 const clearReferencesButton = document.querySelector("#clearReferencesButton");
+const experimentFileInput = document.querySelector("#experimentFileInput");
+const experimentFileList = document.querySelector("#experimentFileList");
+const clearExperimentFilesButton = document.querySelector("#clearExperimentFilesButton");
+const experimentNotesField = document.querySelector("#experimentNotesField");
+const addExperimentNoteButton = document.querySelector("#addExperimentNoteButton");
+const experimentNoteList = document.querySelector("#experimentNoteList");
 
-const MAX_REFERENCE_FILES = 3;
-const MAX_REFERENCE_FILE_SIZE = 5 * 1024 * 1024;
+const agentInstructionInput = document.querySelector("#agentInstruction");
+const analyzeRecommendButton = document.querySelector("#analyzeRecommendButton");
+const clearInstructionButton = document.querySelector("#clearInstructionButton");
+const agentStatus = document.querySelector("#agentStatus");
+
+const currentInterpretation = document.querySelector("#currentInterpretation");
+const keyEvidenceUsed = document.querySelector("#keyEvidenceUsed");
+const possibleExplanation = document.querySelector("#possibleExplanation");
+const recommendedNextStep = document.querySelector("#recommendedNextStep");
+const additionalAnalysisSuggested = document.querySelector("#additionalAnalysisSuggested");
+const missingInformation = document.querySelector("#missingInformation");
+const humanReviewNotes = document.querySelector("#humanReviewNotes");
+const draftSummary = document.querySelector("#draftSummary");
+const reviewStatus = document.querySelector("#reviewStatus");
+const exportButton = document.querySelector("#exportButton");
+const copyRecommendationButton = document.querySelector("#copyRecommendationButton");
+const markReviewedButton = document.querySelector("#markReviewedButton");
+
+const sideChatForm = document.querySelector("#sideChatForm");
+const sideChatInput = document.querySelector("#sideChatInput");
+const sideChatHistory = document.querySelector("#sideChatHistory");
+const sideExampleButtons = document.querySelectorAll(".side-example-button");
+
+const MAX_REFERENCE_FILES = 8;
+const MAX_EXPERIMENT_FILES = 12;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const PER_FILE_TEXT_LIMIT = 12000;
-const TOTAL_REFERENCE_TEXT_LIMIT = 24000;
-const SPREADSHEET_SHEET_LIMIT = 4;
-const PDF_PAGE_LIMIT = 10;
-const SUPPORTED_REFERENCE_EXTENSIONS = new Set([
+const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
+const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
+const SPREADSHEET_SHEET_LIMIT = 6;
+const PDF_PAGE_LIMIT = 12;
+const SUPPORTED_DOCUMENT_EXTENSIONS = new Set([
   "pdf",
   "txt",
   "csv",
@@ -37,25 +67,406 @@ const WORKER_URL = BACKEND_PROVIDER === "alibaba" ? ALIBABA_FC_URL : CLOUDFLARE_
 const USE_BACKEND = true;
 const ACCESS_TOKEN_STORAGE_KEY = "access_token";
 const ACCOUNT_STORAGE_KEY = "account";
+const PROJECT_CONTEXT_STORAGE_KEY = "biodesign_workbench_project_context";
+const EXPERIMENT_NOTES_STORAGE_KEY = "biodesign_workbench_experiment_notes";
+const RECOMMENDATION_STORAGE_KEY = "biodesign_workbench_recommendation";
+const LANGUAGE_STORAGE_KEY = "biodesign_workbench_language";
+const I18N = {
+  en: {
+    documentTitle: "BioDesign Workbench",
+    languageLabel: "Language",
+    loginTitle: "BioDesign Copilot",
+    loginEyebrow: "Account Login",
+    loginSubtitle: "Sign in to continue to the synthetic biology design workbench.",
+    accountLabel: "Account",
+    passwordLabel: "Password",
+    loginButton: "Log In",
+    loginBusy: "Logging in...",
+    loginMissing: "Please enter account and password.",
+    loginInvalid: "Incorrect account or password.",
+    loginFailed: "Login failed. Please try again.",
+    loginTokenMissing: "Login response is missing token.",
+    loginAccountMissing: "Login response is missing account info.",
+    sessionChecking: "Checking...",
+    pleaseLogin: "Please sign in.",
+    signedIn: "Signed in",
+    notSignedIn: "Not signed in",
+    loggedOut: "Signed out.",
+    sessionExpired: "Session expired. Please sign in again.",
+    waitLabel: "Please wait...",
+    workspaceEyebrow: "Workspace",
+    workbenchSubtitle:
+      "Human-in-the-loop AI workspace for synthetic biology design, literature review, and experiment interpretation.",
+    workbenchTitle: "BioDesign Workbench",
+    logoutButton: "Logout",
+    projectContextEyebrow: "Project Context",
+    projectContextTitle: "Project context / goal",
+    projectContextPlaceholder:
+      "Describe the project goal in plain language, e.g. We are trying to improve a pathway, understand failed experiments, compare enzyme variants, or summarize recent literature.",
+    referencesEyebrow: "Literature & References",
+    referencesTitle: "Literature & References",
+    uploadReferences: "Upload references",
+    clearReferences: "Clear references",
+    referencesHelper:
+      "Files are processed locally for this MVP. Extracted text is sent to the backend only when you run the agent or ask a question.",
+    experimentEyebrow: "Experiment Evidence",
+    experimentTitle: "Experiment Results & Lab Notes",
+    uploadResults: "Upload results",
+    clearExperimentFiles: "Clear experiment files",
+    experimentHelper:
+      "Upload batches of Excel sheets, CSVs, PDFs, TXT files, or informal notes. Treat these as evidence for interpretation, not a permanent record.",
+    experimentNotesLabel: "Experiment notes",
+    experimentNotesPlaceholder:
+      "Add any context about these results: what was tested, what changed, what looked surprising, what you want the agent to focus on.",
+    addNote: "Add note",
+    agentEyebrow: "Agent Instruction",
+    agentTitle: "Agent Instruction",
+    agentPlaceholder:
+      "Tell the agent what to do with the current references, experiment files, and notes. Example: Review all uploaded results and literature, identify what may explain the performance change, and recommend the next useful analysis or experiment direction.",
+    analyzeRecommend: "Analyze & Recommend",
+    clearInstruction: "Clear Instruction",
+    recommendationEyebrow: "Current Output",
+    recommendationTitle: "Current recommendation",
+    exportMarkdown: "Export Markdown",
+    copyRecommendation: "Copy Recommendation",
+    markReviewed: "Mark as Reviewed",
+    humanReviewRequired: "Human review required",
+    reviewedByHuman: "Reviewed by human",
+    currentInterpretationHeading: "Current Interpretation",
+    keyEvidenceHeading: "Key Evidence Used",
+    possibleExplanationHeading: "Possible Explanation",
+    recommendedNextStepHeading: "Recommended Next Step",
+    additionalAnalysisHeading: "Additional Analysis Suggested",
+    missingInformationHeading: "Missing Information",
+    humanReviewHeading: "Human Review Notes",
+    draftSummaryHeading: "Draft Summary",
+    sideChatEyebrow: "Side Chat",
+    sideChatTitle: "Side Chat",
+    sideChatHelper: "Ask questions without changing the current recommendation.",
+    sideExampleFiles: "Summarize the uploaded files.",
+    sideExamplePatterns: "What patterns do you see in the experiment sheets?",
+    sideExamplePaper: "What does this paper suggest?",
+    sideExampleClarify: "What should I clarify before running the main analysis?",
+    sideQuestionLabel: "Side question",
+    sideChatPlaceholder: "Ask a question without updating the project plan...",
+    askButton: "Ask",
+    backendProviderAlibaba: "Alibaba FC backend",
+    backendProviderCloudflare: "Cloudflare Worker backend",
+    backendReady: "Ready",
+    backendConnected: "Connected",
+    backendWorking: "Working",
+    backendFallback: "Fallback",
+    backendFallbackMessage:
+      "I could not reach the BioDesign Copilot backend, so I generated a local demo response instead.",
+    noReferenceFiles: "No reference files uploaded yet.",
+    noExperimentFiles: "No experiment files uploaded yet.",
+    noExperimentNotes: "No experiment notes added yet.",
+    referencesCleared: "References cleared.",
+    experimentFilesCleared: "Experiment files cleared.",
+    addExperimentNoteFirst: "Add an experiment note first.",
+    tellAgentFirst: "Tell the agent what to analyze first.",
+    recommendationExported: "Recommendation exported as Markdown.",
+    recommendationCopied: "Recommendation copied.",
+    agentReviewing: "Agent is reviewing inputs...",
+    recommendationUpdated: "Recommendation updated. Scientist review required.",
+    sideChatIntro: "Ask questions here without changing the current recommendation.",
+    sideChatNoAnswer: "No side-chat answer returned.",
+    fileLimit: "Only {count} files can be attached in this MVP.",
+    fileAdded: "Added {name}.",
+    fileUnsupported: "Unsupported file type: {name}",
+    fileTooLarge: "File exceeds the 5 MB limit: {name}",
+    fileNoText: "No text could be extracted from {name}.",
+    fileReadFailed: "Unable to read {name}.",
+    fileParseFailed: "Could not parse {name}.",
+    excelParserMissing: "Excel parser is not loaded.",
+    pdfParserMissing: "PDF parser is not loaded.",
+    chars: "chars",
+    truncated: "truncated",
+    remove: "Remove",
+    experimentNoteTitle: "Experiment note",
+    removeNote: "Remove note",
+    unknownTime: "Unknown time",
+    responseLanguageInstruction: "Respond in English.",
+    defaultTitle: "BioDesign Workbench Recommendation",
+    notProvided: "Not provided.",
+    notAvailable: "Not available.",
+    sideChatUserLabel: "You",
+    sideChatAssistantLabel: "Workbench side chat",
+    backendDisabled: "Backend disabled.",
+    backendReturned: "Backend returned {status}",
+    backendMissingPayload: "Backend response is missing reply and project data.",
+    backendLimitedResponse: "Backend returned a limited response.",
+    defaultCurrentInterpretation:
+      "No main analysis has been run yet. Add optional project context, upload evidence, then use Analyze & Recommend.",
+    defaultKeyEvidence: "No evidence selected yet.",
+    defaultPossibleExplanation:
+      "Possible explanations will appear after the agent reviews the available context.",
+    defaultRecommendedNextStep:
+      "Add references, experiment files, or notes, then give the agent a clear instruction.",
+    defaultAdditionalAnalysis:
+      "Additional analysis suggestions will appear after the main agent action.",
+    defaultHumanReview:
+      "AI-generated recommendations require scientist review before experimental use.",
+    defaultDraftSummary:
+      "A draft summary will appear after Analyze & Recommend. This MVP keeps workspace state in the browser session only.",
+    fallbackCurrentInterpretation:
+      "The workspace contains browser-session evidence that may include literature, spreadsheets, result files, and informal notes. Because the backend was unavailable, this is a local demo interpretation.",
+    fallbackPossibleExplanation:
+      "A plausible explanation should be treated as a hypothesis until the scientist reviews the uploaded evidence and checks whether files are comparable.",
+    fallbackRecommendedNextStep:
+      "Run a focused evidence review: align uploaded result sheets with the project context, identify the strongest pattern or discrepancy, then decide which analysis or experiment direction deserves human review.",
+    fallbackAdditionalAnalysis:
+      "Summarize each uploaded file, list missing metadata, and compare the latest results against the most relevant literature claims.",
+    normalizedCurrentInterpretation:
+      "The available evidence needs scientist review before a confident interpretation can be made.",
+    normalizedPossibleExplanation:
+      "Several explanations may be plausible. Compare the uploaded literature, result patterns, and informal notes before selecting one working hypothesis.",
+    normalizedRecommendedNextStep:
+      "Choose one clear follow-up analysis or planning-level experiment direction for human review.",
+    normalizedAdditionalAnalysis:
+      "Check whether uploaded result sheets are comparable, identify missing controls or metadata, and verify any apparent trends against the source files.",
+    normalizedHumanReview:
+      "Human scientists remain responsible for interpreting evidence and approving any experimental decisions.",
+    evidenceReference: "Reference: {name}",
+    evidenceExperimentFile: "Experiment file: {name}",
+    evidenceExperimentNote: "Experiment note: {note}",
+    noEvidenceIncluded: "No uploaded evidence was included.",
+    missingProjectContext: "Project context or goal",
+    missingReferenceEvidence: "Literature or reference evidence",
+    missingExperimentEvidence: "Experiment result files or notes",
+    noMajorGaps: "No major gaps identified from current browser-session context.",
+    projectContextPromptHeading: "Project context / goal:",
+    evidenceSummaryHeading: "Available evidence summary:",
+    evidenceReferenceFilesLine: "- reference files: {value}",
+    evidenceExperimentFilesLine: "- experiment files: {value}",
+    evidenceExperimentNotesLine: "- experiment notes: {value}",
+    noneValue: "none",
+    localSideChatReply:
+      "Planning-level answer: {question} should be interpreted against the project context and uploaded evidence. Treat this as a discussion aid, not an update to the current recommendation.",
+    markdownProjectContextHeading: "Project Context / Goal",
+    markdownCurrentInterpretationHeading: "Current Interpretation",
+    markdownKeyEvidenceHeading: "Key Evidence Used",
+    markdownPossibleExplanationHeading: "Possible Explanation",
+    markdownRecommendedNextStepHeading: "Recommended Next Step",
+    markdownAdditionalAnalysisHeading: "Additional Analysis Suggested",
+    markdownMissingInformationHeading: "Missing Information",
+    markdownHumanReviewHeading: "Human Review Notes",
+    markdownDraftSummaryHeading: "Draft Summary",
+    localSummaryTitle: "Draft Summary",
+    localSummaryProjectContext: "Project context:",
+    localSummaryInstruction: "Instruction:",
+    localSummaryInterpretationNote: "Interpretation note:",
+    localSummaryRecommendedNextStep: "Recommended next step:",
+    localSummaryRecommendedNextStepText:
+      "Review the uploaded evidence, identify the most plausible explanation or uncertainty, and select one next analysis or experiment direction for scientist review.",
+    localSummaryHumanReview: "Human review:",
+  },
+  zh: {
+    documentTitle: "BioDesign Workbench | 生物设计工作台",
+    languageLabel: "语言",
+    loginTitle: "BioDesign Copilot",
+    loginEyebrow: "账户登录",
+    loginSubtitle: "登录后继续使用合成生物学设计工作台。",
+    accountLabel: "账号",
+    passwordLabel: "密码",
+    loginButton: "登录",
+    loginBusy: "登录中...",
+    loginMissing: "请输入账号和密码。",
+    loginInvalid: "账号或密码不正确。",
+    loginFailed: "登录失败，请稍后重试。",
+    loginTokenMissing: "登录响应缺少 token。",
+    loginAccountMissing: "登录响应缺少账户信息。",
+    sessionChecking: "检查中...",
+    pleaseLogin: "请先登录。",
+    signedIn: "已登录",
+    notSignedIn: "未登录",
+    loggedOut: "已退出登录。",
+    sessionExpired: "登录状态已失效，请重新登录。",
+    waitLabel: "请稍候...",
+    workspaceEyebrow: "工作区",
+    workbenchSubtitle:
+      "面向合成生物学设计、文献评审和实验结果解读的人机协同 AI 工作台。",
+    workbenchTitle: "BioDesign 工作台",
+    logoutButton: "退出登录",
+    projectContextEyebrow: "项目背景",
+    projectContextTitle: "项目背景 / 目标",
+    projectContextPlaceholder:
+      "用自然语言描述项目目标，例如：我们想改进某条通路、理解失败实验、比较酶变体，或总结近期文献。",
+    referencesEyebrow: "文献与参考资料",
+    referencesTitle: "文献与参考资料",
+    uploadReferences: "上传参考资料",
+    clearReferences: "清空参考资料",
+    referencesHelper:
+      "本 MVP 会在浏览器本地处理文件。只有在运行智能体或提问时，提取出的文本才会发送到后端。",
+    experimentEyebrow: "实验证据",
+    experimentTitle: "实验结果与实验记录",
+    uploadResults: "上传结果文件",
+    clearExperimentFiles: "清空实验文件",
+    experimentHelper:
+      "可上传多批 Excel 表、CSV、PDF、TXT 或非正式笔记。这些内容会作为解读证据，不会作为永久记录存储。",
+    experimentNotesLabel: "实验备注",
+    experimentNotesPlaceholder:
+      "补充这些结果的背景：测试了什么、改变了什么、哪些现象令人意外、希望智能体重点关注什么。",
+    addNote: "添加备注",
+    agentEyebrow: "智能体指令",
+    agentTitle: "智能体指令",
+    agentPlaceholder:
+      "告诉智能体如何处理当前参考资料、实验文件和备注。例如：评审所有上传结果和文献，判断性能变化的可能原因，并推荐下一步有用的分析或实验方向。",
+    analyzeRecommend: "分析并推荐",
+    clearInstruction: "清空指令",
+    recommendationEyebrow: "当前输出",
+    recommendationTitle: "当前推荐",
+    exportMarkdown: "导出 Markdown",
+    copyRecommendation: "复制推荐",
+    markReviewed: "标记已审阅",
+    humanReviewRequired: "需要人工审阅",
+    reviewedByHuman: "已人工审阅",
+    currentInterpretationHeading: "当前解读",
+    keyEvidenceHeading: "使用的关键证据",
+    possibleExplanationHeading: "可能解释",
+    recommendedNextStepHeading: "推荐下一步",
+    additionalAnalysisHeading: "建议补充分析",
+    missingInformationHeading: "缺失信息",
+    humanReviewHeading: "人工审阅说明",
+    draftSummaryHeading: "摘要草稿",
+    sideChatEyebrow: "侧边问答",
+    sideChatTitle: "侧边问答",
+    sideChatHelper: "在不改变当前推荐的情况下提问。",
+    sideExampleFiles: "总结已上传的文件。",
+    sideExamplePatterns: "你在实验表格里看到了什么模式？",
+    sideExamplePaper: "这篇论文提示了什么？",
+    sideExampleClarify: "运行主分析前我应该澄清什么？",
+    sideQuestionLabel: "侧边问题",
+    sideChatPlaceholder: "提出一个不会更新项目计划的问题...",
+    askButton: "提问",
+    backendProviderAlibaba: "阿里云 FC 后端",
+    backendProviderCloudflare: "Cloudflare Worker 后端",
+    backendReady: "就绪",
+    backendConnected: "已连接",
+    backendWorking: "处理中",
+    backendFallback: "本地回退",
+    backendFallbackMessage:
+      "我无法连接 BioDesign Copilot 后端，因此先生成了一份本地演示回复。",
+    noReferenceFiles: "尚未上传参考资料。",
+    noExperimentFiles: "尚未上传实验文件。",
+    noExperimentNotes: "尚未添加实验备注。",
+    referencesCleared: "已清空参考资料。",
+    experimentFilesCleared: "已清空实验文件。",
+    addExperimentNoteFirst: "请先添加实验备注。",
+    tellAgentFirst: "请先告诉智能体要分析什么。",
+    recommendationExported: "推荐内容已导出为 Markdown。",
+    recommendationCopied: "推荐内容已复制。",
+    agentReviewing: "智能体正在审阅输入...",
+    recommendationUpdated: "推荐已更新，仍需科学家审阅。",
+    sideChatIntro: "在这里提问不会改变当前推荐。",
+    sideChatNoAnswer: "侧边问答没有返回内容。",
+    fileLimit: "本 MVP 最多可附加 {count} 个文件。",
+    fileAdded: "已添加 {name}。",
+    fileUnsupported: "不支持的文件类型：{name}",
+    fileTooLarge: "文件超过 5 MB 限制：{name}",
+    fileNoText: "无法从文件中提取文本：{name}。",
+    fileReadFailed: "无法读取文件：{name}。",
+    fileParseFailed: "无法解析文件：{name}。",
+    excelParserMissing: "Excel 解析库未加载。",
+    pdfParserMissing: "PDF 解析库未加载。",
+    chars: "字符",
+    truncated: "已截断",
+    remove: "移除",
+    experimentNoteTitle: "实验备注",
+    removeNote: "删除备注",
+    unknownTime: "未知时间",
+    responseLanguageInstruction: "请用简体中文回答。",
+    defaultTitle: "BioDesign Workbench 推荐",
+    notProvided: "未提供。",
+    notAvailable: "暂无。",
+    sideChatUserLabel: "你",
+    sideChatAssistantLabel: "工作台侧边问答",
+    backendDisabled: "后端已禁用。",
+    backendReturned: "后端返回 {status}",
+    backendMissingPayload: "后端响应缺少回复或项目数据。",
+    backendLimitedResponse: "后端只返回了有限内容。",
+    defaultCurrentInterpretation:
+      "尚未运行主分析。可以先补充项目背景、上传证据，然后点击“分析并推荐”。",
+    defaultKeyEvidence: "尚未选择证据。",
+    defaultPossibleExplanation:
+      "智能体审阅当前背景后，会在这里给出可能解释。",
+    defaultRecommendedNextStep:
+      "添加参考资料、实验文件或备注，然后给智能体一个清晰指令。",
+    defaultAdditionalAnalysis:
+      "运行主智能体动作后，这里会显示建议补充分析。",
+    defaultHumanReview:
+      "AI 生成的建议在用于实验前必须经过科学家审阅。",
+    defaultDraftSummary:
+      "点击“分析并推荐”后会生成摘要草稿。本 MVP 仅在浏览器会话中保存工作区状态。",
+    fallbackCurrentInterpretation:
+      "工作区中包含浏览器会话内的证据，可能包括文献、表格、结果文件和非正式备注。由于后端不可用，这是一份本地演示解读。",
+    fallbackPossibleExplanation:
+      "任何可能解释都应先视为假设，直到科学家审阅上传证据并确认文件之间是否可比。",
+    fallbackRecommendedNextStep:
+      "先进行一次聚焦的证据评审：将上传结果表与项目背景对齐，找出最强模式或差异，再决定哪一项分析或实验方向值得人工审阅。",
+    fallbackAdditionalAnalysis:
+      "总结每个上传文件，列出缺失元数据，并把最新结果与最相关的文献结论进行比较。",
+    normalizedCurrentInterpretation:
+      "在形成可靠解读前，当前证据仍需要科学家审阅。",
+    normalizedPossibleExplanation:
+      "可能存在多种解释。请先对比上传文献、结果模式和非正式备注，再选择一个工作假设。",
+    normalizedRecommendedNextStep:
+      "选择一个清晰的后续分析或规划层面的实验方向，交由人工审阅。",
+    normalizedAdditionalAnalysis:
+      "检查上传结果表是否可比，识别缺失的对照或元数据，并回到源文件验证任何明显趋势。",
+    normalizedHumanReview:
+      "科学家仍需负责解释证据，并批准任何实验决策。",
+    evidenceReference: "参考资料：{name}",
+    evidenceExperimentFile: "实验文件：{name}",
+    evidenceExperimentNote: "实验备注：{note}",
+    noEvidenceIncluded: "未包含上传证据。",
+    missingProjectContext: "项目背景或目标",
+    missingReferenceEvidence: "文献或参考证据",
+    missingExperimentEvidence: "实验结果文件或备注",
+    noMajorGaps: "基于当前浏览器会话内容，暂未发现主要缺口。",
+    projectContextPromptHeading: "项目背景 / 目标：",
+    evidenceSummaryHeading: "可用证据摘要：",
+    evidenceReferenceFilesLine: "- 参考资料：{value}",
+    evidenceExperimentFilesLine: "- 实验文件：{value}",
+    evidenceExperimentNotesLine: "- 实验备注：{value}",
+    noneValue: "无",
+    localSideChatReply:
+      "规划层面的回答：{question} 应结合项目背景和上传证据来理解。请把它作为讨论辅助，而不是对当前推荐的更新。",
+    markdownProjectContextHeading: "项目背景 / 目标",
+    markdownCurrentInterpretationHeading: "当前解读",
+    markdownKeyEvidenceHeading: "使用的关键证据",
+    markdownPossibleExplanationHeading: "可能解释",
+    markdownRecommendedNextStepHeading: "推荐下一步",
+    markdownAdditionalAnalysisHeading: "建议补充分析",
+    markdownMissingInformationHeading: "缺失信息",
+    markdownHumanReviewHeading: "人工审阅说明",
+    markdownDraftSummaryHeading: "摘要草稿",
+    localSummaryTitle: "摘要草稿",
+    localSummaryProjectContext: "项目背景：",
+    localSummaryInstruction: "指令：",
+    localSummaryInterpretationNote: "解读说明：",
+    localSummaryRecommendedNextStep: "推荐下一步：",
+    localSummaryRecommendedNextStepText:
+      "审阅上传证据，识别最可能的解释或不确定性，并选择一个下一步分析或实验方向交由科学家审阅。",
+    localSummaryHumanReview: "人工审阅：",
+  },
+};
 
-console.log("BACKEND_PROVIDER:", BACKEND_PROVIDER);
-console.log("WORKER_URL:", WORKER_URL);
-console.log("USE_BACKEND:", USE_BACKEND);
+let currentLanguage = normalizeLanguage(readStoredLanguage() || navigator.language);
+let lastBackendStatus = "backendReady";
 
-const panelSummary = document.querySelector("#panelSummary");
-const panelOrganism = document.querySelector("#panelOrganism");
-const panelMissingInfo = document.querySelector("#panelMissingInfo");
-const panelSafetyLevel = document.querySelector("#panelSafetyLevel");
-const panelSafetyNotes = document.querySelector("#panelSafetyNotes");
-const panelMemo = document.querySelector("#panelMemo");
-
-let currentProject = createProjectState(
-  "开始对话后将生成简洁的项目摘要。"
-);
-const chatMessages = [];
-let referenceDocuments = [];
 let authToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "";
 let currentAccount = sessionStorage.getItem(ACCOUNT_STORAGE_KEY) || "";
+let projectContext = sessionStorage.getItem(PROJECT_CONTEXT_STORAGE_KEY) || "";
+let referenceDocuments = [];
+let experimentDocuments = [];
+let experimentNotes = loadSessionJson(EXPERIMENT_NOTES_STORAGE_KEY, []);
+let currentRecommendation = loadSessionJson(
+  RECOMMENDATION_STORAGE_KEY,
+  createDefaultRecommendation()
+);
+let sideChatMessages = [];
+let activeAgentRequest = false;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -64,6 +475,13 @@ class AuthRequiredError extends Error {
   }
 }
 
+languageSelects.forEach((select) => {
+  select.addEventListener("change", () => setLanguage(select.value));
+});
+
+initializeWorkbench();
+checkCurrentUser();
+
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   loginError.textContent = "";
@@ -71,11 +489,11 @@ loginForm.addEventListener("submit", async (event) => {
   const account = loginAccountInput.value.trim();
 
   if (!account || !loginPasswordInput.value) {
-    loginError.textContent = "请输入账号和密码。";
+    loginError.textContent = t("loginMissing");
     return;
   }
 
-  setLoginBusy(true, "登录中...");
+  setLoginBusy(true, t("loginBusy"));
 
   try {
     const loginRequest = fetch(backendUrl("/api/login"), {
@@ -95,30 +513,30 @@ loginForm.addEventListener("submit", async (event) => {
     const data = await readOptionalJson(response);
 
     if (response.status === 401) {
-      showLoggedOut(getAuthErrorMessage(data) || "账号或密码不正确。");
+      showLoggedOut(t("loginInvalid"));
       return;
     }
 
     if (!response.ok) {
-      throw new Error(getAuthErrorMessage(data) || "登录失败，请检查账号和密码。");
+      throw new Error(getAuthErrorMessage(data) || t("loginFailed"));
     }
 
     const loggedInAccount =
       typeof data.user?.account === "string" ? data.user.account.trim() : "";
 
     if (typeof data.token !== "string" || !data.token) {
-      throw new Error("登录响应缺少 token。");
+      throw new Error(t("loginTokenMissing"));
     }
 
     if (!loggedInAccount) {
-      throw new Error("登录响应缺少账户信息。");
+      throw new Error(t("loginAccountMissing"));
     }
 
     setAuthSession(data.token, loggedInAccount);
     showAuthenticated(loggedInAccount);
   } catch (error) {
     console.warn("Login failed.", error);
-    showLoggedOut(error.message || "登录失败，请稍后重试。");
+    showLoggedOut(error.message || t("loginFailed"));
   } finally {
     loginPasswordInput.value = "";
     setLoginBusy(false);
@@ -127,109 +545,201 @@ loginForm.addEventListener("submit", async (event) => {
 
 logoutButton.addEventListener("click", () => {
   clearAuthSession();
-  showLoggedOut("已退出登录。");
+  showLoggedOut(t("loggedOut"));
 });
 
-checkCurrentUser();
-
-promptButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    chatInput.value = button.textContent.trim().replace(/\s+/g, " ");
-    chatInput.focus();
-  });
+projectContextInput.addEventListener("input", () => {
+  projectContext = projectContextInput.value.trim();
+  sessionStorage.setItem(PROJECT_CONTEXT_STORAGE_KEY, projectContext);
 });
 
 referenceFileInput.addEventListener("change", async (event) => {
-  const files = Array.from(event.target.files || []);
-
-  for (const file of files) {
-    if (referenceDocuments.length >= MAX_REFERENCE_FILES) {
-      showToast("最多只能添加 3 个参考文件。");
-      break;
-    }
-
-    try {
-      const parsedReference = await parseReferenceFile(file);
-      referenceDocuments.push(parsedReference);
-      renderReferenceFiles();
-      showToast(`已添加参考文件：${file.name}`);
-    } catch (error) {
-      console.warn("Reference file parsing failed.", error);
-      showToast(error.message || `无法解析文件：${file.name}`);
-    }
-  }
-
+  await handleDocumentFiles({
+    files: Array.from(event.target.files || []),
+    collection: referenceDocuments,
+    maxFiles: MAX_REFERENCE_FILES,
+    onUpdate(nextDocuments) {
+      referenceDocuments = nextDocuments;
+      renderDocumentList(
+        referenceFileList,
+        referenceDocuments,
+        t("noReferenceFiles"),
+        removeReferenceDocument
+      );
+    },
+  });
   referenceFileInput.value = "";
+});
+
+experimentFileInput.addEventListener("change", async (event) => {
+  await handleDocumentFiles({
+    files: Array.from(event.target.files || []),
+    collection: experimentDocuments,
+    maxFiles: MAX_EXPERIMENT_FILES,
+    onUpdate(nextDocuments) {
+      experimentDocuments = nextDocuments;
+      renderDocumentList(
+        experimentFileList,
+        experimentDocuments,
+        t("noExperimentFiles"),
+        removeExperimentDocument
+      );
+    },
+  });
+  experimentFileInput.value = "";
 });
 
 clearReferencesButton.addEventListener("click", () => {
   referenceDocuments = [];
-  renderReferenceFiles();
-  showToast("已清空参考文件。");
+  renderDocumentList(
+    referenceFileList,
+    referenceDocuments,
+    t("noReferenceFiles"),
+    removeReferenceDocument
+  );
+  showToast(t("referencesCleared"));
 });
 
-chatForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+clearExperimentFilesButton.addEventListener("click", () => {
+  experimentDocuments = [];
+  renderDocumentList(
+    experimentFileList,
+    experimentDocuments,
+    t("noExperimentFiles"),
+    removeExperimentDocument
+  );
+  showToast(t("experimentFilesCleared"));
+});
 
-  const userMessage = chatInput.value.trim();
-  if (!userMessage) return;
+addExperimentNoteButton.addEventListener("click", () => {
+  const noteText = experimentNotesField.value.trim();
 
-  addMessage("user", userMessage);
-  chatMessages.push({ role: "user", content: userMessage });
-  const referencesForRequest = buildReferenceDocumentsForRequest();
-  if (referencesForRequest.length) {
-    addReferenceNote(referencesForRequest);
-  }
-  chatInput.value = "";
-
-  if (!USE_BACKEND) {
-    currentProject = createProjectState(userMessage);
-    addMessage("assistant", buildAssistantResponse(currentProject), true);
-    updateProjectPanel(currentProject);
+  if (!noteText) {
+    showToast(t("addExperimentNoteFirst"));
+    experimentNotesField.focus();
     return;
   }
 
+  experimentNotes.unshift({
+    id: makeId(),
+    createdAt: new Date().toISOString(),
+    text: noteText,
+  });
+  saveExperimentNotes();
+  renderExperimentNotes();
+  experimentNotesField.value = "";
+});
+
+analyzeRecommendButton.addEventListener("click", () => {
+  const instruction = agentInstructionInput.value.trim();
+
+  if (!instruction) {
+    showToast(t("tellAgentFirst"));
+    agentInstructionInput.focus();
+    return;
+  }
+
+  runAgentInstruction(instruction);
+});
+
+clearInstructionButton.addEventListener("click", () => {
+  agentInstructionInput.value = "";
+  agentInstructionInput.focus();
+});
+
+sideExampleButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    sideChatInput.value = button.textContent.trim();
+    sideChatInput.focus();
+  });
+});
+
+sideChatForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const question = sideChatInput.value.trim();
+  if (!question) return;
+
+  const messagesForBackend = buildSideChatMessages(question);
+  sideChatInput.value = "";
+  addSideChatMessage("user", question);
+  sideChatMessages.push({ role: "user", content: question });
+
   try {
-    const backendResponse = await sendMessageToBackend(
-      chatMessages,
-      referencesForRequest
-    );
-    currentProject = normalizeBackendProject(backendResponse.project);
-    chatMessages.push({ role: "assistant", content: backendResponse.reply });
-    addMessage("assistant", formatBackendReply(backendResponse.reply), true);
-    updateProjectPanel(currentProject);
+    const response = await sendWorkbenchRequest({
+      mode: "side_chat",
+      messages: messagesForBackend,
+    });
+    const reply = response.reply || t("sideChatNoAnswer");
+    addSideChatMessage("assistant", reply);
+    sideChatMessages.push({ role: "assistant", content: reply });
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       console.warn("Backend auth required.", error);
       return;
     }
 
-    console.warn("Backend chat failed; using local mock response.", error);
-    addMessage(
-      "assistant",
-      "暂时无法连接后端，因此我先生成了一份本地演示回复。你仍然可以继续探索这个项目概念。"
-    );
-
-    currentProject = createProjectState(userMessage);
-    addMessage("assistant", buildAssistantResponse(currentProject), true);
-    updateProjectPanel(currentProject);
+    console.warn("Side chat backend failed; using local fallback.", error);
+    const reply = `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`;
+    addSideChatMessage("assistant", reply);
+    sideChatMessages.push({ role: "assistant", content: reply });
   }
 });
 
 exportButton.addEventListener("click", () => {
-  const markdown = buildMarkdownExport(currentProject);
+  const markdown = buildMarkdownExport(currentRecommendation);
   const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = "biodesign-copilot-project-memo.md";
+  link.download = "biodesign-workbench-recommendation.md";
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  showToast("Markdown 备忘录已导出");
+  showToast(t("recommendationExported"));
 });
+
+copyRecommendationButton.addEventListener("click", async () => {
+  await copyText(buildMarkdownExport(currentRecommendation));
+  showToast(t("recommendationCopied"));
+});
+
+markReviewedButton.addEventListener("click", () => {
+  currentRecommendation = {
+    ...currentRecommendation,
+    reviewed: true,
+    reviewedAt: new Date().toISOString(),
+  };
+  saveCurrentRecommendation();
+  renderRecommendation();
+});
+
+function initializeWorkbench() {
+  projectContextInput.value = projectContext;
+  applyLanguage();
+  renderBackendStatus("backendReady");
+  renderDocumentList(
+    referenceFileList,
+    referenceDocuments,
+    t("noReferenceFiles"),
+    removeReferenceDocument
+  );
+  renderDocumentList(
+    experimentFileList,
+    experimentDocuments,
+    t("noExperimentFiles"),
+    removeExperimentDocument
+  );
+  renderExperimentNotes();
+  renderRecommendation();
+  sideChatHistory.innerHTML = "";
+  addSideChatMessage(
+    "assistant",
+    t("sideChatIntro")
+  );
+}
 
 async function checkCurrentUser() {
   if (!authToken) {
@@ -237,7 +747,7 @@ async function checkCurrentUser() {
     return;
   }
 
-  setLoginBusy(true, "检查中...");
+  setLoginBusy(true, t("sessionChecking"));
 
   try {
     const response = await fetch(backendUrl("/api/me"), {
@@ -247,7 +757,7 @@ async function checkCurrentUser() {
     const data = await readOptionalJson(response);
 
     if (response.status === 401) {
-      showLoggedOut("请先登录。");
+      showLoggedOut(t("pleaseLogin"));
       return;
     }
 
@@ -256,11 +766,12 @@ async function checkCurrentUser() {
       return;
     }
 
-    const accountName = getAccountName(data) || currentAccount || "已登录";
-    if (accountName !== "已登录") {
+    const accountName = getAccountName(data) || currentAccount || t("signedIn");
+    if (accountName !== t("signedIn")) {
       setAuthSession(authToken, accountName);
     }
     showAuthenticated(accountName);
+    renderBackendStatus("backendConnected");
   } catch (error) {
     console.warn("Session check failed.", error);
     showLoggedOut("");
@@ -270,19 +781,19 @@ async function checkCurrentUser() {
 }
 
 function showAuthenticated(accountName) {
-  currentAccountName.textContent = accountName || "已登录";
+  currentAccountName.textContent = accountName || t("signedIn");
   loginError.textContent = "";
   loginPasswordInput.value = "";
   loginPanel.hidden = true;
   loginPanel.classList.add("is-hidden");
   appShell.hidden = false;
   appShell.classList.remove("is-hidden");
-  chatInput.focus();
+  projectContextInput.focus();
 }
 
 function showLoggedOut(message) {
   clearAuthSession();
-  currentAccountName.textContent = "未登录";
+  currentAccountName.textContent = t("notSignedIn");
   appShell.hidden = true;
   appShell.classList.add("is-hidden");
   loginPanel.hidden = false;
@@ -292,17 +803,116 @@ function showLoggedOut(message) {
   loginAccountInput.focus();
 }
 
-function setLoginBusy(isBusy, label = "请稍候...") {
+function setLoginBusy(isBusy, label = t("waitLabel")) {
   loginAccountInput.disabled = isBusy;
   loginPasswordInput.disabled = isBusy;
   loginButton.disabled = isBusy;
-  loginButton.textContent = isBusy ? label : "登录";
+  loginButton.textContent = isBusy ? label : t("loginButton");
+}
+
+function t(key, variables = {}) {
+  const dictionary = I18N[currentLanguage] || I18N.en;
+  const template = dictionary[key] || I18N.en[key] || key;
+
+  return Object.entries(variables).reduce(
+    (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+    template
+  );
+}
+
+function normalizeLanguage(value) {
+  return String(value || "").toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
+function readStoredLanguage() {
+  let sessionLanguage = "";
+  let localLanguage = "";
+
+  try {
+    sessionLanguage = sessionStorage.getItem(LANGUAGE_STORAGE_KEY) || "";
+  } catch {
+    sessionLanguage = "";
+  }
+
+  try {
+    localLanguage = window.localStorage?.getItem(LANGUAGE_STORAGE_KEY) || "";
+  } catch {
+    localLanguage = "";
+  }
+
+  return sessionLanguage || localLanguage;
+}
+
+function writeStoredLanguage(language) {
+  try {
+    sessionStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    // Language switching still works for the current page if storage is unavailable.
+  }
+
+  try {
+    window.localStorage?.setItem(LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    // Language switching still works for the current page if storage is unavailable.
+  }
+}
+
+function setLanguage(language) {
+  const nextLanguage = normalizeLanguage(language);
+  if (nextLanguage === currentLanguage) return;
+
+  currentLanguage = nextLanguage;
+  writeStoredLanguage(currentLanguage);
+  applyLanguage();
+}
+
+function applyLanguage() {
+  document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+  document.title = t("documentTitle");
+
+  languageSelects.forEach((select) => {
+    select.value = currentLanguage;
+  });
+
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  });
+
+  if (currentRecommendation && !currentRecommendation.updatedAt) {
+    currentRecommendation = createDefaultRecommendation();
+    saveCurrentRecommendation();
+  }
+
+  renderBackendStatus();
+  renderDocumentList(
+    referenceFileList,
+    referenceDocuments,
+    t("noReferenceFiles"),
+    removeReferenceDocument
+  );
+  renderDocumentList(
+    experimentFileList,
+    experimentDocuments,
+    t("noExperimentFiles"),
+    removeExperimentDocument
+  );
+  renderExperimentNotes();
+  renderRecommendation();
+
+  if (!sideChatMessages.length && sideChatHistory.childElementCount <= 1) {
+    sideChatHistory.innerHTML = "";
+    addSideChatMessage("assistant", t("sideChatIntro"));
+  }
 }
 
 function requireLoginForUnauthorized(response) {
   if (response.status !== 401) return;
 
-  const message = "登录状态已失效，请重新登录。";
+  const message = t("sessionExpired");
   clearAuthSession();
   showLoggedOut(message);
   throw new AuthRequiredError(message);
@@ -341,6 +951,627 @@ function getAuthHeaders(extraHeaders = {}) {
   }
 
   return headers;
+}
+
+async function handleDocumentFiles({ files, collection, maxFiles, onUpdate }) {
+  let nextDocuments = [...collection];
+
+  for (const file of files) {
+    if (nextDocuments.length >= maxFiles) {
+      showToast(t("fileLimit", { count: maxFiles }));
+      break;
+    }
+
+    try {
+      const parsedDocument = await parseWorkbenchFile(file);
+      nextDocuments.push(parsedDocument);
+      showToast(t("fileAdded", { name: file.name }));
+    } catch (error) {
+      console.warn("File parsing failed.", error);
+      showToast(error.message || t("fileParseFailed", { name: file.name }));
+    }
+  }
+
+  onUpdate(nextDocuments);
+}
+
+async function parseWorkbenchFile(file) {
+  const extension = getFileExtension(file.name);
+
+  if (!SUPPORTED_DOCUMENT_EXTENSIONS.has(extension)) {
+    throw new Error(t("fileUnsupported", { name: file.name }));
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(t("fileTooLarge", { name: file.name }));
+  }
+
+  let extractedText = "";
+
+  if (extension === "txt" || extension === "csv") {
+    extractedText = await readFileAsText(file);
+  } else if (extension === "xlsx" || extension === "xls") {
+    extractedText = await extractSpreadsheetText(file);
+  } else if (extension === "pdf") {
+    extractedText = await extractPdfText(file);
+  }
+
+  const normalizedText = normalizeExtractedText(extractedText);
+
+  if (!normalizedText) {
+    throw new Error(t("fileNoText", { name: file.name }));
+  }
+
+  const truncatedText = normalizedText.slice(0, PER_FILE_TEXT_LIMIT);
+
+  return {
+    id: makeId(),
+    filename: file.name,
+    type: file.type || getMimeTypeFromExtension(extension),
+    extension,
+    text: truncatedText,
+    originalCharacterCount: normalizedText.length,
+    extractedCharacterCount: truncatedText.length,
+    truncated: normalizedText.length > PER_FILE_TEXT_LIMIT,
+  };
+}
+
+function renderDocumentList(container, documents, emptyText, onRemove) {
+  container.innerHTML = "";
+
+  if (!documents.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = emptyText;
+    container.appendChild(empty);
+    return;
+  }
+
+  documents.forEach((documentItem) => {
+    const card = document.createElement("div");
+    card.className = "file-card";
+
+    const details = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "file-name";
+    name.textContent = documentItem.filename;
+
+    const meta = document.createElement("div");
+    meta.className = "file-meta";
+    meta.textContent = `${documentItem.extension.toUpperCase()} · ${documentItem.type} · ${documentItem.extractedCharacterCount.toLocaleString()} ${t("chars")}${
+      documentItem.truncated ? ` · ${t("truncated")}` : ""
+    }`;
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "file-remove-button";
+    removeButton.type = "button";
+    removeButton.textContent = t("remove");
+    removeButton.addEventListener("click", () => onRemove(documentItem.id));
+
+    details.append(name, meta);
+    card.append(details, removeButton);
+    container.appendChild(card);
+  });
+}
+
+function removeReferenceDocument(id) {
+  referenceDocuments = referenceDocuments.filter((item) => item.id !== id);
+  renderDocumentList(
+    referenceFileList,
+    referenceDocuments,
+    t("noReferenceFiles"),
+    removeReferenceDocument
+  );
+}
+
+function removeExperimentDocument(id) {
+  experimentDocuments = experimentDocuments.filter((item) => item.id !== id);
+  renderDocumentList(
+    experimentFileList,
+    experimentDocuments,
+    t("noExperimentFiles"),
+    removeExperimentDocument
+  );
+}
+
+function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
+  let remainingCharacters = totalLimit;
+
+  return documents
+    .slice(0, maxFiles)
+    .map((documentItem) => {
+      const textForRequest = documentItem.text.slice(0, remainingCharacters);
+      remainingCharacters = Math.max(0, remainingCharacters - textForRequest.length);
+
+      return {
+        filename: documentItem.filename,
+        type: documentItem.type,
+        text: textForRequest,
+        truncated:
+          documentItem.truncated || textForRequest.length < documentItem.text.length,
+        originalCharacterCount: documentItem.originalCharacterCount,
+        sentCharacterCount: textForRequest.length,
+      };
+    })
+    .filter((documentItem) => documentItem.text);
+}
+
+function renderExperimentNotes() {
+  experimentNoteList.innerHTML = "";
+
+  if (!experimentNotes.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = t("noExperimentNotes");
+    experimentNoteList.appendChild(empty);
+    return;
+  }
+
+  experimentNotes.forEach((note) => {
+    const item = document.createElement("div");
+    item.className = "note-item";
+
+    const title = document.createElement("strong");
+    title.textContent = t("experimentNoteTitle");
+
+    const meta = document.createElement("div");
+    meta.className = "note-meta";
+    meta.textContent = formatTimestamp(note.createdAt);
+
+    const body = document.createElement("p");
+    body.textContent = note.text;
+
+    const removeButton = document.createElement("button");
+    removeButton.className = "text-button";
+    removeButton.type = "button";
+    removeButton.textContent = t("removeNote");
+    removeButton.addEventListener("click", () => {
+      experimentNotes = experimentNotes.filter((itemNote) => itemNote.id !== note.id);
+      saveExperimentNotes();
+      renderExperimentNotes();
+    });
+
+    item.append(title, meta, body, removeButton);
+    experimentNoteList.appendChild(item);
+  });
+}
+
+async function runAgentInstruction(instruction) {
+  if (activeAgentRequest) return;
+
+  setAgentBusy(true);
+  agentStatus.textContent = t("agentReviewing");
+  renderBackendStatus("backendWorking");
+
+  try {
+    let response;
+
+    if (!USE_BACKEND) {
+      throw new Error(t("backendDisabled"));
+    }
+
+    response = await sendWorkbenchRequest({
+      mode: "agent_instruction",
+      messages: buildAgentMessages(instruction),
+    });
+
+    currentRecommendation = normalizeAgentResponse(response, instruction);
+    saveCurrentRecommendation();
+    renderRecommendation();
+    agentStatus.textContent = t("recommendationUpdated");
+    renderBackendStatus("backendConnected");
+  } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      console.warn("Backend auth required.", error);
+      return;
+    }
+
+    console.warn("Agent backend failed; using local fallback.", error);
+    currentRecommendation = createLocalRecommendation(instruction);
+    saveCurrentRecommendation();
+    renderRecommendation();
+    agentStatus.textContent = t("backendFallbackMessage");
+    renderBackendStatus("backendFallback");
+  } finally {
+    setAgentBusy(false);
+  }
+}
+
+function setAgentBusy(isBusy) {
+  activeAgentRequest = isBusy;
+  analyzeRecommendButton.disabled = isBusy;
+}
+
+// agent_instruction mode is the single official analysis action. It can update
+// the Current Recommendation panel.
+// side_chat mode is for questions only and must not mutate the recommendation.
+async function sendWorkbenchRequest({ mode, messages }) {
+  const requestBody = {
+    mode,
+    messages,
+    projectContext: getProjectContext(),
+    referenceDocuments: buildDocumentsForRequest(
+      referenceDocuments,
+      MAX_REFERENCE_FILES,
+      TOTAL_REFERENCE_TEXT_LIMIT
+    ),
+    experimentDocuments: buildDocumentsForRequest(
+      experimentDocuments,
+      MAX_EXPERIMENT_FILES,
+      TOTAL_EXPERIMENT_TEXT_LIMIT
+    ),
+    experimentNotes: collectExperimentNotesForRequest(),
+  };
+
+  const response = await fetch(backendUrl("/chat"), {
+    method: "POST",
+    headers: getAuthHeaders({
+      "Content-Type": "application/json",
+    }),
+    body: JSON.stringify(requestBody),
+  });
+
+  requireLoginForUnauthorized(response);
+
+  if (!response.ok) {
+    throw new Error(t("backendReturned", { status: response.status }));
+  }
+
+  const data = await response.json();
+
+  if (!data.reply && !data.project) {
+    throw new Error(t("backendMissingPayload"));
+  }
+
+  return data;
+}
+
+function buildAgentMessages(instruction) {
+  return [
+    {
+      role: "user",
+      content: [
+        "Mode: agent_instruction",
+        t("responseLanguageInstruction"),
+        "Interpret the current synthetic-biology project context, uploaded literature, experiment files, and informal notes.",
+        "Identify possible explanations, useful next analyses, and human-reviewed next steps.",
+        "Do not assume the project is only about production volume or that metrics are complete.",
+        "Keep recommendations at design-review and planning level. Do not provide unsafe wet-lab protocols.",
+        "",
+        `Instruction: ${instruction}`,
+        "",
+        buildProjectContextPromptBlock(),
+        buildEvidencePromptBlock(),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    },
+  ];
+}
+
+function buildSideChatMessages(question) {
+  const recentMessages = sideChatMessages.slice(-8);
+
+  return [
+    ...recentMessages,
+    {
+      role: "user",
+      content: [
+        "Mode: side_chat",
+        t("responseLanguageInstruction"),
+        "Answer this as a question only. Do not claim to update the current recommendation.",
+        "Keep the response at design-review and planning level.",
+        "",
+        `Question: ${question}`,
+        "",
+        buildProjectContextPromptBlock(),
+        buildEvidencePromptBlock(),
+      ].join("\n"),
+    },
+  ];
+}
+
+function buildProjectContextPromptBlock() {
+  return `${t("projectContextPromptHeading")}\n${getProjectContext() || t("notProvided")}`;
+}
+
+function buildEvidencePromptBlock() {
+  const notes = collectExperimentNotesForRequest();
+
+  return [
+    t("evidenceSummaryHeading"),
+    t("evidenceReferenceFilesLine", {
+      value: referenceDocuments.map((item) => item.filename).join(", ") || t("noneValue"),
+    }),
+    t("evidenceExperimentFilesLine", {
+      value: experimentDocuments.map((item) => item.filename).join(", ") || t("noneValue"),
+    }),
+    t("evidenceExperimentNotesLine", {
+      value:
+        notes.map((note) => truncateText(note.text, 80)).join("; ") ||
+        t("noneValue"),
+    }),
+  ].join("\n");
+}
+
+function collectExperimentNotesForRequest() {
+  const draftNote = experimentNotesField.value.trim();
+  const notes = [...experimentNotes];
+
+  if (draftNote) {
+    notes.unshift({
+      id: "draft",
+      createdAt: new Date().toISOString(),
+      text: draftNote,
+    });
+  }
+
+  return notes;
+}
+
+function normalizeAgentResponse(response, instruction) {
+  const project = response.project || {};
+  const reply = response.reply || "";
+  const missing = Array.isArray(project.missingInformation)
+    ? project.missingInformation
+    : buildMissingInformationList();
+
+  return {
+    title: t("defaultTitle"),
+    currentInterpretation:
+      project.summary ||
+      summarizeText(reply) ||
+      t("normalizedCurrentInterpretation"),
+    keyEvidenceUsed: buildEvidenceList(),
+    possibleExplanation:
+      extractPossibleExplanation(reply) ||
+      t("normalizedPossibleExplanation"),
+    recommendedNextStep:
+      extractRecommendedNextStep(reply) ||
+      t("normalizedRecommendedNextStep"),
+    additionalAnalysisSuggested: t("normalizedAdditionalAnalysis"),
+    missingInformation: missing,
+    humanReviewNotes:
+      project.safetyNotes ||
+      t("normalizedHumanReview"),
+    draftSummary:
+      project.draftMemo ||
+      buildLocalSummary(instruction, reply || t("backendLimitedResponse")),
+    reviewed: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function createLocalRecommendation(instruction) {
+  return {
+    title: t("defaultTitle"),
+    currentInterpretation: t("fallbackCurrentInterpretation"),
+    keyEvidenceUsed: buildEvidenceList(),
+    possibleExplanation: t("fallbackPossibleExplanation"),
+    recommendedNextStep: t("fallbackRecommendedNextStep"),
+    additionalAnalysisSuggested: t("fallbackAdditionalAnalysis"),
+    missingInformation: buildMissingInformationList(),
+    humanReviewNotes: t("defaultHumanReview"),
+    draftSummary: buildLocalSummary(instruction, t("backendFallbackMessage")),
+    reviewed: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function createDefaultRecommendation() {
+  return {
+    title: t("defaultTitle"),
+    currentInterpretation: t("defaultCurrentInterpretation"),
+    keyEvidenceUsed: [t("defaultKeyEvidence")],
+    possibleExplanation: t("defaultPossibleExplanation"),
+    recommendedNextStep: t("defaultRecommendedNextStep"),
+    additionalAnalysisSuggested: t("defaultAdditionalAnalysis"),
+    missingInformation: [
+      t("missingProjectContext"),
+      t("missingReferenceEvidence"),
+      t("missingExperimentEvidence"),
+    ],
+    humanReviewNotes: t("defaultHumanReview"),
+    draftSummary: t("defaultDraftSummary"),
+    reviewed: false,
+    updatedAt: "",
+  };
+}
+
+function buildEvidenceList() {
+  const evidence = [];
+
+  referenceDocuments.forEach((documentItem) => {
+    evidence.push(t("evidenceReference", { name: documentItem.filename }));
+  });
+
+  experimentDocuments.forEach((documentItem) => {
+    evidence.push(t("evidenceExperimentFile", { name: documentItem.filename }));
+  });
+
+  collectExperimentNotesForRequest().forEach((note) => {
+    evidence.push(t("evidenceExperimentNote", { note: truncateText(note.text, 80) }));
+  });
+
+  return evidence.length ? evidence : [t("noEvidenceIncluded")];
+}
+
+function buildMissingInformationList() {
+  const missing = [];
+
+  if (!getProjectContext()) missing.push(t("missingProjectContext"));
+  if (!referenceDocuments.length) missing.push(t("missingReferenceEvidence"));
+  if (!experimentDocuments.length && !collectExperimentNotesForRequest().length) {
+    missing.push(t("missingExperimentEvidence"));
+  }
+
+  return missing.length ? missing : [t("noMajorGaps")];
+}
+
+function buildLocalSummary(instruction, sourceNote) {
+  return `# ${t("localSummaryTitle")}
+
+${t("localSummaryProjectContext")}
+${getProjectContext() || t("notProvided")}
+
+${t("localSummaryInstruction")}
+${instruction}
+
+${t("localSummaryInterpretationNote")}
+${sourceNote}
+
+${t("localSummaryRecommendedNextStep")}
+${t("localSummaryRecommendedNextStepText")}
+
+${t("localSummaryHumanReview")}
+${t("defaultHumanReview")}`;
+}
+
+function renderRecommendation() {
+  currentInterpretation.textContent = currentRecommendation.currentInterpretation;
+  possibleExplanation.textContent = currentRecommendation.possibleExplanation;
+  recommendedNextStep.textContent = currentRecommendation.recommendedNextStep;
+  additionalAnalysisSuggested.textContent =
+    currentRecommendation.additionalAnalysisSuggested;
+  humanReviewNotes.textContent = currentRecommendation.humanReviewNotes;
+  draftSummary.textContent = currentRecommendation.draftSummary;
+
+  renderList(keyEvidenceUsed, currentRecommendation.keyEvidenceUsed);
+  renderList(missingInformation, currentRecommendation.missingInformation);
+
+  reviewStatus.textContent = currentRecommendation.reviewed
+    ? t("reviewedByHuman")
+    : t("humanReviewRequired");
+  reviewStatus.classList.toggle("is-reviewed", Boolean(currentRecommendation.reviewed));
+}
+
+function addSideChatMessage(role, content) {
+  const message = document.createElement("article");
+  message.className = `side-message ${role}`;
+
+  const label = document.createElement("strong");
+  label.textContent =
+    role === "user" ? t("sideChatUserLabel") : t("sideChatAssistantLabel");
+
+  const body = document.createElement("div");
+  body.textContent = content;
+
+  message.append(label, body);
+  sideChatHistory.appendChild(message);
+  sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
+}
+
+function buildLocalSideChatReply(question) {
+  return t("localSideChatReply", { question });
+}
+
+function getProjectContext() {
+  return projectContextInput.value.trim();
+}
+
+function renderBackendStatus(status = lastBackendStatus) {
+  lastBackendStatus = status || lastBackendStatus;
+  const providerLabel =
+    BACKEND_PROVIDER === "alibaba"
+      ? t("backendProviderAlibaba")
+      : t("backendProviderCloudflare");
+  backendStatusLabel.lastChild.textContent = ` ${providerLabel} · ${t(lastBackendStatus)}`;
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error(t("fileReadFailed", { name: file.name })));
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(t("fileReadFailed", { name: file.name })));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function extractSpreadsheetText(file) {
+  if (!window.XLSX) {
+    throw new Error(t("excelParserMissing"));
+  }
+
+  const arrayBuffer = await readFileAsArrayBuffer(file);
+  const workbook = window.XLSX.read(arrayBuffer, {
+    type: "array",
+    cellDates: true,
+  });
+
+  return workbook.SheetNames.slice(0, SPREADSHEET_SHEET_LIMIT)
+    .map((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName];
+      const csv = window.XLSX.utils.sheet_to_csv(worksheet, {
+        blankrows: false,
+      });
+
+      return `# Sheet: ${sheetName}\n${csv}`;
+    })
+    .join("\n\n")
+    .slice(0, PER_FILE_TEXT_LIMIT);
+}
+
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) {
+    throw new Error(t("pdfParserMissing"));
+  }
+
+  if (window.pdfjsLib.GlobalWorkerOptions) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  const arrayBuffer = await readFileAsArrayBuffer(file);
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pageCount = Math.min(pdf.numPages, PDF_PAGE_LIMIT);
+  const pageTexts = [];
+
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item) => item.str)
+      .filter(Boolean)
+      .join(" ");
+
+    pageTexts.push(`# Page ${pageNumber}\n${pageText}`);
+  }
+
+  return pageTexts.join("\n\n").slice(0, PER_FILE_TEXT_LIMIT);
+}
+
+function normalizeExtractedText(text) {
+  return String(text || "")
+    .replace(/\r/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function getFileExtension(filename) {
+  return filename.split(".").pop().toLowerCase();
+}
+
+function getMimeTypeFromExtension(extension) {
+  const mimeTypes = {
+    pdf: "application/pdf",
+    txt: "text/plain",
+    csv: "text/csv",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xls: "application/vnd.ms-excel",
+  };
+
+  return mimeTypes[extension] || "application/octet-stream";
 }
 
 async function readOptionalJson(response) {
@@ -401,517 +1632,146 @@ function getAuthErrorMessage(data) {
   return message ? message.trim() : "";
 }
 
-async function parseReferenceFile(file) {
-  const extension = getFileExtension(file.name);
-
-  if (!SUPPORTED_REFERENCE_EXTENSIONS.has(extension)) {
-    throw new Error(`不支持的文件类型：${file.name}`);
-  }
-
-  if (file.size > MAX_REFERENCE_FILE_SIZE) {
-    throw new Error(`文件超过 5 MB 限制：${file.name}`);
-  }
-
-  let extractedText = "";
-
-  if (extension === "txt" || extension === "csv") {
-    extractedText = await readFileAsText(file);
-  } else if (extension === "xlsx" || extension === "xls") {
-    extractedText = await extractSpreadsheetText(file);
-  } else if (extension === "pdf") {
-    extractedText = await extractPdfText(file);
-  }
-
-  const normalizedText = normalizeExtractedText(extractedText);
-
-  if (!normalizedText) {
-    throw new Error(`未能从文件中提取文本：${file.name}`);
-  }
-
-  const truncatedText = normalizedText.slice(0, PER_FILE_TEXT_LIMIT);
-
-  return {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    filename: file.name,
-    type: file.type || getMimeTypeFromExtension(extension),
-    extension,
-    text: truncatedText,
-    originalCharacterCount: normalizedText.length,
-    extractedCharacterCount: truncatedText.length,
-    truncated: normalizedText.length > PER_FILE_TEXT_LIMIT,
-  };
+function summarizeText(text) {
+  return truncateText(String(text || "").replace(/\s+/g, " ").trim(), 360);
 }
 
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error(`无法读取文件：${file.name}`));
-    reader.readAsText(file);
-  });
-}
-
-function readFileAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error(`无法读取文件：${file.name}`));
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-async function extractSpreadsheetText(file) {
-  if (!window.XLSX) {
-    throw new Error("Excel 解析库未加载，暂时无法解析该文件。");
-  }
-
-  const arrayBuffer = await readFileAsArrayBuffer(file);
-  const workbook = window.XLSX.read(arrayBuffer, {
-    type: "array",
-    cellDates: true,
-  });
-
-  return workbook.SheetNames.slice(0, SPREADSHEET_SHEET_LIMIT)
-    .map((sheetName) => {
-      const worksheet = workbook.Sheets[sheetName];
-      const csv = window.XLSX.utils.sheet_to_csv(worksheet, {
-        blankrows: false,
-      });
-
-      return `# Sheet: ${sheetName}\n${csv}`;
-    })
-    .join("\n\n")
-    .slice(0, PER_FILE_TEXT_LIMIT);
-}
-
-async function extractPdfText(file) {
-  if (!window.pdfjsLib) {
-    throw new Error("PDF 解析库未加载，暂时无法解析该文件。");
-  }
-
-  if (window.pdfjsLib.GlobalWorkerOptions) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  }
-
-  const arrayBuffer = await readFileAsArrayBuffer(file);
-  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const pageCount = Math.min(pdf.numPages, PDF_PAGE_LIMIT);
-  const pageTexts = [];
-
-  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item) => item.str)
-      .filter(Boolean)
-      .join(" ");
-
-    pageTexts.push(`# Page ${pageNumber}\n${pageText}`);
-  }
-
-  return pageTexts.join("\n\n").slice(0, PER_FILE_TEXT_LIMIT);
-}
-
-function buildReferenceDocumentsForRequest() {
-  let remainingCharacters = TOTAL_REFERENCE_TEXT_LIMIT;
-
-  return referenceDocuments.slice(0, MAX_REFERENCE_FILES).map((document) => {
-    const textForRequest = document.text.slice(0, remainingCharacters);
-    remainingCharacters = Math.max(0, remainingCharacters - textForRequest.length);
-
-    return {
-      filename: document.filename,
-      type: document.type,
-      text: textForRequest,
-      truncated:
-        document.truncated || textForRequest.length < document.text.length,
-      originalCharacterCount: document.originalCharacterCount,
-      sentCharacterCount: textForRequest.length,
-    };
-  }).filter((document) => document.text);
-}
-
-function renderReferenceFiles() {
-  referenceFileList.innerHTML = "";
-
-  referenceDocuments.forEach((reference) => {
-    const card = document.createElement("div");
-    card.className = "reference-file-card";
-
-    const details = document.createElement("div");
-    const name = document.createElement("div");
-    name.className = "file-name";
-    name.textContent = reference.filename;
-
-    const meta = document.createElement("div");
-    meta.className = "file-meta";
-    meta.textContent = `${reference.extension.toUpperCase()} · ${reference.extractedCharacterCount.toLocaleString()} 字符${
-      reference.truncated ? " · 已截断" : ""
-    }`;
-
-    const removeButton = document.createElement("button");
-    removeButton.className = "file-remove-button";
-    removeButton.type = "button";
-    removeButton.textContent = "移除";
-    removeButton.addEventListener("click", () => {
-      referenceDocuments = referenceDocuments.filter(
-        (item) => item.id !== reference.id
-      );
-      renderReferenceFiles();
-    });
-
-    details.append(name, meta);
-    card.append(details, removeButton);
-    referenceFileList.appendChild(card);
-  });
-}
-
-function addReferenceNote(references) {
-  const note = document.createElement("div");
-  note.className = "reference-note";
-  note.textContent = `正在使用 ${references.length} 个参考文件：${references
-    .map((reference) => reference.filename)
-    .join("、")}`;
-
-  messageHistory.appendChild(note);
-  messageHistory.scrollTop = messageHistory.scrollHeight;
-}
-
-function normalizeExtractedText(text) {
-  return String(text || "")
-    .replace(/\r/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function getFileExtension(filename) {
-  return filename.split(".").pop().toLowerCase();
-}
-
-function getMimeTypeFromExtension(extension) {
-  const mimeTypes = {
-    pdf: "application/pdf",
-    txt: "text/plain",
-    csv: "text/csv",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    xls: "application/vnd.ms-excel",
-  };
-
-  return mimeTypes[extension] || "application/octet-stream";
-}
-
-function createProjectState(prompt) {
-  const lowerPrompt = prompt.toLowerCase();
-  const isInitial = prompt.startsWith("开始对话");
-  const organism = detectOrganism(lowerPrompt);
-  const projectType = detectProjectType(lowerPrompt);
-
-  const summary = isInitial
-    ? prompt
-    : `这是一个概念阶段的${projectType}项目，拟采用${organism}作为工作系统。当前目标是明确教学或演示场景，梳理设计假设，并形成一份安全、可评审的团队讨论备忘录。`;
-
-  const missingInfo = isInitial
-    ? [
-        "目标生物体或底盘系统",
-        "项目目标",
-        "预期场景和受众",
-      ]
-    : [
-        "具体教学场景和监督模式",
-        "已获批准的宿主菌株或非活体演示系统",
-        "演示结果的成功标准",
-        "机构评审和废弃物处理要求",
-      ];
-
-  const safetyNotes = isInitial
-    ? "生成评审后，这里会显示安全说明。"
-    : "请将项目定位为低风险教育概念。仅使用非致病、已获批准的系统；避免任何环境释放；在任何实验活动前记录封闭措施、培训要求、废弃物处理和机构评审路径。";
-
-  return {
-    title: "BioDesign Copilot 项目备忘录",
-    originalPrompt: isInitial ? "" : prompt,
-    summary,
-    organism,
-    projectType,
-    assumptions: [
-      "该项目用于教育、演示或早期规划。",
-      "任何湿实验工作都只会在获批准且有监督的环境中进行。",
-      "团队将使用表征清楚、非致病的生物系统。",
-    ],
-    questions: [
-      "该演示的目标受众是谁？",
-      "场地、监督和材料方面有哪些限制？",
-      "哪些证据可以让利益相关方认为项目是成功的？",
-    ],
-    considerations: [
-      "在实施前先把项目定义在概念和设计评审层面。",
-      "将学习目标与实验执行细节区分开。",
-      "使用便于向非专业投资人解释的可衡量结果。",
-    ],
-    missingInfo,
-    safetyLevel: isInitial ? "待评审" : "仅限概念评审；倾向于低风险教育场景",
-    safetyNotes,
-    nextSteps: [
-      "将概念整理成一页项目章程。",
-      "确认生物体、场景、约束条件和安全负责人。",
-      "与机构生物安全或教学实验室负责人评审方案。",
-      "为投资人和教育者准备非技术化演示叙事。",
-    ],
-    memo: buildMemo(prompt, organism, projectType, isInitial),
-  };
-}
-
-function detectOrganism(text) {
-  if (text.includes("yeast") || text.includes("酵母")) return "酵母教学菌株";
-  if (text.includes("e. coli") || text.includes("ecoli")) {
-    return "非致病大肠杆菌教学菌株";
-  }
-  if (text.includes("大肠杆菌")) {
-    return "非致病大肠杆菌教学菌株";
-  }
-  if (
-    text.includes("biosensor") ||
-    text.includes("lactose") ||
-    text.includes("生物传感器") ||
-    text.includes("乳糖")
-  ) {
-    return "生物传感器概念系统";
-  }
-  return "待选择";
-}
-
-function detectProjectType(text) {
-  if (text.includes("gfp") || text.includes("fluorescence") || text.includes("荧光")) {
-    return "荧光报告";
-  }
-  if (text.includes("pigment") || text.includes("color") || text.includes("色素")) {
-    return "颜色输出教学";
-  }
-  if (text.includes("biosensor") || text.includes("detect") || text.includes("检测") || text.includes("生物传感器")) {
-    return "生物传感器";
-  }
-  return "合成生物学教育";
-}
-
-function buildMemo(prompt, organism, projectType, isInitial) {
-  if (isInitial) {
-    return "暂无备忘录。发送提示词后将生成草稿。";
-  }
-
-  return `BioDesign Copilot 备忘录草稿
-
-项目概念：${prompt}
-
-该概念提出了一个使用${organism}的${projectType}项目。近期目标是让想法更易评估：项目要传达什么学习目标，正在考虑哪类生物系统，哪些假设需要验证，以及在任何实验活动前需要完成哪些安全评审。
-
-面向投资人演示时，应强调 BioDesign Copilot 是合成生物学团队的规划层：它能把粗略想法转化为结构化备忘录，标出缺失信息，并在工作流早期呈现安全与合规考虑。
-
-建议决策：在团队确认预期场景、监督模式、获批材料、废弃物处理要求和机构评审路径之前，将该项目保持在概念评审阶段。`;
-}
-
-function buildAssistantResponse(project) {
-  return `
-    <h4>项目摘要</h4>
-    <p>${escapeHtml(project.summary)}</p>
-
-    <h4>关键假设</h4>
-    ${toList(project.assumptions)}
-
-    <h4>澄清问题</h4>
-    ${toList(project.questions)}
-
-    <h4>设计考虑</h4>
-    ${toList(project.considerations)}
-
-    <h4>安全与合规说明</h4>
-    <p>${escapeHtml(project.safetyNotes)}</p>
-
-    <h4>建议下一步</h4>
-    ${toList(project.nextSteps)}
-
-    <h4>备忘录草稿</h4>
-    <p>${escapeHtml(project.memo).replace(/\n/g, "<br>")}</p>
-  `;
-}
-
-async function sendMessageToBackend(messages, references = []) {
-  const requestBody = { messages };
-
-  if (references.length) {
-    requestBody.referenceDocuments = references;
-  }
-
-  const response = await fetch(backendUrl("/chat"), {
-    method: "POST",
-    headers: getAuthHeaders({
-      "Content-Type": "application/json",
-    }),
-    body: JSON.stringify(requestBody),
-  });
-
-  requireLoginForUnauthorized(response);
-
-  if (!response.ok) {
-    throw new Error(`Worker returned ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  if (!data.reply || !data.project) {
-    throw new Error("后端响应缺少 reply 或 project 数据。");
-  }
-
-  return data;
-}
-
-function normalizeBackendProject(project) {
-  return {
-    title: "BioDesign Copilot 项目备忘录",
-    summary: project.summary || "后端未返回项目摘要。",
-    organism: project.organism || "未指定",
-    missingInfo: Array.isArray(project.missingInformation)
-      ? project.missingInformation
-      : [],
-    safetyLevel: project.safetyLevel || "待评审",
-    safetyNotes: project.safetyNotes || "后端未返回安全说明。",
-    memo: project.draftMemo || "后端未返回备忘录草稿。",
-  };
-}
-
-function formatBackendReply(reply) {
-  const headingMap = new Map([
-    ["Project Summary", "项目摘要"],
-    ["Key Assumptions", "关键假设"],
-    ["Clarifying Questions", "澄清问题"],
-    ["Design Considerations", "设计考虑"],
-    ["Safety & Compliance Notes", "安全与合规说明"],
-    ["Recommended Next Steps", "建议下一步"],
-    ["Draft Memo", "备忘录草稿"],
-    ["项目摘要", "项目摘要"],
-    ["关键假设", "关键假设"],
-    ["澄清问题", "澄清问题"],
-    ["设计考虑", "设计考虑"],
-    ["安全与合规说明", "安全与合规说明"],
-    ["建议下一步", "建议下一步"],
-    ["备忘录草稿", "备忘录草稿"],
-  ]);
-
-  const lines = reply
+function extractPossibleExplanation(reply) {
+  const text = String(reply || "").trim();
+  const lines = text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+  const explanationLine = lines.find((line) =>
+    /explanation|because|pattern|hypothesis|原因|解释|模式|假设/i.test(line)
+  );
 
-  let html = "";
-  let listOpen = false;
-
-  lines.forEach((line) => {
-    if (headingMap.has(line)) {
-      if (listOpen) {
-        html += "</ul>";
-        listOpen = false;
-      }
-      html += `<h4>${escapeHtml(headingMap.get(line))}</h4>`;
-      return;
-    }
-
-    if (line.startsWith("- ")) {
-      if (!listOpen) {
-        html += "<ul>";
-        listOpen = true;
-      }
-      html += `<li>${escapeHtml(line.slice(2))}</li>`;
-      return;
-    }
-
-    if (listOpen) {
-      html += "</ul>";
-      listOpen = false;
-    }
-    html += `<p>${escapeHtml(line)}</p>`;
-  });
-
-  if (listOpen) {
-    html += "</ul>";
-  }
-
-  return html;
+  return truncateText(explanationLine || "", 420);
 }
 
-function updateProjectPanel(project) {
-  panelSummary.textContent = project.summary;
-  panelOrganism.textContent = project.organism;
-  panelSafetyLevel.textContent = project.safetyLevel;
-  panelSafetyNotes.textContent = project.safetyNotes;
-  panelMemo.textContent = project.memo;
+function extractRecommendedNextStep(reply) {
+  const text = String(reply || "").trim();
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const nextStepLine = lines.find((line) =>
+    /next step|recommended|recommendation|下一步|建议/i.test(line)
+  );
 
-  panelMissingInfo.innerHTML = "";
-  project.missingInfo.forEach((item) => {
+  return truncateText(nextStepLine || lines[0] || "", 420);
+}
+
+function renderList(container, items) {
+  container.innerHTML = "";
+  const normalizedItems =
+    Array.isArray(items) && items.length ? items : [t("notAvailable")];
+
+  normalizedItems.forEach((item) => {
     const li = document.createElement("li");
     li.textContent = item;
-    panelMissingInfo.appendChild(li);
+    container.appendChild(li);
   });
 }
 
-function addMessage(role, content, isHtml = false) {
-  const message = document.createElement("article");
-  message.className = `message ${role}`;
+function buildMarkdownExport(recommendation) {
+  return `# ${recommendation.title}
 
-  const avatar = document.createElement("div");
-  avatar.className = "avatar";
-  avatar.textContent = role === "user" ? "你" : "BC";
+## ${t("markdownProjectContextHeading")}
+${getProjectContext() || t("notProvided")}
 
-  const card = document.createElement("div");
-  card.className = "message-card";
-  if (isHtml) {
-    card.innerHTML = content;
-  } else {
-    const paragraph = document.createElement("p");
-    paragraph.textContent = content;
-    card.appendChild(paragraph);
-  }
+## ${t("markdownCurrentInterpretationHeading")}
+${recommendation.currentInterpretation}
 
-  message.append(avatar, card);
-  messageHistory.appendChild(message);
-  messageHistory.scrollTop = messageHistory.scrollHeight;
-}
+## ${t("markdownKeyEvidenceHeading")}
+${recommendation.keyEvidenceUsed.map((item) => `- ${item}`).join("\n")}
 
-function buildMarkdownExport(project) {
-  return `# ${project.title}
+## ${t("markdownPossibleExplanationHeading")}
+${recommendation.possibleExplanation}
 
-## 项目摘要
-${project.summary}
+## ${t("markdownRecommendedNextStepHeading")}
+${recommendation.recommendedNextStep}
 
-## 生物体 / 系统
-${project.organism}
+## ${t("markdownAdditionalAnalysisHeading")}
+${recommendation.additionalAnalysisSuggested}
 
-## 缺失信息
-${project.missingInfo.map((item) => `- ${item}`).join("\n")}
+## ${t("markdownMissingInformationHeading")}
+${recommendation.missingInformation.map((item) => `- ${item}`).join("\n")}
 
-## 安全等级
-${project.safetyLevel}
+## ${t("markdownHumanReviewHeading")}
+${recommendation.humanReviewNotes}
 
-## 安全说明
-${project.safetyNotes}
-
-## 备忘录草稿
-${project.memo}
+## ${t("markdownDraftSummaryHeading")}
+${recommendation.draftSummary}
 `;
 }
 
-function toList(items) {
-  return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.top = "-1000px";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  textArea.remove();
 }
 
-function escapeHtml(value) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+function saveExperimentNotes() {
+  sessionStorage.setItem(
+    EXPERIMENT_NOTES_STORAGE_KEY,
+    JSON.stringify(experimentNotes)
+  );
+}
+
+function saveCurrentRecommendation() {
+  sessionStorage.setItem(
+    RECOMMENDATION_STORAGE_KEY,
+    JSON.stringify(currentRecommendation)
+  );
+}
+
+function loadSessionJson(key, fallback) {
+  try {
+    const rawValue = sessionStorage.getItem(key);
+    return rawValue ? JSON.parse(rawValue) : cloneValue(fallback);
+  } catch {
+    return cloneValue(fallback);
+  }
+}
+
+function cloneValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function formatTimestamp(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return t("unknownTime");
+  }
+
+  return date.toLocaleString(currentLanguage === "zh" ? "zh-CN" : undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function truncateText(text, maxLength) {
+  const value = String(text || "");
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}...` : value;
 }
 
 function showToast(message) {
