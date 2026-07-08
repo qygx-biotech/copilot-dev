@@ -871,7 +871,14 @@ function setLoginBusy(isBusy, label = t("waitLabel")) {
   loginAccountInput.disabled = isBusy;
   loginPasswordInput.disabled = isBusy;
   loginButton.disabled = isBusy;
+  loginButton.classList.toggle("is-loading", isBusy);
   loginButton.textContent = isBusy ? label : t("loginButton");
+
+  if (isBusy) {
+    loginButton.setAttribute("aria-busy", "true");
+  } else {
+    loginButton.removeAttribute("aria-busy");
+  }
 }
 
 function t(key, variables = {}) {
