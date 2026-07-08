@@ -14,12 +14,8 @@ const projectContextInput = document.querySelector("#projectContext");
 const referenceFileInput = document.querySelector("#referenceFileInput");
 const referenceFileList = document.querySelector("#referenceFileList");
 const clearReferencesButton = document.querySelector("#clearReferencesButton");
-const experimentFileInput = document.querySelector("#experimentFileInput");
-const experimentFileList = document.querySelector("#experimentFileList");
-const clearExperimentFilesButton = document.querySelector("#clearExperimentFilesButton");
-const experimentNotesField = document.querySelector("#experimentNotesField");
-const addExperimentNoteButton = document.querySelector("#addExperimentNoteButton");
-const experimentNoteList = document.querySelector("#experimentNoteList");
+const experimentSummaryList = document.querySelector("#experimentSummaryList");
+const experimentModuleCards = document.querySelectorAll("[data-experiment-module]");
 
 const agentInstructionInput = document.querySelector("#agentInstruction");
 const analyzeRecommendButton = document.querySelector("#analyzeRecommendButton");
@@ -45,7 +41,8 @@ const sideChatHistory = document.querySelector("#sideChatHistory");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
 
 const MAX_REFERENCE_FILES = 8;
-const MAX_EXPERIMENT_FILES = 12;
+const MAX_EXPERIMENT_FILES_PER_MODULE = 12;
+const MAX_EXPERIMENT_FILES = 36;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const PER_FILE_TEXT_LIMIT = 12000;
 const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
@@ -68,9 +65,44 @@ const USE_BACKEND = true;
 const ACCESS_TOKEN_STORAGE_KEY = "access_token";
 const ACCOUNT_STORAGE_KEY = "account";
 const PROJECT_CONTEXT_STORAGE_KEY = "biodesign_workbench_project_context";
-const EXPERIMENT_NOTES_STORAGE_KEY = "biodesign_workbench_experiment_notes";
+const EXPERIMENT_MODULES_STORAGE_KEY = "biodesign_workbench_experiment_modules";
+const LEGACY_EXPERIMENT_NOTES_STORAGE_KEY = "biodesign_workbench_experiment_notes";
 const RECOMMENDATION_STORAGE_KEY = "biodesign_workbench_recommendation";
 const LANGUAGE_STORAGE_KEY = "biodesign_workbench_language";
+const EXPERIMENT_MODULE_DEFINITIONS = [
+  {
+    key: "strainEngineering",
+    titleKey: "strainEngineeringTitle",
+  },
+  {
+    key: "fermentation",
+    titleKey: "fermentationTitle",
+  },
+  {
+    key: "downstreamProcessing",
+    titleKey: "downstreamProcessingTitle",
+  },
+];
+const EXPERIMENT_MODULE_KEYS = EXPERIMENT_MODULE_DEFINITIONS.map(
+  (moduleDefinition) => moduleDefinition.key
+);
+const experimentModuleElements = Array.from(experimentModuleCards).reduce(
+  (elements, card) => {
+    const moduleKey = card.dataset.experimentModule;
+    elements[moduleKey] = {
+      card,
+      count: card.querySelector("[data-module-count]"),
+      fileInput: card.querySelector("[data-module-file-input]"),
+      clearFilesButton: card.querySelector("[data-module-clear-files]"),
+      fileList: card.querySelector("[data-module-file-list]"),
+      noteField: card.querySelector("[data-module-note-field]"),
+      addNoteButton: card.querySelector("[data-module-add-note]"),
+      noteList: card.querySelector("[data-module-note-list]"),
+    };
+    return elements;
+  },
+  {}
+);
 const I18N = {
   en: {
     documentTitle: "BioDesign Workbench",
@@ -110,11 +142,31 @@ const I18N = {
     referencesHelper:
       "Files are processed locally for this MVP. Extracted text is sent to the backend only when you run the agent or ask a question.",
     experimentEyebrow: "Experiment Evidence",
-    experimentTitle: "Experiment Results & Lab Notes",
+    experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
     clearExperimentFiles: "Clear experiment files",
     experimentHelper:
-      "Upload batches of Excel sheets, CSVs, PDFs, TXT files, or informal notes. Treat these as evidence for interpretation, not a permanent record.",
+      "Upload evidence from different parts of the synthetic biology workflow.",
+    strainEngineeringTitle: "Strain Engineering",
+    strainEngineeringDescription:
+      "Genetic design, construct screening, strain comparison, pathway engineering, enzyme variants, expression data.",
+    fermentationTitle: "Fermentation",
+    fermentationDescription:
+      "Cultivation runs, media conditions, growth curves, titer/yield/productivity data, time-course measurements.",
+    downstreamProcessingTitle: "Downstream Processing",
+    downstreamProcessingDescription:
+      "Separation, purification, extraction, recovery, product quality, process loss, analytics.",
+    uploadModuleFiles: "Upload files",
+    clearModuleFiles: "Clear files",
+    moduleNotesLabel: "Optional notes",
+    moduleNotesPlaceholder:
+      "Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on.",
+    moduleSummary: "{module}: {files} files, {notes} notes",
+    moduleCount: "{files} files · {notes} notes",
+    noModuleFiles: "No files uploaded for this module yet.",
+    noModuleNotes: "No notes added for this module yet.",
+    moduleFilesCleared: "{module} files cleared.",
+    addModuleNoteFirst: "Add a note for {module} first.",
     experimentNotesLabel: "Experiment notes",
     experimentNotesPlaceholder:
       "Add any context about these results: what was tested, what changed, what looked surprising, what you want the agent to focus on.",
@@ -134,9 +186,9 @@ const I18N = {
     reviewedByHuman: "Reviewed by human",
     currentInterpretationHeading: "Current Interpretation",
     keyEvidenceHeading: "Key Evidence Used",
-    possibleExplanationHeading: "Possible Explanation",
+    possibleExplanationHeading: "Cross-Module Assessment",
     recommendedNextStepHeading: "Recommended Next Step",
-    additionalAnalysisHeading: "Additional Analysis Suggested",
+    additionalAnalysisHeading: "Module Most Relevant to Next Step",
     missingInformationHeading: "Missing Information",
     humanReviewHeading: "Human Review Notes",
     draftSummaryHeading: "Draft Summary",
@@ -200,11 +252,11 @@ const I18N = {
       "No main analysis has been run yet. Add optional project context, upload evidence, then use Analyze & Recommend.",
     defaultKeyEvidence: "No evidence selected yet.",
     defaultPossibleExplanation:
-      "Possible explanations will appear after the agent reviews the available context.",
+      "A cross-module assessment will appear after the agent reviews strain engineering, fermentation, downstream processing, and reference evidence.",
     defaultRecommendedNextStep:
       "Add references, experiment files, or notes, then give the agent a clear instruction.",
     defaultAdditionalAnalysis:
-      "Additional analysis suggestions will appear after the main agent action.",
+      "The module most relevant to the next step will appear after the main agent action.",
     defaultHumanReview:
       "AI-generated recommendations require scientist review before experimental use.",
     defaultDraftSummary:
@@ -212,24 +264,24 @@ const I18N = {
     fallbackCurrentInterpretation:
       "The workspace contains browser-session evidence that may include literature, spreadsheets, result files, and informal notes. Because the backend was unavailable, this is a local demo interpretation.",
     fallbackPossibleExplanation:
-      "A plausible explanation should be treated as a hypothesis until the scientist reviews the uploaded evidence and checks whether files are comparable.",
+      "Treat any cross-module explanation as a hypothesis until the scientist reviews whether strain engineering, fermentation, and downstream processing files are comparable.",
     fallbackRecommendedNextStep:
       "Run a focused evidence review: align uploaded result sheets with the project context, identify the strongest pattern or discrepancy, then decide which analysis or experiment direction deserves human review.",
     fallbackAdditionalAnalysis:
-      "Summarize each uploaded file, list missing metadata, and compare the latest results against the most relevant literature claims.",
+      "Most relevant module cannot be determined confidently in local fallback mode. Compare module evidence and missing metadata before choosing the next focus.",
     normalizedCurrentInterpretation:
       "The available evidence needs scientist review before a confident interpretation can be made.",
     normalizedPossibleExplanation:
-      "Several explanations may be plausible. Compare the uploaded literature, result patterns, and informal notes before selecting one working hypothesis.",
+      "Several explanations may be plausible across strain engineering, fermentation, and downstream processing. Compare uploaded literature, result patterns, and notes before selecting one working hypothesis.",
     normalizedRecommendedNextStep:
       "Choose one clear follow-up analysis or planning-level experiment direction for human review.",
     normalizedAdditionalAnalysis:
-      "Check whether uploaded result sheets are comparable, identify missing controls or metadata, and verify any apparent trends against the source files.",
+      "Identify whether the next useful step belongs in strain engineering, fermentation, downstream processing, or additional analysis after reviewing the source files.",
     normalizedHumanReview:
       "Human scientists remain responsible for interpreting evidence and approving any experimental decisions.",
     evidenceReference: "Reference: {name}",
-    evidenceExperimentFile: "Experiment file: {name}",
-    evidenceExperimentNote: "Experiment note: {note}",
+    evidenceExperimentFile: "Experiment file ({module}): {name}",
+    evidenceExperimentNote: "Experiment note ({module}): {note}",
     noEvidenceIncluded: "No uploaded evidence was included.",
     missingProjectContext: "Project context or goal",
     missingReferenceEvidence: "Literature or reference evidence",
@@ -240,15 +292,16 @@ const I18N = {
     evidenceReferenceFilesLine: "- reference files: {value}",
     evidenceExperimentFilesLine: "- experiment files: {value}",
     evidenceExperimentNotesLine: "- experiment notes: {value}",
+    evidenceExperimentModuleLine: "- {module}: {files}; notes: {notes}",
     noneValue: "none",
     localSideChatReply:
       "Planning-level answer: {question} should be interpreted against the project context and uploaded evidence. Treat this as a discussion aid, not an update to the current recommendation.",
     markdownProjectContextHeading: "Project Context / Goal",
     markdownCurrentInterpretationHeading: "Current Interpretation",
     markdownKeyEvidenceHeading: "Key Evidence Used",
-    markdownPossibleExplanationHeading: "Possible Explanation",
+    markdownPossibleExplanationHeading: "Cross-Module Assessment",
     markdownRecommendedNextStepHeading: "Recommended Next Step",
-    markdownAdditionalAnalysisHeading: "Additional Analysis Suggested",
+    markdownAdditionalAnalysisHeading: "Module Most Relevant to Next Step",
     markdownMissingInformationHeading: "Missing Information",
     markdownHumanReviewHeading: "Human Review Notes",
     markdownDraftSummaryHeading: "Draft Summary",
@@ -299,11 +352,31 @@ const I18N = {
     referencesHelper:
       "本 MVP 会在浏览器本地处理文件。只有在运行智能体或提问时，提取出的文本才会发送到后端。",
     experimentEyebrow: "实验证据",
-    experimentTitle: "实验结果与实验记录",
+    experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
     clearExperimentFiles: "清空实验文件",
     experimentHelper:
-      "可上传多批 Excel 表、CSV、PDF、TXT 或非正式笔记。这些内容会作为解读证据，不会作为永久记录存储。",
+      "上传合成生物学工作流不同环节产生的证据。",
+    strainEngineeringTitle: "菌株工程",
+    strainEngineeringDescription:
+      "遗传设计、构建筛选、菌株比较、通路工程、酶变体、表达数据。",
+    fermentationTitle: "发酵",
+    fermentationDescription:
+      "培养运行、培养基条件、生长曲线、滴度/得率/生产强度数据、时间序列测量。",
+    downstreamProcessingTitle: "下游处理",
+    downstreamProcessingDescription:
+      "分离、纯化、提取、回收、产品质量、工艺损失、分析检测。",
+    uploadModuleFiles: "上传文件",
+    clearModuleFiles: "清空文件",
+    moduleNotesLabel: "可选备注",
+    moduleNotesPlaceholder:
+      "补充该模块的背景：测试了什么、改变了什么、哪些现象令人意外、希望智能体重点关注什么。",
+    moduleSummary: "{module}：{files} 个文件，{notes} 条备注",
+    moduleCount: "{files} 个文件 · {notes} 条备注",
+    noModuleFiles: "该模块尚未上传文件。",
+    noModuleNotes: "该模块尚未添加备注。",
+    moduleFilesCleared: "已清空{module}文件。",
+    addModuleNoteFirst: "请先为{module}添加备注。",
     experimentNotesLabel: "实验备注",
     experimentNotesPlaceholder:
       "补充这些结果的背景：测试了什么、改变了什么、哪些现象令人意外、希望智能体重点关注什么。",
@@ -323,9 +396,9 @@ const I18N = {
     reviewedByHuman: "已人工审阅",
     currentInterpretationHeading: "当前解读",
     keyEvidenceHeading: "使用的关键证据",
-    possibleExplanationHeading: "可能解释",
+    possibleExplanationHeading: "跨模块评估",
     recommendedNextStepHeading: "推荐下一步",
-    additionalAnalysisHeading: "建议补充分析",
+    additionalAnalysisHeading: "下一步最相关模块",
     missingInformationHeading: "缺失信息",
     humanReviewHeading: "人工审阅说明",
     draftSummaryHeading: "摘要草稿",
@@ -389,11 +462,11 @@ const I18N = {
       "尚未运行主分析。可以先补充项目背景、上传证据，然后点击“分析并推荐”。",
     defaultKeyEvidence: "尚未选择证据。",
     defaultPossibleExplanation:
-      "智能体审阅当前背景后，会在这里给出可能解释。",
+      "智能体审阅菌株工程、发酵、下游处理和参考资料后，会在这里给出跨模块评估。",
     defaultRecommendedNextStep:
       "添加参考资料、实验文件或备注，然后给智能体一个清晰指令。",
     defaultAdditionalAnalysis:
-      "运行主智能体动作后，这里会显示建议补充分析。",
+      "运行主智能体动作后，这里会显示下一步最相关模块。",
     defaultHumanReview:
       "AI 生成的建议在用于实验前必须经过科学家审阅。",
     defaultDraftSummary:
@@ -401,24 +474,24 @@ const I18N = {
     fallbackCurrentInterpretation:
       "工作区中包含浏览器会话内的证据，可能包括文献、表格、结果文件和非正式备注。由于后端不可用，这是一份本地演示解读。",
     fallbackPossibleExplanation:
-      "任何可能解释都应先视为假设，直到科学家审阅上传证据并确认文件之间是否可比。",
+      "任何跨模块解释都应先视为假设，直到科学家确认菌株工程、发酵和下游处理文件之间是否可比。",
     fallbackRecommendedNextStep:
       "先进行一次聚焦的证据评审：将上传结果表与项目背景对齐，找出最强模式或差异，再决定哪一项分析或实验方向值得人工审阅。",
     fallbackAdditionalAnalysis:
-      "总结每个上传文件，列出缺失元数据，并把最新结果与最相关的文献结论进行比较。",
+      "本地回退模式下无法可靠判断最相关模块。请先比较各模块证据和缺失元数据，再选择下一步重点。",
     normalizedCurrentInterpretation:
       "在形成可靠解读前，当前证据仍需要科学家审阅。",
     normalizedPossibleExplanation:
-      "可能存在多种解释。请先对比上传文献、结果模式和非正式备注，再选择一个工作假设。",
+      "可能存在跨菌株工程、发酵和下游处理的多种解释。请先对比上传文献、结果模式和备注，再选择一个工作假设。",
     normalizedRecommendedNextStep:
       "选择一个清晰的后续分析或规划层面的实验方向，交由人工审阅。",
     normalizedAdditionalAnalysis:
-      "检查上传结果表是否可比，识别缺失的对照或元数据，并回到源文件验证任何明显趋势。",
+      "审阅源文件后，判断下一步应聚焦菌株工程、发酵、下游处理，还是先做补充分析。",
     normalizedHumanReview:
       "科学家仍需负责解释证据，并批准任何实验决策。",
     evidenceReference: "参考资料：{name}",
-    evidenceExperimentFile: "实验文件：{name}",
-    evidenceExperimentNote: "实验备注：{note}",
+    evidenceExperimentFile: "实验文件（{module}）：{name}",
+    evidenceExperimentNote: "实验备注（{module}）：{note}",
     noEvidenceIncluded: "未包含上传证据。",
     missingProjectContext: "项目背景或目标",
     missingReferenceEvidence: "文献或参考证据",
@@ -429,15 +502,16 @@ const I18N = {
     evidenceReferenceFilesLine: "- 参考资料：{value}",
     evidenceExperimentFilesLine: "- 实验文件：{value}",
     evidenceExperimentNotesLine: "- 实验备注：{value}",
+    evidenceExperimentModuleLine: "- {module}：{files}；备注：{notes}",
     noneValue: "无",
     localSideChatReply:
       "规划层面的回答：{question} 应结合项目背景和上传证据来理解。请把它作为讨论辅助，而不是对当前推荐的更新。",
     markdownProjectContextHeading: "项目背景 / 目标",
     markdownCurrentInterpretationHeading: "当前解读",
     markdownKeyEvidenceHeading: "使用的关键证据",
-    markdownPossibleExplanationHeading: "可能解释",
+    markdownPossibleExplanationHeading: "跨模块评估",
     markdownRecommendedNextStepHeading: "推荐下一步",
-    markdownAdditionalAnalysisHeading: "建议补充分析",
+    markdownAdditionalAnalysisHeading: "下一步最相关模块",
     markdownMissingInformationHeading: "缺失信息",
     markdownHumanReviewHeading: "人工审阅说明",
     markdownDraftSummaryHeading: "摘要草稿",
@@ -459,8 +533,7 @@ let authToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "";
 let currentAccount = sessionStorage.getItem(ACCOUNT_STORAGE_KEY) || "";
 let projectContext = sessionStorage.getItem(PROJECT_CONTEXT_STORAGE_KEY) || "";
 let referenceDocuments = [];
-let experimentDocuments = [];
-let experimentNotes = loadSessionJson(EXPERIMENT_NOTES_STORAGE_KEY, []);
+let experimentModules = loadExperimentModules();
 let currentRecommendation = loadSessionJson(
   RECOMMENDATION_STORAGE_KEY,
   createDefaultRecommendation()
@@ -571,24 +644,6 @@ referenceFileInput.addEventListener("change", async (event) => {
   referenceFileInput.value = "";
 });
 
-experimentFileInput.addEventListener("change", async (event) => {
-  await handleDocumentFiles({
-    files: Array.from(event.target.files || []),
-    collection: experimentDocuments,
-    maxFiles: MAX_EXPERIMENT_FILES,
-    onUpdate(nextDocuments) {
-      experimentDocuments = nextDocuments;
-      renderDocumentList(
-        experimentFileList,
-        experimentDocuments,
-        t("noExperimentFiles"),
-        removeExperimentDocument
-      );
-    },
-  });
-  experimentFileInput.value = "";
-});
-
 clearReferencesButton.addEventListener("click", () => {
   referenceDocuments = [];
   renderDocumentList(
@@ -600,34 +655,49 @@ clearReferencesButton.addEventListener("click", () => {
   showToast(t("referencesCleared"));
 });
 
-clearExperimentFilesButton.addEventListener("click", () => {
-  experimentDocuments = [];
-  renderDocumentList(
-    experimentFileList,
-    experimentDocuments,
-    t("noExperimentFiles"),
-    removeExperimentDocument
-  );
-  showToast(t("experimentFilesCleared"));
-});
+EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
+  const elements = experimentModuleElements[moduleKey];
+  if (!elements) return;
 
-addExperimentNoteButton.addEventListener("click", () => {
-  const noteText = experimentNotesField.value.trim();
-
-  if (!noteText) {
-    showToast(t("addExperimentNoteFirst"));
-    experimentNotesField.focus();
-    return;
-  }
-
-  experimentNotes.unshift({
-    id: makeId(),
-    createdAt: new Date().toISOString(),
-    text: noteText,
+  elements.fileInput.addEventListener("change", async (event) => {
+    await handleDocumentFiles({
+      files: Array.from(event.target.files || []),
+      collection: experimentModules[moduleKey].files,
+      maxFiles: MAX_EXPERIMENT_FILES_PER_MODULE,
+      moduleKey,
+      onUpdate(nextDocuments) {
+        experimentModules[moduleKey].files = nextDocuments;
+        renderExperimentModule(moduleKey);
+      },
+    });
+    elements.fileInput.value = "";
   });
-  saveExperimentNotes();
-  renderExperimentNotes();
-  experimentNotesField.value = "";
+
+  elements.clearFilesButton.addEventListener("click", () => {
+    experimentModules[moduleKey].files = [];
+    renderExperimentModule(moduleKey);
+    showToast(t("moduleFilesCleared", { module: getExperimentModuleLabel(moduleKey) }));
+  });
+
+  elements.addNoteButton.addEventListener("click", () => {
+    const noteText = elements.noteField.value.trim();
+
+    if (!noteText) {
+      showToast(t("addModuleNoteFirst", { module: getExperimentModuleLabel(moduleKey) }));
+      elements.noteField.focus();
+      return;
+    }
+
+    experimentModules[moduleKey].notes.unshift({
+      id: makeId(),
+      createdAt: new Date().toISOString(),
+      text: noteText,
+      module: moduleKey,
+    });
+    saveExperimentModules();
+    renderExperimentModule(moduleKey);
+    elements.noteField.value = "";
+  });
 });
 
 analyzeRecommendButton.addEventListener("click", () => {
@@ -726,13 +796,7 @@ function initializeWorkbench() {
     t("noReferenceFiles"),
     removeReferenceDocument
   );
-  renderDocumentList(
-    experimentFileList,
-    experimentDocuments,
-    t("noExperimentFiles"),
-    removeExperimentDocument
-  );
-  renderExperimentNotes();
+  renderExperimentModules();
   renderRecommendation();
   sideChatHistory.innerHTML = "";
   addSideChatMessage(
@@ -894,13 +958,7 @@ function applyLanguage() {
     t("noReferenceFiles"),
     removeReferenceDocument
   );
-  renderDocumentList(
-    experimentFileList,
-    experimentDocuments,
-    t("noExperimentFiles"),
-    removeExperimentDocument
-  );
-  renderExperimentNotes();
+  renderExperimentModules();
   renderRecommendation();
 
   if (!sideChatMessages.length && sideChatHistory.childElementCount <= 1) {
@@ -953,7 +1011,13 @@ function getAuthHeaders(extraHeaders = {}) {
   return headers;
 }
 
-async function handleDocumentFiles({ files, collection, maxFiles, onUpdate }) {
+async function handleDocumentFiles({
+  files,
+  collection,
+  maxFiles,
+  onUpdate,
+  moduleKey = "",
+}) {
   let nextDocuments = [...collection];
 
   for (const file of files) {
@@ -964,7 +1028,9 @@ async function handleDocumentFiles({ files, collection, maxFiles, onUpdate }) {
 
     try {
       const parsedDocument = await parseWorkbenchFile(file);
-      nextDocuments.push(parsedDocument);
+      nextDocuments.push(
+        moduleKey ? { ...parsedDocument, module: moduleKey } : parsedDocument
+      );
       showToast(t("fileAdded", { name: file.name }));
     } catch (error) {
       console.warn("File parsing failed.", error);
@@ -1012,6 +1078,7 @@ async function parseWorkbenchFile(file) {
     text: truncatedText,
     originalCharacterCount: normalizedText.length,
     extractedCharacterCount: truncatedText.length,
+    extractedCharCount: truncatedText.length,
     truncated: normalizedText.length > PER_FILE_TEXT_LIMIT,
   };
 }
@@ -1064,16 +1131,6 @@ function removeReferenceDocument(id) {
   );
 }
 
-function removeExperimentDocument(id) {
-  experimentDocuments = experimentDocuments.filter((item) => item.id !== id);
-  renderDocumentList(
-    experimentFileList,
-    experimentDocuments,
-    t("noExperimentFiles"),
-    removeExperimentDocument
-  );
-}
-
 function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
   let remainingCharacters = totalLimit;
 
@@ -1086,33 +1143,76 @@ function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
       return {
         filename: documentItem.filename,
         type: documentItem.type,
+        module: documentItem.module || "",
         text: textForRequest,
         truncated:
           documentItem.truncated || textForRequest.length < documentItem.text.length,
         originalCharacterCount: documentItem.originalCharacterCount,
+        extractedCharCount:
+          documentItem.extractedCharCount || documentItem.extractedCharacterCount,
         sentCharacterCount: textForRequest.length,
       };
     })
     .filter((documentItem) => documentItem.text);
 }
 
-function renderExperimentNotes() {
-  experimentNoteList.innerHTML = "";
+function removeExperimentModuleDocument(moduleKey, id) {
+  experimentModules[moduleKey].files = experimentModules[moduleKey].files.filter(
+    (item) => item.id !== id
+  );
+  renderExperimentModule(moduleKey);
+}
 
-  if (!experimentNotes.length) {
+function removeExperimentModuleNote(moduleKey, id) {
+  experimentModules[moduleKey].notes = experimentModules[moduleKey].notes.filter(
+    (note) => note.id !== id
+  );
+  saveExperimentModules();
+  renderExperimentModule(moduleKey);
+}
+
+function renderExperimentModules() {
+  EXPERIMENT_MODULE_KEYS.forEach(renderExperimentModule);
+  renderExperimentModuleSummary();
+}
+
+function renderExperimentModule(moduleKey) {
+  const moduleState = experimentModules[moduleKey];
+  const elements = experimentModuleElements[moduleKey];
+  if (!moduleState || !elements) return;
+
+  renderDocumentList(
+    elements.fileList,
+    moduleState.files,
+    t("noModuleFiles"),
+    (id) => removeExperimentModuleDocument(moduleKey, id)
+  );
+  renderExperimentModuleNotes(moduleKey);
+  updateExperimentModuleCount(moduleKey);
+  renderExperimentModuleSummary();
+}
+
+function renderExperimentModuleNotes(moduleKey) {
+  const moduleState = experimentModules[moduleKey];
+  const elements = experimentModuleElements[moduleKey];
+  if (!moduleState || !elements) return;
+
+  elements.noteList.innerHTML = "";
+
+  if (!moduleState.notes.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = t("noExperimentNotes");
-    experimentNoteList.appendChild(empty);
+    empty.textContent = t("noModuleNotes");
+    elements.noteList.appendChild(empty);
     return;
   }
 
-  experimentNotes.forEach((note) => {
+  moduleState.notes.forEach((note) => {
     const item = document.createElement("div");
     item.className = "note-item";
 
     const title = document.createElement("strong");
-    title.textContent = t("experimentNoteTitle");
+    title.textContent = `${getExperimentModuleLabel(moduleKey)} ${t("experimentNoteTitle")}`;
 
     const meta = document.createElement("div");
     meta.className = "note-meta";
@@ -1125,14 +1225,45 @@ function renderExperimentNotes() {
     removeButton.className = "text-button";
     removeButton.type = "button";
     removeButton.textContent = t("removeNote");
-    removeButton.addEventListener("click", () => {
-      experimentNotes = experimentNotes.filter((itemNote) => itemNote.id !== note.id);
-      saveExperimentNotes();
-      renderExperimentNotes();
-    });
+    removeButton.addEventListener("click", () =>
+      removeExperimentModuleNote(moduleKey, note.id)
+    );
 
     item.append(title, meta, body, removeButton);
-    experimentNoteList.appendChild(item);
+    elements.noteList.appendChild(item);
+  });
+}
+
+function updateExperimentModuleCount(moduleKey) {
+  const moduleState = experimentModules[moduleKey];
+  const elements = experimentModuleElements[moduleKey];
+  if (!moduleState || !elements?.count) return;
+
+  elements.count.textContent = t("moduleCount", {
+    files: moduleState.files.length,
+    notes: moduleState.notes.length,
+  });
+}
+
+function renderExperimentModuleSummary() {
+  if (!experimentSummaryList) return;
+
+  experimentSummaryList.innerHTML = "";
+
+  EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
+    const moduleState = experimentModules[moduleKey];
+    const summaryItem = document.createElement("div");
+    summaryItem.className = "module-summary-item";
+    summaryItem.textContent = t("moduleSummary", {
+      module: getExperimentModuleLabel(moduleKey),
+      files: moduleState.files.length,
+      notes: moduleState.notes.length,
+    });
+    summaryItem.classList.toggle(
+      "has-evidence",
+      Boolean(moduleState.files.length || moduleState.notes.length)
+    );
+    experimentSummaryList.appendChild(summaryItem);
   });
 }
 
@@ -1186,6 +1317,9 @@ function setAgentBusy(isBusy) {
 // the Current Recommendation panel.
 // side_chat mode is for questions only and must not mutate the recommendation.
 async function sendWorkbenchRequest({ mode, messages }) {
+  const experimentModulesPayload = buildExperimentModulesForRequest();
+  const experimentDocumentsPayload = buildFlattenedExperimentDocumentsForRequest();
+  const experimentNotesPayload = collectExperimentNotesForRequest();
   const requestBody = {
     mode,
     messages,
@@ -1195,12 +1329,9 @@ async function sendWorkbenchRequest({ mode, messages }) {
       MAX_REFERENCE_FILES,
       TOTAL_REFERENCE_TEXT_LIMIT
     ),
-    experimentDocuments: buildDocumentsForRequest(
-      experimentDocuments,
-      MAX_EXPERIMENT_FILES,
-      TOTAL_EXPERIMENT_TEXT_LIMIT
-    ),
-    experimentNotes: collectExperimentNotesForRequest(),
+    experimentModules: experimentModulesPayload,
+    experimentDocuments: experimentDocumentsPayload,
+    experimentNotes: experimentNotesPayload,
   };
 
   const response = await fetch(backendUrl("/chat"), {
@@ -1233,9 +1364,9 @@ function buildAgentMessages(instruction) {
       content: [
         "Mode: agent_instruction",
         t("responseLanguageInstruction"),
-        "Interpret the current synthetic-biology project context, uploaded literature, experiment files, and informal notes.",
-        "Identify possible explanations, useful next analyses, and human-reviewed next steps.",
-        "Do not assume the project is only about production volume or that metrics are complete.",
+        "Interpret the current synthetic-biology project context, uploaded literature, and experiment evidence grouped into Strain Engineering, Fermentation, and Downstream Processing.",
+        "Compare evidence across modules, identify possible explanations, useful next analyses, and human-reviewed next steps.",
+        "Do not assume the project is only about production volume or that problems are only in strain engineering.",
         "Keep recommendations at design-review and planning level. Do not provide unsafe wet-lab protocols.",
         "",
         `Instruction: ${instruction}`,
@@ -1260,6 +1391,7 @@ function buildSideChatMessages(question) {
         "Mode: side_chat",
         t("responseLanguageInstruction"),
         "Answer this as a question only. Do not claim to update the current recommendation.",
+        "Use the module grouping when experiment evidence is relevant: Strain Engineering, Fermentation, and Downstream Processing.",
         "Keep the response at design-review and planning level.",
         "",
         `Question: ${question}`,
@@ -1277,6 +1409,19 @@ function buildProjectContextPromptBlock() {
 
 function buildEvidencePromptBlock() {
   const notes = collectExperimentNotesForRequest();
+  const moduleLines = EXPERIMENT_MODULE_KEYS.map((moduleKey) => {
+    const moduleState = experimentModules[moduleKey];
+    return t("evidenceExperimentModuleLine", {
+      module: getExperimentModuleLabel(moduleKey),
+      files:
+        moduleState.files.map((item) => item.filename).join(", ") ||
+        t("noneValue"),
+      notes:
+        collectExperimentNotesForRequest(moduleKey)
+          .map((note) => truncateText(note.text, 80))
+          .join("; ") || t("noneValue"),
+    });
+  });
 
   return [
     t("evidenceSummaryHeading"),
@@ -1284,29 +1429,74 @@ function buildEvidencePromptBlock() {
       value: referenceDocuments.map((item) => item.filename).join(", ") || t("noneValue"),
     }),
     t("evidenceExperimentFilesLine", {
-      value: experimentDocuments.map((item) => item.filename).join(", ") || t("noneValue"),
+      value:
+        collectExperimentDocuments().map((item) => item.filename).join(", ") ||
+        t("noneValue"),
     }),
     t("evidenceExperimentNotesLine", {
       value:
         notes.map((note) => truncateText(note.text, 80)).join("; ") ||
         t("noneValue"),
     }),
+    ...moduleLines,
   ].join("\n");
 }
 
-function collectExperimentNotesForRequest() {
-  const draftNote = experimentNotesField.value.trim();
-  const notes = [...experimentNotes];
+function buildExperimentModulesForRequest() {
+  return EXPERIMENT_MODULE_DEFINITIONS.reduce((modules, moduleDefinition) => {
+    const moduleKey = moduleDefinition.key;
+    const moduleState = experimentModules[moduleKey];
 
-  if (draftNote) {
-    notes.unshift({
-      id: "draft",
-      createdAt: new Date().toISOString(),
-      text: draftNote,
-    });
-  }
+    modules[moduleKey] = {
+      documents: buildDocumentsForRequest(
+        moduleState.files,
+        MAX_EXPERIMENT_FILES,
+        Math.floor(TOTAL_EXPERIMENT_TEXT_LIMIT / EXPERIMENT_MODULE_KEYS.length)
+      ),
+      notes: collectExperimentNotesForRequest(moduleKey),
+    };
 
-  return notes;
+    return modules;
+  }, {});
+}
+
+function buildFlattenedExperimentDocumentsForRequest() {
+  return buildDocumentsForRequest(
+    collectExperimentDocuments(),
+    MAX_EXPERIMENT_FILES,
+    TOTAL_EXPERIMENT_TEXT_LIMIT
+  );
+}
+
+function collectExperimentDocuments() {
+  return EXPERIMENT_MODULE_KEYS.flatMap(
+    (moduleKey) => experimentModules[moduleKey].files
+  );
+}
+
+function collectExperimentNotesForRequest(moduleKey = "") {
+  const modulesToCollect = moduleKey ? [moduleKey] : EXPERIMENT_MODULE_KEYS;
+
+  return modulesToCollect.flatMap((currentModuleKey) => {
+    const moduleState = experimentModules[currentModuleKey];
+    const elements = experimentModuleElements[currentModuleKey];
+    const draftNote = elements?.noteField?.value.trim() || "";
+    const notes = [...moduleState.notes];
+
+    if (draftNote) {
+      notes.unshift({
+        id: `draft-${currentModuleKey}`,
+        createdAt: new Date().toISOString(),
+        text: draftNote,
+        module: currentModuleKey,
+      });
+    }
+
+    return notes.map((note) => ({
+      ...note,
+      module: note.module || currentModuleKey,
+    }));
+  });
 }
 
 function normalizeAgentResponse(response, instruction) {
@@ -1385,12 +1575,22 @@ function buildEvidenceList() {
     evidence.push(t("evidenceReference", { name: documentItem.filename }));
   });
 
-  experimentDocuments.forEach((documentItem) => {
-    evidence.push(t("evidenceExperimentFile", { name: documentItem.filename }));
+  collectExperimentDocuments().forEach((documentItem) => {
+    evidence.push(
+      t("evidenceExperimentFile", {
+        name: documentItem.filename,
+        module: getExperimentModuleLabel(documentItem.module),
+      })
+    );
   });
 
   collectExperimentNotesForRequest().forEach((note) => {
-    evidence.push(t("evidenceExperimentNote", { note: truncateText(note.text, 80) }));
+    evidence.push(
+      t("evidenceExperimentNote", {
+        note: truncateText(note.text, 80),
+        module: getExperimentModuleLabel(note.module),
+      })
+    );
   });
 
   return evidence.length ? evidence : [t("noEvidenceIncluded")];
@@ -1401,7 +1601,10 @@ function buildMissingInformationList() {
 
   if (!getProjectContext()) missing.push(t("missingProjectContext"));
   if (!referenceDocuments.length) missing.push(t("missingReferenceEvidence"));
-  if (!experimentDocuments.length && !collectExperimentNotesForRequest().length) {
+  if (
+    !collectExperimentDocuments().length &&
+    !collectExperimentNotesForRequest().length
+  ) {
     missing.push(t("missingExperimentEvidence"));
   }
 
@@ -1723,18 +1926,84 @@ async function copyText(text) {
   textArea.remove();
 }
 
-function saveExperimentNotes() {
-  sessionStorage.setItem(
-    EXPERIMENT_NOTES_STORAGE_KEY,
-    JSON.stringify(experimentNotes)
-  );
-}
-
 function saveCurrentRecommendation() {
   sessionStorage.setItem(
     RECOMMENDATION_STORAGE_KEY,
     JSON.stringify(currentRecommendation)
   );
+}
+
+function saveExperimentModules() {
+  const storedModules = EXPERIMENT_MODULE_KEYS.reduce((modules, moduleKey) => {
+    modules[moduleKey] = {
+      notes: experimentModules[moduleKey].notes,
+    };
+    return modules;
+  }, {});
+
+  sessionStorage.setItem(
+    EXPERIMENT_MODULES_STORAGE_KEY,
+    JSON.stringify(storedModules)
+  );
+}
+
+function loadExperimentModules() {
+  const modules = createEmptyExperimentModules();
+  const storedModules = loadSessionJson(EXPERIMENT_MODULES_STORAGE_KEY, {});
+
+  EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
+    const storedNotes = storedModules?.[moduleKey]?.notes;
+    modules[moduleKey].notes = normalizeStoredExperimentNotes(
+      Array.isArray(storedNotes) ? storedNotes : [],
+      moduleKey
+    );
+  });
+
+  const hasModuleNotes = EXPERIMENT_MODULE_KEYS.some(
+    (moduleKey) => modules[moduleKey].notes.length
+  );
+  const legacyNotes = loadSessionJson(LEGACY_EXPERIMENT_NOTES_STORAGE_KEY, []);
+
+  if (!hasModuleNotes && Array.isArray(legacyNotes) && legacyNotes.length) {
+    modules.strainEngineering.notes = normalizeStoredExperimentNotes(
+      legacyNotes,
+      "strainEngineering"
+    );
+  }
+
+  return modules;
+}
+
+function createEmptyExperimentModules() {
+  return EXPERIMENT_MODULE_KEYS.reduce((modules, moduleKey) => {
+    modules[moduleKey] = {
+      files: [],
+      notes: [],
+    };
+    return modules;
+  }, {});
+}
+
+function normalizeStoredExperimentNotes(notes, moduleKey) {
+  return notes
+    .filter((note) => note && typeof note.text === "string" && note.text.trim())
+    .map((note) => ({
+      id: typeof note.id === "string" && note.id ? note.id : makeId(),
+      text: note.text.trim(),
+      createdAt:
+        typeof note.createdAt === "string" && note.createdAt
+          ? note.createdAt
+          : new Date().toISOString(),
+      module: note.module || moduleKey,
+    }));
+}
+
+function getExperimentModuleLabel(moduleKey) {
+  const moduleDefinition = EXPERIMENT_MODULE_DEFINITIONS.find(
+    (definition) => definition.key === moduleKey
+  );
+
+  return moduleDefinition ? t(moduleDefinition.titleKey) : moduleKey || t("notAvailable");
 }
 
 function loadSessionJson(key, fallback) {

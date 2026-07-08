@@ -136,42 +136,144 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow" data-i18n="experimentEyebrow">Experiment Evidence</p>
-                <h2 data-i18n="experimentTitle">Experiment Results & Lab Notes</h2>
-              </div>
-              <div class="panel-actions">
-                <label class="file-picker" for="experimentFileInput" data-i18n="uploadResults">Upload results</label>
-                <button id="clearExperimentFilesButton" class="secondary-button" type="button" data-i18n="clearExperimentFiles">
-                  Clear experiment files
-                </button>
+                <h2 data-i18n="experimentTitle">Experimental Results</h2>
               </div>
             </div>
             <p class="panel-helper" data-i18n="experimentHelper">
-              Upload batches of Excel sheets, CSVs, PDFs, TXT files, or informal notes.
-              Treat these as evidence for interpretation, not a permanent record.
+              Upload evidence from different parts of the synthetic biology workflow.
             </p>
-            <input
-              id="experimentFileInput"
-              class="sr-only"
-              type="file"
-              accept=".pdf,.txt,.csv,.xlsx,.xls"
-              multiple
-            />
-            <label class="experiment-note-field" for="experimentNotesField">
-              <span data-i18n="experimentNotesLabel">Experiment notes</span>
-              <textarea
-                id="experimentNotesField"
-                rows="5"
-                placeholder="Add any context about these results: what was tested, what changed, what looked surprising, what you want the agent to focus on."
-                data-i18n-placeholder="experimentNotesPlaceholder"
-              ></textarea>
-            </label>
-            <div class="inline-actions single-row-actions">
-              <button id="addExperimentNoteButton" class="secondary-button" type="button" data-i18n="addNote">
-                Add note
-              </button>
+            <div id="experimentSummaryList" class="module-summary-list" aria-live="polite"></div>
+
+            <div class="experiment-module-grid">
+              <article class="experiment-module-card" data-experiment-module="strainEngineering">
+                <div class="module-card-header">
+                  <div>
+                    <h3 data-i18n="strainEngineeringTitle">Strain Engineering</h3>
+                    <p data-i18n="strainEngineeringDescription">
+                      Genetic design, construct screening, strain comparison, pathway engineering, enzyme variants, expression data.
+                    </p>
+                  </div>
+                  <span class="module-count-pill" data-module-count></span>
+                </div>
+                <div class="module-actions">
+                  <label class="file-picker" for="strainEngineeringFileInput" data-i18n="uploadModuleFiles">Upload files</label>
+                  <button class="secondary-button" type="button" data-module-clear-files data-i18n="clearModuleFiles">
+                    Clear files
+                  </button>
+                </div>
+                <input
+                  id="strainEngineeringFileInput"
+                  class="sr-only"
+                  type="file"
+                  accept=".pdf,.txt,.csv,.xlsx,.xls"
+                  multiple
+                  data-module-file-input
+                />
+                <div class="file-list compact-file-list" data-module-file-list aria-live="polite"></div>
+                <label class="experiment-note-field" for="strainEngineeringNotesField">
+                  <span data-i18n="moduleNotesLabel">Optional notes</span>
+                  <textarea
+                    id="strainEngineeringNotesField"
+                    rows="3"
+                    placeholder="Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on."
+                    data-module-note-field
+                    data-i18n-placeholder="moduleNotesPlaceholder"
+                  ></textarea>
+                </label>
+                <div class="inline-actions single-row-actions">
+                  <button class="secondary-button" type="button" data-module-add-note data-i18n="addNote">
+                    Add note
+                  </button>
+                </div>
+                <div class="note-list compact-note-list" data-module-note-list aria-live="polite"></div>
+              </article>
+
+              <article class="experiment-module-card" data-experiment-module="fermentation">
+                <div class="module-card-header">
+                  <div>
+                    <h3 data-i18n="fermentationTitle">Fermentation</h3>
+                    <p data-i18n="fermentationDescription">
+                      Cultivation runs, media conditions, growth curves, titer/yield/productivity data, time-course measurements.
+                    </p>
+                  </div>
+                  <span class="module-count-pill" data-module-count></span>
+                </div>
+                <div class="module-actions">
+                  <label class="file-picker" for="fermentationFileInput" data-i18n="uploadModuleFiles">Upload files</label>
+                  <button class="secondary-button" type="button" data-module-clear-files data-i18n="clearModuleFiles">
+                    Clear files
+                  </button>
+                </div>
+                <input
+                  id="fermentationFileInput"
+                  class="sr-only"
+                  type="file"
+                  accept=".pdf,.txt,.csv,.xlsx,.xls"
+                  multiple
+                  data-module-file-input
+                />
+                <div class="file-list compact-file-list" data-module-file-list aria-live="polite"></div>
+                <label class="experiment-note-field" for="fermentationNotesField">
+                  <span data-i18n="moduleNotesLabel">Optional notes</span>
+                  <textarea
+                    id="fermentationNotesField"
+                    rows="3"
+                    placeholder="Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on."
+                    data-module-note-field
+                    data-i18n-placeholder="moduleNotesPlaceholder"
+                  ></textarea>
+                </label>
+                <div class="inline-actions single-row-actions">
+                  <button class="secondary-button" type="button" data-module-add-note data-i18n="addNote">
+                    Add note
+                  </button>
+                </div>
+                <div class="note-list compact-note-list" data-module-note-list aria-live="polite"></div>
+              </article>
+
+              <article class="experiment-module-card" data-experiment-module="downstreamProcessing">
+                <div class="module-card-header">
+                  <div>
+                    <h3 data-i18n="downstreamProcessingTitle">Downstream Processing</h3>
+                    <p data-i18n="downstreamProcessingDescription">
+                      Separation, purification, extraction, recovery, product quality, process loss, analytics.
+                    </p>
+                  </div>
+                  <span class="module-count-pill" data-module-count></span>
+                </div>
+                <div class="module-actions">
+                  <label class="file-picker" for="downstreamProcessingFileInput" data-i18n="uploadModuleFiles">Upload files</label>
+                  <button class="secondary-button" type="button" data-module-clear-files data-i18n="clearModuleFiles">
+                    Clear files
+                  </button>
+                </div>
+                <input
+                  id="downstreamProcessingFileInput"
+                  class="sr-only"
+                  type="file"
+                  accept=".pdf,.txt,.csv,.xlsx,.xls"
+                  multiple
+                  data-module-file-input
+                />
+                <div class="file-list compact-file-list" data-module-file-list aria-live="polite"></div>
+                <label class="experiment-note-field" for="downstreamProcessingNotesField">
+                  <span data-i18n="moduleNotesLabel">Optional notes</span>
+                  <textarea
+                    id="downstreamProcessingNotesField"
+                    rows="3"
+                    placeholder="Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on."
+                    data-module-note-field
+                    data-i18n-placeholder="moduleNotesPlaceholder"
+                  ></textarea>
+                </label>
+                <div class="inline-actions single-row-actions">
+                  <button class="secondary-button" type="button" data-module-add-note data-i18n="addNote">
+                    Add note
+                  </button>
+                </div>
+                <div class="note-list compact-note-list" data-module-note-list aria-live="polite"></div>
+              </article>
             </div>
-            <div id="experimentFileList" class="file-list" aria-live="polite"></div>
-            <div id="experimentNoteList" class="note-list" aria-live="polite"></div>
           </section>
         </div>
 
@@ -230,7 +332,7 @@
                 <ul id="keyEvidenceUsed"></ul>
               </section>
               <section>
-                <h3 data-i18n="possibleExplanationHeading">Possible Explanation</h3>
+                <h3 data-i18n="possibleExplanationHeading">Cross-Module Assessment</h3>
                 <p id="possibleExplanation"></p>
               </section>
               <section>
@@ -238,7 +340,7 @@
                 <p id="recommendedNextStep"></p>
               </section>
               <section>
-                <h3 data-i18n="additionalAnalysisHeading">Additional Analysis Suggested</h3>
+                <h3 data-i18n="additionalAnalysisHeading">Module Most Relevant to Next Step</h3>
                 <p id="additionalAnalysisSuggested"></p>
               </section>
               <section>

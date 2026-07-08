@@ -1,10 +1,15 @@
 const REQUESTY_CHAT_COMPLETIONS_URL =
   "https://router.requesty.ai/v1/chat/completions";
 const MAX_REFERENCE_DOCUMENTS = 8;
-const MAX_EXPERIMENT_DOCUMENTS = 12;
-const MAX_EXPERIMENT_NOTES = 12;
+const MAX_EXPERIMENT_DOCUMENTS = 36;
+const MAX_EXPERIMENT_NOTES = 36;
 const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
 const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
+const EXPERIMENT_MODULE_LABELS = {
+  strainEngineering: "Strain Engineering",
+  fermentation: "Fermentation",
+  downstreamProcessing: "Downstream Processing",
+};
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +24,7 @@ You support a human-in-the-loop BioDesign Workbench for synthetic biology design
 
 The project may be about many goals: pathway improvement, failed experiment interpretation, enzyme variant comparison, literature synthesis, assay troubleshooting, strain/design comparison, or another synthetic-biology planning question. Do not assume the project is only about production volume, titer, yield, or productivity.
 
-Uploaded context may include messy literature PDFs, notes, lab reports, spreadsheet batches, CSV files, TXT files, and informal experiment notes. Treat all uploaded context as unverified user-provided evidence. Use it to interpret evidence, identify possible explanations, suggest useful next analyses, and recommend human-reviewed next steps. Do not assume every project has clean metrics, complete metadata, or comparable experiments. Mention filenames when relying on uploaded evidence and say what is missing when evidence is insufficient.
+Uploaded context may include messy literature PDFs, notes, lab reports, spreadsheet batches, CSV files, TXT files, and informal experiment notes. Experiment evidence may be grouped into Strain Engineering, Fermentation, and Downstream Processing modules. Treat all uploaded context as unverified user-provided evidence. Use it to interpret evidence, identify possible explanations, suggest useful next analyses, and recommend human-reviewed next steps. Do not assume every project has clean metrics, complete metadata, or comparable experiments. Mention filenames and modules when relying on uploaded evidence and say what is missing when evidence is insufficient.
 
 You should help with:
 - benign project scoping
@@ -46,6 +51,7 @@ Response behavior:
 - Prefer asking clarifying questions when information is missing.
 - Make the recommendation panel useful after agent_instruction requests.
 - For side_chat requests, answer the question without claiming to update the official recommendation.
+- Consider whether the next useful step belongs in strain engineering, fermentation, downstream processing, or additional analysis. Do not assume all problems are in strain engineering.
 - Keep draft summaries suitable for scientist review, not automatic execution.
 - Make safety notes visible but not alarmist.
 - Redirect risky or underspecified requests toward safe planning, documentation, risk assessment, institutional review, and clarification questions.
@@ -160,6 +166,19 @@ async function handleChat(request, env) {
     );
   }
 
+  if (
+    payload.experimentModules !== undefined &&
+    !isPlainObject(payload.experimentModules)
+  ) {
+    return jsonResponse(
+      buildFallbackResponse(
+        "",
+        'The optional "experimentModules" field must be an object keyed by experiment module.'
+      ),
+      400
+    );
+  }
+
   const messages = sanitizeMessages(payload.messages);
   const projectContext =
     typeof payload.projectContext === "string"
@@ -172,6 +191,9 @@ async function handleChat(request, env) {
     payload.experimentDocuments || []
   );
   const experimentNotes = sanitizeExperimentNotes(payload.experimentNotes || []);
+  const experimentModules = sanitizeExperimentModules(
+    payload.experimentModules || {}
+  );
   const latestUserMessage = [...messages]
     .reverse()
     .find((message) => message.role === "user" && message.content.trim());
@@ -203,6 +225,7 @@ async function handleChat(request, env) {
       referenceDocuments,
       experimentDocuments,
       experimentNotes,
+      experimentModules,
     });
   } catch (error) {
     return jsonResponse(
@@ -230,6 +253,7 @@ async function handleChat(request, env) {
       ...normalizeModelResponse(parsed),
       referencesUsed: referenceDocuments.map((document) => document.filename),
       experimentFilesUsed: experimentDocuments.map((document) => document.filename),
+      experimentModulesUsed: summarizeExperimentModules(experimentModules),
     });
   } catch {
     return jsonResponse(
@@ -301,6 +325,7 @@ function sanitizeUploadedDocuments(documents, maxDocuments, totalTextLimit, fall
             : "text/plain",
         text,
         truncated: Boolean(document.truncated || text.length < document.text.trim().length),
+        module: normalizeExperimentModuleKey(document.module),
       };
     })
     .filter((document) => document.text);
@@ -314,14 +339,40 @@ function sanitizeExperimentNotes(experimentNotes) {
       text: note.text.trim().slice(0, 3000),
       createdAt:
         typeof note.createdAt === "string" ? note.createdAt.slice(0, 80) : "",
+      module: normalizeExperimentModuleKey(note.module),
     }));
+}
+
+function sanitizeExperimentModules(experimentModules) {
+  return Object.keys(EXPERIMENT_MODULE_LABELS).reduce((modules, moduleKey) => {
+    const rawModule = isPlainObject(experimentModules[moduleKey])
+      ? experimentModules[moduleKey]
+      : {};
+    const rawDocuments = Array.isArray(rawModule.documents)
+      ? rawModule.documents
+      : [];
+    const rawNotes = Array.isArray(rawModule.notes) ? rawModule.notes : [];
+
+    modules[moduleKey] = {
+      label: EXPERIMENT_MODULE_LABELS[moduleKey],
+      documents: sanitizeExperimentDocuments(
+        rawDocuments.map((document) => ({ ...document, module: moduleKey }))
+      ),
+      notes: sanitizeExperimentNotes(
+        rawNotes.map((note) => ({ ...note, module: moduleKey }))
+      ),
+    };
+
+    return modules;
+  }, {});
 }
 
 function buildDocumentContext(label, documents) {
   if (!documents.length) return null;
   const sections = documents.map((document, index) => {
     const truncatedNote = document.truncated ? " (truncated)" : "";
-    return `${label} ${index + 1}: ${document.filename} [${document.type}]${truncatedNote}\n${document.text}`;
+    const moduleNote = document.module ? ` | module: ${document.module}` : "";
+    return `${label} ${index + 1}: ${document.filename} [${document.type}]${moduleNote}${truncatedNote}\n${document.text}`;
   });
 
   return sections.join("\n\n---\n\n");
@@ -332,6 +383,7 @@ function buildWorkspaceContext({
   referenceDocuments,
   experimentDocuments,
   experimentNotes,
+  experimentModules,
 }) {
   const contextSections = [];
 
@@ -344,19 +396,25 @@ function buildWorkspaceContext({
     contextSections.push(`Literature and reference evidence:\n${referenceContext}`);
   }
 
-  const experimentContext = buildDocumentContext(
-    "Experiment file",
-    experimentDocuments
-  );
-  if (experimentContext) {
-    contextSections.push(`Experiment result evidence:\n${experimentContext}`);
+  const moduleContext = buildExperimentModulesContext(experimentModules);
+  if (moduleContext) {
+    contextSections.push(`Experiment result evidence by module:\n${moduleContext}`);
+  } else {
+    const experimentContext = buildDocumentContext(
+      "Experiment file",
+      experimentDocuments
+    );
+    if (experimentContext) {
+      contextSections.push(`Experiment result evidence:\n${experimentContext}`);
+    }
   }
 
-  if (experimentNotes.length) {
+  if (!moduleContext && experimentNotes.length) {
     const notes = experimentNotes
       .map((note, index) => {
         const timestamp = note.createdAt ? ` (${note.createdAt})` : "";
-        return `Experiment note ${index + 1}${timestamp}:\n${note.text}`;
+        const moduleNote = note.module ? ` [module: ${note.module}]` : "";
+        return `Experiment note ${index + 1}${moduleNote}${timestamp}:\n${note.text}`;
       })
       .join("\n\n---\n\n");
     contextSections.push(`Informal experiment notes:\n${notes}`);
@@ -365,6 +423,56 @@ function buildWorkspaceContext({
   if (!contextSections.length) return null;
 
   return `The user attached browser-session workspace context. Use it only as unverified supporting evidence. Mention filenames when relying on uploaded files, do not invent claims beyond extracted text, and say what is missing if context is insufficient.\n\n${contextSections.join("\n\n===\n\n")}`;
+}
+
+function buildExperimentModulesContext(experimentModules) {
+  if (!isPlainObject(experimentModules)) return null;
+
+  const sections = Object.entries(experimentModules)
+    .map(([moduleKey, moduleData]) => {
+      const label = moduleData.label || EXPERIMENT_MODULE_LABELS[moduleKey] || moduleKey;
+      const documentContext = buildDocumentContext(
+        `${label} file`,
+        moduleData.documents || []
+      );
+      const notes = (moduleData.notes || [])
+        .map((note, index) => {
+          const timestamp = note.createdAt ? ` (${note.createdAt})` : "";
+          return `${label} note ${index + 1}${timestamp}:\n${note.text}`;
+        })
+        .join("\n\n---\n\n");
+
+      if (!documentContext && !notes) return "";
+
+      return [`Module: ${label}`, documentContext, notes]
+        .filter(Boolean)
+        .join("\n\n");
+    })
+    .filter(Boolean);
+
+  return sections.length ? sections.join("\n\n===\n\n") : null;
+}
+
+function summarizeExperimentModules(experimentModules) {
+  if (!isPlainObject(experimentModules)) return {};
+
+  return Object.entries(experimentModules).reduce((summary, [moduleKey, moduleData]) => {
+    summary[moduleKey] = {
+      files: (moduleData.documents || []).map((document) => document.filename),
+      notes: (moduleData.notes || []).length,
+    };
+    return summary;
+  }, {});
+}
+
+function normalizeExperimentModuleKey(module) {
+  return typeof module === "string" && EXPERIMENT_MODULE_LABELS[module]
+    ? module
+    : "";
+}
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 async function callRequesty(env, messages, workspaceContext = {}) {

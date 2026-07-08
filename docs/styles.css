@@ -296,7 +296,7 @@ textarea:focus {
 
 .workbench-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.78fr) minmax(520px, 1.24fr) minmax(300px, 0.78fr);
+  grid-template-columns: minmax(300px, 0.75fr) minmax(760px, 1.55fr) minmax(320px, 0.7fr);
   gap: 18px;
   margin-top: 16px;
   align-items: start;
@@ -306,6 +306,11 @@ textarea:focus {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+
+.center-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .workbench-panel {
@@ -339,6 +344,89 @@ textarea:focus {
   color: var(--muted);
   font-size: 0.86rem;
   line-height: 1.45;
+}
+
+.module-summary-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.module-summary-item {
+  padding: 8px 10px;
+  color: var(--muted);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  font-weight: 720;
+}
+
+.module-summary-item.has-evidence {
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border-color: #cbe7de;
+}
+
+.experiment-module-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.experiment-module-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: #fbfdfc;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.module-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.module-card-header h3 {
+  margin-bottom: 6px;
+  color: var(--accent-dark);
+}
+
+.module-card-header p {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.module-count-pill {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  border: 1px solid #cbe7de;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.module-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compact-file-list,
+.compact-note-list {
+  margin-top: 0;
+}
+
+.experiment-module-card .experiment-note-field {
+  margin-top: 2px;
 }
 
 .primary-button,
@@ -479,8 +567,19 @@ textarea:focus {
   line-height: 1.4;
 }
 
+.agent-panel,
+.recommendation-panel {
+  height: clamp(620px, calc(100vh - 154px), 760px);
+}
+
+.agent-panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .agent-panel textarea {
-  min-height: 190px;
+  flex: 1;
+  min-height: 430px;
 }
 
 .agent-actions {
@@ -496,6 +595,8 @@ textarea:focus {
 }
 
 .recommendation-panel {
+  display: flex;
+  flex-direction: column;
   padding-bottom: 20px;
 }
 
@@ -518,8 +619,11 @@ textarea:focus {
 
 .recommendation-sections {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .recommendation-sections section {
@@ -531,7 +635,6 @@ textarea:focus {
 }
 
 .recommendation-sections section:first-child {
-  grid-column: 1 / -1;
   min-height: 140px;
   background: #fbfdfc;
 }
@@ -557,7 +660,6 @@ textarea:focus {
 }
 
 .memo-section {
-  grid-column: 1 / -1;
   min-height: 220px;
 }
 
@@ -573,7 +675,7 @@ textarea:focus {
 .side-chat-panel {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 164px);
+  min-height: 440px;
 }
 
 .compact-helper {
@@ -598,7 +700,7 @@ textarea:focus {
   flex-direction: column;
   gap: 10px;
   max-height: none;
-  min-height: 260px;
+  min-height: 150px;
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -705,6 +807,23 @@ textarea:focus {
     grid-template-columns: minmax(300px, 0.9fr) minmax(420px, 1.25fr);
   }
 
+  .center-column {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-panel,
+  .recommendation-panel {
+    height: auto;
+  }
+
+  .agent-panel textarea {
+    min-height: 260px;
+  }
+
+  .recommendation-sections {
+    overflow-y: visible;
+  }
+
   .side-column {
     grid-column: 1 / -1;
     position: static;
@@ -803,10 +922,15 @@ textarea:focus {
     font-size: 1.45rem;
   }
 
+  .module-card-header {
+    flex-direction: column;
+  }
+
   .panel-header,
   .panel-actions,
   .inline-actions,
-  .agent-actions {
+  .agent-actions,
+  .module-actions {
     flex-direction: column;
     align-items: stretch;
   }
