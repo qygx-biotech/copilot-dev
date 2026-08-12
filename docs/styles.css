@@ -309,7 +309,7 @@ textarea:focus {
 }
 
 .center-column {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   align-items: start;
 }
 
@@ -581,19 +581,79 @@ textarea:focus {
   line-height: 1.4;
 }
 
-.agent-panel,
-.recommendation-panel {
-  height: clamp(620px, calc(100vh - 154px), 760px);
+.analysis-workspace-panel {
+  display: grid;
+  gap: 14px;
 }
 
-.agent-panel {
+.analysis-panel-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.analysis-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: #fbfdfc;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.analysis-panel.is-frozen {
+  background: var(--surface-muted);
+}
+
+.analysis-panel-header,
+.analysis-pane-header,
+.recommendation-pane-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.analysis-panel-header h3,
+.analysis-pane-header h3 {
+  margin-bottom: 0;
+  color: var(--accent-dark);
+}
+
+.analysis-panel-meta,
+.analysis-panel-summary,
+.frozen-panel-notice,
+.agent-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.analysis-panel-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-panel-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.analysis-pane {
   display: flex;
   flex-direction: column;
+  min-height: 620px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 
-.agent-panel textarea {
+.analysis-command-pane textarea {
   flex: 1;
-  min-height: 430px;
+  min-height: 360px;
 }
 
 .agent-actions {
@@ -602,20 +662,19 @@ textarea:focus {
 
 .agent-status {
   min-height: 22px;
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.4;
+  margin-top: 12px;
 }
 
-.recommendation-panel {
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 20px;
-}
-
-.recommendation-panel .panel-header {
-  align-items: flex-start;
+.frozen-instruction {
+  flex: 1;
+  min-height: 360px;
+  padding: 12px 13px;
+  color: #41524b;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .review-status {
@@ -837,13 +896,20 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
-  .agent-panel,
-  .recommendation-panel {
-    height: auto;
+  .analysis-panel-body {
+    grid-template-columns: 1fr;
   }
 
-  .agent-panel textarea {
+  .analysis-pane {
+    min-height: 0;
+  }
+
+  .analysis-command-pane textarea {
     min-height: 260px;
+  }
+
+  .frozen-instruction {
+    min-height: 180px;
   }
 
   .recommendation-sections {
@@ -873,6 +939,7 @@ textarea:focus {
 @media (max-width: 940px) {
   .workbench-header,
   .workbench-grid,
+  .analysis-panel-body,
   .recommendation-sections,
   .side-chat-panel {
     grid-template-columns: 1fr;
@@ -956,7 +1023,10 @@ textarea:focus {
   .panel-actions,
   .inline-actions,
   .agent-actions,
-  .module-actions {
+  .module-actions,
+  .analysis-panel-header,
+  .analysis-pane-header,
+  .recommendation-pane-header {
     flex-direction: column;
     align-items: stretch;
   }

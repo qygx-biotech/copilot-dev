@@ -278,84 +278,19 @@
         </div>
 
         <div class="workspace-column center-column">
-          <section class="workbench-panel agent-panel" aria-label="Agent instruction">
+          <section class="workbench-panel analysis-workspace-panel" aria-label="Agent analysis panels">
             <div class="panel-header">
               <div>
-                <p class="eyebrow" data-i18n="agentEyebrow">Agent Instruction</p>
-                <h2 data-i18n="agentTitle">Agent Instruction</h2>
-              </div>
-            </div>
-            <label class="sr-only" for="agentInstruction" data-i18n="agentTitle">Agent Instruction</label>
-            <textarea
-              id="agentInstruction"
-              rows="7"
-              placeholder="Tell the agent what to do with the current references, experiment files, and notes. Example: Review all uploaded results and literature, identify what may explain the performance change, and recommend the next useful analysis or experiment direction."
-              data-i18n-placeholder="agentPlaceholder"
-            ></textarea>
-            <div class="agent-actions">
-              <button id="analyzeRecommendButton" class="primary-button" type="button" data-i18n="analyzeRecommend">
-                Analyze & Recommend
-              </button>
-              <button id="clearInstructionButton" class="text-button" type="button" data-i18n="clearInstruction">
-                Clear Instruction
-              </button>
-            </div>
-            <p id="agentStatus" class="agent-status" aria-live="polite"></p>
-          </section>
-
-          <section class="workbench-panel recommendation-panel" aria-label="Current output and recommendation">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow" data-i18n="recommendationEyebrow">Current Output</p>
-                <h2 data-i18n="recommendationTitle">Current recommendation</h2>
+                <p class="eyebrow" data-i18n="analysisWorkspaceEyebrow">Agent Work</p>
+                <h2 data-i18n="analysisWorkspaceTitle">Agent & Recommendation Panels</h2>
               </div>
               <div class="panel-actions">
-                <button id="exportButton" class="secondary-button" type="button" data-i18n="exportMarkdown">
-                  Export Markdown
-                </button>
-                <button id="copyRecommendationButton" class="secondary-button" type="button" data-i18n="copyRecommendation">
-                  Copy Recommendation
-                </button>
-                <button id="markReviewedButton" class="secondary-button" type="button" data-i18n="markReviewed">
-                  Mark as Reviewed
+                <button id="addAnalysisPanelButton" class="secondary-button" type="button" data-i18n="addAnalysisPanel">
+                  Add Panel
                 </button>
               </div>
             </div>
-            <div id="reviewStatus" class="review-status">Human review required</div>
-            <div class="recommendation-sections">
-              <section>
-                <h3 data-i18n="currentInterpretationHeading">Current Interpretation</h3>
-                <p id="currentInterpretation"></p>
-              </section>
-              <section>
-                <h3 data-i18n="keyEvidenceHeading">Key Evidence Used</h3>
-                <ul id="keyEvidenceUsed"></ul>
-              </section>
-              <section>
-                <h3 data-i18n="possibleExplanationHeading">Cross-Module Assessment</h3>
-                <p id="possibleExplanation"></p>
-              </section>
-              <section>
-                <h3 data-i18n="recommendedNextStepHeading">Recommended Next Step</h3>
-                <p id="recommendedNextStep"></p>
-              </section>
-              <section>
-                <h3 data-i18n="additionalAnalysisHeading">Module Most Relevant to Next Step</h3>
-                <p id="additionalAnalysisSuggested"></p>
-              </section>
-              <section>
-                <h3 data-i18n="missingInformationHeading">Missing Information</h3>
-                <ul id="missingInformation"></ul>
-              </section>
-              <section>
-                <h3 data-i18n="humanReviewHeading">Human Review Notes</h3>
-                <p id="humanReviewNotes"></p>
-              </section>
-              <section class="memo-section">
-                <h3 data-i18n="draftSummaryHeading">Draft Summary</h3>
-                <div id="draftSummary" class="memo-preview"></div>
-              </section>
-            </div>
+            <div id="analysisPanelStack" class="analysis-panel-stack" aria-live="polite"></div>
           </section>
         </div>
 
