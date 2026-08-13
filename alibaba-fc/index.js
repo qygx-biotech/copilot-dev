@@ -8,6 +8,11 @@
 //   ADMIN_ACCOUNT
 //   ADMIN_PASSWORD_HASH
 //   JWT_SECRET
+//   OSS_BUCKET
+//   OSS_REGION
+//   OSS_INTERNAL_ENDPOINT
+
+const OSS = require("ali-oss");
 
 const REQUESTY_URL = "https://router.requesty.ai/v1/chat/completions";
 const MAX_REFERENCE_DOCUMENTS = 8;
@@ -161,6 +166,261 @@ function getRequestHeader(event, name) {
 function getEnvString(env, name) {
   const value = env?.[name];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function getOssConfig(env) {
+  const requiredNames = [
+    "OSS_BUCKET",
+    "OSS_REGION",
+    "OSS_INTERNAL_ENDPOINT"
+  ];
+  const missing = requiredNames.filter((name) => !getEnvString(env, name));
+
+  if (missing.length) {
+    return { ok: false, missing };
+  }
+
+  return {
+    ok: true,
+    bucket: getEnvString(env, "OSS_BUCKET"),
+    region: getEnvString(env, "OSS_REGION"),
+    endpoint: getEnvString(env, "OSS_INTERNAL_ENDPOINT")
+  };
+}
+
+function getFunctionCredentials(context, env) {
+  const contextCredentials = context?.credentials || {};
+  const accessKeyId =
+    contextCredentials.accessKeyId ||
+    getEnvString(env, "ALIBABA_CLOUD_ACCESS_KEY_ID");
+  const accessKeySecret =
+    contextCredentials.accessKeySecret ||
+    getEnvString(env, "ALIBABA_CLOUD_ACCESS_KEY_SECRET");
+  const securityToken =
+    contextCredentials.securityToken ||
+    getEnvString(env, "ALIBABA_CLOUD_SECURITY_TOKEN");
+
+  if (!accessKeyId || !accessKeySecret || !securityToken) {
+    return null;
+  }
+
+  return {
+    accessKeyId,
+    accessKeySecret,
+    securityToken
+  };
+}
+
+function redactOssErrorMessage(message, credentials) {
+  let safeMessage =
+    typeof message === "string" && message.trim()
+      ? message.trim()
+      : "OSS request failed.";
+
+  for (const value of [
+    credentials?.accessKeyId,
+    credentials?.accessKeySecret,
+    credentials?.securityToken
+  ]) {
+    if (value) {
+      safeMessage = safeMessage.split(value).join("[REDACTED]");
+    }
+  }
+
+  return safeMessage
+    .replace(/authorization\s*[:=][^\r\n]*/gi, "authorization=[REDACTED]")
+    .slice(0, 600);
+}
+
+function getSafeOssError(error, credentials) {
+  const code =
+    typeof error?.code === "string" && error.code
+      ? error.code
+      : typeof error?.name === "string" && error.name
+        ? error.name
+        : "OssError";
+
+  return {
+    code: code.slice(0, 120),
+    message: redactOssErrorMessage(error?.message, credentials),
+    requestId:
+      typeof error?.requestId === "string" ? error.requestId.slice(0, 160) : "",
+    status:
+      Number.isInteger(error?.status) && error.status >= 100
+        ? error.status
+        : null
+  };
+}
+
+function logOssFailure(stage, error, details = {}) {
+  const safeError = getSafeOssError(error, details.credentials);
+
+  console.error("OSS test failed:", {
+    stage,
+    error: safeError.code,
+    message: safeError.message,
+    status: safeError.status,
+    ossRequestId: safeError.requestId || undefined,
+    functionRequestId: details.functionRequestId || undefined,
+    bucket: details.bucket || undefined,
+    key: details.key || undefined
+  });
+
+  return safeError;
+}
+
+function ossErrorResponse(event, stage, safeError, statusCode = 502) {
+  return jsonResponse(
+    {
+      ok: false,
+      stage,
+      error: safeError.code,
+      message: safeError.message,
+      ...(safeError.requestId ? { requestId: safeError.requestId } : {})
+    },
+    statusCode,
+    event
+  );
+}
+
+async function handleOssTest(event, context, env) {
+  const config = getOssConfig(env);
+
+  if (!config.ok) {
+    console.error("OSS test failed:", {
+      stage: "configuration",
+      error: "MissingEnvironmentVariables",
+      missing: config.missing,
+      functionRequestId: context?.requestId || undefined
+    });
+    return jsonResponse(
+      {
+        ok: false,
+        stage: "configuration",
+        error: "MissingEnvironmentVariables",
+        message: `Missing required environment variables: ${config.missing.join(", ")}`
+      },
+      500,
+      event
+    );
+  }
+
+  const credentials = getFunctionCredentials(context, env);
+
+  if (!credentials) {
+    console.error("OSS test failed:", {
+      stage: "clientInitialization",
+      error: "CredentialUnavailable",
+      functionRequestId: context?.requestId || undefined,
+      bucket: config.bucket
+    });
+    return jsonResponse(
+      {
+        ok: false,
+        stage: "clientInitialization",
+        error: "CredentialUnavailable",
+        message:
+          "Function Compute RAM role credentials were not available to the runtime."
+      },
+      500,
+      event
+    );
+  }
+
+  let client;
+
+  try {
+    client = new OSS({
+      region: config.region,
+      endpoint: config.endpoint,
+      bucket: config.bucket,
+      authorizationV4: true,
+      accessKeyId: credentials.accessKeyId,
+      accessKeySecret: credentials.accessKeySecret,
+      stsToken: credentials.securityToken
+    });
+  } catch (error) {
+    const safeError = logOssFailure("clientInitialization", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      bucket: config.bucket
+    });
+    return ossErrorResponse(event, "clientInitialization", safeError, 500);
+  }
+
+  const timestamp = new Date().toISOString();
+  const key = `test/hello-${timestamp.replace(/[:.]/g, "-")}.txt`;
+  const content =
+    `Hello from BioDesign Copilot Function Compute.\n` +
+    `Timestamp: ${timestamp}`;
+
+  try {
+    await client.put(key, Buffer.from(content, "utf8"), {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8"
+      }
+    });
+  } catch (error) {
+    const safeError = logOssFailure("putObject", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      bucket: config.bucket,
+      key
+    });
+    return ossErrorResponse(event, "putObject", safeError);
+  }
+
+  let downloadedContent;
+
+  try {
+    const result = await client.get(key);
+    downloadedContent = Buffer.isBuffer(result.content)
+      ? result.content.toString("utf8")
+      : String(result.content ?? "");
+  } catch (error) {
+    const safeError = logOssFailure("getObject", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      bucket: config.bucket,
+      key
+    });
+    return ossErrorResponse(event, "getObject", safeError);
+  }
+
+  const verified = downloadedContent === content;
+
+  if (!verified) {
+    console.error("OSS test failed:", {
+      stage: "getObject",
+      error: "ContentMismatch",
+      functionRequestId: context?.requestId || undefined,
+      bucket: config.bucket,
+      key
+    });
+    return jsonResponse(
+      {
+        ok: false,
+        stage: "getObject",
+        error: "ContentMismatch",
+        message: "The object was uploaded, but the downloaded content did not match."
+      },
+      502,
+      event
+    );
+  }
+
+  return jsonResponse(
+    {
+      ok: true,
+      bucket: config.bucket,
+      key,
+      verified: true,
+      content: downloadedContent,
+      message: "OSS write/read test succeeded"
+    },
+    200,
+    event
+  );
 }
 
 function getRequestBody(event) {
@@ -919,6 +1179,15 @@ exports.handler = async function handler(rawEvent, context) {
 
     if (method === "POST" && path === "/api/logout") {
       return handleLogout(event);
+    }
+
+    if (method === "POST" && path === "/api/test-oss") {
+      const auth = requireAuth(event, process.env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      return handleOssTest(event, context, process.env);
     }
 
     if (method === "POST" && path === "/chat") {

@@ -12,6 +12,12 @@ It keeps the same `/chat` response shape as the Cloudflare Worker so the existin
 
 - `REQUESTY_API_KEY` - Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code.
 - `REQUESTY_MODEL` - Requesty model name.
+- `OSS_BUCKET` - Private OSS bucket used by the temporary storage diagnostic.
+- `OSS_REGION` - OSS region ID, such as `oss-cn-beijing`.
+- `OSS_INTERNAL_ENDPOINT` - Internal OSS endpoint used for Function Compute-to-OSS traffic.
+- `OSS_PUBLIC_ENDPOINT` - Public OSS endpoint retained for future external use; the server-side diagnostic does not use it.
+
+Do not configure permanent Alibaba Cloud AccessKeys for the function. The OSS diagnostic uses temporary STS credentials supplied by the attached Function Compute RAM role through the Node.js invocation context (with the Function Compute-provided `ALIBABA_CLOUD_*` environment variables as a runtime fallback).
 
 ## Local Testing
 
@@ -43,6 +49,10 @@ Without Requesty environment variables, `/chat` returns a safe fallback object w
 5. Set environment variables:
    - `REQUESTY_API_KEY`
    - `REQUESTY_MODEL`
+   - `OSS_BUCKET`
+   - `OSS_REGION`
+   - `OSS_INTERNAL_ENDPOINT`
+   - `OSS_PUBLIC_ENDPOINT`
 6. Upload or deploy the `alibaba-fc/` code.
 7. Copy the public HTTP endpoint from the HTTP trigger.
 8. Paste it into `docs/app.js` as `ALIBABA_FC_URL`.
@@ -79,3 +89,22 @@ Expected `/chat` response shape:
   }
 }
 ```
+
+## Temporary OSS Write/Read Test
+
+`POST /api/test-oss` uses the existing JWT bearer authentication. It writes a timestamped text object under `test/`, reads it back, compares the content, and deliberately leaves the object in OSS for console inspection.
+
+After deployment, log in with the existing admin account and call the endpoint:
+
+```bash
+FC_URL="https://your-alibaba-fc-endpoint"
+TOKEN=$(curl -sS -X POST "$FC_URL/api/login" \
+  -H "Content-Type: application/json" \
+  -d '{"account":"your-admin-account","password":"your-admin-password"}' \
+  | jq -r '.token')
+
+curl -sS -X POST "$FC_URL/api/test-oss" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The successful response includes `"ok":true`, `"verified":true`, and the generated object key. Then open `biodesign-copilot-files-2026` in the Alibaba OSS console and inspect the `test/` prefix. The endpoint does not delete the object.

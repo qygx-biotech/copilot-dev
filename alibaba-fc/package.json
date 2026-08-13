@@ -10,6 +10,7 @@
     "check": "node --check src/index.js"
   },
   "dependencies": {
+    "ali-oss": "^6.23.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.3"
   },
