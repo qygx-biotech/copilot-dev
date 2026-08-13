@@ -11,8 +11,11 @@
 //   OSS_BUCKET
 //   OSS_REGION
 //   OSS_INTERNAL_ENDPOINT
+//   OSS_PUBLIC_ENDPOINT
 
+const crypto = require("node:crypto");
 const OSS = require("ali-oss");
+const { extractText, getDocumentProxy, getMeta } = require("unpdf");
 
 const REQUESTY_URL = "https://router.requesty.ai/v1/chat/completions";
 const MAX_REFERENCE_DOCUMENTS = 8;
@@ -20,6 +23,16 @@ const MAX_EXPERIMENT_DOCUMENTS = 36;
 const MAX_EXPERIMENT_NOTES = 36;
 const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
 const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
+const MAX_PDF_UPLOAD_BYTES = 5 * 1024 * 1024;
+const MAX_STORED_PDF_DOCUMENTS = 8;
+const MAX_PDF_REVIEW_CHARACTERS = 96000;
+const PDF_REVIEW_CHUNK_CHARACTERS = 12000;
+const PDF_REVIEW_CHUNK_OVERLAP = 500;
+const PDF_REVIEW_CONCURRENCY = 3;
+const PDF_UPLOAD_URL_TTL_SECONDS = 300;
+const MIN_MACHINE_READABLE_PDF_CHARACTERS = 200;
+const MAX_PDF_PAGES = 100;
+const PDF_PARSE_TIMEOUT_MS = 30000;
 const EXPERIMENT_MODULE_LABELS = {
   strainEngineering: "Strain Engineering",
   fermentation: "Fermentation",
@@ -184,20 +197,110 @@ function getOssConfig(env) {
     ok: true,
     bucket: getEnvString(env, "OSS_BUCKET"),
     region: getEnvString(env, "OSS_REGION"),
-    endpoint: getEnvString(env, "OSS_INTERNAL_ENDPOINT")
+    endpoint: getEnvString(env, "OSS_INTERNAL_ENDPOINT"),
+    publicEndpoint: getEnvString(env, "OSS_PUBLIC_ENDPOINT")
   };
+}
+
+function createOssClient(config, credentials, endpoint = config.endpoint) {
+  return new OSS({
+    region: config.region,
+    endpoint,
+    bucket: config.bucket,
+    authorizationV4: true,
+    accessKeyId: credentials.accessKeyId,
+    accessKeySecret: credentials.accessKeySecret,
+    stsToken: credentials.securityToken,
+    refreshSTSTokenInterval: 30 * 60 * 1000,
+    refreshSTSToken: async () => ({
+      accessKeyId: credentials.accessKeyId,
+      accessKeySecret: credentials.accessKeySecret,
+      stsToken: credentials.securityToken
+    })
+  });
+}
+
+function getUserStorageSegment(account) {
+  const normalizedAccount = String(account || "").normalize("NFKC");
+  const readable = normalizedAccount
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "user";
+  const digest = crypto
+    .createHash("sha256")
+    .update(normalizedAccount, "utf8")
+    .digest("hex")
+    .slice(0, 16);
+
+  return `${readable}-${digest}`;
+}
+
+function sanitizePdfFilename(filename) {
+  const source = String(filename || "").normalize("NFKC");
+  const basename = source.split(/[\\/]/).pop() || "paper.pdf";
+  const withoutControlCharacters = basename.replace(/[\u0000-\u001f\u007f]/g, "");
+  let safeName = withoutControlCharacters
+    .replace(/[^\p{L}\p{N}._-]+/gu, "-")
+    .replace(/^[.-]+/, "")
+    .replace(/-+/g, "-")
+    .slice(0, 160);
+
+  if (!safeName || safeName.toLowerCase() === ".pdf") {
+    safeName = "paper.pdf";
+  } else if (!safeName.toLowerCase().endsWith(".pdf")) {
+    safeName = `${safeName.replace(/\.[^.]*$/, "") || "paper"}.pdf`;
+  }
+
+  return safeName;
+}
+
+function buildOwnedPdfObjectKey(account, filename) {
+  return [
+    "uploads",
+    getUserStorageSegment(account),
+    crypto.randomUUID(),
+    sanitizePdfFilename(filename)
+  ].join("/");
+}
+
+function isOwnedPdfObjectKey(objectKey, account) {
+  if (typeof objectKey !== "string" || objectKey.length > 500) return false;
+
+  const prefix = `uploads/${getUserStorageSegment(account)}/`;
+  if (!objectKey.startsWith(prefix)) return false;
+
+  const remainder = objectKey.slice(prefix.length);
+  const segments = remainder.split("/");
+  if (segments.length !== 2) return false;
+
+  const [objectId, filename] = segments;
+  return (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      objectId
+    ) &&
+    filename === sanitizePdfFilename(filename) &&
+    filename.toLowerCase().endsWith(".pdf")
+  );
+}
+
+function getObjectFilename(objectKey) {
+  return String(objectKey || "").split("/").pop() || "paper.pdf";
 }
 
 function getFunctionCredentials(context, env) {
   const contextCredentials = context?.credentials || {};
   const accessKeyId =
     contextCredentials.accessKeyId ||
+    contextCredentials.access_key_id ||
     getEnvString(env, "ALIBABA_CLOUD_ACCESS_KEY_ID");
   const accessKeySecret =
     contextCredentials.accessKeySecret ||
+    contextCredentials.access_key_secret ||
     getEnvString(env, "ALIBABA_CLOUD_ACCESS_KEY_SECRET");
   const securityToken =
     contextCredentials.securityToken ||
+    contextCredentials.security_token ||
     getEnvString(env, "ALIBABA_CLOUD_SECURITY_TOKEN");
 
   if (!accessKeyId || !accessKeySecret || !securityToken) {
@@ -421,6 +524,930 @@ async function handleOssTest(event, context, env) {
     200,
     event
   );
+}
+
+function documentErrorResponse(
+  event,
+  stage,
+  error,
+  message,
+  statusCode = 500,
+  extra = {}
+) {
+  return jsonResponse(
+    {
+      ok: false,
+      stage,
+      error,
+      message,
+      ...extra
+    },
+    statusCode,
+    event
+  );
+}
+
+function logDocumentFailure(stage, error, details = {}) {
+  const safeError = details.credentials
+    ? getSafeOssError(error, details.credentials)
+    : {
+        code:
+          typeof error?.code === "string"
+            ? error.code
+            : typeof error?.name === "string"
+              ? error.name
+              : "DocumentError",
+        message: String(error?.message || "Document processing failed.").slice(
+          0,
+          600
+        ),
+        requestId: "",
+        status: null
+      };
+
+  console.error("PDF document operation failed:", {
+    stage,
+    error: safeError.code,
+    message: safeError.message,
+    status: safeError.status,
+    ossRequestId: safeError.requestId || undefined,
+    functionRequestId: details.functionRequestId || undefined,
+    key: details.key || undefined,
+    chunk: details.chunk || undefined
+  });
+
+  return safeError;
+}
+
+async function handlePdfUploadUrl(event, context, env, user) {
+  const body = getRequestBody(event);
+  const filename = typeof body.filename === "string" ? body.filename.trim() : "";
+  const contentType =
+    typeof body.contentType === "string" ? body.contentType.toLowerCase().trim() : "";
+  const size = Number(body.size);
+
+  if (!filename || !filename.toLowerCase().endsWith(".pdf")) {
+    return documentErrorResponse(
+      event,
+      "upload",
+      "UnsupportedFileType",
+      "Only PDF files can be uploaded.",
+      415
+    );
+  }
+
+  if (contentType !== "application/pdf") {
+    return documentErrorResponse(
+      event,
+      "upload",
+      "UnsupportedContentType",
+      "The upload Content-Type must be application/pdf.",
+      415
+    );
+  }
+
+  if (!Number.isInteger(size) || size <= 0 || size > MAX_PDF_UPLOAD_BYTES) {
+    return documentErrorResponse(
+      event,
+      "upload",
+      "InvalidFileSize",
+      `PDF size must be between 1 byte and ${MAX_PDF_UPLOAD_BYTES} bytes.`,
+      413,
+      { maxBytes: MAX_PDF_UPLOAD_BYTES }
+    );
+  }
+
+  const config = getOssConfig(env);
+  if (!config.ok || !config.publicEndpoint) {
+    const missing = [
+      ...(config.missing || []),
+      ...(!config.publicEndpoint ? ["OSS_PUBLIC_ENDPOINT"] : [])
+    ];
+    return documentErrorResponse(
+      event,
+      "upload",
+      "MissingEnvironmentVariables",
+      `Missing required environment variables: ${missing.join(", ")}`,
+      500
+    );
+  }
+
+  const credentials = getFunctionCredentials(context, env);
+  if (!credentials) {
+    return documentErrorResponse(
+      event,
+      "upload",
+      "CredentialUnavailable",
+      "Function Compute RAM role credentials were not available to the runtime.",
+      500
+    );
+  }
+
+  const objectKey = buildOwnedPdfObjectKey(user.account, filename);
+
+  try {
+    const client = createOssClient(config, credentials, config.publicEndpoint);
+    const uploadUrl = await client.signatureUrlV4(
+      "PUT",
+      PDF_UPLOAD_URL_TTL_SECONDS,
+      {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Length": size
+        }
+      },
+      objectKey,
+      ["Content-Length", "Content-Type"]
+    );
+
+    return jsonResponse(
+      {
+        ok: true,
+        objectKey,
+        filename: getObjectFilename(objectKey),
+        uploadUrl,
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/pdf"
+        },
+        expectedSize: size,
+        expiresIn: PDF_UPLOAD_URL_TTL_SECONDS,
+        maxBytes: MAX_PDF_UPLOAD_BYTES
+      },
+      200,
+      event
+    );
+  } catch (error) {
+    const safeError = logDocumentFailure("upload", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      key: objectKey
+    });
+    return documentErrorResponse(
+      event,
+      "upload",
+      safeError.code,
+      safeError.message,
+      500
+    );
+  }
+}
+
+function getOssObjectSize(metadata) {
+  const headers = metadata?.res?.headers || {};
+  const rawSize = headers["content-length"] ?? headers["x-oss-object-size"];
+  const size = Number(rawSize);
+  return Number.isFinite(size) && size >= 0 ? size : null;
+}
+
+function getOssObjectContentType(metadata) {
+  const headers = metadata?.res?.headers || {};
+  return String(headers["content-type"] || "").toLowerCase();
+}
+
+function isMissingOssObjectError(error) {
+  return (
+    error?.status === 404 ||
+    ["NoSuchKey", "NoSuchObject", "NotFound"].includes(error?.code)
+  );
+}
+
+async function readOwnedPdfFromOss({ objectKey, user, context, env }) {
+  if (!isOwnedPdfObjectKey(objectKey, user.account)) {
+    return {
+      ok: false,
+      statusCode: 403,
+      stage: "ossRead",
+      error: "ObjectAccessDenied",
+      message: "The requested PDF does not belong to the authenticated account."
+    };
+  }
+
+  const config = getOssConfig(env);
+  if (!config.ok) {
+    return {
+      ok: false,
+      statusCode: 500,
+      stage: "ossRead",
+      error: "MissingEnvironmentVariables",
+      message: `Missing required environment variables: ${config.missing.join(", ")}`
+    };
+  }
+
+  const credentials = getFunctionCredentials(context, env);
+  if (!credentials) {
+    return {
+      ok: false,
+      statusCode: 500,
+      stage: "ossRead",
+      error: "CredentialUnavailable",
+      message: "Function Compute RAM role credentials were not available to the runtime."
+    };
+  }
+
+  let client;
+  try {
+    client = createOssClient(config, credentials);
+  } catch (error) {
+    const safeError = logDocumentFailure("ossRead", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      key: objectKey
+    });
+    return {
+      ok: false,
+      statusCode: 500,
+      stage: "ossRead",
+      error: safeError.code,
+      message: safeError.message
+    };
+  }
+
+  let metadata;
+  try {
+    metadata = await client.getObjectMeta(objectKey);
+  } catch (error) {
+    const safeError = logDocumentFailure("ossRead", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      key: objectKey
+    });
+    return {
+      ok: false,
+      statusCode: isMissingOssObjectError(error) ? 404 : 502,
+      stage: "ossRead",
+      error: isMissingOssObjectError(error) ? "ObjectNotFound" : safeError.code,
+      message: isMissingOssObjectError(error)
+        ? "The uploaded PDF was not found in OSS."
+        : safeError.message
+    };
+  }
+
+  const metadataSize = getOssObjectSize(metadata);
+  if (metadataSize === null) {
+    return {
+      ok: false,
+      statusCode: 502,
+      stage: "ossRead",
+      error: "ObjectSizeUnavailable",
+      message: "OSS did not return a usable PDF object size."
+    };
+  }
+
+  if (metadataSize <= 0 || metadataSize > MAX_PDF_UPLOAD_BYTES) {
+    return {
+      ok: false,
+      statusCode: metadataSize > MAX_PDF_UPLOAD_BYTES ? 413 : 422,
+      stage: "ossRead",
+      error: metadataSize > MAX_PDF_UPLOAD_BYTES ? "PdfTooLarge" : "EmptyPdf",
+      message:
+        metadataSize > MAX_PDF_UPLOAD_BYTES
+          ? `The stored PDF exceeds the ${MAX_PDF_UPLOAD_BYTES}-byte processing limit.`
+          : "The stored PDF is empty."
+    };
+  }
+
+  const metadataContentType = getOssObjectContentType(metadata);
+  if (metadataContentType && !metadataContentType.includes("application/pdf")) {
+    return {
+      ok: false,
+      statusCode: 415,
+      stage: "ossRead",
+      error: "UnsupportedFileType",
+      message: "The stored object is not an application/pdf file."
+    };
+  }
+
+  try {
+    const result = await client.get(objectKey);
+    const buffer = Buffer.isBuffer(result.content)
+      ? result.content
+      : Buffer.from(result.content || "");
+
+    if (buffer.length !== metadataSize || buffer.length > MAX_PDF_UPLOAD_BYTES) {
+      return {
+        ok: false,
+        statusCode: buffer.length > MAX_PDF_UPLOAD_BYTES ? 413 : 502,
+        stage: "ossRead",
+        error:
+          buffer.length > MAX_PDF_UPLOAD_BYTES
+            ? "PdfTooLarge"
+            : "ObjectSizeMismatch",
+        message:
+          buffer.length > MAX_PDF_UPLOAD_BYTES
+            ? `The stored PDF exceeds the ${MAX_PDF_UPLOAD_BYTES}-byte processing limit.`
+            : "The downloaded PDF size did not match OSS metadata."
+      };
+    }
+
+    if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      return {
+        ok: false,
+        statusCode: 415,
+        stage: "ossRead",
+        error: "UnsupportedFileType",
+        message: "The stored object does not have a valid PDF file signature."
+      };
+    }
+
+    return {
+      ok: true,
+      buffer,
+      size: buffer.length,
+      filename: getObjectFilename(objectKey)
+    };
+  } catch (error) {
+    const safeError = logDocumentFailure("ossRead", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      key: objectKey
+    });
+    return {
+      ok: false,
+      statusCode: isMissingOssObjectError(error) ? 404 : 502,
+      stage: "ossRead",
+      error: isMissingOssObjectError(error) ? "ObjectNotFound" : safeError.code,
+      message: isMissingOssObjectError(error)
+        ? "The uploaded PDF was not found in OSS."
+        : safeError.message
+    };
+  }
+}
+
+function normalizePdfText(text) {
+  return String(text || "")
+    .replace(/\u0000/g, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function normalizePdfMetadataTitle(value) {
+  const title = String(value || "").replace(/\s+/g, " ").trim();
+  if (!title || /^untitled$/i.test(title) || title.length > 300) return null;
+  return title;
+}
+
+function classifyPdfParseError(error) {
+  if (
+    error?.name === "PasswordException" ||
+    /password|encrypted/i.test(error?.message || "")
+  ) {
+    return {
+      error: "EncryptedPdf",
+      message: "Encrypted or password-protected PDFs are not supported.",
+      statusCode: 422
+    };
+  }
+
+  if (
+    ["InvalidPDFException", "FormatError"].includes(error?.name)
+  ) {
+    return {
+      error: "MalformedPdf",
+      message: "The PDF is malformed or could not be parsed.",
+      statusCode: 422
+    };
+  }
+
+  return {
+    error: error?.code === "PdfParseTimeout" ? "PdfParseTimeout" : "PdfParseFailed",
+    message:
+      error?.code === "PdfParseTimeout"
+        ? "PDF text extraction exceeded the processing time limit."
+        : "The PDF text could not be extracted.",
+    statusCode: error?.code === "PdfParseTimeout" ? 504 : 422
+  };
+}
+
+function withPdfParseTimeout(promise) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error("PDF parsing timed out.");
+      error.code = "PdfParseTimeout";
+      reject(error);
+    }, PDF_PARSE_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
+async function extractPdfDocument(buffer) {
+  let pdf;
+
+  try {
+    const data = new Uint8Array(
+      buffer.buffer,
+      buffer.byteOffset,
+      buffer.byteLength
+    );
+    pdf = await withPdfParseTimeout(
+      getDocumentProxy(data, {
+        maxImageSize: 16_777_216,
+        stopAtErrors: true
+      })
+    );
+    const pageCount = Number(pdf.numPages || 0) || null;
+
+    if (pageCount && pageCount > MAX_PDF_PAGES) {
+      return {
+        ok: false,
+        statusCode: 413,
+        stage: "pdfParse",
+        error: "PdfTooManyPages",
+        message: `The PDF has more than the ${MAX_PDF_PAGES}-page processing limit.`
+      };
+    }
+
+    const [metadataResult, textResult] = await withPdfParseTimeout(
+      Promise.all([
+        getMeta(pdf),
+        extractText(pdf, { mergePages: true })
+      ])
+    );
+    const text = normalizePdfText(textResult.text);
+
+    if (!text) {
+      return {
+        ok: false,
+        statusCode: 422,
+        stage: "pdfParse",
+        error: "PdfNoText",
+        message:
+          "No embedded text was found. The PDF may be scanned or image-only; OCR is not enabled."
+      };
+    }
+
+    if (text.length < MIN_MACHINE_READABLE_PDF_CHARACTERS) {
+      return {
+        ok: false,
+        statusCode: 422,
+        stage: "pdfParse",
+        error: "PdfInsufficientText",
+        message:
+          "Too little embedded text was found for a reliable review. The PDF may be scanned or image-only; OCR is not enabled."
+      };
+    }
+
+    return {
+      ok: true,
+      text,
+      pageCount: Number(textResult.totalPages || pageCount || 0) || null,
+      metadataTitle: normalizePdfMetadataTitle(metadataResult?.info?.Title)
+    };
+  } catch (error) {
+    const classified = classifyPdfParseError(error);
+    return {
+      ok: false,
+      statusCode: classified.statusCode,
+      stage: "pdfParse",
+      error: classified.error,
+      message: classified.message,
+      cause: error
+    };
+  } finally {
+    if (typeof pdf?.destroy === "function") {
+      await pdf.destroy().catch(() => {});
+    }
+  }
+}
+
+function chunkPdfText(text) {
+  const source = text.slice(0, MAX_PDF_REVIEW_CHARACTERS);
+  const chunks = [];
+  let start = 0;
+
+  while (start < source.length) {
+    let end = Math.min(start + PDF_REVIEW_CHUNK_CHARACTERS, source.length);
+
+    if (end < source.length) {
+      const paragraphBreak = source.lastIndexOf("\n\n", end);
+      const sentenceBreak = source.lastIndexOf(". ", end);
+      const preferredBreak = Math.max(paragraphBreak, sentenceBreak);
+
+      if (preferredBreak > start + PDF_REVIEW_CHUNK_CHARACTERS * 0.65) {
+        end = preferredBreak + (preferredBreak === sentenceBreak ? 1 : 0);
+      }
+    }
+
+    const chunk = source.slice(start, end).trim();
+    if (chunk) chunks.push(chunk);
+    if (end >= source.length) break;
+
+    start = Math.max(start + 1, end - PDF_REVIEW_CHUNK_OVERLAP);
+  }
+
+  return {
+    chunks,
+    truncated: text.length > source.length,
+    processedCharacters: source.length
+  };
+}
+
+function parseModelJson(text) {
+  if (typeof text !== "string" || !text.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(text);
+    return isPlainObject(parsed) ? parsed : null;
+  } catch {
+    const extracted = extractFirstJsonObject(text);
+    if (!extracted) return null;
+
+    try {
+      const parsed = JSON.parse(extracted);
+      return isPlainObject(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function normalizeReviewText(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || null;
+}
+
+function normalizeReviewList(value) {
+  return Array.isArray(value)
+    ? value
+        .filter((item) => typeof item === "string" && item.trim())
+        .map((item) => item.trim().slice(0, 1200))
+        .slice(0, 12)
+    : [];
+}
+
+function normalizePaperReview(review, fallbackTitle, fallbackSummary = "") {
+  const source = isPlainObject(review) ? review : {};
+  return {
+    title: fallbackTitle || null,
+    summary:
+      normalizeReviewText(source.summary) ||
+      normalizeReviewText(fallbackSummary) ||
+      "The model did not return a paper summary.",
+    research_question: normalizeReviewText(source.research_question),
+    methods: normalizeReviewText(source.methods),
+    key_results: normalizeReviewList(source.key_results),
+    limitations: normalizeReviewList(source.limitations),
+    main_conclusion: normalizeReviewText(source.main_conclusion)
+  };
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function callRequestyText(messages, env, temperature = 0.2) {
+  const apiKey = getEnvString(env, "REQUESTY_API_KEY");
+  const model = getEnvString(env, "REQUESTY_MODEL");
+
+  if (!apiKey || !model) {
+    return {
+      ok: false,
+      error: "MissingLlmConfiguration",
+      message: "Missing REQUESTY_API_KEY or REQUESTY_MODEL environment variable."
+    };
+  }
+
+  let response;
+  try {
+    response = await fetch(REQUESTY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({ model, messages, temperature })
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: "LlmRequestFailed",
+      message: String(error?.message || "The LLM request failed.").slice(0, 500)
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      error: "LlmHttpError",
+      message: `Requesty returned HTTP ${response.status}.`,
+      status: response.status
+    };
+  }
+
+  let responseJson;
+  try {
+    responseJson = await response.json();
+  } catch {
+    return {
+      ok: false,
+      error: "InvalidLlmResponse",
+      message: "Requesty returned invalid JSON."
+    };
+  }
+
+  const text = responseJson?.choices?.[0]?.message?.content;
+  if (typeof text !== "string" || !text.trim()) {
+    return {
+      ok: false,
+      error: "EmptyLlmResponse",
+      message: "Requesty did not return assistant content."
+    };
+  }
+
+  return { ok: true, text: text.trim() };
+}
+
+async function reviewPdfWithLlm({
+  text,
+  filename,
+  trustedTitle,
+  language,
+  context,
+  env
+}) {
+  const chunkResult = chunkPdfText(text);
+  if (!chunkResult.chunks.length) {
+    console.error("PDF document operation failed:", {
+      stage: "chunk",
+      error: "NoPdfChunks",
+      functionRequestId: context?.requestId || undefined
+    });
+    return {
+      ok: false,
+      statusCode: 422,
+      stage: "chunk",
+      error: "NoPdfChunks",
+      message: "No usable PDF text chunks were produced."
+    };
+  }
+
+  console.log("PDF review chunking complete:", {
+    functionRequestId: context?.requestId || undefined,
+    chunks: chunkResult.chunks.length,
+    processedCharacters: chunkResult.processedCharacters,
+    truncated: chunkResult.truncated
+  });
+
+  const languageInstruction =
+    language === "zh"
+      ? "Write all JSON values in Simplified Chinese."
+      : "Write all JSON values in English.";
+
+  let chunkSummaries;
+  try {
+    chunkSummaries = await mapWithConcurrency(
+      chunkResult.chunks,
+      PDF_REVIEW_CONCURRENCY,
+      async (chunk, index) => {
+        const result = await callRequestyText(
+          [
+            {
+              role: "system",
+              content:
+                "You extract evidence from one excerpt of an academic paper. Use only information explicitly present in the excerpt. Do not fill missing fields by inference. Describe methods at a review level without adding operational harmful-biological instructions. Return only JSON with keys summary, research_question, methods, key_results, limitations, and main_conclusion. Missing scalar fields must be null and missing list fields must be empty arrays. Keep the response concise."
+            },
+            {
+              role: "user",
+              content: `${languageInstruction}\nFile: ${filename}\nExcerpt ${index + 1} of ${chunkResult.chunks.length}:\n\n${chunk}`
+            }
+          ],
+          env,
+          0.1
+        );
+
+        if (!result.ok) {
+          const error = new Error(result.message);
+          error.code = result.error;
+          error.chunk = index + 1;
+          throw error;
+        }
+
+        return parseModelJson(result.text) || {
+          summary: result.text.slice(0, 4000),
+          research_question: null,
+          methods: null,
+          key_results: [],
+          limitations: [],
+          main_conclusion: null
+        };
+      }
+    );
+  } catch (error) {
+    logDocumentFailure("llmChunkSummary", error, {
+      functionRequestId: context?.requestId,
+      chunk: error.chunk
+    });
+    return {
+      ok: false,
+      statusCode: 502,
+      stage: "llmChunkSummary",
+      error: error.code || "LlmChunkSummaryFailed",
+      message: String(error.message || "A PDF chunk could not be summarized.").slice(
+        0,
+        500
+      )
+    };
+  }
+
+  const finalResult = await callRequestyText(
+    [
+      {
+        role: "system",
+        content:
+          "You combine evidence summaries from an academic paper into a faithful scientific review. Use only the supplied chunk summaries. Resolve overlap without inventing facts. Keep methods at a descriptive review level and do not add operational harmful-biological instructions. Return only JSON with keys summary, research_question, methods, key_results, limitations, and main_conclusion. Missing scalar fields must be null and missing list fields must be empty arrays."
+      },
+      {
+        role: "user",
+        content: `${languageInstruction}\nFile: ${filename}\nTrusted title: ${trustedTitle || "not available"}\n\nChunk summaries:\n${JSON.stringify(chunkSummaries)}`
+      }
+    ],
+    env,
+    0.1
+  );
+
+  if (!finalResult.ok) {
+    logDocumentFailure(
+      "llmFinalSummary",
+      Object.assign(new Error(finalResult.message), { code: finalResult.error }),
+      { functionRequestId: context?.requestId }
+    );
+    return {
+      ok: false,
+      statusCode: 502,
+      stage: "llmFinalSummary",
+      error: finalResult.error,
+      message: finalResult.message
+    };
+  }
+
+  const parsedFinal = parseModelJson(finalResult.text);
+  return {
+    ok: true,
+    review: normalizePaperReview(
+      parsedFinal,
+      trustedTitle,
+      parsedFinal ? "" : finalResult.text
+    ),
+    chunks: chunkResult.chunks.length,
+    processedCharacters: chunkResult.processedCharacters,
+    truncated: chunkResult.truncated
+  };
+}
+
+async function handlePdfReview(event, context, env, user) {
+  const body = getRequestBody(event);
+  const objectKey =
+    typeof body.objectKey === "string" ? body.objectKey.trim() : "";
+  const language = body.language === "zh" ? "zh" : "en";
+
+  if (!objectKey) {
+    return documentErrorResponse(
+      event,
+      "ossRead",
+      "ObjectKeyRequired",
+      "An OSS PDF object key is required.",
+      400
+    );
+  }
+
+  const objectResult = await readOwnedPdfFromOss({
+    objectKey,
+    user,
+    context,
+    env
+  });
+  if (!objectResult.ok) {
+    return documentErrorResponse(
+      event,
+      objectResult.stage,
+      objectResult.error,
+      objectResult.message,
+      objectResult.statusCode
+    );
+  }
+
+  const pdfResult = await extractPdfDocument(objectResult.buffer);
+  if (!pdfResult.ok) {
+    if (pdfResult.cause) {
+      logDocumentFailure("pdfParse", pdfResult.cause, {
+        functionRequestId: context?.requestId,
+        key: objectKey
+      });
+    }
+    return documentErrorResponse(
+      event,
+      pdfResult.stage,
+      pdfResult.error,
+      pdfResult.message,
+      pdfResult.statusCode
+    );
+  }
+
+  const filenameTitle = objectResult.filename.replace(/\.pdf$/i, "") || null;
+  const trustedTitle = pdfResult.metadataTitle || filenameTitle;
+  const reviewResult = await reviewPdfWithLlm({
+    text: pdfResult.text,
+    filename: objectResult.filename,
+    trustedTitle,
+    language,
+    context,
+    env
+  });
+  if (!reviewResult.ok) {
+    return documentErrorResponse(
+      event,
+      reviewResult.stage,
+      reviewResult.error,
+      reviewResult.message,
+      reviewResult.statusCode
+    );
+  }
+
+  return jsonResponse(
+    {
+      ok: true,
+      objectKey,
+      filename: objectResult.filename,
+      size: objectResult.size,
+      pageCount: pdfResult.pageCount,
+      extractedCharacterCount: pdfResult.text.length,
+      processedCharacterCount: reviewResult.processedCharacters,
+      chunks: reviewResult.chunks,
+      truncated: reviewResult.truncated,
+      ...reviewResult.review,
+      message: "PDF review succeeded; the source PDF remains stored in OSS."
+    },
+    200,
+    event
+  );
+}
+
+async function loadStoredPdfsForChat({ documents, user, context, env }) {
+  const descriptors = Array.isArray(documents)
+    ? documents.slice(0, MAX_STORED_PDF_DOCUMENTS)
+    : [];
+  const loadedDocuments = [];
+  let remainingCharacters = TOTAL_REFERENCE_TEXT_LIMIT;
+
+  for (const descriptor of descriptors) {
+    if (remainingCharacters <= 0) break;
+
+    const objectKey =
+      typeof descriptor?.objectKey === "string"
+        ? descriptor.objectKey.trim()
+        : "";
+    if (!objectKey) continue;
+
+    const objectResult = await readOwnedPdfFromOss({
+      objectKey,
+      user,
+      context,
+      env
+    });
+    if (!objectResult.ok) return objectResult;
+
+    const pdfResult = await extractPdfDocument(objectResult.buffer);
+    if (!pdfResult.ok) {
+      return {
+        ok: false,
+        statusCode: pdfResult.statusCode,
+        stage: pdfResult.stage,
+        error: pdfResult.error,
+        message: pdfResult.message
+      };
+    }
+
+    const text = pdfResult.text.slice(0, remainingCharacters);
+    remainingCharacters -= text.length;
+    loadedDocuments.push({
+      filename: objectResult.filename,
+      type: "application/pdf",
+      text,
+      truncated: text.length < pdfResult.text.length,
+      module: normalizeExperimentModuleKey(descriptor?.module)
+    });
+  }
+
+  return { ok: true, documents: loadedDocuments };
 }
 
 function getRequestBody(event) {
@@ -893,7 +1920,8 @@ function buildWorkspaceContext({
   referenceDocuments,
   experimentDocuments,
   experimentNotes,
-  experimentModules
+  experimentModules,
+  storedDocuments
 }) {
   const contextSections = [];
 
@@ -904,6 +1932,16 @@ function buildWorkspaceContext({
   const referenceContext = buildDocumentContext("Reference", referenceDocuments);
   if (referenceContext) {
     contextSections.push(`Literature and reference evidence:\n${referenceContext}`);
+  }
+
+  const storedDocumentContext = buildDocumentContext(
+    "Stored PDF",
+    storedDocuments || []
+  );
+  if (storedDocumentContext) {
+    contextSections.push(
+      `PDF evidence retrieved from private OSS storage:\n${storedDocumentContext}`
+    );
   }
 
   const moduleContext = buildExperimentModulesContext(experimentModules);
@@ -1190,6 +2228,29 @@ exports.handler = async function handler(rawEvent, context) {
       return handleOssTest(event, context, process.env);
     }
 
+    if (method === "POST" && path === "/api/documents/upload-url") {
+      const auth = requireAuth(event, process.env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      return handlePdfUploadUrl(
+        event,
+        context,
+        process.env,
+        auth.user
+      );
+    }
+
+    if (method === "POST" && path === "/api/documents/review") {
+      const auth = requireAuth(event, process.env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      return handlePdfReview(event, context, process.env, auth.user);
+    }
+
     if (method === "POST" && path === "/chat") {
       const auth = requireAuth(event, process.env);
       if (!auth.ok) {
@@ -1206,6 +2267,7 @@ exports.handler = async function handler(rawEvent, context) {
       const rawExperimentDocuments = body.experimentDocuments;
       const rawExperimentNotes = body.experimentNotes;
       const rawExperimentModules = body.experimentModules;
+      const rawStoredDocuments = body.storedDocuments;
 
       if (
         rawReferenceDocuments !== undefined &&
@@ -1259,6 +2321,19 @@ exports.handler = async function handler(rawEvent, context) {
         );
       }
 
+      if (
+        rawStoredDocuments !== undefined &&
+        !Array.isArray(rawStoredDocuments)
+      ) {
+        return jsonResponse(
+          makeFallbackResponse(
+            'The optional "storedDocuments" field must be an array.'
+          ),
+          400,
+          event
+        );
+      }
+
       const referenceDocuments = sanitizeReferenceDocuments(
         rawReferenceDocuments || []
       );
@@ -1269,6 +2344,21 @@ exports.handler = async function handler(rawEvent, context) {
       const experimentModules = sanitizeExperimentModules(
         rawExperimentModules || {}
       );
+      const storedDocumentResult = await loadStoredPdfsForChat({
+        documents: rawStoredDocuments || [],
+        user: auth.user,
+        context,
+        env: process.env
+      });
+      if (!storedDocumentResult.ok) {
+        return documentErrorResponse(
+          event,
+          storedDocumentResult.stage,
+          storedDocumentResult.error,
+          storedDocumentResult.message,
+          storedDocumentResult.statusCode
+        );
+      }
       const result = await callRequesty(
         messages,
         process.env,
@@ -1277,7 +2367,8 @@ exports.handler = async function handler(rawEvent, context) {
           referenceDocuments,
           experimentDocuments,
           experimentNotes,
-          experimentModules
+          experimentModules,
+          storedDocuments: storedDocumentResult.documents
         }
       );
 
@@ -1292,7 +2383,10 @@ exports.handler = async function handler(rawEvent, context) {
           experimentFilesUsed: experimentDocuments.map(
             (document) => document.filename
           ),
-          experimentModulesUsed: summarizeExperimentModules(experimentModules)
+          experimentModulesUsed: summarizeExperimentModules(experimentModules),
+          storedPdfsUsed: storedDocumentResult.documents.map(
+            (document) => document.filename
+          )
         },
         200,
         event
@@ -1312,4 +2406,13 @@ exports.handler = async function handler(rawEvent, context) {
     console.error("Unhandled backend error:", error);
     return internalServerErrorResponse(event);
   }
+};
+
+exports._test = {
+  buildOwnedPdfObjectKey,
+  chunkPdfText,
+  extractPdfDocument,
+  getUserStorageSegment,
+  isOwnedPdfObjectKey,
+  sanitizePdfFilename
 };

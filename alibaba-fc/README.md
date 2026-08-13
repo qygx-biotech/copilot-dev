@@ -12,51 +12,61 @@ It keeps the same `/chat` response shape as the Cloudflare Worker so the existin
 
 - `REQUESTY_API_KEY` - Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code.
 - `REQUESTY_MODEL` - Requesty model name.
-- `OSS_BUCKET` - Private OSS bucket used by the temporary storage diagnostic.
+- `ADMIN_ACCOUNT` - Existing stable login account used in the authenticated OSS ownership prefix.
+- `ADMIN_PASSWORD_HASH` - Existing bcrypt password hash.
+- `JWT_SECRET` - Existing JWT signing secret.
+- `OSS_BUCKET` - Private OSS bucket used by the storage diagnostic and persistent PDF workflow.
 - `OSS_REGION` - OSS region ID, such as `oss-cn-beijing`.
 - `OSS_INTERNAL_ENDPOINT` - Internal OSS endpoint used for Function Compute-to-OSS traffic.
-- `OSS_PUBLIC_ENDPOINT` - Public OSS endpoint retained for future external use; the server-side diagnostic does not use it.
+- `OSS_PUBLIC_ENDPOINT` - Public OSS endpoint used only to create short-lived browser upload URLs. Server-side reads continue to use the internal endpoint.
 
-Do not configure permanent Alibaba Cloud AccessKeys for the function. The OSS diagnostic uses temporary STS credentials supplied by the attached Function Compute RAM role through the Node.js invocation context (with the Function Compute-provided `ALIBABA_CLOUD_*` environment variables as a runtime fallback).
+Do not configure permanent Alibaba Cloud AccessKeys for the function. OSS operations use temporary STS credentials supplied by the attached Function Compute RAM role through the Node.js invocation context (with the Function Compute-provided `ALIBABA_CLOUD_*` environment variables as a runtime fallback).
 
 ## Local Testing
 
-This backend uses Node.js 18+ global `fetch`.
+The deployed handler and PDF parser require Node.js 20 or newer.
 
 ```bash
 cd alibaba-fc
-npm start
+npm ci
+npm run check
+npm test
 ```
-
-Then test:
-
-```bash
-curl http://localhost:9000/health
-curl -X POST http://localhost:9000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Review a yeast pigment teaching demo."}]}'
-```
-
-Without Requesty environment variables, `/chat` returns a safe fallback object with the same frontend shape.
 
 ## Manual Alibaba Cloud Function Compute Deployment
 
 1. Create a Function Compute service and function in Alibaba Cloud.
-2. Choose a Node.js runtime, preferably Node.js 18 or newer.
+2. Choose a Node.js 20 runtime.
 3. Create an HTTP trigger for the function.
 4. Use this handler setting:
    - `index.handler`
 5. Set environment variables:
    - `REQUESTY_API_KEY`
    - `REQUESTY_MODEL`
+   - `ADMIN_ACCOUNT`
+   - `ADMIN_PASSWORD_HASH`
+   - `JWT_SECRET`
    - `OSS_BUCKET`
    - `OSS_REGION`
    - `OSS_INTERNAL_ENDPOINT`
    - `OSS_PUBLIC_ENDPOINT`
-6. Upload or deploy the `alibaba-fc/` code.
-7. Copy the public HTTP endpoint from the HTTP trigger.
-8. Paste it into `docs/app.js` as `ALIBABA_FC_URL`.
-9. Set `BACKEND_PROVIDER = "alibaba"` in `docs/app.js` for testing.
+6. Attach the existing `BioDesignCopilotFCRole` execution role to the function. Do not add long-lived AccessKey values.
+7. Install production dependencies and package the root handler with `node_modules`:
+
+   ```bash
+   cd alibaba-fc
+   npm ci --omit=dev
+   zip -r ../alibaba-fc-oss-pdf-review.zip index.js package.json package-lock.json node_modules
+   ```
+
+8. Upload `alibaba-fc-oss-pdf-review.zip`. Keep the handler set to `index.handler`.
+9. For multi-chunk paper reviews, configure at least 1 GB memory and a 300-second timeout for the initial milestone.
+10. Keep the existing HTTP-trigger CORS origin for the GitHub Pages frontend.
+11. Keep the private OSS bucket CORS rule that allows the GitHub Pages origin to send `PUT` requests with `Content-Type: application/pdf`.
+12. Copy the public HTTP endpoint into `docs/app.js` as `ALIBABA_FC_URL` and keep `BACKEND_PROVIDER = "alibaba"`.
+13. Publish the updated `docs/` directory through the existing GitHub Pages deployment.
+
+The only new production dependency for this branch is `unpdf@1.8.0`. Its serverless PDF.js build extracts embedded text without OCR or native canvas binaries.
 
 ## Endpoint Tests
 
@@ -68,8 +78,11 @@ curl https://your-alibaba-fc-endpoint/health
 
 Chat request:
 
+Use a `TOKEN` returned by the existing `/api/login` flow (the complete login command is shown below).
+
 ```bash
 curl -X POST https://your-alibaba-fc-endpoint/chat \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Help draft a lactose biosensor project memo."}]}'
 ```
@@ -108,3 +121,76 @@ curl -sS -X POST "$FC_URL/api/test-oss" \
 ```
 
 The successful response includes `"ok":true`, `"verified":true`, and the generated object key. Then open `biodesign-copilot-files-2026` in the Alibaba OSS console and inspect the `test/` prefix. The endpoint does not delete the object.
+
+## Persistent PDF Upload and Review
+
+The PDF workflow uses the existing JWT bearer login and two document endpoints:
+
+- `POST /api/documents/upload-url` validates a PDF name and size, creates an application-controlled key under the authenticated account prefix, and returns a five-minute OSS V4 signed PUT URL.
+- `POST /api/documents/review` accepts only a key in that same authenticated account prefix, reads the object through `OSS_INTERNAL_ENDPOINT`, validates its metadata and PDF signature, extracts embedded text, and performs a map-reduce review with the configured Requesty model.
+- `POST /chat` accepts the optional `storedDocuments` array. Every key is ownership-checked and re-read from OSS before its extracted text is added to Side Chat or agent context.
+
+The browser never selects a bucket or object path. Keys have this form:
+
+```text
+uploads/<sanitized-account-and-hash>/<uuid>/<sanitized-filename>.pdf
+```
+
+PDFs are limited to 5 MB and 100 pages. Reviews process at most 96,000 extracted characters in overlapping 12,000-character chunks. Encrypted, malformed, empty, and likely image-only PDFs return controlled errors. OCR is not included. Neither review nor removal from the current page deletes the OSS object.
+
+### Manual end-to-end test
+
+Set the endpoint, credentials, and a machine-readable PDF path locally:
+
+```bash
+FC_URL="https://your-alibaba-fc-endpoint"
+ADMIN_ACCOUNT="your-admin-account"
+PDF_PATH="/absolute/path/to/paper.pdf"
+
+TOKEN=$(curl -sS -X POST "$FC_URL/api/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"account\":\"$ADMIN_ACCOUNT\",\"password\":\"your-admin-password\"}" \
+  | jq -r '.token')
+
+PDF_SIZE=$(wc -c < "$PDF_PATH" | tr -d ' ')
+UPLOAD_RESPONSE=$(curl -sS -X POST "$FC_URL/api/documents/upload-url" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"filename\":\"$(basename "$PDF_PATH")\",\"contentType\":\"application/pdf\",\"size\":$PDF_SIZE}")
+
+OBJECT_KEY=$(printf '%s' "$UPLOAD_RESPONSE" | jq -r '.objectKey')
+UPLOAD_URL=$(printf '%s' "$UPLOAD_RESPONSE" | jq -r '.uploadUrl')
+
+curl -sS -X PUT "$UPLOAD_URL" \
+  -H "Content-Type: application/pdf" \
+  --upload-file "$PDF_PATH"
+
+curl -sS -X POST "$FC_URL/api/documents/review" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"objectKey\":$(printf '%s' "$OBJECT_KEY" | jq -R .),\"language\":\"en\"}" \
+  | jq
+
+curl -sS -X POST "$FC_URL/chat" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"mode\":\"side_chat\",\"messages\":[{\"role\":\"user\",\"content\":\"What are this paper's main limitations?\"}],\"storedDocuments\":[{\"objectKey\":$(printf '%s' "$OBJECT_KEY" | jq -R .)}]}" \
+  | jq
+```
+
+Expected review output includes `"ok": true`, a non-empty `summary`, and the original `objectKey`. In the OSS console, open `biodesign-copilot-files-2026` → `uploads/` and confirm that the PDF remains after both requests.
+
+Negative checks:
+
+```bash
+# Must return 401.
+curl -i -X POST "$FC_URL/api/documents/review" \
+  -H "Content-Type: application/json" \
+  -d '{"objectKey":"uploads/example/not-allowed.pdf"}'
+
+# Must return 415.
+curl -i -X POST "$FC_URL/api/documents/upload-url" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"notes.txt","contentType":"text/plain","size":100}'
+```

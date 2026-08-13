@@ -34,22 +34,22 @@ The frontend supports attaching local reference files per page session:
 - `.xlsx`
 - `.xls`
 
-Files are parsed locally in the browser. Raw files are not uploaded, stored, or written to a database or storage bucket. When the user sends a chat message, the app sends only extracted text snippets plus lightweight metadata such as filename, MIME type, character counts, and truncation status.
+When the Alibaba Function Compute backend is selected, PDFs are uploaded directly to the private Alibaba OSS bucket using a short-lived signed URL and then parsed and reviewed by Function Compute. TXT, CSV, and Excel files retain the existing browser-session extraction flow. No document metadata database is used yet.
 
-Per-file upload size is limited to 5 MB. Extracted text is capped per file and capped across the full request, so this is not a full RAG system yet. It is a lightweight context-passing MVP for lab reports, spreadsheets, notes, and literature PDFs.
+Per-file size is limited to 5 MB. Persistent PDF reviews accept up to 100 pages and process at most 96,000 extracted characters through a basic map-reduce summary; browser-extracted text from other formats remains capped per file and request. This is not a RAG system.
 
 ## BioDesign Workbench layout
 
 After login, the frontend opens a simpler evidence-driven BioDesign Workbench for human-in-the-loop synthetic-biology planning.
 
 - Optional project context: one freeform field for plain-language goals, questions, and messy project framing.
-- Literature/reference uploads: add PDFs, notes, CSVs, Excel files, and text references. Files are parsed locally in the browser and shown with filename, type, extracted character count, and remove controls.
+- Literature/reference uploads: PDFs are persisted privately in OSS and reviewed into Side Chat; notes, CSVs, and Excel files remain browser-session context. File cards retain filename, type, extraction state, and remove controls.
 - Experimental results modules: add batches of Excel, CSV, PDF, or TXT result files plus informal notes inside Strain Engineering, Fermentation, or Downstream Processing modules.
 - One main action: **Analyze & Recommend** sends `mode: "agent_instruction"` to the existing `/chat` endpoint and updates the Current Recommendation panel.
 - Side chat for questions: sends `mode: "side_chat"` and answers in the side panel without changing the current recommendation.
 - Current recommendation output: shows Current Interpretation, Key Evidence Used, Cross-Module Assessment, Recommended Next Step, Module Most Relevant to Next Step, Missing Information, Human Review Notes, and Draft Summary.
 
-Current limitation: the workbench uses frontend/session state only. There is no persistent cloud workspace, database, or permanent file storage yet.
+Current limitation: PDF binaries persist in OSS, but document metadata, UI lists, and chat history are not stored in a database. Reloading the page does not discover prior OSS objects automatically.
 
 ## Experimental Results Modules
 
@@ -59,7 +59,7 @@ The Experimental Results panel is split into three synthetic-biology development
 - **Fermentation**: cultivation runs, media conditions, growth curves, titer/yield/productivity data, and time-course measurements.
 - **Downstream Processing**: separation, purification, extraction, recovery, product quality, process loss, and analytics.
 
-Each module supports independent uploads, file cards, remove controls, clear-all file actions, optional notes, and note cards. Files are parsed locally in the browser using the same PDF/text/CSV/Excel extraction flow as the literature panel. The MVP sends extracted text and metadata to the backend when the user runs the agent or side chat; raw files are not permanently stored and no cloud workspace or database is created.
+Each module supports independent uploads, file cards, remove controls, clear-all file actions, optional notes, and note cards. PDFs use the persistent OSS workflow when Alibaba Function Compute is selected; other file types keep the browser extraction flow. No database-backed cloud workspace is created.
 
 ## Run
 
@@ -86,6 +86,6 @@ The frontend expects the Worker at `http://127.0.0.1:8787`.
 
 ## Demo Behavior
 
-Add optional project context, upload any relevant files, write an agent instruction, and click **Analyze & Recommend**. When the backend is available, the frontend calls `POST /chat` with `projectContext`, `referenceDocuments`, grouped `experimentModules`, flattened `experimentDocuments`, and flattened `experimentNotes`. If the backend is unavailable, it falls back to a local demo recommendation.
+Add optional project context, upload any relevant files, write an agent instruction, and click **Analyze & Recommend**. When the backend is available, the frontend calls `POST /chat` with browser-extracted context plus ownership-scoped `storedDocuments` keys for persistent PDFs. Function Compute re-reads those PDFs from private OSS before calling the model. If the backend is unavailable, the workbench retains its existing local fallback for non-persistent context.
 
 The side chat uses the same backend endpoint for questions but does not update the Current Recommendation panel. The **Export Markdown** button downloads the current recommendation as `biodesign-workbench-recommendation.md`.

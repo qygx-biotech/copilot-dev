@@ -126,7 +126,7 @@ const I18N = {
     uploadReferences: "Upload references",
     clearReferences: "Clear references",
     referencesHelper:
-      "Files are processed locally for this MVP. Extracted text is sent to the backend only when you run the agent or ask a question.",
+      "PDF papers are stored privately in OSS and reviewed by the backend. Other supported files remain browser-session context.",
     experimentEyebrow: "Experiment Evidence",
     experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
@@ -224,6 +224,20 @@ const I18N = {
     sideChatNoAnswer: "No side-chat answer returned.",
     fileLimit: "Only {count} files can be attached in this MVP.",
     fileAdded: "Added {name}.",
+    pdfUploading: "Uploading {name} to private OSS...",
+    pdfReviewing: "Stored {name}; extracting text and generating a paper review...",
+    pdfStored: "Stored and reviewed {name}.",
+    pdfUploadFailed: "Could not upload {name}: {message}",
+    pdfReviewFailed: "{name} remains stored in OSS, but review failed: {message}",
+    pdfStoredMeta: "stored in private OSS",
+    pdfReviewErrorMeta: "stored; review needs retry",
+    paperReviewTitle: "Paper review: {name}",
+    paperSummaryLabel: "Summary",
+    paperQuestionLabel: "Research question",
+    paperMethodsLabel: "Methods",
+    paperResultsLabel: "Key results",
+    paperLimitationsLabel: "Limitations",
+    paperConclusionLabel: "Main conclusion",
     fileUnsupported: "Unsupported file type: {name}",
     fileTooLarge: "File exceeds the 5 MB limit: {name}",
     fileNoText: "No text could be extracted from {name}.",
@@ -349,7 +363,7 @@ const I18N = {
     uploadReferences: "上传参考资料",
     clearReferences: "清空参考资料",
     referencesHelper:
-      "本 MVP 会在浏览器本地处理文件。只有在运行智能体或提问时，提取出的文本才会发送到后端。",
+      "PDF 论文会私密保存到 OSS 并由后端评审；其他受支持文件仍作为当前浏览器会话的上下文。",
     experimentEyebrow: "实验证据",
     experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
@@ -447,6 +461,20 @@ const I18N = {
     sideChatNoAnswer: "侧边问答没有返回内容。",
     fileLimit: "本 MVP 最多可附加 {count} 个文件。",
     fileAdded: "已添加 {name}。",
+    pdfUploading: "正在将 {name} 上传到私有 OSS...",
+    pdfReviewing: "{name} 已保存，正在提取文本并生成论文评审...",
+    pdfStored: "已保存并评审 {name}。",
+    pdfUploadFailed: "无法上传 {name}：{message}",
+    pdfReviewFailed: "{name} 仍保存在 OSS，但评审失败：{message}",
+    pdfStoredMeta: "已保存到私有 OSS",
+    pdfReviewErrorMeta: "已保存；需要重试评审",
+    paperReviewTitle: "论文评审：{name}",
+    paperSummaryLabel: "摘要",
+    paperQuestionLabel: "研究问题",
+    paperMethodsLabel: "方法",
+    paperResultsLabel: "主要结果",
+    paperLimitationsLabel: "局限性",
+    paperConclusionLabel: "主要结论",
     fileUnsupported: "不支持的文件类型：{name}",
     fileTooLarge: "文件超过 5 MB 限制：{name}",
     fileNoText: "无法从文件中提取文本：{name}。",
@@ -1065,6 +1093,83 @@ async function handleDocumentFiles({
       break;
     }
 
+    const extension = getFileExtension(file.name);
+
+    if (extension === "pdf" && BACKEND_PROVIDER === "alibaba") {
+      const pendingId = makeId();
+      const pendingDocument = {
+        id: pendingId,
+        filename: file.name,
+        type: "application/pdf",
+        extension: "pdf",
+        text: "",
+        originalCharacterCount: 0,
+        extractedCharacterCount: 0,
+        extractedCharCount: 0,
+        truncated: false,
+        processingStatus: "uploading",
+        module: moduleKey,
+      };
+      nextDocuments.push(pendingDocument);
+      onUpdate(nextDocuments);
+      showToast(t("pdfUploading", { name: file.name }));
+      renderBackendStatus("backendWorking");
+
+      const updatePendingStatus = (processingStatus) => {
+        nextDocuments = nextDocuments.map((documentItem) =>
+          documentItem.id === pendingId
+            ? { ...documentItem, processingStatus }
+            : documentItem
+        );
+        onUpdate(nextDocuments);
+      };
+
+      try {
+        const storedDocument = await uploadAndReviewPdf(
+          file,
+          updatePendingStatus
+        );
+        const nextDocument = moduleKey
+          ? { ...storedDocument, id: pendingId, module: moduleKey }
+          : { ...storedDocument, id: pendingId };
+        nextDocuments = nextDocuments.map((documentItem) =>
+          documentItem.id === pendingId ? nextDocument : documentItem
+        );
+        onUpdate(nextDocuments);
+
+        if (storedDocument.reviewError) {
+          showToast(
+            t("pdfReviewFailed", {
+              name: file.name,
+              message: storedDocument.reviewError,
+            })
+          );
+        } else {
+          const reviewMessage = formatPaperReview(storedDocument.review, file.name);
+          addSideChatMessage("assistant", reviewMessage);
+          sideChatMessages.push({ role: "assistant", content: reviewMessage });
+          showToast(t("pdfStored", { name: file.name }));
+        }
+
+        renderBackendStatus("backendConnected");
+      } catch (error) {
+        nextDocuments = nextDocuments.filter(
+          (documentItem) => documentItem.id !== pendingId
+        );
+        onUpdate(nextDocuments);
+        console.warn("PDF upload failed.", error);
+        showToast(
+          t("pdfUploadFailed", {
+            name: file.name,
+            message: error.message || t("fileParseFailed", { name: file.name }),
+          })
+        );
+        renderBackendStatus("backendFallback");
+      }
+
+      continue;
+    }
+
     try {
       const parsedDocument = await parseWorkbenchFile(file);
       nextDocuments.push(
@@ -1122,6 +1227,138 @@ async function parseWorkbenchFile(file) {
   };
 }
 
+async function uploadAndReviewPdf(file, onStage) {
+  if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
+    throw new Error(t("fileTooLarge", { name: file.name }));
+  }
+
+  const uploadUrlResponse = await fetch(
+    backendUrl("/api/documents/upload-url"),
+    {
+      method: "POST",
+      headers: getAuthHeaders({
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: "application/pdf",
+        size: file.size,
+      }),
+    }
+  );
+
+  requireLoginForUnauthorized(uploadUrlResponse);
+  const uploadUrlData = await readOptionalJson(uploadUrlResponse);
+  if (!uploadUrlResponse.ok || !uploadUrlData.uploadUrl || !uploadUrlData.objectKey) {
+    throw new Error(
+      getAuthErrorMessage(uploadUrlData) ||
+        t("backendReturned", { status: uploadUrlResponse.status })
+    );
+  }
+
+  const ossUploadResponse = await fetch(uploadUrlData.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/pdf",
+    },
+    body: file,
+  });
+
+  if (!ossUploadResponse.ok) {
+    throw new Error(
+      `OSS upload returned HTTP ${ossUploadResponse.status}.`
+    );
+  }
+
+  onStage("reviewing");
+  showToast(t("pdfReviewing", { name: file.name }));
+
+  const storedDocument = {
+    filename: uploadUrlData.filename || file.name,
+    type: "application/pdf",
+    extension: "pdf",
+    text: "",
+    objectKey: uploadUrlData.objectKey,
+    originalCharacterCount: 0,
+    extractedCharacterCount: 0,
+    extractedCharCount: 0,
+    truncated: false,
+    processingStatus: "",
+  };
+
+  try {
+    const reviewResponse = await fetch(backendUrl("/api/documents/review"), {
+      method: "POST",
+      headers: getAuthHeaders({
+        "Content-Type": "application/json",
+      }),
+      body: JSON.stringify({
+        objectKey: uploadUrlData.objectKey,
+        language: currentLanguage,
+      }),
+    });
+
+    requireLoginForUnauthorized(reviewResponse);
+    const reviewData = await readOptionalJson(reviewResponse);
+    if (!reviewResponse.ok || !reviewData.ok) {
+      return {
+        ...storedDocument,
+        reviewError:
+          getAuthErrorMessage(reviewData) ||
+          t("backendReturned", { status: reviewResponse.status }),
+      };
+    }
+
+    const extractedCharacterCount = Number(
+      reviewData.extractedCharacterCount || 0
+    );
+    return {
+      ...storedDocument,
+      filename: reviewData.filename || storedDocument.filename,
+      originalCharacterCount: extractedCharacterCount,
+      extractedCharacterCount,
+      extractedCharCount: extractedCharacterCount,
+      truncated: Boolean(reviewData.truncated),
+      review: reviewData,
+    };
+  } catch (error) {
+    return {
+      ...storedDocument,
+      reviewError: error.message || t("fileParseFailed", { name: file.name }),
+    };
+  }
+}
+
+function formatPaperReview(review, filename) {
+  const value = review && typeof review === "object" ? review : {};
+  const lines = [t("paperReviewTitle", { name: value.title || filename })];
+  const appendScalar = (labelKey, fieldValue) => {
+    if (typeof fieldValue === "string" && fieldValue.trim()) {
+      lines.push("", `${t(labelKey)}:`, fieldValue.trim());
+    }
+  };
+  const appendList = (labelKey, items) => {
+    const normalizedItems = Array.isArray(items)
+      ? items.filter((item) => typeof item === "string" && item.trim())
+      : [];
+    if (normalizedItems.length) {
+      lines.push(
+        "",
+        `${t(labelKey)}:`,
+        ...normalizedItems.map((item) => `• ${item.trim()}`)
+      );
+    }
+  };
+
+  appendScalar("paperSummaryLabel", value.summary);
+  appendScalar("paperQuestionLabel", value.research_question);
+  appendScalar("paperMethodsLabel", value.methods);
+  appendList("paperResultsLabel", value.key_results);
+  appendList("paperLimitationsLabel", value.limitations);
+  appendScalar("paperConclusionLabel", value.main_conclusion);
+  return lines.join("\n");
+}
+
 function renderDocumentList(container, documents, emptyText, onRemove) {
   container.innerHTML = "";
 
@@ -1144,14 +1381,29 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
 
     const meta = document.createElement("div");
     meta.className = "file-meta";
-    meta.textContent = `${documentItem.extension.toUpperCase()} · ${documentItem.type} · ${documentItem.extractedCharacterCount.toLocaleString()} ${t("chars")}${
-      documentItem.truncated ? ` · ${t("truncated")}` : ""
-    }`;
+    if (documentItem.processingStatus === "uploading") {
+      meta.textContent = t("pdfUploading", { name: documentItem.filename });
+    } else if (documentItem.processingStatus === "reviewing") {
+      meta.textContent = t("pdfReviewing", { name: documentItem.filename });
+    } else {
+      const characterCount = Number(
+        documentItem.extractedCharacterCount || documentItem.extractedCharCount || 0
+      );
+      const storageNote = documentItem.objectKey
+        ? documentItem.reviewError
+          ? ` · ${t("pdfReviewErrorMeta")}: ${documentItem.reviewError}`
+          : ` · ${t("pdfStoredMeta")}`
+        : "";
+      meta.textContent = `${documentItem.extension.toUpperCase()} · ${documentItem.type} · ${characterCount.toLocaleString()} ${t("chars")}${
+        documentItem.truncated ? ` · ${t("truncated")}` : ""
+      }${storageNote}`;
+    }
 
     const removeButton = document.createElement("button");
     removeButton.className = "file-remove-button";
     removeButton.type = "button";
     removeButton.textContent = t("remove");
+    removeButton.disabled = Boolean(documentItem.processingStatus);
     removeButton.addEventListener("click", () => onRemove(documentItem.id));
 
     details.append(name, meta);
@@ -1176,7 +1428,8 @@ function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
   return documents
     .slice(0, maxFiles)
     .map((documentItem) => {
-      const textForRequest = documentItem.text.slice(0, remainingCharacters);
+      const sourceText = String(documentItem.text || "");
+      const textForRequest = sourceText.slice(0, remainingCharacters);
       remainingCharacters = Math.max(0, remainingCharacters - textForRequest.length);
 
       return {
@@ -1185,7 +1438,7 @@ function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
         module: documentItem.module || "",
         text: textForRequest,
         truncated:
-          documentItem.truncated || textForRequest.length < documentItem.text.length,
+          documentItem.truncated || textForRequest.length < sourceText.length,
         originalCharacterCount: documentItem.originalCharacterCount,
         extractedCharCount:
           documentItem.extractedCharCount || documentItem.extractedCharacterCount,
@@ -1393,6 +1646,7 @@ async function sendWorkbenchRequest({ mode, messages }) {
     experimentModules: experimentModulesPayload,
     experimentDocuments: experimentDocumentsPayload,
     experimentNotes: experimentNotesPayload,
+    storedDocuments: collectStoredDocumentsForRequest(),
   };
 
   const response = await fetch(backendUrl("/chat"), {
@@ -1533,6 +1787,21 @@ function collectExperimentDocuments() {
   return EXPERIMENT_MODULE_KEYS.flatMap(
     (moduleKey) => experimentModules[moduleKey].files
   );
+}
+
+function collectStoredDocumentsForRequest() {
+  return [...referenceDocuments, ...collectExperimentDocuments()]
+    .filter(
+      (documentItem) =>
+        typeof documentItem.objectKey === "string" &&
+        documentItem.objectKey &&
+        !documentItem.processingStatus
+    )
+    .slice(0, MAX_REFERENCE_FILES)
+    .map((documentItem) => ({
+      objectKey: documentItem.objectKey,
+      module: documentItem.module || "",
+    }));
 }
 
 function collectExperimentNotesForRequest(moduleKey = "") {
