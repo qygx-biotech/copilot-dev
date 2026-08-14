@@ -25,6 +25,7 @@ const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
 const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
 const MAX_PDF_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_STORED_PDF_DOCUMENTS = 8;
+const MAX_LISTED_PDF_DOCUMENTS = 100;
 const MAX_PDF_REVIEW_CHARACTERS = 96000;
 const PDF_REVIEW_CHUNK_CHARACTERS = 12000;
 const PDF_REVIEW_CHUNK_OVERLAP = 500;
@@ -264,10 +265,14 @@ function buildOwnedPdfObjectKey(account, filename) {
   ].join("/");
 }
 
+function getOwnedPdfPrefix(account) {
+  return `uploads/${getUserStorageSegment(account)}/`;
+}
+
 function isOwnedPdfObjectKey(objectKey, account) {
   if (typeof objectKey !== "string" || objectKey.length > 500) return false;
 
-  const prefix = `uploads/${getUserStorageSegment(account)}/`;
+  const prefix = getOwnedPdfPrefix(account);
   if (!objectKey.startsWith(prefix)) return false;
 
   const remainder = objectKey.slice(prefix.length);
@@ -689,6 +694,113 @@ async function handlePdfUploadUrl(event, context, env, user) {
       safeError.code,
       safeError.message,
       500
+    );
+  }
+}
+
+async function handleListStoredPdfs(event, context, env, user) {
+  const config = getOssConfig(env);
+  if (!config.ok) {
+    return documentErrorResponse(
+      event,
+      "ossList",
+      "MissingEnvironmentVariables",
+      `Missing required environment variables: ${config.missing.join(", ")}`,
+      500
+    );
+  }
+
+  const credentials = getFunctionCredentials(context, env);
+  if (!credentials) {
+    return documentErrorResponse(
+      event,
+      "ossList",
+      "CredentialUnavailable",
+      "Function Compute RAM role credentials were not available to the runtime.",
+      500
+    );
+  }
+
+  const prefix = getOwnedPdfPrefix(user.account);
+  const documents = [];
+  let continuationToken = null;
+
+  try {
+    const client = createOssClient(config, credentials);
+
+    do {
+      const remaining = MAX_LISTED_PDF_DOCUMENTS - documents.length;
+      const query = {
+        prefix,
+        "max-keys": Math.min(remaining, 100)
+      };
+      if (continuationToken) {
+        query["continuation-token"] = continuationToken;
+      }
+
+      const result = await client.listV2(query);
+      for (const object of result.objects || []) {
+        if (
+          documents.length >= MAX_LISTED_PDF_DOCUMENTS ||
+          !isOwnedPdfObjectKey(object?.name, user.account)
+        ) {
+          continue;
+        }
+
+        documents.push({
+          objectKey: object.name,
+          filename: getObjectFilename(object.name),
+          size: Number.isFinite(Number(object.size)) ? Number(object.size) : null,
+          lastModified:
+            typeof object.lastModified === "string" ? object.lastModified : null,
+          type: "application/pdf"
+        });
+      }
+
+      continuationToken =
+        result.isTruncated && result.nextContinuationToken
+          ? result.nextContinuationToken
+          : null;
+    } while (
+      continuationToken &&
+      documents.length < MAX_LISTED_PDF_DOCUMENTS
+    );
+
+    documents.sort((left, right) => {
+      const leftTime = Date.parse(left.lastModified || "") || 0;
+      const rightTime = Date.parse(right.lastModified || "") || 0;
+      return rightTime - leftTime || left.filename.localeCompare(right.filename);
+    });
+
+    console.log("Stored PDF listing complete:", {
+      stage: "ossList",
+      functionRequestId: context?.requestId || undefined,
+      count: documents.length,
+      truncated: Boolean(continuationToken)
+    });
+
+    return jsonResponse(
+      {
+        ok: true,
+        documents,
+        count: documents.length,
+        truncated: Boolean(continuationToken),
+        maxDocuments: MAX_LISTED_PDF_DOCUMENTS
+      },
+      200,
+      event
+    );
+  } catch (error) {
+    const safeError = logDocumentFailure("ossList", error, {
+      credentials,
+      functionRequestId: context?.requestId
+    });
+    return documentErrorResponse(
+      event,
+      "ossList",
+      safeError.code,
+      safeError.message,
+      502
     );
   }
 }
@@ -2235,6 +2347,20 @@ exports.handler = async function handler(rawEvent, context) {
       }
 
       return handlePdfUploadUrl(
+        event,
+        context,
+        process.env,
+        auth.user
+      );
+    }
+
+    if (method === "GET" && path === "/api/documents") {
+      const auth = requireAuth(event, process.env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      return handleListStoredPdfs(
         event,
         context,
         process.env,

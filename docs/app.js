@@ -126,7 +126,7 @@ const I18N = {
     uploadReferences: "Upload references",
     clearReferences: "Clear references",
     referencesHelper:
-      "PDF papers are stored privately in OSS and reviewed by the backend. Other supported files remain browser-session context.",
+      "PDF papers are stored privately in OSS, restored after login, and reviewed by the backend. Other supported files remain browser-session context.",
     experimentEyebrow: "Experiment Evidence",
     experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
@@ -231,6 +231,10 @@ const I18N = {
     pdfReviewFailed: "{name} remains stored in OSS, but review failed: {message}",
     pdfStoredMeta: "stored in private OSS",
     pdfReviewErrorMeta: "stored; review needs retry",
+    pdfSyncing: "Syncing saved PDFs from private OSS...",
+    pdfSynced: "Synced {count} saved PDF files from OSS.",
+    pdfSyncFailed: "Could not sync saved PDFs from OSS: {message}",
+    pdfUploadCloseWarning: "Please wait for the PDF upload to OSS to finish before signing out.",
     paperReviewTitle: "Paper review: {name}",
     paperSummaryLabel: "Summary",
     paperQuestionLabel: "Research question",
@@ -363,7 +367,7 @@ const I18N = {
     uploadReferences: "上传参考资料",
     clearReferences: "清空参考资料",
     referencesHelper:
-      "PDF 论文会私密保存到 OSS 并由后端评审；其他受支持文件仍作为当前浏览器会话的上下文。",
+      "PDF 论文会私密保存到 OSS、在登录后自动恢复并由后端评审；其他受支持文件仍作为当前浏览器会话的上下文。",
     experimentEyebrow: "实验证据",
     experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
@@ -468,6 +472,10 @@ const I18N = {
     pdfReviewFailed: "{name} 仍保存在 OSS，但评审失败：{message}",
     pdfStoredMeta: "已保存到私有 OSS",
     pdfReviewErrorMeta: "已保存；需要重试评审",
+    pdfSyncing: "正在从私有 OSS 同步已保存的 PDF...",
+    pdfSynced: "已从 OSS 同步 {count} 个 PDF 文件。",
+    pdfSyncFailed: "无法从 OSS 同步已保存的 PDF：{message}",
+    pdfUploadCloseWarning: "请等待 PDF 完成上传到 OSS 后再退出登录。",
     paperReviewTitle: "论文评审：{name}",
     paperSummaryLabel: "摘要",
     paperQuestionLabel: "研究问题",
@@ -579,6 +587,7 @@ let currentRecommendation = getCurrentRecommendation();
 let sideChatMessages = [];
 let activeAgentRequest = false;
 let activeAgentPanelId = "";
+let activePdfUploads = 0;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -646,6 +655,7 @@ loginForm.addEventListener("submit", async (event) => {
 
     setAuthSession(data.token, loggedInAccount);
     showAuthenticated(loggedInAccount);
+    await syncStoredPdfDocuments();
   } catch (error) {
     console.warn("Login failed.", error);
     showLoggedOut(error.message || t("loginFailed"));
@@ -656,8 +666,20 @@ loginForm.addEventListener("submit", async (event) => {
 });
 
 logoutButton.addEventListener("click", () => {
+  if (activePdfUploads > 0) {
+    showToast(t("pdfUploadCloseWarning"));
+    return;
+  }
+
   clearAuthSession();
   showLoggedOut(t("loggedOut"));
+});
+
+window.addEventListener("beforeunload", (event) => {
+  if (activePdfUploads <= 0) return;
+
+  event.preventDefault();
+  event.returnValue = "";
 });
 
 projectContextInput.addEventListener("input", () => {
@@ -898,7 +920,7 @@ async function checkCurrentUser() {
       setAuthSession(authToken, accountName);
     }
     showAuthenticated(accountName);
-    renderBackendStatus("backendConnected");
+    await syncStoredPdfDocuments();
   } catch (error) {
     console.warn("Session check failed.", error);
     showLoggedOut("");
@@ -1232,42 +1254,49 @@ async function uploadAndReviewPdf(file, onStage) {
     throw new Error(t("fileTooLarge", { name: file.name }));
   }
 
-  const uploadUrlResponse = await fetch(
-    backendUrl("/api/documents/upload-url"),
-    {
-      method: "POST",
-      headers: getAuthHeaders({
-        "Content-Type": "application/json",
-      }),
-      body: JSON.stringify({
-        filename: file.name,
-        contentType: "application/pdf",
-        size: file.size,
-      }),
+  let uploadUrlData;
+  activePdfUploads += 1;
+
+  try {
+    const uploadUrlResponse = await fetch(
+      backendUrl("/api/documents/upload-url"),
+      {
+        method: "POST",
+        headers: getAuthHeaders({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: "application/pdf",
+          size: file.size,
+        }),
+      }
+    );
+
+    requireLoginForUnauthorized(uploadUrlResponse);
+    uploadUrlData = await readOptionalJson(uploadUrlResponse);
+    if (!uploadUrlResponse.ok || !uploadUrlData.uploadUrl || !uploadUrlData.objectKey) {
+      throw new Error(
+        getAuthErrorMessage(uploadUrlData) ||
+          t("backendReturned", { status: uploadUrlResponse.status })
+      );
     }
-  );
 
-  requireLoginForUnauthorized(uploadUrlResponse);
-  const uploadUrlData = await readOptionalJson(uploadUrlResponse);
-  if (!uploadUrlResponse.ok || !uploadUrlData.uploadUrl || !uploadUrlData.objectKey) {
-    throw new Error(
-      getAuthErrorMessage(uploadUrlData) ||
-        t("backendReturned", { status: uploadUrlResponse.status })
-    );
-  }
+    const ossUploadResponse = await fetch(uploadUrlData.uploadUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/pdf",
+      },
+      body: file,
+    });
 
-  const ossUploadResponse = await fetch(uploadUrlData.uploadUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/pdf",
-    },
-    body: file,
-  });
-
-  if (!ossUploadResponse.ok) {
-    throw new Error(
-      `OSS upload returned HTTP ${ossUploadResponse.status}.`
-    );
+    if (!ossUploadResponse.ok) {
+      throw new Error(
+        `OSS upload returned HTTP ${ossUploadResponse.status}.`
+      );
+    }
+  } finally {
+    activePdfUploads = Math.max(0, activePdfUploads - 1);
   }
 
   onStage("reviewing");
@@ -1326,6 +1355,132 @@ async function uploadAndReviewPdf(file, onStage) {
       ...storedDocument,
       reviewError: error.message || t("fileParseFailed", { name: file.name }),
     };
+  }
+}
+
+async function syncStoredPdfDocuments() {
+  if (!authToken) return;
+  if (BACKEND_PROVIDER !== "alibaba") {
+    renderBackendStatus("backendConnected");
+    return;
+  }
+
+  renderBackendStatus("backendWorking");
+  showToast(t("pdfSyncing"));
+
+  try {
+    const response = await fetch(backendUrl("/api/documents"), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+    requireLoginForUnauthorized(response);
+    const data = await readOptionalJson(response);
+
+    if (!response.ok || !data.ok || !Array.isArray(data.documents)) {
+      throw new Error(
+        data.message ||
+          getAuthErrorMessage(data) ||
+          t("backendReturned", { status: response.status })
+      );
+    }
+
+    const serverDocuments = data.documents
+      .filter(
+        (documentItem) =>
+          documentItem &&
+          typeof documentItem.objectKey === "string" &&
+          documentItem.objectKey &&
+          typeof documentItem.filename === "string" &&
+          documentItem.filename
+      )
+      .map((documentItem) => ({
+        objectKey: documentItem.objectKey,
+        filename: documentItem.filename,
+        size: Number.isFinite(Number(documentItem.size))
+          ? Number(documentItem.size)
+          : 0,
+        lastModified:
+          typeof documentItem.lastModified === "string"
+            ? documentItem.lastModified
+            : "",
+      }));
+    const serverByKey = new Map(
+      serverDocuments.map((documentItem) => [
+        documentItem.objectKey,
+        documentItem,
+      ])
+    );
+
+    const reconcileCollection = (documents) =>
+      documents
+        .filter(
+          (documentItem) =>
+            !documentItem.objectKey || serverByKey.has(documentItem.objectKey)
+        )
+        .map((documentItem) => {
+          const serverDocument = serverByKey.get(documentItem.objectKey);
+          return serverDocument
+            ? {
+                ...documentItem,
+                filename: serverDocument.filename,
+                size: serverDocument.size,
+                lastModified: serverDocument.lastModified,
+                syncedFromOss: true,
+              }
+            : documentItem;
+        });
+
+    referenceDocuments = reconcileCollection(referenceDocuments);
+    EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
+      experimentModules[moduleKey].files = reconcileCollection(
+        experimentModules[moduleKey].files
+      );
+    });
+
+    const placedObjectKeys = new Set(
+      [...referenceDocuments, ...collectExperimentDocuments()]
+        .map((documentItem) => documentItem.objectKey)
+        .filter(Boolean)
+    );
+    const restoredDocuments = serverDocuments
+      .filter((documentItem) => !placedObjectKeys.has(documentItem.objectKey))
+      .map((documentItem) => ({
+        id: `oss:${documentItem.objectKey}`,
+        filename: documentItem.filename,
+        type: "application/pdf",
+        extension: "pdf",
+        text: "",
+        objectKey: documentItem.objectKey,
+        size: documentItem.size,
+        lastModified: documentItem.lastModified,
+        originalCharacterCount: 0,
+        extractedCharacterCount: 0,
+        extractedCharCount: 0,
+        truncated: false,
+        processingStatus: "",
+        syncedFromOss: true,
+      }));
+
+    referenceDocuments = [...referenceDocuments, ...restoredDocuments];
+    renderDocumentList(
+      referenceFileList,
+      referenceDocuments,
+      t("noReferenceFiles"),
+      removeReferenceDocument
+    );
+    renderExperimentModules();
+    renderBackendStatus("backendConnected");
+    showToast(t("pdfSynced", { count: serverDocuments.length }));
+  } catch (error) {
+    if (error instanceof AuthRequiredError) return;
+
+    console.warn("Stored PDF synchronization failed.", error);
+    renderBackendStatus("backendFallback");
+    showToast(
+      t("pdfSyncFailed", {
+        message: error.message || t("loginFailed"),
+      })
+    );
   }
 }
 
@@ -1394,8 +1549,21 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
           ? ` · ${t("pdfReviewErrorMeta")}: ${documentItem.reviewError}`
           : ` · ${t("pdfStoredMeta")}`
         : "";
-      meta.textContent = `${documentItem.extension.toUpperCase()} · ${documentItem.type} · ${characterCount.toLocaleString()} ${t("chars")}${
-        documentItem.truncated ? ` · ${t("truncated")}` : ""
+      const evidenceDetails =
+        documentItem.objectKey && !characterCount
+          ? [
+              formatFileSize(documentItem.size),
+              documentItem.lastModified
+                ? formatTimestamp(documentItem.lastModified)
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : `${characterCount.toLocaleString()} ${t("chars")}${
+              documentItem.truncated ? ` · ${t("truncated")}` : ""
+            }`;
+      meta.textContent = `${documentItem.extension.toUpperCase()} · ${documentItem.type}${
+        evidenceDetails ? ` · ${evidenceDetails}` : ""
       }${storageNote}`;
     }
 
@@ -2801,6 +2969,14 @@ function formatTimestamp(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatFileSize(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function truncateText(text, maxLength) {

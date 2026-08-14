@@ -51,6 +51,22 @@ npm test
    - `OSS_INTERNAL_ENDPOINT`
    - `OSS_PUBLIC_ENDPOINT`
 6. Attach the existing `BioDesignCopilotFCRole` execution role to the function. Do not add long-lived AccessKey values.
+   In addition to its existing `GetObject` and `PutObject` permissions, its custom policy must allow prefix listing on the bucket so login can discover saved papers:
+
+   ```json
+   {
+     "Effect": "Allow",
+     "Action": "oss:ListObjects",
+     "Resource": "acs:oss:*:*:biodesign-copilot-files-2026",
+     "Condition": {
+       "StringLike": {
+         "oss:Prefix": ["uploads", "uploads/*"]
+       }
+     }
+   }
+   ```
+
+   `ListObjects` uses the bucket itself as the RAM resource; the `oss:Prefix` condition restricts the listable scope. Application authentication further narrows every request to the current account's exact hashed prefix.
 7. Install production dependencies and package the root handler with `node_modules`:
 
    ```bash
@@ -126,6 +142,7 @@ The successful response includes `"ok":true`, `"verified":true`, and the generat
 
 The PDF workflow uses the existing JWT bearer login and two document endpoints:
 
+- `GET /api/documents` lists up to 100 PDFs from the authenticated account's application-controlled OSS prefix. The frontend calls it after login and session restoration so saved papers reappear after a reload or new browser window.
 - `POST /api/documents/upload-url` validates a PDF name and size, creates an application-controlled key under the authenticated account prefix, and returns a five-minute OSS V4 signed PUT URL.
 - `POST /api/documents/review` accepts only a key in that same authenticated account prefix, reads the object through `OSS_INTERNAL_ENDPOINT`, validates its metadata and PDF signature, extracts embedded text, and performs a map-reduce review with the configured Requesty model.
 - `POST /chat` accepts the optional `storedDocuments` array. Every key is ownership-checked and re-read from OSS before its extracted text is added to Side Chat or agent context.
@@ -136,7 +153,7 @@ The browser never selects a bucket or object path. Keys have this form:
 uploads/<sanitized-account-and-hash>/<uuid>/<sanitized-filename>.pdf
 ```
 
-PDFs are limited to 5 MB and 100 pages. Reviews process at most 96,000 extracted characters in overlapping 12,000-character chunks. Encrypted, malformed, empty, and likely image-only PDFs return controlled errors. OCR is not included. Neither review nor removal from the current page deletes the OSS object.
+PDFs are uploaded to OSS immediately rather than waiting for logout or `beforeunload`, which browsers cannot reliably complete. While a PUT is active, the UI prevents logout and warns before closing the window. PDFs are limited to 5 MB and 100 pages. Reviews process at most 96,000 extracted characters in overlapping 12,000-character chunks. Encrypted, malformed, empty, and likely image-only PDFs return controlled errors. OCR is not included. Neither review nor removal from the current page deletes the OSS object.
 
 ### Manual end-to-end test
 
@@ -171,6 +188,10 @@ curl -sS -X POST "$FC_URL/api/documents/review" \
   -d "{\"objectKey\":$(printf '%s' "$OBJECT_KEY" | jq -R .),\"language\":\"en\"}" \
   | jq
 
+curl -sS "$FC_URL/api/documents" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq
+
 curl -sS -X POST "$FC_URL/chat" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -178,7 +199,9 @@ curl -sS -X POST "$FC_URL/chat" \
   | jq
 ```
 
-Expected review output includes `"ok": true`, a non-empty `summary`, and the original `objectKey`. In the OSS console, open `biodesign-copilot-files-2026` → `uploads/` and confirm that the PDF remains after both requests.
+Expected review output includes `"ok": true`, a non-empty `summary`, and the original `objectKey`. The list response must contain that same key. Log out, sign in again, and confirm the PDF card is restored under Literature & References. In the OSS console, open `biodesign-copilot-files-2026` → `uploads/` and confirm that the PDF remains after all requests.
+
+Without a metadata database, restored PDFs are placed in Literature & References even if they were originally uploaded inside an experiment module. The first 100 owned PDF objects are shown, newest first; chat and analysis use the existing active-document limits.
 
 Negative checks:
 

@@ -49,7 +49,7 @@ After login, the frontend opens a simpler evidence-driven BioDesign Workbench fo
 - Side chat for questions: sends `mode: "side_chat"` and answers in the side panel without changing the current recommendation.
 - Current recommendation output: shows Current Interpretation, Key Evidence Used, Cross-Module Assessment, Recommended Next Step, Module Most Relevant to Next Step, Missing Information, Human Review Notes, and Draft Summary.
 
-Current limitation: PDF binaries persist in OSS, but document metadata, UI lists, and chat history are not stored in a database. Reloading the page does not discover prior OSS objects automatically.
+On login, the frontend queries the authenticated account's OSS prefix and restores previously uploaded PDFs into Literature & References. PDF uploads are committed to OSS immediately, so no logout or window-close synchronization step is required. Browser-only files, experiment-module placement, project context, recommendations, and chat history are still not persisted in a database.
 
 ## Experimental Results Modules
 

@@ -54,6 +54,27 @@ OSS.prototype.get = async function get(objectKey) {
   return { content: object.buffer };
 };
 
+OSS.prototype.listV2 = async function listV2(query = {}) {
+  assert.match(
+    String(this.options.endpoint?.href || this.options.endpoint),
+    /oss-cn-beijing-internal\.aliyuncs\.com/
+  );
+  const prefix = String(query.prefix || "");
+  const objects = [...objectStore.entries()]
+    .filter(([objectKey]) => objectKey.startsWith(prefix))
+    .map(([name, object]) => ({
+      name,
+      size: object.buffer.length,
+      lastModified: object.lastModified || "2026-08-14T02:00:00.000Z"
+    }));
+
+  return {
+    objects,
+    isTruncated: false,
+    nextContinuationToken: null
+  };
+};
+
 OSS.prototype.delete = async function deleteObject(objectKey) {
   deleteCalls += 1;
   objectStore.delete(objectKey);
@@ -197,7 +218,8 @@ test("existing login and CORS preflight still work", async () => {
 });
 
 test("document endpoints reject unauthenticated access", async () => {
-  const [uploadResponse, reviewResponse] = await Promise.all([
+  const [listResponse, uploadResponse, reviewResponse] = await Promise.all([
+    handler(apiEvent("GET", "/api/documents", undefined, false), context),
     handler(
       apiEvent(
         "POST",
@@ -218,6 +240,7 @@ test("document endpoints reject unauthenticated access", async () => {
     )
   ]);
 
+  assert.equal(listResponse.statusCode, 401);
   assert.equal(uploadResponse.statusCode, 401);
   assert.equal(reviewResponse.statusCode, 401);
 });
@@ -247,6 +270,47 @@ test("authenticated PDF upload URL uses an owned, sanitized key", async () => {
   assert.match(body.uploadUrl, /OSS4-HMAC-SHA256/);
   assert.match(body.uploadUrl, /oss-cn-beijing\.aliyuncs\.com/);
   assert.doesNotMatch(body.uploadUrl, /internal/);
+});
+
+test("authenticated document listing discovers only the account's OSS PDFs", async () => {
+  const ownKey = _test.buildOwnedPdfObjectKey(
+    process.env.ADMIN_ACCOUNT,
+    "persistent-paper.pdf"
+  );
+  const foreignKey = _test.buildOwnedPdfObjectKey(
+    "different-user@example.com",
+    "private-paper.pdf"
+  );
+  const pdf = makeMachineReadablePdf();
+  objectStore.set(ownKey, {
+    buffer: pdf,
+    contentType: "application/pdf",
+    lastModified: "2026-08-14T03:00:00.000Z"
+  });
+  objectStore.set(foreignKey, {
+    buffer: pdf,
+    contentType: "application/pdf",
+    lastModified: "2026-08-14T04:00:00.000Z"
+  });
+
+  const response = await handler(
+    apiEvent("GET", "/api/documents"),
+    context
+  );
+  const body = parseResponse(response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.ok, true);
+  assert.deepEqual(body.documents, [
+    {
+      objectKey: ownKey,
+      filename: "persistent-paper.pdf",
+      size: pdf.length,
+      lastModified: "2026-08-14T03:00:00.000Z",
+      type: "application/pdf"
+    }
+  ]);
+  assert.equal(body.documents[0].url, undefined);
 });
 
 test("upload URL endpoint rejects non-PDF files", async () => {
