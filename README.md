@@ -34,7 +34,7 @@ The frontend supports attaching local reference files per page session:
 - `.xlsx`
 - `.xls`
 
-When the Alibaba Function Compute backend is selected, PDFs are uploaded directly to the private Alibaba OSS bucket using a short-lived signed URL and then parsed and reviewed by Function Compute. TXT, CSV, and Excel files retain the existing browser-session extraction flow. No document metadata database is used yet.
+When the Alibaba Function Compute backend is selected, PDFs are uploaded directly to the private Alibaba OSS bucket using a short-lived signed URL. Uploading does not call the LLM. Users explicitly summarize one paper or the entire literature collection; structured summaries are cached as private OSS sidecars. TXT, CSV, and Excel files retain the existing browser-session extraction flow. No document metadata database is used yet.
 
 Per-file size is limited to 5 MB. Persistent PDF reviews accept up to 100 pages and process at most 96,000 extracted characters through a basic map-reduce summary; browser-extracted text from other formats remains capped per file and request. This is not a RAG system.
 
@@ -43,13 +43,13 @@ Per-file size is limited to 5 MB. Persistent PDF reviews accept up to 100 pages 
 After login, the frontend opens a simpler evidence-driven BioDesign Workbench for human-in-the-loop synthetic-biology planning.
 
 - Optional project context: one freeform field for plain-language goals, questions, and messy project framing.
-- Literature/reference uploads: PDFs are persisted privately in OSS and reviewed into Side Chat; notes, CSVs, and Excel files remain browser-session context. File cards retain filename, type, extraction state, and remove controls.
+- Literature/reference uploads: individual PDFs, multiple files, and recursive PDF folders are persisted privately in OSS. File cards provide Summarize/View Summary, Use in Chat, and permanent OSS removal controls. Notes, CSVs, and Excel files remain browser-session context.
 - Experimental results modules: add batches of Excel, CSV, PDF, or TXT result files plus informal notes inside Strain Engineering, Fermentation, or Downstream Processing modules.
 - One main action: **Analyze & Recommend** sends `mode: "agent_instruction"` to the existing `/chat` endpoint and updates the Current Recommendation panel.
 - Side chat for questions: sends `mode: "side_chat"` and answers in the side panel without changing the current recommendation.
 - Current recommendation output: shows Current Interpretation, Key Evidence Used, Cross-Module Assessment, Recommended Next Step, Module Most Relevant to Next Step, Missing Information, Human Review Notes, and Draft Summary.
 
-On login, the frontend queries the authenticated account's OSS prefix and restores previously uploaded PDFs into Literature & References. PDF uploads are committed to OSS immediately, so no logout or window-close synchronization step is required. Browser-only files, experiment-module placement, project context, recommendations, and chat history are still not persisted in a database.
+On login, the frontend queries the authenticated account's OSS prefix and restores previously uploaded PDFs and cached summaries into Literature & References. PDF uploads are committed to OSS immediately, so no logout or window-close synchronization step is required. Removing a stored PDF deletes both the PDF and its summary sidecar from OSS. Browser-only files, experiment-module placement, project context, recommendations, and chat history are still not persisted in a database.
 
 ## Experimental Results Modules
 
@@ -86,6 +86,6 @@ The frontend expects the Worker at `http://127.0.0.1:8787`.
 
 ## Demo Behavior
 
-Add optional project context, upload any relevant files, write an agent instruction, and click **Analyze & Recommend**. When the backend is available, the frontend calls `POST /chat` with browser-extracted context plus ownership-scoped `storedDocuments` keys for persistent PDFs. Function Compute re-reads those PDFs from private OSS before calling the model. If the backend is unavailable, the workbench retains its existing local fallback for non-persistent context.
+Add optional project context, upload any relevant files, write an agent instruction, and click **Analyze & Recommend**. For OSS PDFs, Side Chat sends a lightweight inventory plus the user's selected document scope. Function Compute uses cached summaries to route ordinary questions and downloads full text for at most three explicit or relevant PDFs. Collection-wide questions use cached summaries and a map-reduce condensation when needed. If the backend is unavailable, the workbench retains its existing local fallback for non-persistent context.
 
 The side chat uses the same backend endpoint for questions but does not update the Current Recommendation panel. The **Export Markdown** button downloads the current recommendation as `biodesign-workbench-recommendation.md`.

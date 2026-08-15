@@ -1,5 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const fs = require("node:fs");
+const path = require("node:path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const OSS = require("ali-oss");
@@ -17,6 +19,8 @@ process.env.REQUESTY_MODEL = "requesty-test-model";
 
 const objectStore = new Map();
 let deleteCalls = 0;
+let pdfGetCalls = 0;
+let llmFetchCalls = 0;
 
 OSS.prototype.getObjectMeta = async function getObjectMeta(objectKey) {
   assert.match(
@@ -51,7 +55,18 @@ OSS.prototype.get = async function get(objectKey) {
     error.status = 404;
     throw error;
   }
+  if (objectKey.toLowerCase().endsWith(".pdf")) pdfGetCalls += 1;
   return { content: object.buffer };
+};
+
+OSS.prototype.put = async function put(objectKey, content, options = {}) {
+  objectStore.set(objectKey, {
+    buffer: Buffer.isBuffer(content) ? content : Buffer.from(content || ""),
+    contentType:
+      options.headers?.["Content-Type"] || "application/octet-stream",
+    lastModified: new Date().toISOString()
+  });
+  return { name: objectKey };
 };
 
 OSS.prototype.listV2 = async function listV2(query = {}) {
@@ -82,6 +97,7 @@ OSS.prototype.delete = async function deleteObject(objectKey) {
 };
 
 global.fetch = async (_url, options = {}) => {
+  llmFetchCalls += 1;
   const request = JSON.parse(options.body || "{}");
   const systemMessage = String(request.messages?.[0]?.content || "");
   let content;
@@ -155,6 +171,24 @@ function parseResponse(response) {
   return response.body ? JSON.parse(response.body) : null;
 }
 
+test("frontend upload does not automatically invoke PDF review", () => {
+  const frontendSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const uploadStart = frontendSource.indexOf("async function uploadPdfToOss");
+  const uploadEnd = frontendSource.indexOf(
+    "async function syncStoredPdfDocuments",
+    uploadStart
+  );
+  const uploadFunction = frontendSource.slice(uploadStart, uploadEnd);
+
+  assert.ok(uploadStart >= 0 && uploadEnd > uploadStart);
+  assert.doesNotMatch(uploadFunction, /\/api\/documents\/review/);
+  assert.match(frontendSource, /referenceFolderInput/);
+  assert.match(frontendSource, /addSideChatThinking/);
+});
+
 function makeMachineReadablePdf() {
   const lines = [
     "A machine readable academic paper evaluates a controlled evidence review workflow.",
@@ -218,7 +252,7 @@ test("existing login and CORS preflight still work", async () => {
 });
 
 test("document endpoints reject unauthenticated access", async () => {
-  const [listResponse, uploadResponse, reviewResponse] = await Promise.all([
+  const [listResponse, uploadResponse, reviewResponse, deleteResponse] = await Promise.all([
     handler(apiEvent("GET", "/api/documents", undefined, false), context),
     handler(
       apiEvent(
@@ -237,12 +271,22 @@ test("document endpoints reject unauthenticated access", async () => {
         false
       ),
       context
+    ),
+    handler(
+      apiEvent(
+        "POST",
+        "/api/documents/delete",
+        { objectKey: "uploads/not-authorized/paper.pdf" },
+        false
+      ),
+      context
     )
   ]);
 
   assert.equal(listResponse.statusCode, 401);
   assert.equal(uploadResponse.statusCode, 401);
   assert.equal(reviewResponse.statusCode, 401);
+  assert.equal(deleteResponse.statusCode, 401);
 });
 
 test("authenticated PDF upload URL uses an owned, sanitized key", async () => {
@@ -307,7 +351,8 @@ test("authenticated document listing discovers only the account's OSS PDFs", asy
       filename: "persistent-paper.pdf",
       size: pdf.length,
       lastModified: "2026-08-14T03:00:00.000Z",
-      type: "application/pdf"
+      type: "application/pdf",
+      summaryAvailable: false
     }
   ]);
   assert.equal(body.documents[0].url, undefined);
@@ -380,8 +425,45 @@ test("machine-readable PDF extraction and review succeed without deleting the ob
     "Source evidence remained available after review."
   ]);
   assert.ok(body.extractedCharacterCount >= 200);
+  assert.equal(body.summaryCached, true);
   assert.equal(objectStore.has(objectKey), true);
   assert.equal(deleteCalls, 0);
+
+  const callsAfterFirstReview = llmFetchCalls;
+  const cachedResponse = await handler(
+    apiEvent("POST", "/api/documents/review", { objectKey, language: "en" }),
+    context
+  );
+  assert.equal(cachedResponse.statusCode, 200);
+  assert.equal(parseResponse(cachedResponse).cached, true);
+  assert.equal(llmFetchCalls, callsAfterFirstReview);
+});
+
+test("deleting an owned PDF removes both the source and cached summary", async () => {
+  const objectKey = _test.buildOwnedPdfObjectKey(
+    process.env.ADMIN_ACCOUNT,
+    "delete-paper.pdf"
+  );
+  const pdf = makeMachineReadablePdf();
+  objectStore.set(objectKey, { buffer: pdf, contentType: "application/pdf" });
+
+  const reviewResponse = await handler(
+    apiEvent("POST", "/api/documents/review", { objectKey, language: "en" }),
+    context
+  );
+  assert.equal(reviewResponse.statusCode, 200);
+  const reviewObjectKey = objectKey.replace(/[^/]+$/, ".paper-review.json");
+  assert.equal(objectStore.has(reviewObjectKey), true);
+
+  const response = await handler(
+    apiEvent("POST", "/api/documents/delete", { objectKey }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.deleted, true);
+  assert.equal(objectStore.has(objectKey), false);
+  assert.equal(objectStore.has(reviewObjectKey), false);
 });
 
 test("missing and foreign PDF objects produce controlled errors", async () => {
@@ -406,6 +488,13 @@ test("missing and foreign PDF objects produce controlled errors", async () => {
   );
   assert.equal(foreignResponse.statusCode, 403);
   assert.equal(parseResponse(foreignResponse).error, "ObjectAccessDenied");
+
+  const foreignDeleteResponse = await handler(
+    apiEvent("POST", "/api/documents/delete", { objectKey: foreignKey }),
+    context
+  );
+  assert.equal(foreignDeleteResponse.statusCode, 403);
+  assert.equal(parseResponse(foreignDeleteResponse).error, "ObjectAccessDenied");
 });
 
 test("existing chat can retrieve an owned stored PDF as evidence", async () => {
@@ -431,4 +520,84 @@ test("existing chat can retrieve an owned stored PDF as evidence", async () => {
   assert.equal(response.statusCode, 200);
   assert.equal(body.reply, "The stored PDF evidence was available to Side Chat.");
   assert.deepEqual(body.storedPdfsUsed, ["side-chat-paper.pdf"]);
+});
+
+test("side chat routes by cached summaries and avoids loading unrelated PDFs", async () => {
+  const pdf = makeMachineReadablePdf();
+  const alphaKey = _test.buildOwnedPdfObjectKey(
+    process.env.ADMIN_ACCOUNT,
+    "alpha-catalyst.pdf"
+  );
+  const betaKey = _test.buildOwnedPdfObjectKey(
+    process.env.ADMIN_ACCOUNT,
+    "beta-fermentation.pdf"
+  );
+  for (const [objectKey, title] of [
+    [alphaKey, "Alpha catalyst study"],
+    [betaKey, "Beta fermentation study"]
+  ]) {
+    objectStore.set(objectKey, { buffer: pdf, contentType: "application/pdf" });
+    objectStore.set(objectKey.replace(/[^/]+$/, ".paper-review.json"), {
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          objectKey,
+          filename: objectKey.split("/").pop(),
+          language: "en",
+          updatedAt: "2026-08-14T06:00:00.000Z",
+          review: {
+            title,
+            summary: `${title} reports a focused validation result.`,
+            research_question: `What does ${title} demonstrate?`,
+            methods: "Controlled comparison.",
+            key_results: [`${title} produced its reported result.`],
+            limitations: ["Limited validation scale."],
+            main_conclusion: `${title} supports further evaluation.`
+          }
+        })
+      ),
+      contentType: "application/json"
+    });
+  }
+
+  pdfGetCalls = 0;
+  const focusedResponse = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [{ role: "user", content: "What does alpha conclude?" }],
+      storedDocuments: [
+        { objectKey: alphaKey, summaryAvailable: true },
+        { objectKey: betaKey, summaryAvailable: true }
+      ]
+    }),
+    context
+  );
+  const focusedBody = parseResponse(focusedResponse);
+  assert.equal(focusedResponse.statusCode, 200);
+  assert.deepEqual(focusedBody.storedPdfsUsed, ["alpha-catalyst.pdf"]);
+  assert.equal(focusedBody.documentScope.mode, "summary-relevance");
+  assert.equal(pdfGetCalls, 1);
+
+  pdfGetCalls = 0;
+  const collectionResponse = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [{ role: "user", content: "Summarize all uploaded files." }],
+      storedDocuments: [
+        { objectKey: alphaKey, summaryAvailable: true },
+        { objectKey: betaKey, summaryAvailable: true }
+      ],
+      selectedDocumentKeys: [alphaKey]
+    }),
+    context
+  );
+  const collectionBody = parseResponse(collectionResponse);
+  assert.equal(collectionResponse.statusCode, 200);
+  assert.deepEqual(collectionBody.storedPdfsUsed, []);
+  assert.deepEqual(collectionBody.storedPdfSummariesUsed.sort(), [
+    "alpha-catalyst.pdf",
+    "beta-fermentation.pdf"
+  ]);
+  assert.equal(collectionBody.documentScope.mode, "collection-summaries");
+  assert.equal(pdfGetCalls, 0);
 });

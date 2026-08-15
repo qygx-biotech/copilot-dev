@@ -24,7 +24,9 @@ const MAX_EXPERIMENT_NOTES = 36;
 const TOTAL_REFERENCE_TEXT_LIMIT = 26000;
 const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
 const MAX_PDF_UPLOAD_BYTES = 5 * 1024 * 1024;
-const MAX_STORED_PDF_DOCUMENTS = 8;
+const MAX_STORED_PDF_DOCUMENTS = 100;
+const MAX_CHAT_PDF_CONTENT_DOCUMENTS = 3;
+const MAX_CHAT_SUMMARY_DOCUMENTS = 100;
 const MAX_LISTED_PDF_DOCUMENTS = 100;
 const MAX_PDF_REVIEW_CHARACTERS = 96000;
 const PDF_REVIEW_CHUNK_CHARACTERS = 12000;
@@ -34,6 +36,8 @@ const PDF_UPLOAD_URL_TTL_SECONDS = 300;
 const MIN_MACHINE_READABLE_PDF_CHARACTERS = 200;
 const MAX_PDF_PAGES = 100;
 const PDF_PARSE_TIMEOUT_MS = 30000;
+const PDF_REVIEW_SIDECAR_FILENAME = ".paper-review.json";
+const TOTAL_PDF_SUMMARY_CONTEXT_LIMIT = 36000;
 const EXPERIMENT_MODULE_LABELS = {
   strainEngineering: "Strain Engineering",
   fermentation: "Fermentation",
@@ -269,24 +273,38 @@ function getOwnedPdfPrefix(account) {
   return `uploads/${getUserStorageSegment(account)}/`;
 }
 
-function isOwnedPdfObjectKey(objectKey, account) {
-  if (typeof objectKey !== "string" || objectKey.length > 500) return false;
+function getOwnedPdfKeyParts(objectKey, account) {
+  if (typeof objectKey !== "string" || objectKey.length > 500) return null;
 
   const prefix = getOwnedPdfPrefix(account);
-  if (!objectKey.startsWith(prefix)) return false;
+  if (!objectKey.startsWith(prefix)) return null;
 
-  const remainder = objectKey.slice(prefix.length);
-  const segments = remainder.split("/");
-  if (segments.length !== 2) return false;
+  const segments = objectKey.slice(prefix.length).split("/");
+  if (segments.length !== 2) return null;
 
   const [objectId, filename] = segments;
-  return (
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       objectId
-    ) &&
-    filename === sanitizePdfFilename(filename) &&
-    filename.toLowerCase().endsWith(".pdf")
-  );
+    ) ||
+    filename !== sanitizePdfFilename(filename) ||
+    !filename.toLowerCase().endsWith(".pdf")
+  ) {
+    return null;
+  }
+
+  return { prefix, objectId, filename };
+}
+
+function getPdfReviewObjectKey(objectKey, account) {
+  const parts = getOwnedPdfKeyParts(objectKey, account);
+  return parts
+    ? `${parts.prefix}${parts.objectId}/${PDF_REVIEW_SIDECAR_FILENAME}`
+    : null;
+}
+
+function isOwnedPdfObjectKey(objectKey, account) {
+  return Boolean(getOwnedPdfKeyParts(objectKey, account));
 }
 
 function getObjectFilename(objectKey) {
@@ -698,6 +716,94 @@ async function handlePdfUploadUrl(event, context, env, user) {
   }
 }
 
+function normalizeStoredReviewRecord(record, objectKey, filename) {
+  if (
+    !isPlainObject(record) ||
+    record.objectKey !== objectKey ||
+    !isPlainObject(record.review) ||
+    typeof record.review.summary !== "string" ||
+    !record.review.summary.trim()
+  ) {
+    return null;
+  }
+
+  return {
+    objectKey,
+    filename,
+    language: record.language === "zh" ? "zh" : "en",
+    updatedAt:
+      typeof record.updatedAt === "string" ? record.updatedAt.slice(0, 80) : "",
+    pageCount: Number.isFinite(Number(record.pageCount))
+      ? Number(record.pageCount)
+      : null,
+    extractedCharacterCount: Number.isFinite(
+      Number(record.extractedCharacterCount)
+    )
+      ? Number(record.extractedCharacterCount)
+      : null,
+    review: normalizePaperReview(record.review, record.review.title || filename)
+  };
+}
+
+async function readStoredReviewRecord(client, objectKey, user) {
+  const reviewObjectKey = getPdfReviewObjectKey(objectKey, user.account);
+  if (!reviewObjectKey) return null;
+
+  try {
+    const result = await client.get(reviewObjectKey);
+    const content = Buffer.isBuffer(result.content)
+      ? result.content.toString("utf8")
+      : String(result.content || "");
+    if (!content || Buffer.byteLength(content, "utf8") > 128 * 1024) return null;
+
+    return normalizeStoredReviewRecord(
+      JSON.parse(content),
+      objectKey,
+      getObjectFilename(objectKey)
+    );
+  } catch (error) {
+    if (isMissingOssObjectError(error) || error instanceof SyntaxError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function writeStoredReviewRecord({
+  client,
+  objectKey,
+  user,
+  language,
+  pageCount,
+  extractedCharacterCount,
+  review
+}) {
+  const reviewObjectKey = getPdfReviewObjectKey(objectKey, user.account);
+  if (!reviewObjectKey) {
+    throw Object.assign(new Error("The PDF review key is invalid."), {
+      code: "InvalidReviewObjectKey"
+    });
+  }
+
+  const record = {
+    version: 1,
+    objectKey,
+    filename: getObjectFilename(objectKey),
+    language: language === "zh" ? "zh" : "en",
+    updatedAt: new Date().toISOString(),
+    pageCount,
+    extractedCharacterCount,
+    review
+  };
+  await client.put(reviewObjectKey, Buffer.from(JSON.stringify(record), "utf8"), {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    }
+  });
+  return record;
+}
+
 async function handleListStoredPdfs(event, context, env, user) {
   const config = getOssConfig(env);
   if (!config.ok) {
@@ -723,6 +829,7 @@ async function handleListStoredPdfs(event, context, env, user) {
 
   const prefix = getOwnedPdfPrefix(user.account);
   const documents = [];
+  const listedObjectNames = new Set();
   let continuationToken = null;
 
   try {
@@ -740,6 +847,9 @@ async function handleListStoredPdfs(event, context, env, user) {
 
       const result = await client.listV2(query);
       for (const object of result.objects || []) {
+        if (typeof object?.name === "string") {
+          listedObjectNames.add(object.name);
+        }
         if (
           documents.length >= MAX_LISTED_PDF_DOCUMENTS ||
           !isOwnedPdfObjectKey(object?.name, user.account)
@@ -772,18 +882,49 @@ async function handleListStoredPdfs(event, context, env, user) {
       return rightTime - leftTime || left.filename.localeCompare(right.filename);
     });
 
+    const reviewRecords = await mapWithConcurrency(
+      documents,
+      5,
+      async (document) => {
+        const reviewObjectKey = getPdfReviewObjectKey(
+          document.objectKey,
+          user.account
+        );
+        return reviewObjectKey && listedObjectNames.has(reviewObjectKey)
+          ? readStoredReviewRecord(client, document.objectKey, user)
+          : null;
+      }
+    );
+    const enrichedDocuments = documents.map((document, index) => {
+      const record = reviewRecords[index];
+      return {
+        ...document,
+        summaryAvailable: Boolean(record),
+        ...(record
+          ? {
+              review: record.review,
+              summaryLanguage: record.language,
+              summaryUpdatedAt: record.updatedAt,
+              extractedCharacterCount: record.extractedCharacterCount,
+              pageCount: record.pageCount
+            }
+          : {})
+      };
+    });
+
     console.log("Stored PDF listing complete:", {
       stage: "ossList",
       functionRequestId: context?.requestId || undefined,
-      count: documents.length,
+      count: enrichedDocuments.length,
+      summaries: reviewRecords.filter(Boolean).length,
       truncated: Boolean(continuationToken)
     });
 
     return jsonResponse(
       {
         ok: true,
-        documents,
-        count: documents.length,
+        documents: enrichedDocuments,
+        count: enrichedDocuments.length,
         truncated: Boolean(continuationToken),
         maxDocuments: MAX_LISTED_PDF_DOCUMENTS
       },
@@ -801,6 +942,94 @@ async function handleListStoredPdfs(event, context, env, user) {
       safeError.code,
       safeError.message,
       502
+    );
+  }
+}
+
+async function handleDeleteStoredPdf(event, context, env, user) {
+  const body = getRequestBody(event);
+  const objectKey =
+    typeof body.objectKey === "string" ? body.objectKey.trim() : "";
+
+  if (!isOwnedPdfObjectKey(objectKey, user.account)) {
+    return documentErrorResponse(
+      event,
+      "ossDelete",
+      "ObjectAccessDenied",
+      "The requested PDF does not belong to the authenticated account.",
+      403
+    );
+  }
+
+  const config = getOssConfig(env);
+  if (!config.ok) {
+    return documentErrorResponse(
+      event,
+      "ossDelete",
+      "MissingEnvironmentVariables",
+      `Missing required environment variables: ${config.missing.join(", ")}`,
+      500
+    );
+  }
+  const credentials = getFunctionCredentials(context, env);
+  if (!credentials) {
+    return documentErrorResponse(
+      event,
+      "ossDelete",
+      "CredentialUnavailable",
+      "Function Compute RAM role credentials were not available to the runtime.",
+      500
+    );
+  }
+
+  const reviewObjectKey = getPdfReviewObjectKey(objectKey, user.account);
+
+  try {
+    const client = createOssClient(config, credentials);
+    await client.delete(objectKey);
+
+    let summaryDeleted = true;
+    try {
+      await client.delete(reviewObjectKey);
+    } catch (error) {
+      if (!isMissingOssObjectError(error)) {
+        summaryDeleted = false;
+        logDocumentFailure("ossDeleteSummary", error, {
+          credentials,
+          functionRequestId: context?.requestId,
+          key: reviewObjectKey
+        });
+      }
+    }
+
+    console.log("Stored PDF deletion complete:", {
+      stage: "ossDelete",
+      functionRequestId: context?.requestId || undefined,
+      key: objectKey,
+      summaryDeleted
+    });
+    return jsonResponse(
+      {
+        ok: true,
+        objectKey,
+        deleted: true,
+        summaryDeleted
+      },
+      200,
+      event
+    );
+  } catch (error) {
+    const safeError = logDocumentFailure("ossDelete", error, {
+      credentials,
+      functionRequestId: context?.requestId,
+      key: objectKey
+    });
+    return documentErrorResponse(
+      event,
+      "ossDelete",
+      safeError.code,
+      safeError.message,
+      isMissingOssObjectError(error) ? 404 : 502
     );
   }
 }
@@ -1430,6 +1659,7 @@ async function handlePdfReview(event, context, env, user) {
   const objectKey =
     typeof body.objectKey === "string" ? body.objectKey.trim() : "";
   const language = body.language === "zh" ? "zh" : "en";
+  const force = body.force === true;
 
   if (!objectKey) {
     return documentErrorResponse(
@@ -1439,6 +1669,54 @@ async function handlePdfReview(event, context, env, user) {
       "An OSS PDF object key is required.",
       400
     );
+  }
+
+  const config = getOssConfig(env);
+  const credentials = getFunctionCredentials(context, env);
+  let reviewCacheClient = null;
+  if (config.ok && credentials) {
+    reviewCacheClient = createOssClient(config, credentials);
+  }
+
+  if (!force && reviewCacheClient) {
+    try {
+      const cachedRecord = await readStoredReviewRecord(
+        reviewCacheClient,
+        objectKey,
+        user
+      );
+      if (cachedRecord) {
+        return jsonResponse(
+          {
+            ok: true,
+            objectKey,
+            filename: cachedRecord.filename,
+            pageCount: cachedRecord.pageCount,
+            extractedCharacterCount: cachedRecord.extractedCharacterCount,
+            cached: true,
+            summaryCached: true,
+            summaryUpdatedAt: cachedRecord.updatedAt,
+            ...cachedRecord.review,
+            message: "The stored PDF review was returned from its OSS summary record."
+          },
+          200,
+          event
+        );
+      }
+    } catch (error) {
+      const safeError = logDocumentFailure("ossIndexRead", error, {
+        credentials,
+        functionRequestId: context?.requestId,
+        key: getPdfReviewObjectKey(objectKey, user.account)
+      });
+      return documentErrorResponse(
+        event,
+        "ossIndexRead",
+        safeError.code,
+        safeError.message,
+        502
+      );
+    }
   }
 
   const objectResult = await readOwnedPdfFromOss({
@@ -1494,6 +1772,32 @@ async function handlePdfReview(event, context, env, user) {
     );
   }
 
+  let summaryCached = false;
+  let cacheWarning = "";
+  if (reviewCacheClient) {
+    try {
+      await writeStoredReviewRecord({
+        client: reviewCacheClient,
+        objectKey,
+        user,
+        language,
+        pageCount: pdfResult.pageCount,
+        extractedCharacterCount: pdfResult.text.length,
+        review: reviewResult.review
+      });
+      summaryCached = true;
+    } catch (error) {
+      const safeError = logDocumentFailure("ossIndexWrite", error, {
+        credentials,
+        functionRequestId: context?.requestId,
+        key: getPdfReviewObjectKey(objectKey, user.account)
+      });
+      cacheWarning = `The review succeeded but its OSS summary record could not be saved: ${safeError.message}`;
+    }
+  } else {
+    cacheWarning = "The review succeeded but OSS summary caching was unavailable.";
+  }
+
   return jsonResponse(
     {
       ok: true,
@@ -1505,6 +1809,10 @@ async function handlePdfReview(event, context, env, user) {
       processedCharacterCount: reviewResult.processedCharacters,
       chunks: reviewResult.chunks,
       truncated: reviewResult.truncated,
+      cached: false,
+      summaryCached,
+      summaryUpdatedAt: summaryCached ? new Date().toISOString() : null,
+      ...(cacheWarning ? { cacheWarning } : {}),
       ...reviewResult.review,
       message: "PDF review succeeded; the source PDF remains stored in OSS."
     },
@@ -1513,14 +1821,161 @@ async function handlePdfReview(event, context, env, user) {
   );
 }
 
-async function loadStoredPdfsForChat({ documents, user, context, env }) {
-  const descriptors = Array.isArray(documents)
-    ? documents.slice(0, MAX_STORED_PDF_DOCUMENTS)
-    : [];
+function sanitizeStoredPdfDescriptors(documents, user) {
+  const seen = new Set();
+  return (Array.isArray(documents) ? documents : [])
+    .slice(0, MAX_STORED_PDF_DOCUMENTS)
+    .map((descriptor) => ({
+      objectKey:
+        typeof descriptor?.objectKey === "string"
+          ? descriptor.objectKey.trim()
+          : "",
+      module: normalizeExperimentModuleKey(descriptor?.module),
+      summaryAvailable: descriptor?.summaryAvailable === true
+    }))
+    .filter((descriptor) => {
+      if (
+        !isOwnedPdfObjectKey(descriptor.objectKey, user.account) ||
+        seen.has(descriptor.objectKey)
+      ) {
+        return false;
+      }
+      seen.add(descriptor.objectKey);
+      return true;
+    });
+}
+
+function getChatRoutingText(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .filter(
+      (message) =>
+        message?.role === "user" && typeof message.content === "string"
+    )
+    .slice(-3)
+    .map((message) => {
+      const labeledPrompt = message.content.match(
+        /(?:Question|Instruction):\s*([^\n]+)/i
+      );
+      return labeledPrompt ? labeledPrompt[1] : message.content.slice(0, 2000);
+    })
+    .join("\n")
+    .slice(-8000);
+}
+
+function isCollectionLiteratureRequest(text) {
+  return /\b(all|every|entire|collection|literature review|across (?:the )?(?:papers|literature)|compare (?:the )?(?:papers|studies)|uploaded files)\b|全部|所有|整批|文献综述|全部文献|所有论文|比较.*(?:论文|文献)/iu.test(
+    text
+  );
+}
+
+function tokenizeForDocumentRouting(text) {
+  const stopWords = new Set([
+    "about", "after", "again", "also", "answer", "does", "from", "have",
+    "into", "paper", "please", "question", "show", "study", "summarize",
+    "summary", "that", "their", "this", "what", "when", "where", "which",
+    "with", "would", "文件", "文献", "论文", "什么", "这个", "总结", "请问"
+  ]);
+  return [...new Set(
+    String(text || "")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]{2,}/gu) || []
+  )].filter((token) => !stopWords.has(token));
+}
+
+function reviewRecordSearchText(record) {
+  const review = record?.review || {};
+  return [
+    record?.filename,
+    review.title,
+    review.summary,
+    review.research_question,
+    review.methods,
+    ...(Array.isArray(review.key_results) ? review.key_results : []),
+    ...(Array.isArray(review.limitations) ? review.limitations : []),
+    review.main_conclusion
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function scoreDocumentForQuestion(descriptor, record, queryTokens) {
+  if (!queryTokens.length) return 0;
+  const filename = getObjectFilename(descriptor.objectKey).toLowerCase();
+  const searchText = record
+    ? reviewRecordSearchText(record)
+    : filename;
+
+  return queryTokens.reduce((score, token) => {
+    if (filename.includes(token)) return score + 4;
+    if (searchText.includes(token)) return score + 1;
+    return score;
+  }, 0);
+}
+
+function formatStoredReviewForContext(record) {
+  const review = record.review;
+  return [
+    `File: ${record.filename}`,
+    `Title: ${review.title || "Not available"}`,
+    `Summary: ${review.summary}`,
+    `Research question: ${review.research_question || "Not found"}`,
+    `Methods: ${review.methods || "Not found"}`,
+    `Key results: ${(review.key_results || []).join("; ") || "Not found"}`,
+    `Limitations: ${(review.limitations || []).join("; ") || "Not found"}`,
+    `Main conclusion: ${review.main_conclusion || "Not found"}`
+  ].join("\n");
+}
+
+async function loadStoredReviewRecords({ descriptors, user, context, env }) {
+  const candidates = descriptors.filter((descriptor) => descriptor.summaryAvailable);
+  if (!candidates.length) return { ok: true, records: [] };
+
+  const config = getOssConfig(env);
+  const credentials = getFunctionCredentials(context, env);
+  if (!config.ok || !credentials) {
+    return {
+      ok: false,
+      statusCode: 500,
+      stage: "ossIndexRead",
+      error: !config.ok ? "MissingEnvironmentVariables" : "CredentialUnavailable",
+      message: !config.ok
+        ? `Missing required environment variables: ${config.missing.join(", ")}`
+        : "Function Compute RAM role credentials were not available to the runtime."
+    };
+  }
+
+  try {
+    const client = createOssClient(config, credentials);
+    const records = await mapWithConcurrency(candidates, 5, async (descriptor) => {
+      const record = await readStoredReviewRecord(
+        client,
+        descriptor.objectKey,
+        user
+      );
+      return record ? { ...record, module: descriptor.module } : null;
+    });
+    return { ok: true, records: records.filter(Boolean) };
+  } catch (error) {
+    const safeError = logDocumentFailure("ossIndexRead", error, {
+      credentials,
+      functionRequestId: context?.requestId
+    });
+    return {
+      ok: false,
+      statusCode: 502,
+      stage: "ossIndexRead",
+      error: safeError.code,
+      message: safeError.message
+    };
+  }
+}
+
+async function loadStoredPdfContents({ descriptors, user, context, env }) {
   const loadedDocuments = [];
   let remainingCharacters = TOTAL_REFERENCE_TEXT_LIMIT;
 
-  for (const descriptor of descriptors) {
+  for (const descriptor of descriptors.slice(0, MAX_CHAT_PDF_CONTENT_DOCUMENTS)) {
     if (remainingCharacters <= 0) break;
 
     const objectKey =
@@ -1551,6 +2006,7 @@ async function loadStoredPdfsForChat({ documents, user, context, env }) {
     const text = pdfResult.text.slice(0, remainingCharacters);
     remainingCharacters -= text.length;
     loadedDocuments.push({
+      objectKey,
       filename: objectResult.filename,
       type: "application/pdf",
       text,
@@ -1560,6 +2016,237 @@ async function loadStoredPdfsForChat({ documents, user, context, env }) {
   }
 
   return { ok: true, documents: loadedDocuments };
+}
+
+async function condenseCollectionReviewRecords({ records, routingText, context, env }) {
+  const formattedRecords = records.map(formatStoredReviewForContext);
+  const totalCharacters = formattedRecords.reduce(
+    (total, value) => total + value.length,
+    0
+  );
+  if (totalCharacters <= TOTAL_PDF_SUMMARY_CONTEXT_LIMIT) {
+    return { ok: true, documents: null };
+  }
+
+  const batches = [];
+  let currentBatch = [];
+  let currentCharacters = 0;
+  for (const formattedRecord of formattedRecords) {
+    if (currentBatch.length && currentCharacters + formattedRecord.length > 12000) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentCharacters = 0;
+    }
+    currentBatch.push(formattedRecord);
+    currentCharacters += formattedRecord.length;
+  }
+  if (currentBatch.length) batches.push(currentBatch);
+
+  try {
+    const batchSummaries = await mapWithConcurrency(
+      batches,
+      2,
+      async (batch, index) => {
+        const result = await callRequestyText(
+          [
+            {
+              role: "system",
+              content:
+                "You condense a batch of cached academic-paper reviews for a later collection-level answer. Preserve each filename and only claims present in the supplied reviews. Capture research questions, methods, findings, limitations, agreements, and disagreements. Do not invent missing evidence. Return concise plain text."
+            },
+            {
+              role: "user",
+              content: `Collection question: ${routingText}\nBatch ${index + 1} of ${batches.length}:\n\n${batch.join("\n\n---\n\n")}`
+            }
+          ],
+          env,
+          0.1
+        );
+        if (!result.ok) {
+          const error = new Error(result.message);
+          error.code = result.error;
+          error.chunk = index + 1;
+          throw error;
+        }
+        return result.text.slice(0, 5000);
+      }
+    );
+
+    return {
+      ok: true,
+      documents: batchSummaries.map((text, index) => ({
+        objectKey: "",
+        filename: `Collection review batch ${index + 1} of ${batchSummaries.length}`,
+        type: "cached PDF summary batch",
+        text,
+        truncated: false,
+        module: ""
+      }))
+    };
+  } catch (error) {
+    logDocumentFailure("llmCollectionSummary", error, {
+      functionRequestId: context?.requestId,
+      chunk: error.chunk
+    });
+    return {
+      ok: false,
+      statusCode: 502,
+      stage: "llmCollectionSummary",
+      error: error.code || "LlmCollectionSummaryFailed",
+      message: String(
+        error.message || "The literature collection could not be summarized."
+      ).slice(0, 500)
+    };
+  }
+}
+
+async function resolveStoredPdfChatContext({
+  documents,
+  selectedObjectKeys,
+  messages,
+  user,
+  context,
+  env
+}) {
+  const descriptors = sanitizeStoredPdfDescriptors(documents, user);
+  const descriptorByKey = new Map(
+    descriptors.map((descriptor) => [descriptor.objectKey, descriptor])
+  );
+  const explicitKeys = [...new Set(
+    (Array.isArray(selectedObjectKeys) ? selectedObjectKeys : [])
+      .filter((key) => typeof key === "string")
+      .map((key) => key.trim())
+  )]
+    .filter((key) => descriptorByKey.has(key))
+    .slice(0, MAX_CHAT_PDF_CONTENT_DOCUMENTS);
+  const reviewResult = await loadStoredReviewRecords({
+    descriptors,
+    user,
+    context,
+    env
+  });
+  if (!reviewResult.ok) return reviewResult;
+
+  const recordByKey = new Map(
+    reviewResult.records.map((record) => [record.objectKey, record])
+  );
+  const routingText = getChatRoutingText(messages);
+  const collectionRequest = isCollectionLiteratureRequest(routingText);
+  const queryTokens = tokenizeForDocumentRouting(routingText);
+  let selectedDescriptors = [];
+  let selectedRecords = [];
+  let routingMode = "inventory";
+
+  if (collectionRequest) {
+    routingMode = "collection-summaries";
+    selectedRecords = reviewResult.records.slice(0, MAX_CHAT_SUMMARY_DOCUMENTS);
+  } else if (explicitKeys.length) {
+    routingMode = "explicit";
+    selectedDescriptors = explicitKeys.map((key) => descriptorByKey.get(key));
+    selectedRecords = explicitKeys.map((key) => recordByKey.get(key)).filter(Boolean);
+  } else {
+    const ranked = descriptors
+      .map((descriptor) => ({
+        descriptor,
+        record: recordByKey.get(descriptor.objectKey) || null,
+        score: scoreDocumentForQuestion(
+          descriptor,
+          recordByKey.get(descriptor.objectKey),
+          queryTokens
+        )
+      }))
+      .filter((candidate) => candidate.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, MAX_CHAT_PDF_CONTENT_DOCUMENTS);
+
+    if (ranked.length) {
+      routingMode = "summary-relevance";
+      selectedDescriptors = ranked.map((candidate) => candidate.descriptor);
+      selectedRecords = ranked.map((candidate) => candidate.record).filter(Boolean);
+    } else if (descriptors.length === 1) {
+      routingMode = "single-document";
+      selectedDescriptors = [descriptors[0]];
+      const record = recordByKey.get(descriptors[0].objectKey);
+      if (record) selectedRecords = [record];
+    }
+  }
+
+  const pdfResult = await loadStoredPdfContents({
+    descriptors: selectedDescriptors,
+    user,
+    context,
+    env
+  });
+  if (!pdfResult.ok) return pdfResult;
+
+  const condensedCollectionResult = collectionRequest
+    ? await condenseCollectionReviewRecords({
+        records: selectedRecords,
+        routingText,
+        context,
+        env
+      })
+    : { ok: true, documents: null };
+  if (!condensedCollectionResult.ok) return condensedCollectionResult;
+
+  let remainingSummaryCharacters = TOTAL_PDF_SUMMARY_CONTEXT_LIMIT;
+  const summaries = (condensedCollectionResult.documents
+    ? condensedCollectionResult.documents.map((document) => {
+        const text = document.text.slice(0, remainingSummaryCharacters);
+        remainingSummaryCharacters = Math.max(
+          0,
+          remainingSummaryCharacters - text.length
+        );
+        return {
+          ...document,
+          text,
+          truncated: text.length < document.text.length
+        };
+      })
+    : selectedRecords
+      .slice(0, MAX_CHAT_SUMMARY_DOCUMENTS)
+      .map((record) => {
+        const sourceText = formatStoredReviewForContext(record);
+        const text = sourceText.slice(0, remainingSummaryCharacters);
+        remainingSummaryCharacters = Math.max(
+          0,
+          remainingSummaryCharacters - text.length
+        );
+        return {
+          objectKey: record.objectKey,
+          filename: record.filename,
+          type: "application/pdf summary",
+          text,
+          truncated: text.length < sourceText.length,
+          module: record.module
+        };
+      }))
+    .filter((summary) => summary.text);
+
+  console.log("Stored PDF chat routing complete:", {
+    stage: "documentRoute",
+    functionRequestId: context?.requestId || undefined,
+    mode: routingMode,
+    candidates: descriptors.length,
+    summaries: summaries.length,
+    fullPdfs: pdfResult.documents.length
+  });
+
+  return {
+    ok: true,
+    documents: pdfResult.documents,
+    summaries,
+    inventory: descriptors.map((descriptor) => ({
+      objectKey: descriptor.objectKey,
+      filename: getObjectFilename(descriptor.objectKey),
+      summaryAvailable: recordByKey.has(descriptor.objectKey),
+      module: descriptor.module
+    })),
+    selectedObjectKeys: selectedDescriptors.map(
+      (descriptor) => descriptor.objectKey
+    ),
+    routingMode
+  };
 }
 
 function getRequestBody(event) {
@@ -2033,7 +2720,10 @@ function buildWorkspaceContext({
   experimentDocuments,
   experimentNotes,
   experimentModules,
-  storedDocuments
+  storedDocuments,
+  storedDocumentSummaries,
+  storedDocumentInventory,
+  documentRoutingMode
 }) {
   const contextSections = [];
 
@@ -2053,6 +2743,31 @@ function buildWorkspaceContext({
   if (storedDocumentContext) {
     contextSections.push(
       `PDF evidence retrieved from private OSS storage:\n${storedDocumentContext}`
+    );
+  }
+
+  const storedSummaryContext = buildDocumentContext(
+    "Cached PDF summary",
+    storedDocumentSummaries || []
+  );
+  if (storedSummaryContext) {
+    contextSections.push(
+      `Cached scientific-paper summaries selected for this question:\n${storedSummaryContext}`
+    );
+  }
+
+  if (Array.isArray(storedDocumentInventory) && storedDocumentInventory.length) {
+    const inventory = storedDocumentInventory
+      .slice(0, MAX_LISTED_PDF_DOCUMENTS)
+      .map(
+        (document, index) =>
+          `${index + 1}. ${document.filename} [summary: ${
+            document.summaryAvailable ? "available" : "not generated"
+          }]${document.module ? ` [module: ${document.module}]` : ""}`
+      )
+      .join("\n");
+    contextSections.push(
+      `Private OSS PDF inventory (filenames only unless selected above):\n${inventory}`
     );
   }
 
@@ -2082,7 +2797,7 @@ function buildWorkspaceContext({
 
   if (!contextSections.length) return null;
 
-  return `The user attached browser-session workspace context. Use it only as unverified supporting evidence. Mention filenames when relying on uploaded files, do not invent claims beyond extracted text, and say what is missing if context is insufficient.\n\n${contextSections.join("\n\n===\n\n")}`;
+  return `The user attached browser-session workspace context. Use it only as unverified supporting evidence. Mention filenames when relying on uploaded files, do not invent claims beyond extracted text, and say what is missing if context is insufficient. PDF routing mode: ${documentRoutingMode || "none"}. A filename-only inventory is not evidence; do not claim to have read an inventoried PDF unless its full text or cached summary is included.\n\n${contextSections.join("\n\n===\n\n")}`;
 }
 
 function buildExperimentModulesContext(experimentModules) {
@@ -2368,6 +3083,20 @@ exports.handler = async function handler(rawEvent, context) {
       );
     }
 
+    if (method === "POST" && path === "/api/documents/delete") {
+      const auth = requireAuth(event, process.env);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      return handleDeleteStoredPdf(
+        event,
+        context,
+        process.env,
+        auth.user
+      );
+    }
+
     if (method === "POST" && path === "/api/documents/review") {
       const auth = requireAuth(event, process.env);
       if (!auth.ok) {
@@ -2394,6 +3123,7 @@ exports.handler = async function handler(rawEvent, context) {
       const rawExperimentNotes = body.experimentNotes;
       const rawExperimentModules = body.experimentModules;
       const rawStoredDocuments = body.storedDocuments;
+      const rawSelectedDocumentKeys = body.selectedDocumentKeys;
 
       if (
         rawReferenceDocuments !== undefined &&
@@ -2460,6 +3190,19 @@ exports.handler = async function handler(rawEvent, context) {
         );
       }
 
+      if (
+        rawSelectedDocumentKeys !== undefined &&
+        !Array.isArray(rawSelectedDocumentKeys)
+      ) {
+        return jsonResponse(
+          makeFallbackResponse(
+            'The optional "selectedDocumentKeys" field must be an array.'
+          ),
+          400,
+          event
+        );
+      }
+
       const referenceDocuments = sanitizeReferenceDocuments(
         rawReferenceDocuments || []
       );
@@ -2470,8 +3213,10 @@ exports.handler = async function handler(rawEvent, context) {
       const experimentModules = sanitizeExperimentModules(
         rawExperimentModules || {}
       );
-      const storedDocumentResult = await loadStoredPdfsForChat({
+      const storedDocumentResult = await resolveStoredPdfChatContext({
         documents: rawStoredDocuments || [],
+        selectedObjectKeys: rawSelectedDocumentKeys || [],
+        messages,
         user: auth.user,
         context,
         env: process.env
@@ -2494,7 +3239,10 @@ exports.handler = async function handler(rawEvent, context) {
           experimentDocuments,
           experimentNotes,
           experimentModules,
-          storedDocuments: storedDocumentResult.documents
+          storedDocuments: storedDocumentResult.documents,
+          storedDocumentSummaries: storedDocumentResult.summaries,
+          storedDocumentInventory: storedDocumentResult.inventory,
+          documentRoutingMode: storedDocumentResult.routingMode
         }
       );
 
@@ -2512,7 +3260,17 @@ exports.handler = async function handler(rawEvent, context) {
           experimentModulesUsed: summarizeExperimentModules(experimentModules),
           storedPdfsUsed: storedDocumentResult.documents.map(
             (document) => document.filename
-          )
+          ),
+          storedPdfSummariesUsed: storedDocumentResult.summaries.map(
+            (document) => document.filename
+          ),
+          documentScope: {
+            mode: storedDocumentResult.routingMode,
+            objectKeys: storedDocumentResult.selectedObjectKeys,
+            filenames: storedDocumentResult.documents.map(
+              (document) => document.filename
+            )
+          }
         },
         200,
         event

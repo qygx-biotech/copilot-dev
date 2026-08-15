@@ -570,6 +570,44 @@ textarea:focus {
   line-height: 1.35;
 }
 
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  max-width: 230px;
+}
+
+.file-chat-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 8px;
+  color: var(--accent-dark);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.76rem;
+  font-weight: 740;
+  cursor: pointer;
+}
+
+.file-chat-toggle input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.file-summary-button,
+.file-remove-button {
+  min-height: 34px;
+  padding: 7px 9px;
+  font-size: 0.76rem;
+}
+
 .empty-state {
   margin: 0;
   padding: 11px 12px;
@@ -791,6 +829,51 @@ textarea:focus {
 
 .side-message.assistant {
   background: var(--surface-muted);
+}
+
+.thinking-content,
+.thinking-dots {
+  display: inline-flex;
+  align-items: center;
+}
+
+.thinking-content {
+  gap: 7px;
+  color: var(--muted);
+}
+
+.thinking-dots {
+  gap: 4px;
+}
+
+.thinking-dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: thinking-bounce 1.1s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+@keyframes thinking-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
 }
 
 .side-message strong {

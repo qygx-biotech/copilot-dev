@@ -114,13 +114,17 @@
               </div>
               <div class="panel-actions">
                 <label class="file-picker" for="referenceFileInput" data-i18n="uploadReferences">Upload references</label>
+                <label class="file-picker" for="referenceFolderInput" data-i18n="uploadPdfFolder">Upload PDF folder</label>
+                <button id="summarizeAllReferencesButton" class="secondary-button" type="button" data-i18n="summarizeAllReferences">
+                  Summarize all
+                </button>
                 <button id="clearReferencesButton" class="secondary-button" type="button" data-i18n="clearReferences">
                   Clear references
                 </button>
               </div>
             </div>
             <p class="panel-helper" data-i18n="referencesHelper">
-              PDF papers are stored privately in OSS, restored after login, and reviewed by the backend. Other supported files remain browser-session context.
+              PDF papers are stored privately in OSS and restored after login. Summaries run only when requested; select up to three papers to focus Side Chat.
             </p>
             <input
               id="referenceFileInput"
@@ -128,6 +132,15 @@
               type="file"
               accept=".pdf,.txt,.csv,.xlsx,.xls"
               multiple
+            />
+            <input
+              id="referenceFolderInput"
+              class="sr-only"
+              type="file"
+              accept=".pdf,application/pdf"
+              multiple
+              webkitdirectory
+              directory
             />
             <div id="referenceFileList" class="file-list" aria-live="polite"></div>
           </section>

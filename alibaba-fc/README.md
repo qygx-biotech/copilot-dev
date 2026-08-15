@@ -67,6 +67,8 @@ npm test
    ```
 
    `ListObjects` uses the bucket itself as the RAM resource; the `oss:Prefix` condition restricts the listable scope. Application authentication further narrows every request to the current account's exact hashed prefix.
+
+   The object-level statement for this branch must include `oss:GetObject`, `oss:PutObject`, and `oss:DeleteObject` on `acs:oss:*:*:biodesign-copilot-files-2026/uploads/*`. `DeleteObject` is required because Remove and Clear now synchronize deletions to OSS.
 7. Install production dependencies and package the root handler with `node_modules`:
 
    ```bash
@@ -140,12 +142,13 @@ The successful response includes `"ok":true`, `"verified":true`, and the generat
 
 ## Persistent PDF Upload and Review
 
-The PDF workflow uses the existing JWT bearer login and two document endpoints:
+The PDF workflow uses the existing JWT bearer login and these document endpoints:
 
-- `GET /api/documents` lists up to 100 PDFs from the authenticated account's application-controlled OSS prefix. The frontend calls it after login and session restoration so saved papers reappear after a reload or new browser window.
+- `GET /api/documents` lists up to 100 PDFs and any cached review sidecars from the authenticated account's application-controlled OSS prefix. The frontend calls it after login and session restoration.
 - `POST /api/documents/upload-url` validates a PDF name and size, creates an application-controlled key under the authenticated account prefix, and returns a five-minute OSS V4 signed PUT URL.
-- `POST /api/documents/review` accepts only a key in that same authenticated account prefix, reads the object through `OSS_INTERNAL_ENDPOINT`, validates its metadata and PDF signature, extracts embedded text, and performs a map-reduce review with the configured Requesty model.
-- `POST /chat` accepts the optional `storedDocuments` array. Every key is ownership-checked and re-read from OSS before its extracted text is added to Side Chat or agent context.
+- `POST /api/documents/review` runs only after an explicit user action. It reviews an owned PDF and caches the structured result as `.paper-review.json` in the same UUID folder. A repeated request returns that cache unless `force: true` is supplied.
+- `POST /api/documents/delete` permanently deletes the owned PDF and its cached review sidecar.
+- `POST /chat` receives a PDF inventory, summary-availability flags, and up to three selected keys. It uses cached summaries for relevance routing, reads full text only for explicit/relevant PDFs, and uses summary map-reduce for large collection-wide questions.
 
 The browser never selects a bucket or object path. Keys have this form:
 
@@ -153,7 +156,7 @@ The browser never selects a bucket or object path. Keys have this form:
 uploads/<sanitized-account-and-hash>/<uuid>/<sanitized-filename>.pdf
 ```
 
-PDFs are uploaded to OSS immediately rather than waiting for logout or `beforeunload`, which browsers cannot reliably complete. While a PUT is active, the UI prevents logout and warns before closing the window. PDFs are limited to 5 MB and 100 pages. Reviews process at most 96,000 extracted characters in overlapping 12,000-character chunks. Encrypted, malformed, empty, and likely image-only PDFs return controlled errors. OCR is not included. Neither review nor removal from the current page deletes the OSS object.
+PDFs are uploaded to OSS immediately rather than waiting for logout or `beforeunload`, which browsers cannot reliably complete. Upload does not invoke Requesty. While a PUT is active, the UI prevents logout and warns before closing the window. PDFs are limited to 5 MB and 100 pages. Reviews process at most 96,000 extracted characters in overlapping 12,000-character chunks. Encrypted, malformed, empty, and likely image-only PDFs return controlled errors. OCR is not included. Removing a file is permanent and cannot be recovered by this application.
 
 ### Manual end-to-end test
 
@@ -199,9 +202,25 @@ curl -sS -X POST "$FC_URL/chat" \
   | jq
 ```
 
-Expected review output includes `"ok": true`, a non-empty `summary`, and the original `objectKey`. The list response must contain that same key. Log out, sign in again, and confirm the PDF card is restored under Literature & References. In the OSS console, open `biodesign-copilot-files-2026` → `uploads/` and confirm that the PDF remains after all requests.
+Expected review output includes `"ok": true`, `"summaryCached": true`, a non-empty `summary`, and the original `objectKey`. The list response must contain that key with `"summaryAvailable": true`. Log out, sign in again, and confirm the PDF card and View Summary action are restored under Literature & References.
 
-Without a metadata database, restored PDFs are placed in Literature & References even if they were originally uploaded inside an experiment module. The first 100 owned PDF objects are shown, newest first; chat and analysis use the existing active-document limits.
+After confirming persistence, verify permanent removal and list synchronization:
+
+```bash
+curl -sS -X POST "$FC_URL/api/documents/delete" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"objectKey\":$(printf '%s' "$OBJECT_KEY" | jq -R .)}" \
+  | jq
+
+curl -sS "$FC_URL/api/documents" \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq
+```
+
+The delete response must contain `"deleted": true`, and the key must no longer appear in the list or under the account prefix in the OSS console.
+
+Without a metadata database, restored PDFs are placed in Literature & References even if they were originally uploaded inside an experiment module. Up to 100 owned PDFs are shown. Full-text chat context is capped at three routed PDFs and 26,000 characters; collection questions use cached summaries and clearly identify unsummarized files.
 
 Negative checks:
 

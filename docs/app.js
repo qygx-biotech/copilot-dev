@@ -12,8 +12,12 @@ const languageSelects = document.querySelectorAll("[data-language-select]");
 
 const projectContextInput = document.querySelector("#projectContext");
 const referenceFileInput = document.querySelector("#referenceFileInput");
+const referenceFolderInput = document.querySelector("#referenceFolderInput");
 const referenceFileList = document.querySelector("#referenceFileList");
 const clearReferencesButton = document.querySelector("#clearReferencesButton");
+const summarizeAllReferencesButton = document.querySelector(
+  "#summarizeAllReferencesButton"
+);
 const experimentSummaryList = document.querySelector("#experimentSummaryList");
 const experimentModuleCards = document.querySelectorAll("[data-experiment-module]");
 
@@ -23,9 +27,12 @@ const analysisPanelStack = document.querySelector("#analysisPanelStack");
 const sideChatForm = document.querySelector("#sideChatForm");
 const sideChatInput = document.querySelector("#sideChatInput");
 const sideChatHistory = document.querySelector("#sideChatHistory");
+const sendSideChatButton = document.querySelector("#sendSideChatButton");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
 
-const MAX_REFERENCE_FILES = 8;
+const MAX_REFERENCE_FILES = 100;
+const MAX_BROWSER_REFERENCE_FILES = 8;
+const MAX_SELECTED_CHAT_PDFS = 3;
 const MAX_EXPERIMENT_FILES_PER_MODULE = 12;
 const MAX_EXPERIMENT_FILES = 36;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -124,9 +131,11 @@ const I18N = {
     referencesEyebrow: "Literature & References",
     referencesTitle: "Literature & References",
     uploadReferences: "Upload references",
+    uploadPdfFolder: "Upload PDF folder",
+    summarizeAllReferences: "Summarize all",
     clearReferences: "Clear references",
     referencesHelper:
-      "PDF papers are stored privately in OSS, restored after login, and reviewed by the backend. Other supported files remain browser-session context.",
+      "PDF papers are stored privately in OSS and restored after login. Summaries run only when you request them. Select up to three papers to keep Side Chat focused.",
     experimentEyebrow: "Experiment Evidence",
     experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
@@ -225,12 +234,28 @@ const I18N = {
     fileLimit: "Only {count} files can be attached in this MVP.",
     fileAdded: "Added {name}.",
     pdfUploading: "Uploading {name} to private OSS...",
-    pdfReviewing: "Stored {name}; extracting text and generating a paper review...",
-    pdfStored: "Stored and reviewed {name}.",
+    pdfReviewing: "Extracting and summarizing {name}...",
+    pdfStored: "Stored {name} in private OSS. Summarization has not started.",
     pdfUploadFailed: "Could not upload {name}: {message}",
     pdfReviewFailed: "{name} remains stored in OSS, but review failed: {message}",
     pdfStoredMeta: "stored in private OSS",
     pdfReviewErrorMeta: "stored; review needs retry",
+    pdfSummaryReadyMeta: "summary cached",
+    pdfSummaryPendingMeta: "not summarized",
+    summarizeFile: "Summarize",
+    viewSummary: "View summary",
+    useInChat: "Use in chat",
+    chatSelectionLimit: "Select at most {count} PDFs for focused Side Chat.",
+    deletingFile: "Deleting {name} from private OSS...",
+    deleteFileConfirm: "Permanently delete {name} from private OSS? This cannot be undone.",
+    clearFilesConfirm: "Permanently delete the stored PDFs in this list from private OSS? This cannot be undone.",
+    fileDeleted: "Deleted {name} from private OSS.",
+    fileDeleteFailed: "Could not delete {name}: {message}",
+    folderNoPdfs: "The selected folder did not contain supported PDF files.",
+    summarizeAllBusy: "Summarizing papers...",
+    summarizeAllQuestion: "Summarize all literature in this workspace, compare the research questions, methods, main findings, and limitations, and clearly identify any papers whose summaries are unavailable.",
+    summariesReady: "The requested paper summaries are ready.",
+    thinking: "Thinking",
     pdfSyncing: "Syncing saved PDFs from private OSS...",
     pdfSynced: "Synced {count} saved PDF files from OSS.",
     pdfSyncFailed: "Could not sync saved PDFs from OSS: {message}",
@@ -365,9 +390,11 @@ const I18N = {
     referencesEyebrow: "文献与参考资料",
     referencesTitle: "文献与参考资料",
     uploadReferences: "上传参考资料",
+    uploadPdfFolder: "上传 PDF 文件夹",
+    summarizeAllReferences: "总结全部",
     clearReferences: "清空参考资料",
     referencesHelper:
-      "PDF 论文会私密保存到 OSS、在登录后自动恢复并由后端评审；其他受支持文件仍作为当前浏览器会话的上下文。",
+      "PDF 论文会私密保存到 OSS 并在登录后自动恢复。只有用户主动要求时才会生成总结。最多选择三篇论文供侧边问答重点使用。",
     experimentEyebrow: "实验证据",
     experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
@@ -466,12 +493,28 @@ const I18N = {
     fileLimit: "本 MVP 最多可附加 {count} 个文件。",
     fileAdded: "已添加 {name}。",
     pdfUploading: "正在将 {name} 上传到私有 OSS...",
-    pdfReviewing: "{name} 已保存，正在提取文本并生成论文评审...",
-    pdfStored: "已保存并评审 {name}。",
+    pdfReviewing: "正在提取并总结 {name}...",
+    pdfStored: "{name} 已保存到私有 OSS，尚未开始总结。",
     pdfUploadFailed: "无法上传 {name}：{message}",
     pdfReviewFailed: "{name} 仍保存在 OSS，但评审失败：{message}",
     pdfStoredMeta: "已保存到私有 OSS",
     pdfReviewErrorMeta: "已保存；需要重试评审",
+    pdfSummaryReadyMeta: "总结已缓存",
+    pdfSummaryPendingMeta: "尚未总结",
+    summarizeFile: "总结",
+    viewSummary: "查看总结",
+    useInChat: "用于问答",
+    chatSelectionLimit: "侧边问答最多选择 {count} 个 PDF。",
+    deletingFile: "正在从私有 OSS 删除 {name}...",
+    deleteFileConfirm: "确定要从私有 OSS 永久删除 {name} 吗？此操作无法撤销。",
+    clearFilesConfirm: "确定要从私有 OSS 永久删除此列表中的 PDF 吗？此操作无法撤销。",
+    fileDeleted: "已从私有 OSS 删除 {name}。",
+    fileDeleteFailed: "无法删除 {name}：{message}",
+    folderNoPdfs: "所选文件夹中没有受支持的 PDF 文件。",
+    summarizeAllBusy: "正在总结论文...",
+    summarizeAllQuestion: "请总结此工作区中的全部文献，比较研究问题、方法、主要发现和局限性，并明确指出哪些论文尚无可用总结。",
+    summariesReady: "所请求的论文总结已完成。",
+    thinking: "思考中",
     pdfSyncing: "正在从私有 OSS 同步已保存的 PDF...",
     pdfSynced: "已从 OSS 同步 {count} 个 PDF 文件。",
     pdfSyncFailed: "无法从 OSS 同步已保存的 PDF：{message}",
@@ -588,6 +631,8 @@ let sideChatMessages = [];
 let activeAgentRequest = false;
 let activeAgentPanelId = "";
 let activePdfUploads = 0;
+let activeSideChatDocumentKeys = [];
+let sideChatBusy = false;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -705,15 +750,40 @@ referenceFileInput.addEventListener("change", async (event) => {
   referenceFileInput.value = "";
 });
 
-clearReferencesButton.addEventListener("click", () => {
-  referenceDocuments = [];
-  renderDocumentList(
-    referenceFileList,
-    referenceDocuments,
-    t("noReferenceFiles"),
-    removeReferenceDocument
+referenceFolderInput.addEventListener("change", async (event) => {
+  const pdfFiles = Array.from(event.target.files || []).filter(
+    (file) => getFileExtension(file.name) === "pdf"
   );
-  showToast(t("referencesCleared"));
+  if (!pdfFiles.length) {
+    showToast(t("folderNoPdfs"));
+    referenceFolderInput.value = "";
+    return;
+  }
+
+  await handleDocumentFiles({
+    files: pdfFiles,
+    collection: referenceDocuments,
+    maxFiles: MAX_REFERENCE_FILES,
+    onUpdate(nextDocuments) {
+      referenceDocuments = nextDocuments;
+      renderAllDocumentLists();
+    },
+  });
+  referenceFolderInput.value = "";
+});
+
+summarizeAllReferencesButton.addEventListener("click", async () => {
+  await summarizeAllStoredReferences();
+});
+
+clearReferencesButton.addEventListener("click", async () => {
+  await clearDocumentCollection({
+    documents: referenceDocuments,
+    onUpdate(nextDocuments) {
+      referenceDocuments = nextDocuments;
+      renderAllDocumentLists();
+    },
+  });
 });
 
 EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
@@ -734,10 +804,17 @@ EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
     elements.fileInput.value = "";
   });
 
-  elements.clearFilesButton.addEventListener("click", () => {
-    experimentModules[moduleKey].files = [];
-    renderExperimentModule(moduleKey);
-    showToast(t("moduleFilesCleared", { module: getExperimentModuleLabel(moduleKey) }));
+  elements.clearFilesButton.addEventListener("click", async () => {
+    await clearDocumentCollection({
+      documents: experimentModules[moduleKey].files,
+      onUpdate(nextDocuments) {
+        experimentModules[moduleKey].files = nextDocuments;
+        renderAllDocumentLists();
+      },
+      clearedMessage: t("moduleFilesCleared", {
+        module: getExperimentModuleLabel(moduleKey),
+      }),
+    });
   });
 
   elements.addNoteButton.addEventListener("click", () => {
@@ -843,32 +920,10 @@ sideChatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const question = sideChatInput.value.trim();
-  if (!question) return;
+  if (!question || sideChatBusy) return;
 
-  const messagesForBackend = buildSideChatMessages(question);
   sideChatInput.value = "";
-  addSideChatMessage("user", question);
-  sideChatMessages.push({ role: "user", content: question });
-
-  try {
-    const response = await sendWorkbenchRequest({
-      mode: "side_chat",
-      messages: messagesForBackend,
-    });
-    const reply = response.reply || t("sideChatNoAnswer");
-    addSideChatMessage("assistant", reply);
-    sideChatMessages.push({ role: "assistant", content: reply });
-  } catch (error) {
-    if (error instanceof AuthRequiredError) {
-      console.warn("Backend auth required.", error);
-      return;
-    }
-
-    console.warn("Side chat backend failed; using local fallback.", error);
-    const reply = `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`;
-    addSideChatMessage("assistant", reply);
-    sideChatMessages.push({ role: "assistant", content: reply });
-  }
+  await askSideChat(question);
 });
 
 function initializeWorkbench() {
@@ -883,6 +938,7 @@ function initializeWorkbench() {
   );
   renderExperimentModules();
   renderAnalysisPanels();
+  setSideChatBusy(sideChatBusy);
   sideChatHistory.innerHTML = "";
   addSideChatMessage(
     "assistant",
@@ -1137,20 +1193,8 @@ async function handleDocumentFiles({
       showToast(t("pdfUploading", { name: file.name }));
       renderBackendStatus("backendWorking");
 
-      const updatePendingStatus = (processingStatus) => {
-        nextDocuments = nextDocuments.map((documentItem) =>
-          documentItem.id === pendingId
-            ? { ...documentItem, processingStatus }
-            : documentItem
-        );
-        onUpdate(nextDocuments);
-      };
-
       try {
-        const storedDocument = await uploadAndReviewPdf(
-          file,
-          updatePendingStatus
-        );
+        const storedDocument = await uploadPdfToOss(file);
         const nextDocument = moduleKey
           ? { ...storedDocument, id: pendingId, module: moduleKey }
           : { ...storedDocument, id: pendingId };
@@ -1159,19 +1203,7 @@ async function handleDocumentFiles({
         );
         onUpdate(nextDocuments);
 
-        if (storedDocument.reviewError) {
-          showToast(
-            t("pdfReviewFailed", {
-              name: file.name,
-              message: storedDocument.reviewError,
-            })
-          );
-        } else {
-          const reviewMessage = formatPaperReview(storedDocument.review, file.name);
-          addSideChatMessage("assistant", reviewMessage);
-          sideChatMessages.push({ role: "assistant", content: reviewMessage });
-          showToast(t("pdfStored", { name: file.name }));
-        }
+        showToast(t("pdfStored", { name: file.name }));
 
         renderBackendStatus("backendConnected");
       } catch (error) {
@@ -1249,7 +1281,7 @@ async function parseWorkbenchFile(file) {
   };
 }
 
-async function uploadAndReviewPdf(file, onStage) {
+async function uploadPdfToOss(file) {
   if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
     throw new Error(t("fileTooLarge", { name: file.name }));
   }
@@ -1299,63 +1331,22 @@ async function uploadAndReviewPdf(file, onStage) {
     activePdfUploads = Math.max(0, activePdfUploads - 1);
   }
 
-  onStage("reviewing");
-  showToast(t("pdfReviewing", { name: file.name }));
-
-  const storedDocument = {
+  return {
     filename: uploadUrlData.filename || file.name,
     type: "application/pdf",
     extension: "pdf",
     text: "",
     objectKey: uploadUrlData.objectKey,
+    size: file.size,
+    lastModified: new Date().toISOString(),
     originalCharacterCount: 0,
     extractedCharacterCount: 0,
     extractedCharCount: 0,
     truncated: false,
     processingStatus: "",
+    summaryAvailable: false,
+    selectedForChat: false,
   };
-
-  try {
-    const reviewResponse = await fetch(backendUrl("/api/documents/review"), {
-      method: "POST",
-      headers: getAuthHeaders({
-        "Content-Type": "application/json",
-      }),
-      body: JSON.stringify({
-        objectKey: uploadUrlData.objectKey,
-        language: currentLanguage,
-      }),
-    });
-
-    requireLoginForUnauthorized(reviewResponse);
-    const reviewData = await readOptionalJson(reviewResponse);
-    if (!reviewResponse.ok || !reviewData.ok) {
-      return {
-        ...storedDocument,
-        reviewError:
-          getAuthErrorMessage(reviewData) ||
-          t("backendReturned", { status: reviewResponse.status }),
-      };
-    }
-
-    const extractedCharacterCount = Number(
-      reviewData.extractedCharacterCount || 0
-    );
-    return {
-      ...storedDocument,
-      filename: reviewData.filename || storedDocument.filename,
-      originalCharacterCount: extractedCharacterCount,
-      extractedCharacterCount,
-      extractedCharCount: extractedCharacterCount,
-      truncated: Boolean(reviewData.truncated),
-      review: reviewData,
-    };
-  } catch (error) {
-    return {
-      ...storedDocument,
-      reviewError: error.message || t("fileParseFailed", { name: file.name }),
-    };
-  }
 }
 
 async function syncStoredPdfDocuments() {
@@ -1403,12 +1394,27 @@ async function syncStoredPdfDocuments() {
           typeof documentItem.lastModified === "string"
             ? documentItem.lastModified
             : "",
+        summaryAvailable: documentItem.summaryAvailable === true,
+        review:
+          documentItem.review && typeof documentItem.review === "object"
+            ? documentItem.review
+            : null,
+        summaryUpdatedAt:
+          typeof documentItem.summaryUpdatedAt === "string"
+            ? documentItem.summaryUpdatedAt
+            : "",
+        extractedCharacterCount: Number(
+          documentItem.extractedCharacterCount || 0
+        ),
       }));
     const serverByKey = new Map(
       serverDocuments.map((documentItem) => [
         documentItem.objectKey,
         documentItem,
       ])
+    );
+    activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter((key) =>
+      serverByKey.has(key)
     );
 
     const reconcileCollection = (documents) =>
@@ -1425,6 +1431,13 @@ async function syncStoredPdfDocuments() {
                 filename: serverDocument.filename,
                 size: serverDocument.size,
                 lastModified: serverDocument.lastModified,
+                summaryAvailable: serverDocument.summaryAvailable,
+                review: serverDocument.review || documentItem.review || null,
+                summaryUpdatedAt: serverDocument.summaryUpdatedAt,
+                extractedCharacterCount:
+                  serverDocument.extractedCharacterCount ||
+                  documentItem.extractedCharacterCount ||
+                  0,
                 syncedFromOss: true,
               }
             : documentItem;
@@ -1453,12 +1466,16 @@ async function syncStoredPdfDocuments() {
         objectKey: documentItem.objectKey,
         size: documentItem.size,
         lastModified: documentItem.lastModified,
-        originalCharacterCount: 0,
-        extractedCharacterCount: 0,
-        extractedCharCount: 0,
+        originalCharacterCount: documentItem.extractedCharacterCount,
+        extractedCharacterCount: documentItem.extractedCharacterCount,
+        extractedCharCount: documentItem.extractedCharacterCount,
         truncated: false,
         processingStatus: "",
         syncedFromOss: true,
+        summaryAvailable: documentItem.summaryAvailable,
+        review: documentItem.review,
+        summaryUpdatedAt: documentItem.summaryUpdatedAt,
+        selectedForChat: false,
       }));
 
     referenceDocuments = [...referenceDocuments, ...restoredDocuments];
@@ -1540,14 +1557,21 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
       meta.textContent = t("pdfUploading", { name: documentItem.filename });
     } else if (documentItem.processingStatus === "reviewing") {
       meta.textContent = t("pdfReviewing", { name: documentItem.filename });
+    } else if (documentItem.processingStatus === "deleting") {
+      meta.textContent = t("deletingFile", { name: documentItem.filename });
     } else {
       const characterCount = Number(
         documentItem.extractedCharacterCount || documentItem.extractedCharCount || 0
       );
       const storageNote = documentItem.objectKey
-        ? documentItem.reviewError
-          ? ` · ${t("pdfReviewErrorMeta")}: ${documentItem.reviewError}`
-          : ` · ${t("pdfStoredMeta")}`
+        ? [
+            t("pdfStoredMeta"),
+            documentItem.reviewError
+              ? `${t("pdfReviewErrorMeta")}: ${documentItem.reviewError}`
+              : documentItem.summaryAvailable
+                ? t("pdfSummaryReadyMeta")
+                : t("pdfSummaryPendingMeta"),
+          ].join(" · ")
         : "";
       const evidenceDetails =
         documentItem.objectKey && !characterCount
@@ -1564,7 +1588,37 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
             }`;
       meta.textContent = `${documentItem.extension.toUpperCase()} · ${documentItem.type}${
         evidenceDetails ? ` · ${evidenceDetails}` : ""
-      }${storageNote}`;
+      }${storageNote ? ` · ${storageNote}` : ""}`;
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "file-actions";
+    if (documentItem.objectKey) {
+      const chatLabel = document.createElement("label");
+      chatLabel.className = "file-chat-toggle";
+      const chatCheckbox = document.createElement("input");
+      chatCheckbox.type = "checkbox";
+      chatCheckbox.checked = Boolean(documentItem.selectedForChat);
+      chatCheckbox.disabled = Boolean(documentItem.processingStatus);
+      chatCheckbox.addEventListener("change", () => {
+        setDocumentChatSelection(documentItem.id, chatCheckbox.checked);
+      });
+      const chatText = document.createElement("span");
+      chatText.textContent = t("useInChat");
+      chatLabel.append(chatCheckbox, chatText);
+
+      const summaryButton = document.createElement("button");
+      summaryButton.className = "text-button file-summary-button";
+      summaryButton.type = "button";
+      summaryButton.textContent =
+        documentItem.summaryAvailable && documentItem.review
+          ? t("viewSummary")
+          : t("summarizeFile");
+      summaryButton.disabled = Boolean(documentItem.processingStatus);
+      summaryButton.addEventListener("click", async () => {
+        await summarizeStoredPdfById(documentItem.id);
+      });
+      actions.append(chatLabel, summaryButton);
     }
 
     const removeButton = document.createElement("button");
@@ -1575,19 +1629,364 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
     removeButton.addEventListener("click", () => onRemove(documentItem.id));
 
     details.append(name, meta);
-    card.append(details, removeButton);
+    actions.appendChild(removeButton);
+    card.append(details, actions);
     container.appendChild(card);
   });
 }
 
-function removeReferenceDocument(id) {
-  referenceDocuments = referenceDocuments.filter((item) => item.id !== id);
+function renderAllDocumentLists() {
   renderDocumentList(
     referenceFileList,
     referenceDocuments,
     t("noReferenceFiles"),
     removeReferenceDocument
   );
+  renderExperimentModules();
+}
+
+function getStoredWorkspaceDocuments() {
+  return [...referenceDocuments, ...collectExperimentDocuments()].filter(
+    (documentItem) => documentItem.objectKey
+  );
+}
+
+function findDocumentEntry(id) {
+  const referenceIndex = referenceDocuments.findIndex((item) => item.id === id);
+  if (referenceIndex >= 0) {
+    return {
+      document: referenceDocuments[referenceIndex],
+      collection: "reference",
+      index: referenceIndex,
+    };
+  }
+
+  for (const moduleKey of EXPERIMENT_MODULE_KEYS) {
+    const index = experimentModules[moduleKey].files.findIndex(
+      (item) => item.id === id
+    );
+    if (index >= 0) {
+      return {
+        document: experimentModules[moduleKey].files[index],
+        collection: "experiment",
+        moduleKey,
+        index,
+      };
+    }
+  }
+
+  return null;
+}
+
+function updateDocumentById(id, updates) {
+  const entry = findDocumentEntry(id);
+  if (!entry) return null;
+  const nextDocument = {
+    ...entry.document,
+    ...(typeof updates === "function" ? updates(entry.document) : updates),
+  };
+  if (entry.collection === "reference") {
+    referenceDocuments[entry.index] = nextDocument;
+  } else {
+    experimentModules[entry.moduleKey].files[entry.index] = nextDocument;
+  }
+  return nextDocument;
+}
+
+function removeDocumentLocally(id) {
+  const entry = findDocumentEntry(id);
+  if (!entry) return;
+  if (entry.collection === "reference") {
+    referenceDocuments.splice(entry.index, 1);
+  } else {
+    experimentModules[entry.moduleKey].files.splice(entry.index, 1);
+  }
+}
+
+function setDocumentChatSelection(id, selected) {
+  const entry = findDocumentEntry(id);
+  if (!entry?.document.objectKey) return;
+  const selectedCount = getStoredWorkspaceDocuments().filter(
+    (documentItem) => documentItem.selectedForChat
+  ).length;
+  if (selected && !entry.document.selectedForChat && selectedCount >= MAX_SELECTED_CHAT_PDFS) {
+    showToast(t("chatSelectionLimit", { count: MAX_SELECTED_CHAT_PDFS }));
+    renderAllDocumentLists();
+    return;
+  }
+
+  updateDocumentById(id, { selectedForChat: selected });
+  if (selected) {
+    activeSideChatDocumentKeys = [
+      ...new Set([...activeSideChatDocumentKeys, entry.document.objectKey]),
+    ].slice(0, MAX_SELECTED_CHAT_PDFS);
+  } else {
+    activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter(
+      (key) => key !== entry.document.objectKey
+    );
+  }
+  renderAllDocumentLists();
+}
+
+async function deleteStoredPdfFromOss(documentItem) {
+  const response = await fetch(backendUrl("/api/documents/delete"), {
+    method: "POST",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ objectKey: documentItem.objectKey }),
+  });
+  requireLoginForUnauthorized(response);
+  const data = await readOptionalJson(response);
+  if (!response.ok || !data.ok) {
+    throw new Error(
+      data.message ||
+        getAuthErrorMessage(data) ||
+        t("backendReturned", { status: response.status })
+    );
+  }
+}
+
+async function removeWorkspaceDocument(id) {
+  const entry = findDocumentEntry(id);
+  if (!entry) return;
+  const documentItem = entry.document;
+  if (
+    documentItem.objectKey &&
+    !window.confirm(t("deleteFileConfirm", { name: documentItem.filename }))
+  ) {
+    return;
+  }
+
+  if (!documentItem.objectKey) {
+    removeDocumentLocally(id);
+    renderAllDocumentLists();
+    return;
+  }
+
+  updateDocumentById(id, { processingStatus: "deleting" });
+  renderAllDocumentLists();
+  try {
+    await deleteStoredPdfFromOss(documentItem);
+    removeDocumentLocally(id);
+    activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter(
+      (key) => key !== documentItem.objectKey
+    );
+    showToast(t("fileDeleted", { name: documentItem.filename }));
+  } catch (error) {
+    updateDocumentById(id, { processingStatus: "" });
+    showToast(
+      t("fileDeleteFailed", {
+        name: documentItem.filename,
+        message: error.message || t("loginFailed"),
+      })
+    );
+  }
+  renderAllDocumentLists();
+}
+
+async function removeReferenceDocument(id) {
+  await removeWorkspaceDocument(id);
+}
+
+async function requestStoredPdfSummary(documentItem, force = false) {
+  const response = await fetch(backendUrl("/api/documents/review"), {
+    method: "POST",
+    headers: getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      objectKey: documentItem.objectKey,
+      language: currentLanguage,
+      force,
+    }),
+  });
+  requireLoginForUnauthorized(response);
+  const data = await readOptionalJson(response);
+  if (!response.ok || !data.ok) {
+    throw new Error(
+      data.message ||
+        getAuthErrorMessage(data) ||
+        t("backendReturned", { status: response.status })
+    );
+  }
+  return data;
+}
+
+async function summarizeStoredPdfById(id, { showInChat = true } = {}) {
+  const entry = findDocumentEntry(id);
+  if (!entry?.document.objectKey) return null;
+  const documentItem = entry.document;
+
+  if (documentItem.summaryAvailable && documentItem.review) {
+    if (showInChat) {
+      const reviewMessage = formatPaperReview(
+        documentItem.review,
+        documentItem.filename
+      );
+      addSideChatMessage("assistant", reviewMessage);
+      sideChatMessages.push({ role: "assistant", content: reviewMessage });
+    }
+    return documentItem.review;
+  }
+
+  updateDocumentById(id, {
+    processingStatus: "reviewing",
+    reviewError: "",
+  });
+  renderAllDocumentLists();
+
+  try {
+    const reviewData = await requestStoredPdfSummary(documentItem);
+    const extractedCharacterCount = Number(
+      reviewData.extractedCharacterCount || 0
+    );
+    updateDocumentById(id, {
+      processingStatus: "",
+      review: reviewData,
+      summaryAvailable: reviewData.summaryCached !== false,
+      summaryUpdatedAt: reviewData.summaryUpdatedAt || new Date().toISOString(),
+      extractedCharacterCount,
+      extractedCharCount: extractedCharacterCount,
+      originalCharacterCount: extractedCharacterCount,
+      truncated: Boolean(reviewData.truncated),
+      reviewError: reviewData.cacheWarning || "",
+    });
+    renderAllDocumentLists();
+
+    if (reviewData.cacheWarning) {
+      showToast(reviewData.cacheWarning);
+    } else {
+      showToast(t("summariesReady"));
+    }
+    if (showInChat) {
+      const reviewMessage = formatPaperReview(reviewData, documentItem.filename);
+      addSideChatMessage("assistant", reviewMessage);
+      sideChatMessages.push({ role: "assistant", content: reviewMessage });
+    }
+    return reviewData;
+  } catch (error) {
+    updateDocumentById(id, {
+      processingStatus: "",
+      reviewError: error.message || t("loginFailed"),
+    });
+    renderAllDocumentLists();
+    showToast(
+      t("pdfReviewFailed", {
+        name: documentItem.filename,
+        message: error.message || t("loginFailed"),
+      })
+    );
+    return null;
+  }
+}
+
+async function runWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(concurrency, items.length) },
+      () => worker()
+    )
+  );
+  return results;
+}
+
+async function summarizeAllStoredReferences() {
+  const storedReferences = referenceDocuments.filter(
+    (documentItem) => documentItem.objectKey && !documentItem.processingStatus
+  );
+  if (!storedReferences.length || summarizeAllReferencesButton.disabled) {
+    showToast(t("noReferenceFiles"));
+    return;
+  }
+
+  summarizeAllReferencesButton.disabled = true;
+  summarizeAllReferencesButton.textContent = t("summarizeAllBusy");
+  try {
+    const pending = storedReferences.filter(
+      (documentItem) => !documentItem.summaryAvailable || !documentItem.review
+    );
+    await runWithConcurrency(pending, 2, (documentItem) =>
+      summarizeStoredPdfById(documentItem.id, { showInChat: false })
+    );
+    await askSideChat(t("summarizeAllQuestion"));
+  } finally {
+    summarizeAllReferencesButton.disabled = false;
+    summarizeAllReferencesButton.textContent = t("summarizeAllReferences");
+  }
+}
+
+async function clearDocumentCollection({
+  documents,
+  onUpdate,
+  clearedMessage = t("referencesCleared"),
+}) {
+  const storedDocuments = documents.filter((documentItem) => documentItem.objectKey);
+  if (
+    storedDocuments.length &&
+    !window.confirm(t("clearFilesConfirm"))
+  ) {
+    return;
+  }
+
+  const storedKeys = new Set(
+    storedDocuments.map((documentItem) => documentItem.objectKey)
+  );
+  onUpdate(
+    documents.map((documentItem) =>
+      storedKeys.has(documentItem.objectKey)
+        ? { ...documentItem, processingStatus: "deleting" }
+        : documentItem
+    )
+  );
+
+  const results = await runWithConcurrency(
+    storedDocuments,
+    3,
+    async (documentItem) => {
+      try {
+        await deleteStoredPdfFromOss(documentItem);
+        return { ok: true, documentItem };
+      } catch (error) {
+        return { ok: false, documentItem, error };
+      }
+    }
+  );
+  const failedKeys = new Set(
+    results
+      .filter((result) => !result.ok)
+      .map((result) => result.documentItem.objectKey)
+  );
+  const nextDocuments = documents
+    .filter(
+      (documentItem) =>
+        documentItem.objectKey && failedKeys.has(documentItem.objectKey)
+    )
+    .map((documentItem) => ({ ...documentItem, processingStatus: "" }));
+  onUpdate(nextDocuments);
+
+  activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter(
+    (key) => failedKeys.has(key) || !storedKeys.has(key)
+  );
+  results
+    .filter((result) => !result.ok)
+    .forEach((result) => {
+      showToast(
+        t("fileDeleteFailed", {
+          name: result.documentItem.filename,
+          message: result.error.message || t("loginFailed"),
+        })
+      );
+    });
+  if (!failedKeys.size) showToast(clearedMessage);
+  renderAllDocumentLists();
 }
 
 function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
@@ -1616,11 +2015,8 @@ function buildDocumentsForRequest(documents, maxFiles, totalLimit) {
     .filter((documentItem) => documentItem.text);
 }
 
-function removeExperimentModuleDocument(moduleKey, id) {
-  experimentModules[moduleKey].files = experimentModules[moduleKey].files.filter(
-    (item) => item.id !== id
-  );
-  renderExperimentModule(moduleKey);
+async function removeExperimentModuleDocument(_moduleKey, id) {
+  await removeWorkspaceDocument(id);
 }
 
 function removeExperimentModuleNote(moduleKey, id) {
@@ -1802,19 +2198,26 @@ async function sendWorkbenchRequest({ mode, messages }) {
   const experimentModulesPayload = buildExperimentModulesForRequest();
   const experimentDocumentsPayload = buildFlattenedExperimentDocumentsForRequest();
   const experimentNotesPayload = collectExperimentNotesForRequest();
+  const manuallySelectedKeys = collectSelectedStoredDocumentKeys();
+  const selectedDocumentKeys = manuallySelectedKeys.length
+    ? manuallySelectedKeys
+    : mode === "side_chat"
+      ? activeSideChatDocumentKeys
+      : [];
   const requestBody = {
     mode,
     messages,
     projectContext: getProjectContext(),
     referenceDocuments: buildDocumentsForRequest(
       referenceDocuments,
-      MAX_REFERENCE_FILES,
+      MAX_BROWSER_REFERENCE_FILES,
       TOTAL_REFERENCE_TEXT_LIMIT
     ),
     experimentModules: experimentModulesPayload,
     experimentDocuments: experimentDocumentsPayload,
     experimentNotes: experimentNotesPayload,
     storedDocuments: collectStoredDocumentsForRequest(),
+    selectedDocumentKeys,
   };
 
   const response = await fetch(backendUrl("/chat"), {
@@ -1969,7 +2372,15 @@ function collectStoredDocumentsForRequest() {
     .map((documentItem) => ({
       objectKey: documentItem.objectKey,
       module: documentItem.module || "",
+      summaryAvailable: documentItem.summaryAvailable === true,
     }));
+}
+
+function collectSelectedStoredDocumentKeys() {
+  return getStoredWorkspaceDocuments()
+    .filter((documentItem) => documentItem.selectedForChat)
+    .map((documentItem) => documentItem.objectKey)
+    .slice(0, MAX_SELECTED_CHAT_PDFS);
 }
 
 function collectExperimentNotesForRequest(moduleKey = "") {
@@ -2484,6 +2895,86 @@ function exportRecommendation(recommendation) {
   link.remove();
   URL.revokeObjectURL(url);
   showToast(t("recommendationExported"));
+}
+
+function setSideChatBusy(isBusy) {
+  sideChatBusy = isBusy;
+  sideChatInput.disabled = isBusy;
+  sendSideChatButton.disabled = isBusy;
+  sendSideChatButton.textContent = isBusy ? t("thinking") : t("askButton");
+}
+
+function addSideChatThinking() {
+  const message = document.createElement("article");
+  message.className = "side-message assistant thinking-message";
+  message.setAttribute("role", "status");
+  message.setAttribute("aria-label", t("thinking"));
+
+  const label = document.createElement("strong");
+  label.textContent = t("sideChatAssistantLabel");
+  const body = document.createElement("div");
+  body.className = "thinking-content";
+  const text = document.createElement("span");
+  text.textContent = t("thinking");
+  const dots = document.createElement("span");
+  dots.className = "thinking-dots";
+  dots.setAttribute("aria-hidden", "true");
+  dots.append(
+    document.createElement("span"),
+    document.createElement("span"),
+    document.createElement("span")
+  );
+  body.append(text, dots);
+  message.append(label, body);
+  sideChatHistory.appendChild(message);
+  sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
+  return message;
+}
+
+async function askSideChat(question) {
+  if (!question || sideChatBusy) return;
+
+  const messagesForBackend = buildSideChatMessages(question);
+  addSideChatMessage("user", question);
+  sideChatMessages.push({ role: "user", content: question });
+  const thinkingMessage = addSideChatThinking();
+  setSideChatBusy(true);
+
+  try {
+    const response = await sendWorkbenchRequest({
+      mode: "side_chat",
+      messages: messagesForBackend,
+    });
+    const manuallySelectedKeys = collectSelectedStoredDocumentKeys();
+    const routedKeys = Array.isArray(response.documentScope?.objectKeys)
+      ? response.documentScope.objectKeys.filter((key) => typeof key === "string")
+      : [];
+    if (manuallySelectedKeys.length) {
+      activeSideChatDocumentKeys = manuallySelectedKeys;
+    } else if (response.documentScope?.mode === "collection-summaries") {
+      activeSideChatDocumentKeys = [];
+    } else if (routedKeys.length) {
+      activeSideChatDocumentKeys = routedKeys.slice(0, MAX_SELECTED_CHAT_PDFS);
+    }
+
+    const reply = response.reply || t("sideChatNoAnswer");
+    addSideChatMessage("assistant", reply);
+    sideChatMessages.push({ role: "assistant", content: reply });
+  } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      console.warn("Backend auth required.", error);
+      return;
+    }
+
+    console.warn("Side chat backend failed; using local fallback.", error);
+    const reply = `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`;
+    addSideChatMessage("assistant", reply);
+    sideChatMessages.push({ role: "assistant", content: reply });
+  } finally {
+    thinkingMessage.remove();
+    setSideChatBusy(false);
+    sideChatInput.focus();
+  }
 }
 
 function addSideChatMessage(role, content) {
