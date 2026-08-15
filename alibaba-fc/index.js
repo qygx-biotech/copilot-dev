@@ -38,6 +38,10 @@ const MAX_PDF_PAGES = 100;
 const PDF_PARSE_TIMEOUT_MS = 30000;
 const PDF_REVIEW_SIDECAR_FILENAME = ".paper-review.json";
 const TOTAL_PDF_SUMMARY_CONTEXT_LIMIT = 36000;
+const MAX_CHAT_HISTORY_MESSAGES = 20;
+const MAX_CHAT_MESSAGE_CHARACTERS = 6000;
+const TOTAL_CHAT_HISTORY_CHARACTERS = 24000;
+const REQUESTY_MAX_ATTEMPTS = 2;
 const EXPERIMENT_MODULE_LABELS = {
   strainEngineering: "Strain Engineering",
   fermentation: "Fermentation",
@@ -48,7 +52,7 @@ const corsHeaders = {
   "Content-Type": "application/json"
 };
 
-const systemPrompt = `
+const coreSystemPrompt = `
 You are BioDesign Copilot, an AI design-review copilot for synthetic biology teams.
 
 Your job is to support a human-in-the-loop BioDesign Workbench for synthetic biology design, literature review, messy experiment interpretation, and planning-level recommendations.
@@ -78,6 +82,9 @@ You must avoid:
 - instructions that enable unsafe or unsupervised experimentation
 
 Keep wet-lab guidance high-level and safety-aware. For side_chat requests, answer the question without claiming to update the official recommendation. Consider whether the next useful step belongs in strain engineering, fermentation, downstream processing, or additional analysis. Do not assume all problems are in strain engineering. Human scientists remain responsible for interpreting evidence and approving experimental decisions.
+`.trim();
+
+const systemPrompt = `${coreSystemPrompt}
 
 Return ONLY valid JSON.
 Do not use markdown fences.
@@ -97,6 +104,10 @@ The JSON must exactly follow this shape:
   }
 }
 `.trim();
+
+const sideChatSystemPrompt = `${coreSystemPrompt}
+
+This is a conversational Side Chat request. Use the supplied recent user/assistant messages as conversation history and answer the latest user question directly. Resolve pronouns and short follow-up questions from that history. Do not claim to have read a PDF unless its full text or cached summary is supplied in the current request. Return a concise plain-text answer; structured JSON is not required.`.trim();
 
 function jsonResponse(data, statusCode = 200, event = null, extraHeaders = {}) {
   return {
@@ -1455,6 +1466,90 @@ async function mapWithConcurrency(items, concurrency, mapper) {
   return results;
 }
 
+function isRetryableRequestyStatus(status) {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function getRequestyRetryDelayMs(response, attempt) {
+  const retryAfter = Number(response?.headers?.get?.("retry-after"));
+  if (Number.isFinite(retryAfter) && retryAfter >= 0) {
+    return Math.min(2000, Math.round(retryAfter * 1000));
+  }
+  return 250 * (attempt + 1);
+}
+
+async function requestRequestyCompletion(requestBody, apiKey) {
+  for (let attempt = 0; attempt < REQUESTY_MAX_ATTEMPTS; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(REQUESTY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        error: "LlmRequestFailed",
+        message: String(error?.message || "The LLM request failed.").slice(0, 500)
+      };
+    }
+
+    if (response.ok) {
+      try {
+        const responseJson = await response.json();
+        const text = responseJson?.choices?.[0]?.message?.content;
+        if (typeof text !== "string" || !text.trim()) {
+          return {
+            ok: false,
+            error: "EmptyLlmResponse",
+            message: "Requesty did not return assistant content."
+          };
+        }
+        return { ok: true, text: text.trim(), attempts: attempt + 1 };
+      } catch {
+        return {
+          ok: false,
+          error: "InvalidLlmResponse",
+          message: "Requesty returned invalid JSON."
+        };
+      }
+    }
+
+    await response.text().catch(() => "");
+    const shouldRetry =
+      attempt + 1 < REQUESTY_MAX_ATTEMPTS &&
+      isRetryableRequestyStatus(response.status);
+    if (shouldRetry) {
+      console.warn("Requesty request will retry:", {
+        stage: "llmRetry",
+        status: response.status,
+        attempt: attempt + 1
+      });
+      await new Promise((resolve) =>
+        setTimeout(resolve, getRequestyRetryDelayMs(response, attempt))
+      );
+      continue;
+    }
+
+    return {
+      ok: false,
+      error: "LlmHttpError",
+      message: `Requesty returned HTTP ${response.status}.`,
+      status: response.status
+    };
+  }
+
+  return {
+    ok: false,
+    error: "LlmRequestFailed",
+    message: "The LLM request could not be completed."
+  };
+}
+
 async function callRequestyText(messages, env, temperature = 0.2) {
   const apiKey = getEnvString(env, "REQUESTY_API_KEY");
   const model = getEnvString(env, "REQUESTY_MODEL");
@@ -1467,54 +1562,10 @@ async function callRequestyText(messages, env, temperature = 0.2) {
     };
   }
 
-  let response;
-  try {
-    response = await fetch(REQUESTY_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({ model, messages, temperature })
-    });
-  } catch (error) {
-    return {
-      ok: false,
-      error: "LlmRequestFailed",
-      message: String(error?.message || "The LLM request failed.").slice(0, 500)
-    };
-  }
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      error: "LlmHttpError",
-      message: `Requesty returned HTTP ${response.status}.`,
-      status: response.status
-    };
-  }
-
-  let responseJson;
-  try {
-    responseJson = await response.json();
-  } catch {
-    return {
-      ok: false,
-      error: "InvalidLlmResponse",
-      message: "Requesty returned invalid JSON."
-    };
-  }
-
-  const text = responseJson?.choices?.[0]?.message?.content;
-  if (typeof text !== "string" || !text.trim()) {
-    return {
-      ok: false,
-      error: "EmptyLlmResponse",
-      message: "Requesty did not return assistant content."
-    };
-  }
-
-  return { ok: true, text: text.trim() };
+  return requestRequestyCompletion(
+    { model, messages, temperature },
+    apiKey
+  );
 }
 
 async function reviewPdfWithLlm({
@@ -2515,8 +2566,10 @@ function getBearerToken(event) {
   return match ? match[1].trim() : "";
 }
 
-function makeFallbackResponse(reason) {
+function makeFallbackResponse(reason, error = "RequestyUnavailable") {
   return {
+    fallback: true,
+    error,
     reply:
       "I could not complete the Requesty-backed review just now. I generated a safe fallback response instead. Please retry after the backend configuration or network issue is resolved.",
     project: {
@@ -2850,9 +2903,79 @@ function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-async function callRequesty(messages, env, workspaceContext = {}) {
-  const apiKey = env.REQUESTY_API_KEY;
-  const model = env.REQUESTY_MODEL;
+function sanitizeChatMessagesForLlm(messages) {
+  const candidates = (Array.isArray(messages) ? messages : [])
+    .filter(
+      (message) =>
+        message &&
+        (message.role === "user" || message.role === "assistant") &&
+        typeof message.content === "string" &&
+        message.content.trim()
+    )
+    .slice(-MAX_CHAT_HISTORY_MESSAGES * 2)
+    .map((message) => ({
+      role: message.role,
+      content: message.content.trim().slice(0, MAX_CHAT_MESSAGE_CHARACTERS)
+    }));
+
+  const selected = [];
+  let remainingCharacters = TOTAL_CHAT_HISTORY_CHARACTERS;
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    if (selected.length >= MAX_CHAT_HISTORY_MESSAGES || remainingCharacters <= 0) {
+      break;
+    }
+    const candidate = candidates[index];
+    const content = candidate.content.slice(0, remainingCharacters);
+    if (!content) continue;
+    selected.unshift({ ...candidate, content });
+    remainingCharacters -= content.length;
+  }
+
+  while (selected[0]?.role === "assistant") selected.shift();
+
+  return selected.reduce((normalized, message) => {
+    const previous = normalized[normalized.length - 1];
+    if (previous?.role === message.role) {
+      previous.content = `${previous.content}\n\n${message.content}`.slice(
+        0,
+        MAX_CHAT_MESSAGE_CHARACTERS
+      );
+    } else {
+      normalized.push({ ...message });
+    }
+    return normalized;
+  }, []);
+}
+
+function parseSideChatResponse(modelText) {
+  const parsedObject = parseModelJson(modelText);
+  if (typeof parsedObject?.reply === "string" && parsedObject.reply.trim()) {
+    return { reply: parsedObject.reply.trim().slice(0, 12000) };
+  }
+
+  let plainText = String(modelText || "").trim();
+  try {
+    const parsedValue = JSON.parse(plainText);
+    if (typeof parsedValue === "string") plainText = parsedValue.trim();
+    if (isPlainObject(parsedValue)) return null;
+  } catch {
+    // Plain text is the expected Side Chat response format.
+  }
+  plainText = plainText
+    .replace(/^```(?:text|markdown)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+  return plainText ? { reply: plainText.slice(0, 12000) } : null;
+}
+
+async function callRequesty(
+  messages,
+  env,
+  workspaceContext = {},
+  responseMode = "agent_instruction"
+) {
+  const apiKey = getEnvString(env, "REQUESTY_API_KEY");
+  const model = getEnvString(env, "REQUESTY_MODEL");
 
   if (!apiKey || !model) {
     return {
@@ -2862,19 +2985,7 @@ async function callRequesty(messages, env, workspaceContext = {}) {
     };
   }
 
-  const cleanedMessages = Array.isArray(messages)
-    ? messages
-        .filter(
-          (message) =>
-            message &&
-            typeof message.role === "string" &&
-            typeof message.content === "string"
-        )
-        .map((message) => ({
-          role: message.role,
-          content: message.content
-        }))
-    : [];
+  const cleanedMessages = sanitizeChatMessagesForLlm(messages);
 
   if (cleanedMessages.length === 0) {
     return {
@@ -2886,7 +2997,8 @@ async function callRequesty(messages, env, workspaceContext = {}) {
   const requestMessages = [
     {
       role: "system",
-      content: systemPrompt
+      content:
+        responseMode === "side_chat" ? sideChatSystemPrompt : systemPrompt
     }
   ];
   const contextMessage = buildWorkspaceContext(workspaceContext);
@@ -2903,65 +3015,42 @@ async function callRequesty(messages, env, workspaceContext = {}) {
   const requestBody = {
     model,
     messages: requestMessages,
-    temperature: 0.3
+    temperature: 0.3,
+    ...(responseMode === "side_chat" ? { max_tokens: 1800 } : {})
   };
-
-  let response;
-
-  try {
-    response = await fetch(REQUESTY_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(requestBody)
+  const completion = await requestRequestyCompletion(requestBody, apiKey);
+  if (!completion.ok) {
+    console.error("Requesty completion failed:", {
+      stage: "llmChat",
+      error: completion.error,
+      status: completion.status || undefined,
+      mode: responseMode
     });
-  } catch (error) {
-    console.error("Requesty fetch failed:", error.message);
     return {
       ok: false,
-      reason: `Requesty fetch failed: ${error.message}`
+      error: completion.error,
+      reason: completion.message
     };
   }
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    console.error("Requesty non-200 response:", response.status, errorText);
-    return {
-      ok: false,
-      reason: `Requesty returned HTTP ${response.status}`
-    };
-  }
-
-  let responseJson;
-
-  try {
-    responseJson = await response.json();
-  } catch (error) {
-    console.error("Failed to parse Requesty response JSON:", error.message);
-    return {
-      ok: false,
-      reason: "Requesty response was not valid JSON."
-    };
-  }
-
-  const modelText = responseJson?.choices?.[0]?.message?.content;
-
-  if (!modelText) {
-    return {
-      ok: false,
-      reason: "Requesty response did not include assistant content."
-    };
-  }
-
-  const parsedModelOutput = parseModelResponse(modelText);
+  const parsedModelOutput =
+    responseMode === "side_chat"
+      ? parseSideChatResponse(completion.text)
+      : parseModelResponse(completion.text);
 
   if (!parsedModelOutput) {
-    console.error("Model returned invalid structured JSON.");
+    console.error("Model returned an invalid response:", {
+      stage: "llmResponseParse",
+      mode: responseMode,
+      responseCharacters: completion.text.length
+    });
     return {
       ok: false,
-      reason: "Model returned invalid structured JSON."
+      error: "InvalidLlmResponse",
+      reason:
+        responseMode === "side_chat"
+          ? "Model returned no usable Side Chat answer."
+          : "Model returned invalid structured JSON."
     };
   }
 
@@ -3114,6 +3203,8 @@ exports.handler = async function handler(rawEvent, context) {
 
       const body = getRequestBody(event);
       const messages = body.messages;
+      const responseMode =
+        body.mode === "side_chat" ? "side_chat" : "agent_instruction";
       const projectContext =
         typeof body.projectContext === "string"
           ? body.projectContext.trim().slice(0, 4000)
@@ -3243,16 +3334,22 @@ exports.handler = async function handler(rawEvent, context) {
           storedDocumentSummaries: storedDocumentResult.summaries,
           storedDocumentInventory: storedDocumentResult.inventory,
           documentRoutingMode: storedDocumentResult.routingMode
-        }
+        },
+        responseMode
       );
 
       if (!result.ok) {
-        return jsonResponse(makeFallbackResponse(result.reason), 200, event);
+        return jsonResponse(
+          makeFallbackResponse(result.reason, result.error),
+          200,
+          event
+        );
       }
 
       return jsonResponse(
         {
           ...result.data,
+          fallback: false,
           referencesUsed: referenceDocuments.map((document) => document.filename),
           experimentFilesUsed: experimentDocuments.map(
             (document) => document.filename
@@ -3298,5 +3395,6 @@ exports._test = {
   extractPdfDocument,
   getUserStorageSegment,
   isOwnedPdfObjectKey,
+  sanitizeChatMessagesForLlm,
   sanitizePdfFilename
 };

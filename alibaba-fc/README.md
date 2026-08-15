@@ -148,7 +148,7 @@ The PDF workflow uses the existing JWT bearer login and these document endpoints
 - `POST /api/documents/upload-url` validates a PDF name and size, creates an application-controlled key under the authenticated account prefix, and returns a five-minute OSS V4 signed PUT URL.
 - `POST /api/documents/review` runs only after an explicit user action. It reviews an owned PDF and caches the structured result as `.paper-review.json` in the same UUID folder. A repeated request returns that cache unless `force: true` is supplied.
 - `POST /api/documents/delete` permanently deletes the owned PDF and its cached review sidecar.
-- `POST /chat` receives a PDF inventory, summary-availability flags, and up to three selected keys. It uses cached summaries for relevance routing, reads full text only for explicit/relevant PDFs, and uses summary map-reduce for large collection-wide questions.
+- `POST /chat` receives a PDF inventory, summary-availability flags, up to three selected keys, and bounded recent user/assistant history. Side Chat accepts normal plain-text model replies instead of requiring the full recommendation JSON schema. It uses cached summaries for relevance routing, reads full text only for explicit/relevant PDFs, and uses summary map-reduce for large collection-wide questions. One short retry is attempted for transient HTTP 408, 425, 429, and 5xx Requesty responses.
 
 The browser never selects a bucket or object path. Keys have this form:
 
@@ -220,7 +220,7 @@ curl -sS "$FC_URL/api/documents" \
 
 The delete response must contain `"deleted": true`, and the key must no longer appear in the list or under the account prefix in the OSS console.
 
-Without a metadata database, restored PDFs are placed in Literature & References even if they were originally uploaded inside an experiment module. Up to 100 owned PDFs are shown. Full-text chat context is capped at three routed PDFs and 26,000 characters; collection questions use cached summaries and clearly identify unsummarized files.
+Without a metadata database, restored PDFs are placed in Literature & References even if they were originally uploaded inside an experiment module. Up to 100 owned PDFs are shown. Full-text chat context is capped at three routed PDFs and 26,000 characters; collection questions over 10–20 papers use cached summaries and clearly identify unsummarized files. Conversation history and the current paper focus are capped at 20 messages, 24,000 characters, and three object keys; they are stored only in browser session storage for the current account, ownership-checked again by Function Compute, and can be removed with Clear chat.
 
 Negative checks:
 

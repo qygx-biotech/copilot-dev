@@ -21,6 +21,9 @@ const objectStore = new Map();
 let deleteCalls = 0;
 let pdfGetCalls = 0;
 let llmFetchCalls = 0;
+const queuedChatCompletionTexts = [];
+const queuedChatHttpStatuses = [];
+const capturedLlmRequests = [];
 
 OSS.prototype.getObjectMeta = async function getObjectMeta(objectKey) {
   assert.match(
@@ -99,7 +102,24 @@ OSS.prototype.delete = async function deleteObject(objectKey) {
 global.fetch = async (_url, options = {}) => {
   llmFetchCalls += 1;
   const request = JSON.parse(options.body || "{}");
+  capturedLlmRequests.push(request);
   const systemMessage = String(request.messages?.[0]?.content || "");
+  if (
+    !systemMessage.includes("one excerpt of an academic paper") &&
+    !systemMessage.includes("combine evidence summaries") &&
+    queuedChatHttpStatuses.length
+  ) {
+    const status = queuedChatHttpStatuses.shift();
+    if (status !== 200) {
+      return new Response(JSON.stringify({ error: { message: "transient" } }), {
+        status,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "0"
+        }
+      });
+    }
+  }
   let content;
 
   if (systemMessage.includes("one excerpt of an academic paper")) {
@@ -121,17 +141,19 @@ global.fetch = async (_url, options = {}) => {
       main_conclusion: "The tested workflow preserved evidence successfully."
     });
   } else {
-    content = JSON.stringify({
-      reply: "The stored PDF evidence was available to Side Chat.",
-      project: {
-        summary: "Stored PDF reviewed.",
-        organism: "Not applicable",
-        missingInformation: [],
-        safetyLevel: "Planning review",
-        safetyNotes: "Human review remains required.",
-        draftMemo: "The stored PDF was included as evidence."
-      }
-    });
+    content = queuedChatCompletionTexts.length
+      ? queuedChatCompletionTexts.shift()
+      : JSON.stringify({
+          reply: "The stored PDF evidence was available to Side Chat.",
+          project: {
+            summary: "Stored PDF reviewed.",
+            organism: "Not applicable",
+            missingInformation: [],
+            safetyLevel: "Planning review",
+            safetyNotes: "Human review remains required.",
+            draftMemo: "The stored PDF was included as evidence."
+          }
+        });
   }
 
   return new Response(
@@ -187,6 +209,9 @@ test("frontend upload does not automatically invoke PDF review", () => {
   assert.doesNotMatch(uploadFunction, /\/api\/documents\/review/);
   assert.match(frontendSource, /referenceFolderInput/);
   assert.match(frontendSource, /addSideChatThinking/);
+  assert.match(frontendSource, /SIDE_CHAT_HISTORY_STORAGE_KEY/);
+  assert.match(frontendSource, /recordSideChatExchange/);
+  assert.match(frontendSource, /if \(!response\.fallback\)/);
 });
 
 function makeMachineReadablePdf() {
@@ -522,6 +547,86 @@ test("existing chat can retrieve an owned stored PDF as evidence", async () => {
   assert.deepEqual(body.storedPdfsUsed, ["side-chat-paper.pdf"]);
 });
 
+test("Side Chat accepts plain-text follow-ups and preserves multi-round history", async () => {
+  capturedLlmRequests.length = 0;
+  queuedChatCompletionTexts.push("The first conversational answer.");
+  const firstResponse = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [{ role: "user", content: "Explain the main result." }]
+    }),
+    context
+  );
+  const firstBody = parseResponse(firstResponse);
+  assert.equal(firstResponse.statusCode, 200);
+  assert.equal(firstBody.fallback, false);
+  assert.equal(firstBody.reply, "The first conversational answer.");
+
+  queuedChatCompletionTexts.push(
+    "The limitation follows from the small validation cohort."
+  );
+  const secondResponse = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [
+        { role: "user", content: "Explain the main result." },
+        { role: "assistant", content: firstBody.reply },
+        { role: "user", content: "What limitation did you just mention?" }
+      ]
+    }),
+    context
+  );
+  const secondBody = parseResponse(secondResponse);
+  assert.equal(secondResponse.statusCode, 200);
+  assert.equal(secondBody.fallback, false);
+  assert.equal(
+    secondBody.reply,
+    "The limitation follows from the small validation cohort."
+  );
+
+  const request = capturedLlmRequests.at(-1);
+  assert.equal(request.max_tokens, 1800);
+  assert.deepEqual(
+    request.messages
+      .filter((message) => message.role !== "system")
+      .map((message) => message.role),
+    ["user", "assistant", "user"]
+  );
+});
+
+test("Side Chat retries one transient Requesty response", async () => {
+  const callsBefore = llmFetchCalls;
+  queuedChatHttpStatuses.push(429, 200);
+  queuedChatCompletionTexts.push("The retry completed successfully.");
+  const response = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [{ role: "user", content: "Please retry this question." }]
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.fallback, false);
+  assert.equal(body.reply, "The retry completed successfully.");
+  assert.equal(llmFetchCalls - callsBefore, 2);
+});
+
+test("chat history is bounded while retaining the latest turn", () => {
+  const messages = Array.from({ length: 30 }, (_, index) => ({
+    role: index % 2 ? "assistant" : "user",
+    content: `${index}:${"x".repeat(3990)}`
+  }));
+  const sanitized = _test.sanitizeChatMessagesForLlm(messages);
+  assert.ok(sanitized.length <= 20);
+  assert.equal(sanitized[0].role, "user");
+  assert.equal(sanitized.at(-1).content.startsWith("29:"), true);
+  assert.ok(
+    sanitized.reduce((total, message) => total + message.content.length, 0) <=
+      24000
+  );
+});
+
 test("side chat routes by cached summaries and avoids loading unrelated PDFs", async () => {
   const pdf = makeMachineReadablePdf();
   const alphaKey = _test.buildOwnedPdfObjectKey(
@@ -599,5 +704,63 @@ test("side chat routes by cached summaries and avoids loading unrelated PDFs", a
     "beta-fermentation.pdf"
   ]);
   assert.equal(collectionBody.documentScope.mode, "collection-summaries");
+  assert.equal(pdfGetCalls, 0);
+});
+
+test("collection chat uses cached summaries for twenty papers without loading PDFs", async () => {
+  const storedDocuments = [];
+  for (let index = 1; index <= 20; index += 1) {
+    const objectKey = _test.buildOwnedPdfObjectKey(
+      process.env.ADMIN_ACCOUNT,
+      `collection-paper-${String(index).padStart(2, "0")}.pdf`
+    );
+    objectStore.set(objectKey, {
+      buffer: makeMachineReadablePdf(),
+      contentType: "application/pdf"
+    });
+    objectStore.set(objectKey.replace(/[^/]+$/, ".paper-review.json"), {
+      buffer: Buffer.from(
+        JSON.stringify({
+          version: 1,
+          objectKey,
+          filename: objectKey.split("/").pop(),
+          language: "en",
+          updatedAt: "2026-08-15T02:00:00.000Z",
+          review: {
+            title: `Collection paper ${index}`,
+            summary: `Paper ${index} reports a distinct evidence result.`,
+            research_question: `Research question ${index}.`,
+            methods: `Method ${index}.`,
+            key_results: [`Result ${index}.`],
+            limitations: [`Limitation ${index}.`],
+            main_conclusion: `Conclusion ${index}.`
+          }
+        })
+      ),
+      contentType: "application/json"
+    });
+    storedDocuments.push({ objectKey, summaryAvailable: true });
+  }
+
+  pdfGetCalls = 0;
+  queuedChatCompletionTexts.push(
+    "The twenty cached paper summaries were compared without loading full PDFs."
+  );
+  const response = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [
+        { role: "user", content: "Compare all twenty papers in the collection." }
+      ],
+      storedDocuments
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.fallback, false);
+  assert.equal(body.documentScope.mode, "collection-summaries");
+  assert.equal(body.storedPdfSummariesUsed.length, 20);
+  assert.equal(body.storedPdfsUsed.length, 0);
   assert.equal(pdfGetCalls, 0);
 });
