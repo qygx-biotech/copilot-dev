@@ -10,6 +10,11 @@ const {
   chunkLiteratureText,
   extractLocalPdf,
 } = require("../../docs/literature-module.js");
+const {
+  ProjectContextService,
+  WorkspaceChatStore,
+  flattenWorkspaceTree,
+} = require("../../docs/project-context-service.js");
 
 function notFound(message) {
   const error = new Error(message);
@@ -255,6 +260,79 @@ test("different selected folders remain independent workspaces", async () => {
   assert.equal(restored.state.project.goal, "First goal");
 });
 
+test("workspace tree recursively reflects local files and hides .biodesign", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  await manager.ensureDirectory("experiments/fermentation");
+  await manager.ensureDirectory("sequences/archive");
+  await manager.writeFile("experiments/fermentation/run1.xlsx", new Blob(["sheet"]));
+  await manager.writeFile("sequences/archive/ectd.fasta", new Blob([">ectd\nATGC"]));
+  await manager.writeFile("notes.txt", new Blob(["project notes"]));
+
+  const tree = await manager.scanDirectoryTree();
+  const entries = flattenWorkspaceTree(tree);
+  const paths = entries.map((entry) => entry.relativePath);
+
+  assert.equal(tree.name, "EctD Optimization");
+  assert.ok(paths.includes("experiments/fermentation/run1.xlsx"));
+  assert.ok(paths.includes("sequences/archive/ectd.fasta"));
+  assert.ok(paths.includes("notes.txt"));
+  assert.ok(paths.every((path) => !path.startsWith(".biodesign")));
+  const run = entries.find(
+    (entry) => entry.relativePath === "experiments/fermentation/run1.xlsx"
+  );
+  assert.equal(run.type, "file");
+  assert.equal(run.size, 5);
+  assert.ok(Number.isFinite(run.lastModified));
+});
+
+test("Side Chat conversations persist locally and clear without touching project files", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  await manager.writeFile("notes.txt", new Blob(["keep me"]));
+  const store = new WorkspaceChatStore({
+    workspace: manager,
+    now: () => new Date("2026-08-20T06:00:00.000Z"),
+  });
+  let conversation = await store.loadActiveConversation();
+  conversation.messages.push(
+    {
+      id: manager.createId(),
+      role: "user",
+      content: "Compare these papers.",
+      context: {
+        type: "files",
+        files: ["literature/paper1.pdf", "literature/paper2.pdf"],
+      },
+      createdAt: "2026-08-20T06:01:00.000Z",
+    },
+    {
+      id: manager.createId(),
+      role: "assistant",
+      content: "They use different activity assays.",
+      createdAt: "2026-08-20T06:01:10.000Z",
+    }
+  );
+  conversation = await store.saveConversation(conversation);
+  const originalId = conversation.id;
+
+  const restoredStore = new WorkspaceChatStore({ workspace: manager });
+  const restored = await restoredStore.loadActiveConversation();
+  assert.equal(restored.id, originalId);
+  assert.equal(restored.messages.length, 2);
+  assert.deepEqual(restored.messages[0].context.files, [
+    "literature/paper1.pdf",
+    "literature/paper2.pdf",
+  ]);
+
+  const cleared = await restoredStore.clearActiveConversation();
+  assert.notEqual(cleared.id, originalId);
+  assert.deepEqual(cleared.messages, []);
+  assert.equal(
+    await manager.fileExists(`.biodesign/chat/conversations/${originalId}.json`),
+    false
+  );
+  assert.equal(await (await manager.readFile("notes.txt")).text(), "keep me");
+});
+
 test("workspace state rejects secret-bearing keys without overwriting the file", async () => {
   const { manager } = await makeInitializedWorkspace();
   const before = await (await manager.readFile(".biodesign/state.json")).text();
@@ -268,6 +346,24 @@ test("workspace state rejects secret-bearing keys without overwriting the file",
   const after = await (await manager.readFile(".biodesign/state.json")).text();
   assert.equal(after, before);
   assert.doesNotMatch(after, /must-not-be-written/);
+
+  await assert.rejects(
+    manager.writeJson(".biodesign/chat/conversations/leak.json", {
+      schemaVersion: 1,
+      id: "leak",
+      title: "Leak test",
+      createdAt: "2026-08-20T05:00:00.000Z",
+      updatedAt: "2026-08-20T05:00:00.000Z",
+      summary: "",
+      messages: [],
+      authToken: "must-not-be-written",
+    }),
+    (error) => error.code === "INVALID_CHAT_CONVERSATION"
+  );
+  assert.equal(
+    await manager.fileExists(".biodesign/chat/conversations/leak.json"),
+    false
+  );
 });
 
 test("literature scan preserves IDs across refresh and marks changed PDFs stale", async () => {
@@ -417,6 +513,124 @@ test("local PDF map-reduce sends text only to FC and restores the local cache", 
   assert.equal(second.cached, true);
   assert.equal(capturedChunks.length, chunkCalls);
   assert.equal(syntheses, 1);
+});
+
+test("Side Chat context processes selected PDFs on demand and reuses their cache", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  await manager.writeFile("literature/activity.pdf", new Blob(["%PDF-fake"]));
+  await manager.ensureDirectory("experiments");
+  await manager.writeFile("experiments/run.xlsx", new Blob(["spreadsheet bytes"]));
+  let chunkCalls = 0;
+  let synthesisCalls = 0;
+  let extractionCalls = 0;
+  const sourceText = `${"The third experiment used an exact concentration of 25 micromolar in the activity assay. ".repeat(120)}`;
+  const pdfjsLib = {
+    GlobalWorkerOptions: {},
+    getDocument() {
+      extractionCalls += 1;
+      return {
+        promise: Promise.resolve({
+          numPages: 1,
+          getPage: async () => ({
+            getTextContent: async () => ({
+              items: [{ str: sourceText, hasEOL: true }],
+            }),
+          }),
+          getMetadata: async () => ({ info: { Title: "Activity paper" } }),
+          destroy: async () => {},
+        }),
+      };
+    },
+  };
+  const literature = new LiteratureModule({
+    workspace: manager,
+    pdfjsLib,
+    api: {
+      async summarizeChunk() {
+        chunkCalls += 1;
+        return {
+          summary: "Activity evidence",
+          researchQuestion: "Which condition improves activity?",
+          methods: "Activity assay",
+          keyResults: ["Condition A improved activity"],
+          limitations: ["Single assay"],
+          mainConclusion: "Condition A was preferred",
+        };
+      },
+      async synthesize() {
+        synthesisCalls += 1;
+        return {
+          title: "Activity paper",
+          summary: "The paper compares activity conditions.",
+          researchQuestion: "Which condition improves activity?",
+          methods: "Activity assay",
+          keyResults: ["Condition A improved activity"],
+          limitations: ["Single assay"],
+          mainConclusion: "Condition A was preferred",
+          keywords: ["activity"],
+        };
+      },
+    },
+    config: { chunkCharacters: 4000, chunkOverlap: 100, maxChunks: 8 },
+  });
+  await literature.scan();
+  const tree = await manager.scanDirectoryTree();
+  const service = new ProjectContextService({ workspace: manager, literature });
+
+  const metadataOnly = await service.buildContext({
+    question: "What files are selected?",
+    selectedPaths: ["literature/activity.pdf"],
+    workspaceTree: tree,
+    projectGoal: "Improve enzyme activity",
+  });
+  assert.equal(metadataOnly.files[0].analysisStatus, "unprocessed");
+  assert.equal(chunkCalls, 0);
+  assert.equal(synthesisCalls, 0);
+  assert.equal(extractionCalls, 0);
+
+  const first = await service.buildContext({
+    question: "Summarize this paper.",
+    selectedPaths: ["literature/activity.pdf"],
+    workspaceTree: tree,
+    projectGoal: "Improve enzyme activity",
+  });
+  assert.equal(first.scope.type, "files");
+  assert.equal(first.files[0].analysisStatus, "processed");
+  assert.equal(first.files[0].evidenceType, "generated-summary");
+  assert.ok(chunkCalls > 0);
+  assert.equal(synthesisCalls, 1);
+
+  const callsAfterFirstTurn = chunkCalls;
+  const second = await service.buildContext({
+    question: "What are its limitations?",
+    selectedPaths: ["literature/activity.pdf"],
+    workspaceTree: tree,
+    projectGoal: "Improve enzyme activity",
+  });
+  assert.equal(second.files[0].evidenceType, "cached-summary");
+  assert.equal(chunkCalls, callsAfterFirstTurn);
+  assert.equal(synthesisCalls, 1);
+
+  const detailed = await service.buildContext({
+    question: "What exact concentration did the third experiment use?",
+    selectedPaths: ["literature/activity.pdf"],
+    workspaceTree: tree,
+    projectGoal: "Improve enzyme activity",
+  });
+  assert.match(detailed.files[0].evidenceType, /source-excerpts/);
+  assert.match(detailed.files[0].content, /25 micromolar/i);
+  assert.ok(extractionCalls >= 2);
+  assert.equal(synthesisCalls, 1);
+
+  const unsupported = await service.buildContext({
+    question: "What does this spreadsheet show?",
+    selectedPaths: ["experiments/run.xlsx"],
+    workspaceTree: tree,
+    projectGoal: "Improve enzyme activity",
+  });
+  assert.equal(unsupported.files[0].analysisStatus, "unsupported");
+  assert.equal(unsupported.files[0].content, "");
+  assert.match(unsupported.notices[0], /do not yet have an AI content processor/);
 });
 
 test("an LLM failure leaves the literature index valid and writes no summary", async () => {

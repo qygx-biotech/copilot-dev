@@ -16,6 +16,7 @@
     ".biodesign/literature/cache",
     ".biodesign/experiments",
     ".biodesign/chat",
+    ".biodesign/chat/conversations",
     ".biodesign/cache",
   ];
 
@@ -115,7 +116,8 @@
         typeof document.id !== "string" ||
         !document.id ||
         typeof document.relativePath !== "string" ||
-        !document.relativePath.startsWith("literature/") ||
+        !document.relativePath ||
+        document.relativePath.startsWith(".biodesign/") ||
         typeof document.filename !== "string" ||
         !document.filename ||
         !Number.isFinite(Number(document.size)) ||
@@ -154,6 +156,85 @@
     return value;
   }
 
+  function assertChatIndex(value) {
+    if (
+      !isPlainObject(value) ||
+      value.schemaVersion !== WORKSPACE_SCHEMA_VERSION ||
+      typeof value.activeConversationId !== "string" ||
+      !Array.isArray(value.conversations) ||
+      typeof value.updatedAt !== "string" ||
+      containsForbiddenSecretKey(value)
+    ) {
+      throw new WorkspaceError(
+        "INVALID_CHAT_INDEX",
+        "The Side Chat index does not match the supported schema."
+      );
+    }
+
+    for (const conversation of value.conversations) {
+      if (
+        !isPlainObject(conversation) ||
+        typeof conversation.id !== "string" ||
+        !conversation.id ||
+        typeof conversation.title !== "string" ||
+        typeof conversation.createdAt !== "string" ||
+        typeof conversation.updatedAt !== "string" ||
+        !Number.isFinite(Number(conversation.messageCount))
+      ) {
+        throw new WorkspaceError(
+          "INVALID_CHAT_INDEX",
+          "The Side Chat index contains an invalid conversation record."
+        );
+      }
+    }
+    return value;
+  }
+
+  function assertChatConversation(value) {
+    if (
+      !isPlainObject(value) ||
+      value.schemaVersion !== WORKSPACE_SCHEMA_VERSION ||
+      typeof value.id !== "string" ||
+      !value.id ||
+      typeof value.title !== "string" ||
+      typeof value.createdAt !== "string" ||
+      typeof value.updatedAt !== "string" ||
+      typeof value.summary !== "string" ||
+      !Array.isArray(value.messages) ||
+      containsForbiddenSecretKey(value)
+    ) {
+      throw new WorkspaceError(
+        "INVALID_CHAT_CONVERSATION",
+        "The Side Chat conversation does not match the supported schema."
+      );
+    }
+
+    for (const message of value.messages) {
+      const validContext =
+        message?.context === undefined ||
+        (isPlainObject(message.context) &&
+          (message.context.type === "project" || message.context.type === "files") &&
+          Array.isArray(message.context.files) &&
+          message.context.files.every((path) => typeof path === "string"));
+      if (
+        !isPlainObject(message) ||
+        typeof message.id !== "string" ||
+        !message.id ||
+        (message.role !== "user" && message.role !== "assistant") ||
+        typeof message.content !== "string" ||
+        !message.content.trim() ||
+        typeof message.createdAt !== "string" ||
+        !validContext
+      ) {
+        throw new WorkspaceError(
+          "INVALID_CHAT_CONVERSATION",
+          "The Side Chat conversation contains an invalid message."
+        );
+      }
+    }
+    return value;
+  }
+
   function validateKnownJson(path, value) {
     if (path === ".biodesign/workspace.json") return assertWorkspaceMetadata(value);
     if (path === ".biodesign/state.json") return assertWorkspaceState(value);
@@ -161,8 +242,18 @@
     if (/^\.biodesign\/literature\/summaries\/[^/]+\.json$/.test(path)) {
       return assertLiteratureSummary(value);
     }
+    if (path === ".biodesign/chat/index.json") return assertChatIndex(value);
+    if (/^\.biodesign\/chat\/conversations\/[^/]+\.json$/.test(path)) {
+      return assertChatConversation(value);
+    }
     if (!isPlainObject(value) && !Array.isArray(value)) {
       throw new WorkspaceError("INVALID_JSON_DATA", "Workspace JSON must be an object or array.");
+    }
+    if (containsForbiddenSecretKey(value)) {
+      throw new WorkspaceError(
+        "FORBIDDEN_SECRET_DATA",
+        "Workspace JSON cannot contain passwords, tokens, API keys, or credentials."
+      );
     }
     return value;
   }
@@ -289,6 +380,7 @@
       const managedFiles = [
         ".biodesign/state.json",
         ".biodesign/literature/index.json",
+        ".biodesign/chat/index.json",
       ];
       for (const path of managedFiles) {
         if (await this.fileExists(path)) {
@@ -327,11 +419,18 @@
         documents: [],
         updatedAt: timestamp,
       };
+      const chatIndex = {
+        schemaVersion: WORKSPACE_SCHEMA_VERSION,
+        activeConversationId: "",
+        conversations: [],
+        updatedAt: timestamp,
+      };
 
       // workspace.json is deliberately written last. A partially failed setup is
       // never mistaken for a complete BioDesign workspace.
       await this.writeJson(".biodesign/state.json", state);
       await this.writeJson(".biodesign/literature/index.json", literatureIndex);
+      await this.writeJson(".biodesign/chat/index.json", chatIndex);
       await this.writeJson(".biodesign/workspace.json", workspace);
 
       this.workspace = workspace;
@@ -350,6 +449,16 @@
       // Recreate only managed directories. No unrelated file is read, changed,
       // uploaded, or removed.
       for (const path of MANAGED_DIRECTORIES) await this.ensureDirectory(path);
+      if (!(await this.fileExists(".biodesign/chat/index.json"))) {
+        await this.writeJson(".biodesign/chat/index.json", {
+          schemaVersion: WORKSPACE_SCHEMA_VERSION,
+          activeConversationId: "",
+          conversations: [],
+          updatedAt: this.now().toISOString(),
+        });
+      } else {
+        await this.readJson(".biodesign/chat/index.json");
+      }
       this.workspace = workspace;
       this.state = state;
       return { workspace, state, initialized: false };
@@ -567,6 +676,68 @@
       };
     }
 
+    async scanDirectoryTree(options = {}) {
+      this.requireRoot();
+      const excludedNames = new Set(
+        Array.isArray(options.excludeNames) ? options.excludeNames : [".biodesign"]
+      );
+
+      const visit = async (directory, parentPath = "") => {
+        const children = [];
+        for await (const [name, entry] of directory.entries()) {
+          if (excludedNames.has(name)) continue;
+          const relativePath = parentPath ? `${parentPath}/${name}` : name;
+          if (entry.kind === "directory") {
+            children.push({
+              name,
+              relativePath,
+              type: "directory",
+              size: null,
+              lastModified: null,
+              children: await visit(entry, relativePath),
+            });
+            continue;
+          }
+
+          const file = await entry.getFile();
+          children.push({
+            name,
+            relativePath,
+            type: "file",
+            mimeType: file.type || "application/octet-stream",
+            size: Number(file.size),
+            lastModified: Number(file.lastModified),
+            children: [],
+          });
+        }
+
+        return children.sort((left, right) => {
+          if (left.type !== right.type) return left.type === "directory" ? -1 : 1;
+          return left.name.localeCompare(right.name, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+        });
+      };
+
+      try {
+        return {
+          name: this.rootHandle.name || this.workspace?.name || "BioDesign Workspace",
+          relativePath: "",
+          type: "directory",
+          size: null,
+          lastModified: null,
+          children: await visit(this.rootHandle),
+        };
+      } catch (error) {
+        throw new WorkspaceError(
+          "SCAN_FAILED",
+          "Could not scan the selected workspace folder.",
+          error
+        );
+      }
+    }
+
     closeWorkspace() {
       this.rootHandle = null;
       this.workspace = null;
@@ -585,6 +756,8 @@
     WORKSPACE_SCHEMA_VERSION,
     WorkspaceError,
     WorkspaceManager,
+    assertChatConversation,
+    assertChatIndex,
     assertLiteratureIndex,
     assertLiteratureSummary,
     assertWorkspaceMetadata,

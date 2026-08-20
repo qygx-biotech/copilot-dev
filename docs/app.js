@@ -32,12 +32,12 @@ const backendStatusLabel = document.querySelector("#backendStatusLabel");
 const languageSelects = document.querySelectorAll("[data-language-select]");
 
 const projectContextInput = document.querySelector("#projectContext");
-const referenceFileInput = document.querySelector("#referenceFileInput");
-const referenceFileList = document.querySelector("#referenceFileList");
-const refreshLiteratureButton = document.querySelector("#refreshLiteratureButton");
-const summarizeAllReferencesButton = document.querySelector(
-  "#summarizeAllReferencesButton"
+const workspaceTreeContainer = document.querySelector("#workspaceTree");
+const refreshWorkspaceButton = document.querySelector("#refreshWorkspaceButton");
+const clearWorkspaceSelectionButton = document.querySelector(
+  "#clearWorkspaceSelectionButton"
 );
+const workspaceSelectionCount = document.querySelector("#workspaceSelectionCount");
 const experimentSummaryList = document.querySelector("#experimentSummaryList");
 const experimentModuleCards = document.querySelectorAll("[data-experiment-module]");
 
@@ -50,6 +50,7 @@ const sideChatHistory = document.querySelector("#sideChatHistory");
 const sendSideChatButton = document.querySelector("#sendSideChatButton");
 const clearSideChatButton = document.querySelector("#clearSideChatButton");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
+const sideChatContextChips = document.querySelector("#sideChatContextChips");
 
 const MAX_REFERENCE_FILES = 100;
 const MAX_BROWSER_REFERENCE_FILES = 8;
@@ -86,10 +87,6 @@ const LEGACY_EXPERIMENT_NOTES_STORAGE_KEY = "biodesign_workbench_experiment_note
 const RECOMMENDATION_STORAGE_KEY = "biodesign_workbench_recommendation";
 const ANALYSIS_PANELS_STORAGE_KEY = "biodesign_workbench_analysis_panels";
 const LANGUAGE_STORAGE_KEY = "biodesign_workbench_language";
-const SIDE_CHAT_HISTORY_STORAGE_KEY = "biodesign_workbench_side_chat_history";
-const MAX_SIDE_CHAT_HISTORY_MESSAGES = 20;
-const MAX_SIDE_CHAT_MESSAGE_CHARACTERS = 4000;
-const TOTAL_SIDE_CHAT_HISTORY_CHARACTERS = 24000;
 const EXPERIMENT_MODULE_DEFINITIONS = [
   {
     key: "strainEngineering",
@@ -183,6 +180,18 @@ const I18N = {
     projectContextTitle: "Project context / goal",
     projectContextPlaceholder:
       "Describe the project goal in plain language, e.g. We are trying to improve a pathway, understand failed experiments, compare enzyme variants, or summarize recent literature.",
+    workspacePanelEyebrow: "Workspace",
+    workspacePanelTitle: "Workspace",
+    workspacePanelHelper:
+      "This explorer reflects the selected local folder. Select files to set the context for Side Chat.",
+    refreshWorkspace: "Refresh",
+    clearSelection: "Clear selection",
+    noFilesSelected: "No files selected",
+    filesSelected: "{count} files selected",
+    workspaceTreeUnavailable: "Open a workspace to browse its files.",
+    workspaceRefreshed: "Workspace refreshed: {count} files found.",
+    entireProjectContext: "Entire Project",
+    removeContextFile: "Remove {name} from Side Chat context",
     referencesEyebrow: "Literature & References",
     referencesTitle: "Literature & References",
     uploadReferences: "Upload references",
@@ -260,12 +269,14 @@ const I18N = {
     sideChatEyebrow: "Side Chat",
     sideChatTitle: "Side Chat",
     sideChatHelper: "Ask questions without changing the current recommendation.",
-    sideExampleFiles: "Summarize the uploaded files.",
-    sideExamplePatterns: "What patterns do you see in the experiment sheets?",
+    sideChatContextLabel: "Context",
+    sideExampleFiles: "Summarize the selected files.",
+    sideExamplePatterns: "Compare the selected papers.",
     sideExamplePaper: "What does this paper suggest?",
     sideExampleClarify: "What should I clarify before running the main analysis?",
     sideQuestionLabel: "Side question",
     clearSideChat: "Clear chat",
+    clearSideChatConfirm: "Clear this Side Chat conversation? Workspace files and paper summaries will not be changed.",
     sideChatPlaceholder: "Ask a question without updating the project plan...",
     askButton: "Ask",
     backendProviderAlibaba: "Alibaba FC backend",
@@ -289,6 +300,14 @@ const I18N = {
     recommendationUpdated: "Recommendation updated. Scientist review required.",
     sideChatIntro: "Ask questions here without changing the current recommendation.",
     sideChatNoAnswer: "No side-chat answer returned.",
+    unsupportedSelectedFilesChat:
+      "The selected file is visible in the workspace, but this file type does not yet have a processor for AI analysis. PDF analysis is supported in this version.",
+    chatPersistenceFailed: "Side Chat could not be saved in the local workspace.",
+    sideChatContextFailed: "I could not prepare the selected local context: {message}",
+    sideChatPreparingPdf: "Preparing {name}...",
+    sideChatProcessingPdf: "Processing {name}: chunk {done} of {total}",
+    sideChatSynthesizingPdf: "Building cached understanding for {name}...",
+    sideChatReadingDetail: "Reading source detail from {name}...",
     fileLimit: "Only {count} files can be attached in this MVP.",
     fileAdded: "Added {name}.",
     pdfUploading: "Uploading {name} to private OSS...",
@@ -485,6 +504,17 @@ const I18N = {
     projectContextTitle: "项目背景 / 目标",
     projectContextPlaceholder:
       "用自然语言描述项目目标，例如：我们想改进某条通路、理解失败实验、比较酶变体，或总结近期文献。",
+    workspacePanelEyebrow: "工作区",
+    workspacePanelTitle: "工作区",
+    workspacePanelHelper: "此资源管理器显示所选本地文件夹。选择文件可设置侧边问答的上下文。",
+    refreshWorkspace: "刷新",
+    clearSelection: "清除选择",
+    noFilesSelected: "未选择文件",
+    filesSelected: "已选择 {count} 个文件",
+    workspaceTreeUnavailable: "打开工作区后可浏览文件。",
+    workspaceRefreshed: "工作区已刷新：发现 {count} 个文件。",
+    entireProjectContext: "整个项目",
+    removeContextFile: "从侧边问答上下文移除 {name}",
     referencesEyebrow: "文献与参考资料",
     referencesTitle: "文献与参考资料",
     uploadReferences: "上传参考资料",
@@ -562,12 +592,14 @@ const I18N = {
     sideChatEyebrow: "侧边问答",
     sideChatTitle: "侧边问答",
     sideChatHelper: "在不改变当前推荐的情况下提问。",
-    sideExampleFiles: "总结已上传的文件。",
-    sideExamplePatterns: "你在实验表格里看到了什么模式？",
+    sideChatContextLabel: "上下文",
+    sideExampleFiles: "总结所选文件。",
+    sideExamplePatterns: "比较所选论文。",
     sideExamplePaper: "这篇论文提示了什么？",
     sideExampleClarify: "运行主分析前我应该澄清什么？",
     sideQuestionLabel: "侧边问题",
     clearSideChat: "清空问答",
+    clearSideChatConfirm: "清空当前侧边问答吗？工作区文件和论文摘要不会改变。",
     sideChatPlaceholder: "提出一个不会更新项目计划的问题...",
     askButton: "提问",
     backendProviderAlibaba: "阿里云 FC 后端",
@@ -591,6 +623,14 @@ const I18N = {
     recommendationUpdated: "推荐已更新，仍需科学家审阅。",
     sideChatIntro: "在这里提问不会改变当前推荐。",
     sideChatNoAnswer: "侧边问答没有返回内容。",
+    unsupportedSelectedFilesChat:
+      "所选文件在工作区中可见，但此文件类型目前还没有可用于 AI 分析的处理器。本版本支持 PDF 分析。",
+    chatPersistenceFailed: "无法将侧边问答保存到本地工作区。",
+    sideChatContextFailed: "无法准备所选本地上下文：{message}",
+    sideChatPreparingPdf: "正在准备 {name}...",
+    sideChatProcessingPdf: "正在处理 {name}：第 {done}/{total} 个文本块",
+    sideChatSynthesizingPdf: "正在为 {name} 建立缓存理解...",
+    sideChatReadingDetail: "正在读取 {name} 的源文件细节...",
     fileLimit: "本 MVP 最多可附加 {count} 个文件。",
     fileAdded: "已添加 {name}。",
     pdfUploading: "正在将 {name} 上传到私有 OSS...",
@@ -741,12 +781,12 @@ let referenceDocuments = [];
 let experimentModules = loadExperimentModules();
 let analysisPanels = loadAnalysisPanels();
 let currentRecommendation = getCurrentRecommendation();
-let sideChatHistoryAccount = currentAccount;
-let sideChatMessages = loadSideChatMessages(currentAccount);
+let sideChatMessages = [];
+let sideChatConversation = null;
 let activeAgentRequest = false;
 let activeAgentPanelId = "";
 let activePdfUploads = 0;
-let activeSideChatDocumentKeys = loadSideChatDocumentKeys(currentAccount);
+let activeSideChatDocumentKeys = [];
 let sideChatBusy = false;
 const workspaceManager = new WorkspaceManager();
 const literatureApiClient = new LiteratureApiClient({
@@ -759,6 +799,11 @@ let workspaceAbortController = null;
 let workspaceStateSaveTimer = null;
 let workspaceStateWrite = Promise.resolve();
 let activeLiteratureOperations = 0;
+let workspaceTree = null;
+let selectedWorkspacePaths = new Set();
+let expandedWorkspacePaths = new Set([""]);
+let projectContextService = null;
+let workspaceChatStore = null;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -825,7 +870,6 @@ loginForm.addEventListener("submit", async (event) => {
     }
 
     setAuthSession(data.token, loggedInAccount);
-    restoreSideChatHistoryForAccount(loggedInAccount);
     showAuthenticated(loggedInAccount);
   } catch (error) {
     console.warn("Login failed.", error);
@@ -914,28 +958,35 @@ projectContextInput.addEventListener("input", () => {
   scheduleWorkspaceStateSave();
 });
 
-referenceFileInput.addEventListener("change", async (event) => {
-  const files = Array.from(event.target.files || []);
-  if (!files.length || !literatureModule) return;
-  activePdfUploads += 1;
-  try {
-    const result = await literatureModule.addFiles(files);
-    applyLiteratureScan(result.documents);
-    showToast(t("literatureAdded", { count: result.addedNames.length }));
-  } catch (error) {
-    showToast(error.message || t("fileParseFailed", { name: "PDF" }));
-  } finally {
-    activePdfUploads = Math.max(0, activePdfUploads - 1);
-    referenceFileInput.value = "";
-  }
+refreshWorkspaceButton.addEventListener("click", async () => {
+  await refreshWorkspaceExplorer(true);
 });
 
-summarizeAllReferencesButton.addEventListener("click", async () => {
-  await summarizeAllStoredReferences();
+clearWorkspaceSelectionButton.addEventListener("click", () => {
+  selectedWorkspacePaths.clear();
+  syncWorkspaceSelectionToDocuments();
+  renderWorkspaceExplorer();
+  renderSideChatContext();
 });
 
-refreshLiteratureButton.addEventListener("click", async () => {
-  await refreshLiterature(true);
+workspaceTreeContainer.addEventListener("click", (event) => {
+  const folderButton = event.target.closest("[data-workspace-folder]");
+  if (!folderButton) return;
+  const path = folderButton.dataset.workspaceFolder || "";
+  if (expandedWorkspacePaths.has(path)) expandedWorkspacePaths.delete(path);
+  else expandedWorkspacePaths.add(path);
+  renderWorkspaceExplorer();
+});
+
+workspaceTreeContainer.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-workspace-file]");
+  if (!checkbox) return;
+  const path = checkbox.dataset.workspaceFile;
+  if (checkbox.checked) selectedWorkspacePaths.add(path);
+  else selectedWorkspacePaths.delete(path);
+  syncWorkspaceSelectionToDocuments();
+  renderWorkspaceExplorer();
+  renderSideChatContext();
 });
 
 EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
@@ -1078,15 +1129,16 @@ sideChatForm.addEventListener("submit", async (event) => {
   await askSideChat(question);
 });
 
-clearSideChatButton.addEventListener("click", () => {
-  sideChatMessages = [];
-  activeSideChatDocumentKeys = [];
+clearSideChatButton.addEventListener("click", async () => {
+  if (!workspaceChatStore || sideChatBusy) return;
+  if (sideChatMessages.length && !window.confirm(t("clearSideChatConfirm"))) return;
   try {
-    sessionStorage.removeItem(SIDE_CHAT_HISTORY_STORAGE_KEY);
-  } catch {
-    // The in-memory conversation is still cleared.
+    sideChatConversation = await workspaceChatStore.clearActiveConversation();
+    sideChatMessages = sideChatConversation.messages;
+    renderSideChatConversation();
+  } catch (error) {
+    showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
   }
-  renderSideChatConversation();
 });
 
 function initializeWorkbench() {
@@ -1095,14 +1147,10 @@ function initializeWorkbench() {
   workspaceCompatibilityMessage.hidden = workspaceManager.isSupported();
   selectWorkspaceButton.disabled = !workspaceManager.isSupported();
   renderBackendStatus("backendReady");
-  renderDocumentList(
-    referenceFileList,
-    referenceDocuments,
-    t("noReferenceFiles"),
-    removeReferenceDocument
-  );
   renderExperimentModules();
   renderAnalysisPanels();
+  renderWorkspaceExplorer();
+  renderSideChatContext();
   setSideChatBusy(sideChatBusy);
   renderSideChatConversation();
 }
@@ -1135,7 +1183,6 @@ async function checkCurrentUser() {
     const accountName = getAccountName(data) || currentAccount || t("signedIn");
     if (accountName !== t("signedIn")) {
       setAuthSession(authToken, accountName);
-      restoreSideChatHistoryForAccount(accountName);
     }
     showAuthenticated(accountName);
   } catch (error) {
@@ -1212,10 +1259,23 @@ async function openSelectedWorkspace(initialize) {
     getLanguage: () => currentLanguage,
   });
   const documents = await literatureModule.scan();
+  workspaceTree = await workspaceManager.scanDirectoryTree();
+  projectContextService = new ProjectContextService({
+    workspace: workspaceManager,
+    literature: literatureModule,
+  });
+  workspaceChatStore = new WorkspaceChatStore({ workspace: workspaceManager });
+  sideChatConversation = await workspaceChatStore.loadActiveConversation();
+  sideChatMessages = sideChatConversation.messages;
+  selectedWorkspacePaths = new Set();
+  expandedWorkspacePaths = new Set([""]);
   projectContext = result.state.project.goal || "";
   projectContextInput.value = projectContext;
   workspaceNameLabel.textContent = result.workspace.name;
   applyLiteratureScan(documents);
+  renderWorkspaceExplorer();
+  renderSideChatContext();
+  renderSideChatConversation();
   showMainApplication();
 }
 
@@ -1237,7 +1297,26 @@ function applyLiteratureScan(documents) {
       reviewError: "",
     };
   });
-  renderAllDocumentLists();
+  syncWorkspaceSelectionToDocuments();
+}
+
+function applyPreparedContextToDocuments(localWorkspaceContext) {
+  const evidenceByPath = new Map(
+    (localWorkspaceContext?.files || [])
+      .filter((file) => file.analysisStatus === "processed" && file.content)
+      .map((file) => [file.relativePath, file])
+  );
+  referenceDocuments = referenceDocuments.map((documentItem) => {
+    const evidence = evidenceByPath.get(documentItem.relativePath);
+    if (!evidence) return documentItem;
+    return {
+      ...documentItem,
+      text: evidence.content,
+      summaryAvailable: true,
+      status: "ready",
+      reviewError: "",
+    };
+  });
 }
 
 async function refreshLiterature(showMessage = false) {
@@ -1248,6 +1327,37 @@ async function refreshLiterature(showMessage = false) {
     if (showMessage) showToast(t("literatureRefreshed", { count: documents.length }));
   } catch (error) {
     showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+  }
+}
+
+async function refreshWorkspaceExplorer(showMessage = false) {
+  if (!literatureModule || !workspaceManager.workspace) return;
+  refreshWorkspaceButton.disabled = true;
+  try {
+    const [documents, nextTree] = await Promise.all([
+      literatureModule.scan(),
+      workspaceManager.scanDirectoryTree(),
+    ]);
+    workspaceTree = nextTree;
+    applyLiteratureScan(documents);
+    const availablePaths = new Set(
+      flattenWorkspaceTree(workspaceTree)
+        .filter((entry) => entry.type === "file")
+        .map((entry) => entry.relativePath)
+    );
+    selectedWorkspacePaths = new Set(
+      [...selectedWorkspacePaths].filter((path) => availablePaths.has(path))
+    );
+    syncWorkspaceSelectionToDocuments();
+    renderWorkspaceExplorer();
+    renderSideChatContext();
+    if (showMessage) {
+      showToast(t("workspaceRefreshed", { count: availablePaths.size }));
+    }
+  } catch (error) {
+    showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+  } finally {
+    refreshWorkspaceButton.disabled = false;
   }
 }
 
@@ -1303,11 +1413,20 @@ function closeWorkspaceInMemory() {
   workspaceAbortController?.abort();
   workspaceAbortController = null;
   literatureModule = null;
+  projectContextService = null;
+  workspaceChatStore = null;
+  sideChatConversation = null;
   workspaceManager.closeWorkspace();
   referenceDocuments = [];
+  workspaceTree = null;
+  selectedWorkspacePaths = new Set();
+  expandedWorkspacePaths = new Set([""]);
   workspaceNameLabel.textContent = "";
   activeSideChatDocumentKeys = [];
-  renderAllDocumentLists();
+  sideChatMessages = [];
+  renderWorkspaceExplorer();
+  renderSideChatContext();
+  renderSideChatConversation();
 }
 
 async function logoutFromWorkbench() {
@@ -1322,7 +1441,6 @@ async function logoutFromWorkbench() {
     showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
   }
   closeWorkspaceInMemory();
-  sideChatHistoryAccount = "";
   sideChatMessages = [];
   activeSideChatDocumentKeys = [];
   renderSideChatConversation();
@@ -1422,14 +1540,10 @@ function applyLanguage() {
   refreshDefaultAnalysisPanels();
 
   renderBackendStatus();
-  renderDocumentList(
-    referenceFileList,
-    referenceDocuments,
-    t("noReferenceFiles"),
-    removeReferenceDocument
-  );
   renderExperimentModules();
   renderAnalysisPanels();
+  renderWorkspaceExplorer();
+  renderSideChatContext();
 
   if (!sideChatMessages.length && sideChatHistory.childElementCount <= 1) {
     sideChatHistory.innerHTML = "";
@@ -1809,13 +1923,7 @@ async function syncStoredPdfDocuments() {
       }));
 
     referenceDocuments = [...referenceDocuments, ...restoredDocuments];
-    renderDocumentList(
-      referenceFileList,
-      referenceDocuments,
-      t("noReferenceFiles"),
-      removeReferenceDocument
-    );
-    renderExperimentModules();
+    renderAllDocumentLists();
     renderBackendStatus("backendConnected");
     showToast(t("pdfSynced", { count: serverDocuments.length }));
   } catch (error) {
@@ -1999,13 +2107,146 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
 }
 
 function renderAllDocumentLists() {
-  renderDocumentList(
-    referenceFileList,
-    referenceDocuments,
-    t("noReferenceFiles"),
-    removeReferenceDocument
-  );
-  renderExperimentModules();
+  renderWorkspaceExplorer();
+  renderSideChatContext();
+}
+
+function syncWorkspaceSelectionToDocuments() {
+  referenceDocuments = referenceDocuments.map((documentItem) => ({
+    ...documentItem,
+    selectedForChat: selectedWorkspacePaths.has(documentItem.relativePath),
+  }));
+}
+
+function renderWorkspaceExplorer() {
+  if (!workspaceTreeContainer) return;
+  workspaceTreeContainer.innerHTML = "";
+  const selectedCount = selectedWorkspacePaths.size;
+  workspaceSelectionCount.textContent = selectedCount
+    ? t("filesSelected", { count: selectedCount })
+    : t("noFilesSelected");
+  clearWorkspaceSelectionButton.disabled = selectedCount === 0;
+
+  if (!workspaceTree) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = t("workspaceTreeUnavailable");
+    workspaceTreeContainer.appendChild(empty);
+    return;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "workspace-tree-list";
+  list.setAttribute("role", "group");
+  list.appendChild(renderWorkspaceTreeNode(workspaceTree, true));
+  workspaceTreeContainer.appendChild(list);
+}
+
+function renderWorkspaceTreeNode(node, isRoot = false) {
+  const item = document.createElement("li");
+  item.setAttribute("role", "treeitem");
+  item.setAttribute("aria-label", node.relativePath || node.name);
+
+  if (node.type === "directory") {
+    const expanded = expandedWorkspacePaths.has(node.relativePath);
+    item.setAttribute("aria-expanded", String(expanded));
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `workspace-tree-row workspace-folder-toggle${
+      isRoot ? " is-root" : ""
+    }`;
+    button.dataset.workspaceFolder = node.relativePath;
+
+    const disclosure = document.createElement("span");
+    disclosure.className = "workspace-tree-disclosure";
+    disclosure.textContent = expanded ? "▼" : "▶";
+    disclosure.setAttribute("aria-hidden", "true");
+    const icon = document.createElement("span");
+    icon.className = "workspace-tree-icon";
+    icon.textContent = "▰";
+    icon.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.className = "workspace-tree-name";
+    name.textContent = node.name;
+    button.append(disclosure, icon, name);
+    item.appendChild(button);
+
+    if (expanded && node.children?.length) {
+      const children = document.createElement("ul");
+      children.className = "workspace-tree-list workspace-tree-children";
+      children.setAttribute("role", "group");
+      node.children.forEach((child) =>
+        children.appendChild(renderWorkspaceTreeNode(child))
+      );
+      item.appendChild(children);
+    }
+    return item;
+  }
+
+  const label = document.createElement("label");
+  label.className = "workspace-tree-row workspace-file-row";
+  label.classList.toggle("is-selected", selectedWorkspacePaths.has(node.relativePath));
+  label.title = node.relativePath;
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.dataset.workspaceFile = node.relativePath;
+  checkbox.checked = selectedWorkspacePaths.has(node.relativePath);
+  const icon = document.createElement("span");
+  icon.className = "workspace-tree-icon";
+  icon.textContent = getWorkspaceFileIcon(node.name);
+  icon.setAttribute("aria-hidden", "true");
+  const name = document.createElement("span");
+  name.className = "workspace-tree-name";
+  name.textContent = node.name;
+  const meta = document.createElement("span");
+  meta.className = "workspace-tree-meta";
+  meta.textContent = formatFileSize(node.size);
+  label.append(checkbox, icon, name, meta);
+  item.appendChild(label);
+  return item;
+}
+
+function getWorkspaceFileIcon(filename) {
+  const extension = getFileExtension(filename);
+  if (extension === "pdf") return "P";
+  if (extension === "xlsx" || extension === "xls" || extension === "csv") return "▦";
+  if (extension === "fasta" || extension === "fa" || extension === "fastq") return "⌁";
+  if (extension === "txt" || extension === "md") return "≡";
+  return "•";
+}
+
+function renderSideChatContext() {
+  if (!sideChatContextChips) return;
+  sideChatContextChips.innerHTML = "";
+  if (!selectedWorkspacePaths.size) {
+    const chip = document.createElement("span");
+    chip.className = "context-chip";
+    chip.textContent = t("entireProjectContext");
+    sideChatContextChips.appendChild(chip);
+    return;
+  }
+
+  [...selectedWorkspacePaths].sort().forEach((path) => {
+    const chip = document.createElement("span");
+    chip.className = "context-chip";
+    chip.title = path;
+    const name = document.createElement("span");
+    name.textContent = path.split("/").pop();
+    const remove = document.createElement("button");
+    remove.className = "context-chip-remove";
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", t("removeContextFile", { name: path }));
+    remove.addEventListener("click", () => {
+      selectedWorkspacePaths.delete(path);
+      syncWorkspaceSelectionToDocuments();
+      renderWorkspaceExplorer();
+      renderSideChatContext();
+    });
+    chip.append(name, remove);
+    sideChatContextChips.appendChild(chip);
+  });
 }
 
 function getStoredWorkspaceDocuments() {
@@ -2443,45 +2684,6 @@ async function runWithConcurrency(items, concurrency, mapper) {
   return results;
 }
 
-async function summarizeAllStoredReferences() {
-  const storedReferences = referenceDocuments.filter(
-    (documentItem) =>
-      (documentItem.objectKey || documentItem.localWorkspace) &&
-      !documentItem.processingStatus
-  );
-  if (!storedReferences.length || summarizeAllReferencesButton.disabled) {
-    showToast(t("noReferenceFiles"));
-    return;
-  }
-
-  summarizeAllReferencesButton.disabled = true;
-  summarizeAllReferencesButton.textContent = t("summarizeAllBusy");
-  try {
-    const pending = storedReferences.filter(
-      (documentItem) =>
-        !documentItem.summaryAvailable ||
-        !documentItem.review ||
-        documentItem.status === "stale"
-    );
-    let completed = 0;
-    await runWithConcurrency(pending, 2, async (documentItem) => {
-      const result = await summarizeStoredPdfById(documentItem.id, {
-        showInChat: false,
-      });
-      completed += 1;
-      summarizeAllReferencesButton.textContent = t("summarizeAllProgress", {
-        done: completed,
-        total: pending.length,
-      });
-      return result;
-    });
-    await askSideChat(t("summarizeAllQuestion"));
-  } finally {
-    summarizeAllReferencesButton.disabled = false;
-    summarizeAllReferencesButton.textContent = t("summarizeAllReferences");
-  }
-}
-
 async function clearDocumentCollection({
   documents,
   onUpdate,
@@ -2710,9 +2912,17 @@ async function runAgentInstruction(panelId) {
       throw new Error(t("backendDisabled"));
     }
 
+    const localWorkspaceContext = projectContextService && workspaceTree
+      ? await projectContextService.buildProjectContext({
+          workspaceTree,
+          projectGoal: getProjectContext(),
+        })
+      : null;
+
     response = await sendWorkbenchRequest({
       mode: "agent_instruction",
       messages: buildAgentMessages(instruction),
+      localWorkspaceContext,
     });
 
     panel.recommendation = normalizeAgentResponse(response, instruction);
@@ -2754,7 +2964,9 @@ function setAgentBusy(isBusy, panelId = "") {
 // agent_instruction mode is the single official analysis action. It can update
 // the Current Recommendation panel.
 // side_chat mode is for questions only and must not mutate the recommendation.
-async function sendWorkbenchRequest({ mode, messages }) {
+async function sendWorkbenchRequest({ mode, messages, localWorkspaceContext = null }) {
+  const isSideChat = mode === "side_chat";
+  const includeLegacyExperimentEvidence = experimentModuleCards.length > 0;
   const experimentModulesPayload = buildExperimentModulesForRequest();
   const experimentDocumentsPayload = buildFlattenedExperimentDocumentsForRequest();
   const experimentNotesPayload = collectExperimentNotesForRequest();
@@ -2768,16 +2980,22 @@ async function sendWorkbenchRequest({ mode, messages }) {
     mode,
     messages,
     projectContext: getProjectContext(),
-    referenceDocuments: buildDocumentsForRequest(
-      referenceDocuments,
-      MAX_BROWSER_REFERENCE_FILES,
-      TOTAL_REFERENCE_TEXT_LIMIT
-    ),
-    experimentModules: experimentModulesPayload,
-    experimentDocuments: experimentDocumentsPayload,
-    experimentNotes: experimentNotesPayload,
-    storedDocuments: collectStoredDocumentsForRequest(),
-    selectedDocumentKeys,
+    referenceDocuments: isSideChat || localWorkspaceContext
+      ? []
+      : buildDocumentsForRequest(
+          referenceDocuments,
+          MAX_BROWSER_REFERENCE_FILES,
+          TOTAL_REFERENCE_TEXT_LIMIT
+        ),
+    experimentModules:
+      isSideChat || !includeLegacyExperimentEvidence ? {} : experimentModulesPayload,
+    experimentDocuments:
+      isSideChat || !includeLegacyExperimentEvidence ? [] : experimentDocumentsPayload,
+    experimentNotes:
+      isSideChat || !includeLegacyExperimentEvidence ? [] : experimentNotesPayload,
+    storedDocuments: isSideChat ? [] : collectStoredDocumentsForRequest(),
+    selectedDocumentKeys: isSideChat ? [] : selectedDocumentKeys,
+    ...(localWorkspaceContext ? { localWorkspaceContext } : {}),
   };
 
   const response = await fetch(backendUrl("/chat"), {
@@ -2826,89 +3044,20 @@ function buildAgentMessages(instruction) {
   ];
 }
 
-function normalizeSideChatMessages(messages) {
-  const candidates = (Array.isArray(messages) ? messages : [])
-    .filter(
-      (message) =>
-        message &&
-        (message.role === "user" || message.role === "assistant") &&
-        typeof message.content === "string" &&
-        message.content.trim()
-    )
-    .slice(-MAX_SIDE_CHAT_HISTORY_MESSAGES * 2)
-    .map((message) => ({
-      role: message.role,
-      content: message.content
-        .trim()
-        .slice(0, MAX_SIDE_CHAT_MESSAGE_CHARACTERS),
-    }));
-  const selected = [];
-  let remainingCharacters = TOTAL_SIDE_CHAT_HISTORY_CHARACTERS;
-
-  for (let index = candidates.length - 1; index >= 0; index -= 1) {
-    if (
-      selected.length >= MAX_SIDE_CHAT_HISTORY_MESSAGES ||
-      remainingCharacters <= 0
-    ) {
-      break;
-    }
-    const candidate = candidates[index];
-    const content = candidate.content.slice(0, remainingCharacters);
-    if (!content) continue;
-    selected.unshift({ ...candidate, content });
-    remainingCharacters -= content.length;
-  }
-
-  while (selected[0]?.role === "assistant") selected.shift();
-  return selected;
-}
-
-function loadSideChatMessages(account) {
-  if (!account) return [];
-  const stored = loadSessionJson(SIDE_CHAT_HISTORY_STORAGE_KEY, null);
-  if (!stored || stored.account !== account || !Array.isArray(stored.messages)) {
-    return [];
-  }
-  return normalizeSideChatMessages(stored.messages);
-}
-
-function loadSideChatDocumentKeys(account) {
-  if (!account) return [];
-  const stored = loadSessionJson(SIDE_CHAT_HISTORY_STORAGE_KEY, null);
-  if (!stored || stored.account !== account || !Array.isArray(stored.documentKeys)) {
-    return [];
-  }
-  return [...new Set(
-    stored.documentKeys.filter((key) => typeof key === "string" && key)
-  )].slice(0, MAX_SELECTED_CHAT_PDFS);
+async function persistSideChatConversation() {
+  if (!workspaceChatStore || !sideChatConversation) return;
+  sideChatConversation = await workspaceChatStore.saveConversation({
+    ...sideChatConversation,
+    messages: sideChatMessages,
+  });
+  sideChatMessages = sideChatConversation.messages;
 }
 
 function saveSideChatMessages() {
-  sideChatMessages = normalizeSideChatMessages(sideChatMessages);
-  if (!currentAccount) return;
-  try {
-    sessionStorage.setItem(
-      SIDE_CHAT_HISTORY_STORAGE_KEY,
-      JSON.stringify({
-        account: currentAccount,
-        messages: sideChatMessages,
-        documentKeys: activeSideChatDocumentKeys.slice(
-          0,
-          MAX_SELECTED_CHAT_PDFS
-        ),
-      })
-    );
-  } catch {
-    // Multi-round chat still works in memory if session storage is unavailable.
-  }
-}
-
-function restoreSideChatHistoryForAccount(account) {
-  if (!account || sideChatHistoryAccount === account) return;
-  sideChatHistoryAccount = account;
-  sideChatMessages = loadSideChatMessages(account);
-  activeSideChatDocumentKeys = loadSideChatDocumentKeys(account);
-  renderSideChatConversation();
+  persistSideChatConversation().catch((error) => {
+    console.warn("Could not persist Side Chat in the workspace.", error);
+    showToast(t("chatPersistenceFailed"));
+  });
 }
 
 function renderSideChatConversation() {
@@ -2923,15 +3072,34 @@ function renderSideChatConversation() {
 }
 
 function recordSideChatExchange(question, reply) {
-  sideChatMessages.push(
-    { role: "user", content: question },
-    { role: "assistant", content: reply }
-  );
+  const timestamp = new Date().toISOString();
+  sideChatMessages.push({
+    id: makeId(),
+    role: "user",
+    content: question,
+    context: getCurrentChatContextSnapshot(),
+    createdAt: timestamp,
+  });
+  sideChatMessages.push({
+    id: makeId(),
+    role: "assistant",
+    content: reply,
+    createdAt: new Date().toISOString(),
+  });
   saveSideChatMessages();
 }
 
-function buildSideChatMessages(question) {
-  const recentMessages = normalizeSideChatMessages(sideChatMessages);
+function getCurrentChatContextSnapshot() {
+  const files = [...selectedWorkspacePaths].sort();
+  return {
+    type: files.length ? "files" : "project",
+    files,
+  };
+}
+
+function buildSideChatMessages(question, conversationContext) {
+  const recentMessages = conversationContext?.recentMessages || [];
+  const summary = conversationContext?.summary || "";
 
   return [
     ...recentMessages,
@@ -2941,14 +3109,14 @@ function buildSideChatMessages(question) {
         "Mode: side_chat",
         t("responseLanguageInstruction"),
         "Answer this as a question only. Do not claim to update the current recommendation.",
-        "Use the module grouping when experiment evidence is relevant: Strain Engineering, Fermentation, and Downstream Processing.",
+        "Use only the supplied local-workspace evidence. File inventory without processed evidence is not file content.",
         "Keep the response at design-review and planning level.",
+        summary ? `Earlier conversation summary:\n${summary}` : "",
         "",
         `Question: ${question}`,
-        "",
-        buildProjectContextPromptBlock(),
-        buildEvidencePromptBlock(),
-      ].join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
     },
   ];
 }
@@ -3597,48 +3765,125 @@ function addSideChatThinking() {
 }
 
 async function askSideChat(question) {
-  if (!question || sideChatBusy) return;
+  if (
+    !question ||
+    sideChatBusy ||
+    !projectContextService ||
+    !sideChatConversation ||
+    !workspaceTree
+  ) {
+    return;
+  }
 
-  const messagesForBackend = buildSideChatMessages(question);
+  const conversationContext = projectContextService.buildConversationContext(
+    sideChatConversation
+  );
+  const contextSnapshot = getCurrentChatContextSnapshot();
+  const userMessage = {
+    id: makeId(),
+    role: "user",
+    content: question,
+    context: contextSnapshot,
+    createdAt: new Date().toISOString(),
+  };
+  sideChatMessages.push(userMessage);
   addSideChatMessage("user", question);
   const thinkingMessage = addSideChatThinking();
   setSideChatBusy(true);
+  let contextPrepared = false;
 
   try {
-    const response = await sendWorkbenchRequest({
-      mode: "side_chat",
-      messages: messagesForBackend,
+    activeLiteratureOperations += 1;
+    const localWorkspaceContext = await projectContextService.buildContext({
+      question,
+      selectedPaths: contextSnapshot.files,
+      workspaceTree,
+      projectGoal: getProjectContext(),
+      conversation: sideChatConversation,
+      signal: workspaceAbortController?.signal,
+      onProgress(progress) {
+        updateSideChatThinking(thinkingMessage, progress);
+      },
     });
-    const manuallySelectedKeys = collectSelectedStoredDocumentKeys();
-    const routedKeys = Array.isArray(response.documentScope?.objectKeys)
-      ? response.documentScope.objectKeys.filter((key) => typeof key === "string")
-      : [];
-    if (manuallySelectedKeys.length) {
-      activeSideChatDocumentKeys = manuallySelectedKeys;
-    } else if (response.documentScope?.mode === "collection-summaries") {
-      activeSideChatDocumentKeys = [];
-    } else if (routedKeys.length) {
-      activeSideChatDocumentKeys = routedKeys.slice(0, MAX_SELECTED_CHAT_PDFS);
+    contextPrepared = true;
+    applyLiteratureScan(literatureModule.documents);
+    applyPreparedContextToDocuments(localWorkspaceContext);
+
+    let reply;
+    const selectedEvidence = localWorkspaceContext.files || [];
+    if (
+      contextSnapshot.type === "files" &&
+      selectedEvidence.length &&
+      selectedEvidence.every((file) => file.analysisStatus === "unsupported") &&
+      questionRequiresFileEvidence(question)
+    ) {
+      reply = t("unsupportedSelectedFilesChat");
+    } else {
+      const messagesForBackend = buildSideChatMessages(question, conversationContext);
+      const response = await sendWorkbenchRequest({
+        mode: "side_chat",
+        messages: messagesForBackend,
+        localWorkspaceContext,
+      });
+      reply = response.reply || t("sideChatNoAnswer");
     }
 
-    const reply = response.reply || t("sideChatNoAnswer");
     addSideChatMessage("assistant", reply);
-    if (!response.fallback) {
-      recordSideChatExchange(question, reply);
-    }
+    sideChatMessages.push({
+      id: makeId(),
+      role: "assistant",
+      content: reply,
+      createdAt: new Date().toISOString(),
+    });
+    await persistSideChatConversation();
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       console.warn("Backend auth required.", error);
+      await persistSideChatConversation().catch(() => {});
       return;
     }
 
     console.warn("Side chat backend failed; using local fallback.", error);
-    const reply = `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`;
+    const reply = contextPrepared
+      ? `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`
+      : t("sideChatContextFailed", { message: error.message || t("loginFailed") });
     addSideChatMessage("assistant", reply);
+    sideChatMessages.push({
+      id: makeId(),
+      role: "assistant",
+      content: reply,
+      createdAt: new Date().toISOString(),
+    });
+    await persistSideChatConversation().catch(() => {});
   } finally {
+    activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
     thinkingMessage.remove();
     setSideChatBusy(false);
     sideChatInput.focus();
+  }
+}
+
+function updateSideChatThinking(message, progress) {
+  const text = message.querySelector(".thinking-content > span:first-child");
+  if (!text) return;
+  if (progress.stage === "summarizing") {
+    text.textContent = t("sideChatProcessingPdf", {
+      name: progress.relativePath?.split("/").pop() || "PDF",
+      done: progress.completed,
+      total: progress.total,
+    });
+  } else if (progress.stage === "synthesizing") {
+    text.textContent = t("sideChatSynthesizingPdf", {
+      name: progress.relativePath?.split("/").pop() || "PDF",
+    });
+  } else if (progress.stage === "extracting-detail") {
+    text.textContent = t("sideChatReadingDetail", {
+      name: progress.relativePath?.split("/").pop() || "PDF",
+    });
+  } else if (progress.stage === "preparing-file" || progress.stage === "extracting") {
+    text.textContent = t("sideChatPreparingPdf", {
+      name: progress.relativePath?.split("/").pop() || "PDF",
+    });
   }
 }
 

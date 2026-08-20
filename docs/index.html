@@ -157,177 +157,28 @@
             </label>
           </section>
 
-          <section class="workbench-panel reference-panel" aria-label="Literature and references">
+          <section class="workbench-panel workspace-explorer-panel" aria-label="Workspace files">
             <div class="panel-header">
               <div>
-                <p class="eyebrow" data-i18n="referencesEyebrow">Literature & References</p>
-                <h2 data-i18n="referencesTitle">Literature & References</h2>
+                <p class="eyebrow" data-i18n="workspacePanelEyebrow">Workspace</p>
+                <h2 data-i18n="workspacePanelTitle">Workspace</h2>
               </div>
               <div class="panel-actions">
-                <label class="file-picker" for="referenceFileInput" data-i18n="addLiterature">Add Literature</label>
-                <button id="summarizeAllReferencesButton" class="secondary-button" type="button" data-i18n="summarizeAllReferences">
-                  Summarize all
+                <button id="refreshWorkspaceButton" class="secondary-button" type="button" data-i18n="refreshWorkspace">
+                  Refresh
                 </button>
-                <button id="refreshLiteratureButton" class="secondary-button" type="button" data-i18n="refreshLiterature">
-                  Refresh Literature
+                <button id="clearWorkspaceSelectionButton" class="text-button" type="button" data-i18n="clearSelection">
+                  Clear selection
                 </button>
               </div>
             </div>
-            <p class="panel-helper" data-i18n="referencesHelper">
-              PDFs stay in the selected workspace. Summaries run only when requested and are cached locally.
+            <p class="panel-helper" data-i18n="workspacePanelHelper">
+              This explorer reflects the selected local folder. Select files to set the context for Side Chat.
             </p>
-            <input
-              id="referenceFileInput"
-              class="sr-only"
-              type="file"
-              accept=".pdf,application/pdf"
-              multiple
-            />
-            <div id="referenceFileList" class="file-list" aria-live="polite"></div>
-          </section>
-
-          <section class="workbench-panel experiment-panel" aria-label="Experiment results">
-            <div class="panel-header">
-              <div>
-                <p class="eyebrow" data-i18n="experimentEyebrow">Experiment Evidence</p>
-                <h2 data-i18n="experimentTitle">Experimental Results</h2>
-              </div>
+            <div class="workspace-selection-status">
+              <span id="workspaceSelectionCount" data-i18n="noFilesSelected">No files selected</span>
             </div>
-            <p class="panel-helper" data-i18n="experimentHelper">
-              Upload evidence from different parts of the synthetic biology workflow.
-            </p>
-            <div id="experimentSummaryList" class="module-summary-list" aria-live="polite"></div>
-
-            <div class="experiment-module-grid">
-              <article class="experiment-module-card" data-experiment-module="strainEngineering">
-                <div class="module-card-header">
-                  <div>
-                    <h3 data-i18n="strainEngineeringTitle">Strain Engineering</h3>
-                    <p data-i18n="strainEngineeringDescription">
-                      Genetic design, construct screening, strain comparison, pathway engineering, enzyme variants, expression data.
-                    </p>
-                  </div>
-                  <span class="module-count-pill" data-module-count></span>
-                </div>
-                <div class="module-actions">
-                  <label class="file-picker" for="strainEngineeringFileInput" data-i18n="uploadModuleFiles">Upload files</label>
-                  <button class="secondary-button" type="button" data-module-clear-files data-i18n="clearModuleFiles">
-                    Clear files
-                  </button>
-                </div>
-                <input
-                  id="strainEngineeringFileInput"
-                  class="sr-only"
-                  type="file"
-                  accept=".pdf,.txt,.csv,.xlsx,.xls"
-                  multiple
-                  data-module-file-input
-                />
-                <div class="file-list compact-file-list" data-module-file-list aria-live="polite"></div>
-                <label class="experiment-note-field" for="strainEngineeringNotesField">
-                  <span data-i18n="moduleNotesLabel">Optional notes</span>
-                  <textarea
-                    id="strainEngineeringNotesField"
-                    rows="3"
-                    placeholder="Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on."
-                    data-module-note-field
-                    data-i18n-placeholder="moduleNotesPlaceholder"
-                  ></textarea>
-                </label>
-                <div class="inline-actions single-row-actions">
-                  <button class="secondary-button" type="button" data-module-add-note data-i18n="addNote">
-                    Add note
-                  </button>
-                </div>
-                <div class="note-list compact-note-list" data-module-note-list aria-live="polite"></div>
-              </article>
-
-              <article class="experiment-module-card" data-experiment-module="fermentation">
-                <div class="module-card-header">
-                  <div>
-                    <h3 data-i18n="fermentationTitle">Fermentation</h3>
-                    <p data-i18n="fermentationDescription">
-                      Cultivation runs, media conditions, growth curves, titer/yield/productivity data, time-course measurements.
-                    </p>
-                  </div>
-                  <span class="module-count-pill" data-module-count></span>
-                </div>
-                <div class="module-actions">
-                  <label class="file-picker" for="fermentationFileInput" data-i18n="uploadModuleFiles">Upload files</label>
-                  <button class="secondary-button" type="button" data-module-clear-files data-i18n="clearModuleFiles">
-                    Clear files
-                  </button>
-                </div>
-                <input
-                  id="fermentationFileInput"
-                  class="sr-only"
-                  type="file"
-                  accept=".pdf,.txt,.csv,.xlsx,.xls"
-                  multiple
-                  data-module-file-input
-                />
-                <div class="file-list compact-file-list" data-module-file-list aria-live="polite"></div>
-                <label class="experiment-note-field" for="fermentationNotesField">
-                  <span data-i18n="moduleNotesLabel">Optional notes</span>
-                  <textarea
-                    id="fermentationNotesField"
-                    rows="3"
-                    placeholder="Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on."
-                    data-module-note-field
-                    data-i18n-placeholder="moduleNotesPlaceholder"
-                  ></textarea>
-                </label>
-                <div class="inline-actions single-row-actions">
-                  <button class="secondary-button" type="button" data-module-add-note data-i18n="addNote">
-                    Add note
-                  </button>
-                </div>
-                <div class="note-list compact-note-list" data-module-note-list aria-live="polite"></div>
-              </article>
-
-              <article class="experiment-module-card" data-experiment-module="downstreamProcessing">
-                <div class="module-card-header">
-                  <div>
-                    <h3 data-i18n="downstreamProcessingTitle">Downstream Processing</h3>
-                    <p data-i18n="downstreamProcessingDescription">
-                      Separation, purification, extraction, recovery, product quality, process loss, analytics.
-                    </p>
-                  </div>
-                  <span class="module-count-pill" data-module-count></span>
-                </div>
-                <div class="module-actions">
-                  <label class="file-picker" for="downstreamProcessingFileInput" data-i18n="uploadModuleFiles">Upload files</label>
-                  <button class="secondary-button" type="button" data-module-clear-files data-i18n="clearModuleFiles">
-                    Clear files
-                  </button>
-                </div>
-                <input
-                  id="downstreamProcessingFileInput"
-                  class="sr-only"
-                  type="file"
-                  accept=".pdf,.txt,.csv,.xlsx,.xls"
-                  multiple
-                  data-module-file-input
-                />
-                <div class="file-list compact-file-list" data-module-file-list aria-live="polite"></div>
-                <label class="experiment-note-field" for="downstreamProcessingNotesField">
-                  <span data-i18n="moduleNotesLabel">Optional notes</span>
-                  <textarea
-                    id="downstreamProcessingNotesField"
-                    rows="3"
-                    placeholder="Add context for this module: what was tested, what changed, what looked surprising, or what the agent should focus on."
-                    data-module-note-field
-                    data-i18n-placeholder="moduleNotesPlaceholder"
-                  ></textarea>
-                </label>
-                <div class="inline-actions single-row-actions">
-                  <button class="secondary-button" type="button" data-module-add-note data-i18n="addNote">
-                    Add note
-                  </button>
-                </div>
-                <div class="note-list compact-note-list" data-module-note-list aria-live="polite"></div>
-              </article>
-            </div>
+            <div id="workspaceTree" class="workspace-tree" role="tree" aria-live="polite"></div>
           </section>
         </div>
 
@@ -364,9 +215,13 @@
                 </button>
               </div>
             </div>
+            <div class="side-chat-context" aria-live="polite">
+              <strong data-i18n="sideChatContextLabel">Context</strong>
+              <div id="sideChatContextChips" class="side-chat-context-chips"></div>
+            </div>
             <div class="side-examples" aria-label="Example side questions">
-              <button class="side-example-button" type="button" data-i18n="sideExampleFiles">Summarize the uploaded files.</button>
-              <button class="side-example-button" type="button" data-i18n="sideExamplePatterns">What patterns do you see in the experiment sheets?</button>
+              <button class="side-example-button" type="button" data-i18n="sideExampleFiles">Summarize the selected files.</button>
+              <button class="side-example-button" type="button" data-i18n="sideExamplePatterns">Compare the selected papers.</button>
               <button class="side-example-button" type="button" data-i18n="sideExamplePaper">What does this paper suggest?</button>
               <button class="side-example-button" type="button" data-i18n="sideExampleClarify">What should I clarify before running the main analysis?</button>
             </div>
@@ -395,6 +250,7 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="workspace-manager.js"></script>
     <script src="literature-module.js"></script>
+    <script src="project-context-service.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

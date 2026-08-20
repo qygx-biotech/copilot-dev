@@ -283,13 +283,21 @@
       this.now = options.now || (() => new Date());
       this.config = { ...LITERATURE_CONFIG, ...(options.config || {}) };
       this.index = null;
+      this.documents = [];
     }
 
     async scan() {
       const index = await this.workspace.readJson(".biodesign/literature/index.json");
-      const scanned = (await this.workspace.listFiles("literature", { recursive: true })).filter(
-        (file) => file.name.toLowerCase().endsWith(".pdf")
-      );
+      const tree = await this.workspace.scanDirectoryTree();
+      const scanned = [];
+      const collectPdfs = (node) => {
+        if (node.type === "file" && node.name.toLowerCase().endsWith(".pdf")) {
+          scanned.push(node);
+          return;
+        }
+        (node.children || []).forEach(collectPdfs);
+      };
+      collectPdfs(tree);
       const previous = Array.isArray(index.documents) ? index.documents : [];
       const previousByPath = new Map(previous.map((document) => [document.relativePath, document]));
       const unmatched = new Set(previous);
@@ -338,6 +346,7 @@
         documents: documents.map(({ summaryAvailable, summaryStale, ...document }) => document),
         updatedAt: this.now().toISOString(),
       };
+      this.documents = documents;
       await this.workspace.writeJson(".biodesign/literature/index.json", this.index);
       return documents;
     }
@@ -368,9 +377,17 @@
     }
 
     findDocument(documentId) {
-      const document = this.index?.documents?.find((item) => item.id === documentId);
+      const document = this.documents.find((item) => item.id === documentId);
       if (!document) throw new LiteratureError("DOCUMENT_NOT_FOUND", "The selected paper is no longer indexed.");
       return document;
+    }
+
+    findDocumentByPath(relativePath) {
+      return (
+        this.documents.find(
+          (item) => item.relativePath === String(relativePath || "")
+        ) || null
+      );
     }
 
     async loadSummary(documentId) {
@@ -387,6 +404,18 @@
       const document = this.findDocument(documentId);
       await this.workspace.removeFile(document.relativePath);
       return this.scan();
+    }
+
+    async extractText(documentId, options = {}) {
+      const document = this.findDocument(documentId);
+      const signal = options.signal;
+      assertNotAborted(signal);
+      const file = await this.workspace.readFile(document.relativePath);
+      return extractLocalPdf(file, this.pdfjsLib, {
+        ...this.config,
+        workerSrc: this.pdfWorkerSrc,
+        signal,
+      });
     }
 
     async summarize(documentId, options = {}) {
@@ -495,13 +524,19 @@
       assertNotAborted(signal);
       await this.workspace.writeJson(document.summaryPath, summary);
       document.status = "ready";
+      document.summaryAvailable = true;
+      document.summaryStale = false;
       document.summaryUpdatedAt = generatedAt;
       await this.workspace.writeJson(".biodesign/literature/index.json", {
         ...this.index,
         updatedAt: generatedAt,
       });
       options.onProgress?.({ stage: "complete", completed: 1, total: 1 });
-      return { summary, cached: false };
+      return {
+        summary,
+        cached: false,
+        sourceText: options.includeSourceText ? extracted.text : "",
+      };
     }
   }
 

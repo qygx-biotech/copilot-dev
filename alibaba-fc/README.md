@@ -94,6 +94,8 @@ Both new endpoints require the existing JWT bearer token and are stateless with 
 
 Neither route accepts a filesystem path, PDF bytes, an OSS key, or a project folder. Neither route reads or writes OSS.
 
+The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its scope, project summaries, file inventory, processed evidence, and limitation notices before adding them to the Side Chat system context. Inventory entries are explicitly metadata-only. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
+
 Example smoke test after obtaining `TOKEN`:
 
 ```bash
@@ -174,6 +176,8 @@ The PDF workflow uses the existing JWT bearer login and these document endpoints
 - `POST /api/documents/delete` permanently deletes the owned PDF and its cached review sidecar.
 - `POST /chat` receives a PDF inventory, summary-availability flags, up to three selected keys, and bounded recent user/assistant history. Side Chat accepts normal plain-text model replies instead of requiring the full recommendation JSON schema. It uses cached summaries for relevance routing, reads full text only for explicit/relevant PDFs, and uses summary map-reduce for large collection-wide questions. One short retry is attempted for transient HTTP 408, 425, 429, and 5xx Requesty responses.
 
+For the active local-workspace flow, `/chat` receives locally prepared cached summaries or bounded source excerpts through `localWorkspaceContext`; it does not receive a directory handle, arbitrary local path access, original PDF bytes, login password, JWT, API key, or Alibaba credential in the JSON body. The Authorization header continues to carry the existing JWT independently.
+
 The browser never selects a bucket or object path. Keys have this form:
 
 ```text
@@ -226,7 +230,7 @@ curl -sS -X POST "$FC_URL/chat" \
   | jq
 ```
 
-Expected review output includes `"ok": true`, `"summaryCached": true`, a non-empty `summary`, and the original `objectKey`. The list response must contain that key with `"summaryAvailable": true`. Log out, sign in again, and confirm the PDF card and View Summary action are restored under Literature & References.
+Expected review output includes `"ok": true`, `"summaryCached": true`, a non-empty `summary`, and the original `objectKey`. The list response must contain that key with `"summaryAvailable": true`. These OSS document endpoints are retained for compatibility tests; the active Workspace explorer and Side Chat local-file flow do not call them.
 
 After confirming persistence, verify permanent removal and list synchronization:
 
@@ -244,7 +248,7 @@ curl -sS "$FC_URL/api/documents" \
 
 The delete response must contain `"deleted": true`, and the key must no longer appear in the list or under the account prefix in the OSS console.
 
-Without a metadata database, restored PDFs are placed in Literature & References even if they were originally uploaded inside an experiment module. Up to 100 owned PDFs are shown. Full-text chat context is capped at three routed PDFs and 26,000 characters; collection questions over 10–20 papers use cached summaries and clearly identify unsummarized files. Conversation history and the current paper focus are capped at 20 messages, 24,000 characters, and three object keys; they are stored only in browser session storage for the current account, ownership-checked again by Function Compute, and can be removed with Clear chat.
+Legacy OSS flow limitation: without a metadata database, the retained OSS listing cannot restore original module placement. Its full-text chat context remains capped at three routed PDFs and 26,000 characters, while collection questions use cached summaries. This does not describe the active local Workspace explorer: local conversations are persisted under `.biodesign/chat/`, and local file selection is path-based.
 
 Negative checks:
 

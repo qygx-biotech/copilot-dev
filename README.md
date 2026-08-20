@@ -12,7 +12,7 @@ Alibaba Function Compute remains the authenticated, secret-bearing AI gateway:
 GitHub Pages -> user-selected local workspace -> extracted text only -> Function Compute -> Requesty
 ```
 
-Original PDFs, workspace metadata, project state, literature indexes, and generated summaries remain local. Function Compute receives only bounded extracted text chunks, the AI task, and minimal metadata such as the filename, size, modification time, and page count. It does not receive an arbitrary local path or the selected project folder.
+Original PDFs, workspace metadata, project state, literature indexes, and generated summaries remain local. Function Compute receives only bounded extracted or derived text, the AI task, and minimal metadata such as workspace-relative filenames, size, modification time, and page count. It never receives an absolute local path, directory handle, or the selected project folder itself.
 
 ## Main files
 
@@ -20,7 +20,8 @@ Original PDFs, workspace metadata, project state, literature indexes, and genera
 - `docs/styles.css` - responsive visual design.
 - `docs/workspace-manager.js` - generic File System Access abstraction, schema validation, initialization, safe JSON writes, and directory lifecycle.
 - `docs/literature-module.js` - local PDF discovery, stable indexing, PDF.js extraction, bounded map/reduce summarization, and local summary caching.
-- `docs/app.js` - UI integration, existing authentication/chat behavior, and workspace lifecycle.
+- `docs/project-context-service.js` - bounded project/file context construction plus workspace-backed Side Chat persistence.
+- `docs/app.js` - UI integration, authentication, Workspace explorer, Side Chat, and workspace lifecycle.
 - `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`).
 - `worker/` - retained alternate Cloudflare Worker backend.
 
@@ -45,23 +46,27 @@ Initialization occurs only after confirmation and creates:
     │   └── cache/
     ├── experiments/
     ├── chat/
+    │   ├── index.json
+    │   └── conversations/
     └── cache/
 ```
 
-Unrelated files in the selected folder are not changed. Malformed managed JSON is preserved and reported rather than replaced with empty state.
+Unrelated files in the selected folder are not changed. The visible Workspace explorer recursively reflects the actual folder, not a hardcoded module list, and hides `.biodesign`. **Refresh** re-enumerates metadata so changes made in Finder or Explorer appear. Malformed managed JSON is preserved and reported rather than replaced with empty state.
 
 ## Literature flow
 
-PDFs copied into `literature/` are discovered from lightweight file metadata when the workspace opens or **Refresh Literature** is selected. **Add Literature** copies chosen PDFs into that folder and generates a unique filename on conflict.
+PDFs anywhere in the visible workspace are discovered from lightweight file metadata when the workspace opens or **Refresh** is selected. Merely opening the workspace, expanding a folder, or selecting a PDF never reads or summarizes its contents.
 
-On **Summarize**:
+When a Side Chat question requires an unprocessed selected PDF:
 
 1. PDF.js extracts embedded text in the browser.
 2. The text is split at paragraph or sentence boundaries into bounded chunks.
 3. At most two chunk requests run concurrently through authenticated Function Compute.
 4. Function Compute calls the configured Requesty model but persists no project data.
 5. A final structured review is written to `.biodesign/literature/summaries/<document-id>.json`.
-6. An unchanged PDF reuses that local cache. A modified PDF is marked stale and offers both cache viewing and explicit regeneration.
+6. An unchanged PDF reuses that local cache. A modified PDF is marked stale and regenerated when a later question requires its contents.
+
+Detailed questions can re-extract the selected local PDF and send bounded question-relevant excerpts together with the cached summary. Multiple selected PDFs are summarized independently and then synthesized by the existing `/chat` request; entire PDFs are never concatenated into one request.
 
 Encrypted, malformed, empty, and image-only/scanned PDFs fail with controlled messages. OCR, embeddings, RAG, PostgreSQL, cloud sync, and automatic directory-handle restoration are intentionally out of scope.
 
@@ -107,6 +112,12 @@ The new stateless routes are:
 
 Both require the existing JWT bearer token. Deployment instructions and legacy OSS endpoint details are in `alibaba-fc/README.md`.
 
-## Current non-literature behavior
+## Workspace Side Chat
 
-The Strain Engineering, Fermentation, and Downstream Processing panels remain available but are not converted into persistent experimental-analysis modules in this milestone. Their uploaded evidence and notes retain the existing session behavior. Side Chat retains its bounded 20-message session history and clear action. Full workspace-backed chat, agent memory, and experiment state are future milestones.
+The left column has one generic Workspace explorer beneath Project Context. Checkboxes provide multi-file selection, the current context is shown as removable chips above Side Chat, and no selection means **Entire Project**. Project scope uses the saved goal/state, processed paper summaries, and file inventory without pretending that unprocessed files were read.
+
+Side Chat sends bounded recent conversation history, the current question, and the context prepared for that turn to the existing authenticated `/chat` endpoint. Each user message stores its own project/file context snapshot. The active conversation is restored from `.biodesign/chat/` when the same workspace is reopened; **Clear chat** deletes only that conversation.
+
+PDF is the only robust content processor in this milestone. Files such as `.xlsx`, `.csv`, `.fasta`, and `.txt` remain first-class visible workspace files, but Side Chat reports them as unsupported rather than inferring their contents. Embeddings, vector search, full RAG, Excel analysis, OCR, cloud sync, and automatic directory-handle restoration remain out of scope.
+
+Side Chat never calls the Agent Work run action and never mutates the current recommendation, agent instruction, or analysis panels. The existing center-column workflow remains the deliberate **Agent instruction → Analyze & Recommend → recommendation** path.

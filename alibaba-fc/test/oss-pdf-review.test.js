@@ -202,6 +202,10 @@ test("frontend upload does not automatically invoke PDF review", () => {
     path.join(__dirname, "../../docs/workspace-manager.js"),
     "utf8"
   );
+  const contextSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/project-context-service.js"),
+    "utf8"
+  );
   const uploadStart = frontendSource.indexOf("async function uploadPdfToOss");
   const uploadEnd = frontendSource.indexOf(
     "async function syncStoredPdfDocuments",
@@ -212,13 +216,15 @@ test("frontend upload does not automatically invoke PDF review", () => {
   assert.ok(uploadStart >= 0 && uploadEnd > uploadStart);
   assert.doesNotMatch(uploadFunction, /\/api\/documents\/review/);
   assert.match(frontendSource, /USE_OSS_WORKSPACE_STORAGE = false/);
-  assert.match(frontendSource, /literatureModule\.addFiles/);
+  assert.match(frontendSource, /projectContextService\.buildContext/);
+  assert.match(contextSource, /this\.literature\.summarize/);
   assert.match(workspaceSource, /showDirectoryPicker/);
+  assert.match(workspaceSource, /scanDirectoryTree/);
   assert.doesNotMatch(frontendSource, /await syncStoredPdfDocuments\(\)/);
   assert.match(frontendSource, /addSideChatThinking/);
-  assert.match(frontendSource, /SIDE_CHAT_HISTORY_STORAGE_KEY/);
-  assert.match(frontendSource, /recordSideChatExchange/);
-  assert.match(frontendSource, /if \(!response\.fallback\)/);
+  assert.doesNotMatch(frontendSource, /SIDE_CHAT_HISTORY_STORAGE_KEY/);
+  assert.match(contextSource, /\.biodesign\/chat\/conversations/);
+  assert.match(frontendSource, /persistSideChatConversation/);
 });
 
 function makeMachineReadablePdf() {

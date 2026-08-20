@@ -45,6 +45,9 @@ const REQUESTY_MAX_ATTEMPTS = 2;
 const MAX_LOCAL_LITERATURE_CHUNK_CHARACTERS = 12000;
 const MAX_LOCAL_LITERATURE_CHUNKS = 48;
 const MAX_LOCAL_LITERATURE_SUMMARY_CONTEXT = 60000;
+const MAX_LOCAL_WORKSPACE_INVENTORY_FILES = 500;
+const MAX_LOCAL_WORKSPACE_EVIDENCE_FILES = 20;
+const MAX_LOCAL_WORKSPACE_EVIDENCE_CHARACTERS = 52000;
 const EXPERIMENT_MODULE_LABELS = {
   strainEngineering: "Strain Engineering",
   fermentation: "Fermentation",
@@ -110,7 +113,7 @@ The JSON must exactly follow this shape:
 
 const sideChatSystemPrompt = `${coreSystemPrompt}
 
-This is a conversational Side Chat request. Use the supplied recent user/assistant messages as conversation history and answer the latest user question directly. Resolve pronouns and short follow-up questions from that history. Do not claim to have read a PDF unless its full text or cached summary is supplied in the current request. Return a concise plain-text answer; structured JSON is not required.`.trim();
+This is a conversational Side Chat request. Use the supplied recent user/assistant messages as conversation history and answer the latest user question directly. Resolve pronouns and short follow-up questions from that history. Do not claim to have read a file unless processed evidence for that file is supplied in the current request. A workspace inventory proves only that a file exists. If a selected file is marked unsupported, unprocessed, or processing-failed, explicitly say its contents are not available for AI analysis and do not infer its contents from the filename. Return a concise plain-text answer; structured JSON is not required.`.trim();
 
 function jsonResponse(data, statusCode = 200, event = null, extraHeaders = {}) {
   return {
@@ -2947,6 +2950,168 @@ function sanitizeExperimentNotes(experimentNotes) {
     }));
 }
 
+function sanitizeLocalWorkspaceContext(value) {
+  if (!isPlainObject(value)) return null;
+  const rawScope = isPlainObject(value.scope) ? value.scope : {};
+  const scopeFiles = [...new Set(
+    (Array.isArray(rawScope.files) ? rawScope.files : [])
+      .filter((path) => typeof path === "string" && path.trim())
+      .map((path) => path.trim().slice(0, 500))
+  )].slice(0, MAX_LOCAL_WORKSPACE_INVENTORY_FILES);
+  const rawProject = isPlainObject(value.project) ? value.project : {};
+  const project = {
+    workspaceName:
+      typeof rawProject.workspaceName === "string"
+        ? rawProject.workspaceName.trim().slice(0, 180)
+        : "",
+    goal:
+      typeof rawProject.goal === "string"
+        ? rawProject.goal.trim().slice(0, 4000)
+        : "",
+    projectSummary:
+      typeof rawProject.projectSummary === "string"
+        ? rawProject.projectSummary.trim().slice(0, 8000)
+        : "",
+    literatureSummary:
+      typeof rawProject.literatureSummary === "string"
+        ? rawProject.literatureSummary.trim().slice(0, 8000)
+        : "",
+    experimentalSummary:
+      typeof rawProject.experimentalSummary === "string"
+        ? rawProject.experimentalSummary.trim().slice(0, 8000)
+        : ""
+  };
+  const inventory = (Array.isArray(value.inventory) ? value.inventory : [])
+    .filter((file) => isPlainObject(file))
+    .slice(0, MAX_LOCAL_WORKSPACE_INVENTORY_FILES)
+    .map((file) => ({
+      name:
+        typeof file.name === "string" && file.name.trim()
+          ? file.name.trim().slice(0, 180)
+          : "unnamed-file",
+      relativePath:
+        typeof file.relativePath === "string"
+          ? file.relativePath.trim().slice(0, 500)
+          : "",
+      extension:
+        typeof file.extension === "string"
+          ? file.extension.trim().toLowerCase().slice(0, 20)
+          : "",
+      size: Math.max(0, Number(file.size) || 0),
+      processor: file.processor === "pdf" ? "pdf" : null,
+      summaryAvailable: file.summaryAvailable === true,
+      summaryStatus:
+        typeof file.summaryStatus === "string"
+          ? file.summaryStatus.trim().slice(0, 40)
+          : "unprocessed"
+    }));
+
+  let remainingCharacters = MAX_LOCAL_WORKSPACE_EVIDENCE_CHARACTERS;
+  const files = (Array.isArray(value.files) ? value.files : [])
+    .filter((file) => isPlainObject(file))
+    .slice(0, MAX_LOCAL_WORKSPACE_EVIDENCE_FILES)
+    .map((file) => {
+      const sourceText =
+        typeof file.content === "string" ? file.content.trim() : "";
+      const content = sourceText.slice(0, remainingCharacters);
+      remainingCharacters = Math.max(0, remainingCharacters - content.length);
+      return {
+        name:
+          typeof file.name === "string" && file.name.trim()
+            ? file.name.trim().slice(0, 180)
+            : "unnamed-file",
+        relativePath:
+          typeof file.relativePath === "string"
+            ? file.relativePath.trim().slice(0, 500)
+            : "",
+        extension:
+          typeof file.extension === "string"
+            ? file.extension.trim().toLowerCase().slice(0, 20)
+            : "",
+        analysisStatus:
+          typeof file.analysisStatus === "string"
+            ? file.analysisStatus.trim().slice(0, 40)
+            : "unprocessed",
+        evidenceType:
+          typeof file.evidenceType === "string"
+            ? file.evidenceType.trim().slice(0, 80)
+            : "inventory-only",
+        content,
+        truncated: content.length < sourceText.length
+      };
+    });
+  const notices = (Array.isArray(value.notices) ? value.notices : [])
+    .filter((notice) => typeof notice === "string" && notice.trim())
+    .slice(0, 40)
+    .map((notice) => notice.trim().slice(0, 700));
+
+  return {
+    scope: {
+      type: rawScope.type === "files" ? "files" : "project",
+      files: scopeFiles
+    },
+    project,
+    inventory,
+    files,
+    notices
+  };
+}
+
+function buildLocalWorkspaceContext(value) {
+  if (!value) return null;
+  const sections = [];
+  const scopeLabel =
+    value.scope.type === "files"
+      ? `Selected files:\n${value.scope.files.map((path) => `- ${path}`).join("\n") || "- None"}`
+      : "Entire Project";
+  sections.push(`Current Side Chat scope:\n${scopeLabel}`);
+
+  const projectLines = [
+    value.project.workspaceName
+      ? `Workspace: ${value.project.workspaceName}`
+      : "",
+    value.project.goal ? `Project goal: ${value.project.goal}` : "",
+    value.project.projectSummary
+      ? `Saved project summary: ${value.project.projectSummary}`
+      : "",
+    value.project.literatureSummary
+      ? `Saved literature summary: ${value.project.literatureSummary}`
+      : "",
+    value.project.experimentalSummary
+      ? `Saved experimental summary: ${value.project.experimentalSummary}`
+      : ""
+  ].filter(Boolean);
+  if (projectLines.length) sections.push(projectLines.join("\n"));
+
+  if (value.inventory.length) {
+    sections.push(
+      `Local workspace inventory (metadata only; never treat inventory as file content):\n${value.inventory
+        .map(
+          (file, index) =>
+            `${index + 1}. ${file.relativePath || file.name} [.${file.extension || "unknown"}; ${file.size} bytes; processor: ${file.processor || "none"}; summary: ${file.summaryAvailable ? file.summaryStatus : "not generated"}]`
+        )
+        .join("\n")}`
+    );
+  }
+
+  if (value.files.length) {
+    sections.push(
+      `Question-specific local file context:\n${value.files
+        .map((file, index) => {
+          const header = `${index + 1}. ${file.relativePath || file.name} [status: ${file.analysisStatus}; evidence: ${file.evidenceType}${file.truncated ? "; truncated" : ""}]`;
+          return file.content ? `${header}\n${file.content}` : header;
+        })
+        .join("\n\n---\n\n")}`
+    );
+  }
+
+  if (value.notices.length) {
+    sections.push(`Context limitations and notices:\n${value.notices.map((notice) => `- ${notice}`).join("\n")}`);
+  }
+
+  return `The following context was prepared locally from the user's selected workspace. Original files remain local; only this bounded extracted or derived context was sent. Use processed evidence only.\n\n${sections.join("\n\n===\n\n")}`;
+}
+
 function sanitizeExperimentModules(experimentModules) {
   return Object.keys(EXPERIMENT_MODULE_LABELS).reduce((modules, moduleKey) => {
     const rawModule = isPlainObject(experimentModules[moduleKey])
@@ -2992,9 +3157,13 @@ function buildWorkspaceContext({
   storedDocuments,
   storedDocumentSummaries,
   storedDocumentInventory,
-  documentRoutingMode
+  documentRoutingMode,
+  localWorkspaceContext
 }) {
   const contextSections = [];
+
+  const localContext = buildLocalWorkspaceContext(localWorkspaceContext);
+  if (localContext) contextSections.push(localContext);
 
   if (projectContext) {
     contextSections.push(`Project context / goal:\n${projectContext}`);
@@ -3449,6 +3618,7 @@ exports.handler = async function handler(rawEvent, context) {
       const rawExperimentModules = body.experimentModules;
       const rawStoredDocuments = body.storedDocuments;
       const rawSelectedDocumentKeys = body.selectedDocumentKeys;
+      const rawLocalWorkspaceContext = body.localWorkspaceContext;
 
       if (
         rawReferenceDocuments !== undefined &&
@@ -3528,6 +3698,19 @@ exports.handler = async function handler(rawEvent, context) {
         );
       }
 
+      if (
+        rawLocalWorkspaceContext !== undefined &&
+        !isPlainObject(rawLocalWorkspaceContext)
+      ) {
+        return jsonResponse(
+          makeFallbackResponse(
+            'The optional "localWorkspaceContext" field must be an object.'
+          ),
+          400,
+          event
+        );
+      }
+
       const referenceDocuments = sanitizeReferenceDocuments(
         rawReferenceDocuments || []
       );
@@ -3537,6 +3720,9 @@ exports.handler = async function handler(rawEvent, context) {
       const experimentNotes = sanitizeExperimentNotes(rawExperimentNotes || []);
       const experimentModules = sanitizeExperimentModules(
         rawExperimentModules || {}
+      );
+      const localWorkspaceContext = sanitizeLocalWorkspaceContext(
+        rawLocalWorkspaceContext
       );
       const storedDocumentResult = await resolveStoredPdfChatContext({
         documents: rawStoredDocuments || [],
@@ -3567,7 +3753,8 @@ exports.handler = async function handler(rawEvent, context) {
           storedDocuments: storedDocumentResult.documents,
           storedDocumentSummaries: storedDocumentResult.summaries,
           storedDocumentInventory: storedDocumentResult.inventory,
-          documentRoutingMode: storedDocumentResult.routingMode
+          documentRoutingMode: storedDocumentResult.routingMode,
+          localWorkspaceContext
         },
         responseMode
       );
@@ -3595,6 +3782,10 @@ exports.handler = async function handler(rawEvent, context) {
           storedPdfSummariesUsed: storedDocumentResult.summaries.map(
             (document) => document.filename
           ),
+          localWorkspaceFilesUsed: (localWorkspaceContext?.files || [])
+            .filter((file) => file.content)
+            .map((file) => file.relativePath || file.name),
+          localWorkspaceScope: localWorkspaceContext?.scope || null,
           documentScope: {
             mode: storedDocumentResult.routingMode,
             objectKeys: storedDocumentResult.selectedObjectKeys,
@@ -3629,8 +3820,10 @@ exports._test = {
   extractPdfDocument,
   getUserStorageSegment,
   isOwnedPdfObjectKey,
+  buildLocalWorkspaceContext,
   normalizeLocalLiteratureEvidence,
   normalizeLocalLiteratureSummary,
   sanitizeChatMessagesForLlm,
+  sanitizeLocalWorkspaceContext,
   sanitizePdfFilename
 };
