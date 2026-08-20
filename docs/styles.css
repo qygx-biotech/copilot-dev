@@ -443,8 +443,8 @@ textarea:focus {
 }
 
 .workspace-tree-children {
-  margin-left: 11px;
-  padding-left: 12px;
+  margin-left: 5px;
+  padding-left: 7px;
   border-left: 1px solid var(--line);
 }
 
@@ -489,12 +489,16 @@ textarea:focus {
   border-color: rgba(18, 107, 95, 0.38);
 }
 
+.workspace-file-row {
+  align-items: flex-start;
+}
+
 .workspace-file-row input {
   flex: 0 0 auto;
   width: 15px;
   height: 15px;
   min-height: 15px;
-  margin: 0;
+  margin: 2px 0 0;
   padding: 0;
   border-radius: 3px;
   accent-color: var(--accent);
@@ -515,10 +519,32 @@ textarea:focus {
 }
 
 .workspace-tree-name {
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.workspace-folder-toggle .workspace-tree-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workspace-file-row .workspace-tree-name {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+  max-height: 2.7em;
+}
+
+.workspace-file-row .workspace-tree-icon,
+.workspace-file-row .workspace-tree-meta {
+  margin-top: 1px;
 }
 
 .workspace-tree-meta {

@@ -110,3 +110,30 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.doesNotMatch(htmlSource, /Literature & References/);
   assert.doesNotMatch(htmlSource, /Experimental Results/);
 });
+
+test("Workspace rows preserve full names while clamping long files to two lines", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const stylesSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/styles.css"),
+    "utf8"
+  );
+  const longNames = [
+    "2024--High efficiency production of 5-hydroxyectoine through metabolic engineering of Escherichia coli.pdf",
+    "2023--Efficient stereoselective hydroxylation using engineered cytochrome P450 whole-cell biocatalysts.pdf",
+    "2024--工程化大肠杆菌高效生产五羟基四氢嘧啶的代谢工程研究.pdf",
+  ];
+
+  assert.match(stylesSource, /\.workspace-file-row \.workspace-tree-name\s*\{[^}]*-webkit-line-clamp:\s*2/s);
+  assert.match(stylesSource, /\.workspace-file-row \.workspace-tree-name\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.match(stylesSource, /\.workspace-file-row \.workspace-tree-name\s*\{[^}]*white-space:\s*normal/s);
+  assert.match(stylesSource, /\.workspace-folder-toggle \.workspace-tree-name\s*\{[^}]*white-space:\s*nowrap/s);
+  assert.match(stylesSource, /\.workspace-tree-children\s*\{[^}]*margin-left:\s*5px[^}]*padding-left:\s*7px/s);
+  assert.equal((appSource.match(/name\.title = node\.name;/g) || []).length, 2);
+  assert.ok(longNames[0].length > 100);
+  assert.ok(longNames[1].length > 90);
+  assert.match(longNames[2], /[\u3400-\u9fff]/);
+  assert.ok(longNames.every((filename) => filename.endsWith(".pdf")));
+});

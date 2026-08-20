@@ -2168,6 +2168,7 @@ function renderWorkspaceTreeNode(node, isRoot = false) {
     const name = document.createElement("span");
     name.className = "workspace-tree-name";
     name.textContent = node.name;
+    name.title = node.name;
     button.append(disclosure, icon, name);
     item.appendChild(button);
 
@@ -2199,6 +2200,7 @@ function renderWorkspaceTreeNode(node, isRoot = false) {
   const name = document.createElement("span");
   name.className = "workspace-tree-name";
   name.textContent = node.name;
+  name.title = node.name;
   const meta = document.createElement("span");
   meta.className = "workspace-tree-meta";
   meta.textContent = formatFileSize(node.size);
