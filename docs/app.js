@@ -4,17 +4,37 @@ const loginAccountInput = document.querySelector("#loginAccount");
 const loginPasswordInput = document.querySelector("#loginPassword");
 const loginButton = document.querySelector("#loginButton");
 const loginError = document.querySelector("#loginError");
+const workspaceSelectionPanel = document.querySelector("#workspaceSelectionPanel");
+const selectWorkspaceButton = document.querySelector("#selectWorkspaceButton");
+const workspaceSelectionError = document.querySelector("#workspaceSelectionError");
+const workspaceCompatibilityMessage = document.querySelector(
+  "#workspaceCompatibilityMessage"
+);
+const workspaceLogoutButton = document.querySelector("#workspaceLogoutButton");
+const workspaceInitializationDialog = document.querySelector(
+  "#workspaceInitializationDialog"
+);
+const workspaceInitializationName = document.querySelector(
+  "#workspaceInitializationName"
+);
+const cancelWorkspaceInitializationButton = document.querySelector(
+  "#cancelWorkspaceInitializationButton"
+);
+const initializeWorkspaceButton = document.querySelector(
+  "#initializeWorkspaceButton"
+);
 const appShell = document.querySelector("#appShell");
 const currentAccountName = document.querySelector("#currentAccountName");
 const logoutButton = document.querySelector("#logoutButton");
+const changeWorkspaceButton = document.querySelector("#changeWorkspaceButton");
+const workspaceNameLabel = document.querySelector("#workspaceNameLabel");
 const backendStatusLabel = document.querySelector("#backendStatusLabel");
 const languageSelects = document.querySelectorAll("[data-language-select]");
 
 const projectContextInput = document.querySelector("#projectContext");
 const referenceFileInput = document.querySelector("#referenceFileInput");
-const referenceFolderInput = document.querySelector("#referenceFolderInput");
 const referenceFileList = document.querySelector("#referenceFileList");
-const clearReferencesButton = document.querySelector("#clearReferencesButton");
+const refreshLiteratureButton = document.querySelector("#refreshLiteratureButton");
 const summarizeAllReferencesButton = document.querySelector(
   "#summarizeAllReferencesButton"
 );
@@ -28,6 +48,7 @@ const sideChatForm = document.querySelector("#sideChatForm");
 const sideChatInput = document.querySelector("#sideChatInput");
 const sideChatHistory = document.querySelector("#sideChatHistory");
 const sendSideChatButton = document.querySelector("#sendSideChatButton");
+const clearSideChatButton = document.querySelector("#clearSideChatButton");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
 
 const MAX_REFERENCE_FILES = 100;
@@ -54,14 +75,21 @@ const CLOUDFLARE_WORKER_URL = "https://biodesign-copilot-worker.zhangjatsh666.wo
 const ALIBABA_FC_URL = "https://biodesi-api-dev-jvvowibabk.cn-beijing.fcapp.run";
 const WORKER_URL = BACKEND_PROVIDER === "alibaba" ? ALIBABA_FC_URL : CLOUDFLARE_WORKER_URL;
 const USE_BACKEND = true;
+// Retained OSS code is intentionally inactive for local-workspace storage.
+const USE_OSS_WORKSPACE_STORAGE = false;
+const PDF_JS_WORKER_URL =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 const ACCESS_TOKEN_STORAGE_KEY = "access_token";
 const ACCOUNT_STORAGE_KEY = "account";
-const PROJECT_CONTEXT_STORAGE_KEY = "biodesign_workbench_project_context";
 const EXPERIMENT_MODULES_STORAGE_KEY = "biodesign_workbench_experiment_modules";
 const LEGACY_EXPERIMENT_NOTES_STORAGE_KEY = "biodesign_workbench_experiment_notes";
 const RECOMMENDATION_STORAGE_KEY = "biodesign_workbench_recommendation";
 const ANALYSIS_PANELS_STORAGE_KEY = "biodesign_workbench_analysis_panels";
 const LANGUAGE_STORAGE_KEY = "biodesign_workbench_language";
+const SIDE_CHAT_HISTORY_STORAGE_KEY = "biodesign_workbench_side_chat_history";
+const MAX_SIDE_CHAT_HISTORY_MESSAGES = 20;
+const MAX_SIDE_CHAT_MESSAGE_CHARACTERS = 4000;
+const TOTAL_SIDE_CHAT_HISTORY_CHARACTERS = 24000;
 const EXPERIMENT_MODULE_DEFINITIONS = [
   {
     key: "strainEngineering",
@@ -119,6 +147,33 @@ const I18N = {
     loggedOut: "Signed out.",
     sessionExpired: "Session expired. Please sign in again.",
     waitLabel: "Please wait...",
+    workspaceSelectionEyebrow: "Local Workspace",
+    workspaceSelectionTitle: "BioDesign Copilot",
+    workspaceSelectionSubtitle:
+      "Select a local project workspace to continue. Project files and generated summaries remain in that folder.",
+    localStorageTitle: "Local source of truth",
+    localStorageDescription:
+      "Original PDFs and workspace state stay on this device. Only extracted text needed for an AI request is sent to Function Compute.",
+    workspaceCompatibility:
+      "Requires a compatible desktop browser such as Chrome or Edge.",
+    workspaceUnsupported:
+      "Writable local folder access is unavailable. Use a compatible desktop browser such as Chrome or Edge.",
+    selectWorkspaceFolder: "Select Workspace Folder",
+    selectingWorkspace: "Opening folder...",
+    initializeWorkspaceEyebrow: "Initialize Workspace",
+    initializeWorkspaceTitle: "Create a BioDesign workspace?",
+    initializeWorkspaceDescription:
+      "This folder is not yet a BioDesign Copilot workspace. Initialize it now? Existing unrelated files will not be changed.",
+    initialize: "Initialize",
+    initializingWorkspace: "Initializing...",
+    cancel: "Cancel",
+    workspaceLoadFailed: "Could not open this workspace: {message}",
+    workspaceLabel: "Workspace",
+    storageLabel: "Storage",
+    storageLocal: "Local",
+    changeWorkspace: "Change Workspace",
+    workspaceBusy: "Please wait for the local file write to finish.",
+    workspaceChanged: "Workspace changed.",
     workspaceEyebrow: "Workspace",
     workbenchSubtitle:
       "Human-in-the-loop AI workspace for synthetic biology design, literature review, and experiment interpretation.",
@@ -132,10 +187,12 @@ const I18N = {
     referencesTitle: "Literature & References",
     uploadReferences: "Upload references",
     uploadPdfFolder: "Upload PDF folder",
+    addLiterature: "Add Literature",
+    refreshLiterature: "Refresh Literature",
     summarizeAllReferences: "Summarize all",
     clearReferences: "Clear references",
     referencesHelper:
-      "PDF papers are stored privately in OSS and restored after login. Summaries run only when you request them. Select up to three papers to keep Side Chat focused.",
+      "PDFs stay in the selected workspace. Summaries run only when requested and are cached locally.",
     experimentEyebrow: "Experiment Evidence",
     experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
@@ -208,6 +265,7 @@ const I18N = {
     sideExamplePaper: "What does this paper suggest?",
     sideExampleClarify: "What should I clarify before running the main analysis?",
     sideQuestionLabel: "Side question",
+    clearSideChat: "Clear chat",
     sideChatPlaceholder: "Ask a question without updating the project plan...",
     askButton: "Ask",
     backendProviderAlibaba: "Alibaba FC backend",
@@ -218,7 +276,7 @@ const I18N = {
     backendFallback: "Fallback",
     backendFallbackMessage:
       "I could not reach the BioDesign Copilot backend, so I generated a local demo response instead.",
-    noReferenceFiles: "No reference files uploaded yet.",
+    noReferenceFiles: "No PDF files found in the workspace literature folder.",
     noExperimentFiles: "No experiment files uploaded yet.",
     noExperimentNotes: "No experiment notes added yet.",
     referencesCleared: "References cleared.",
@@ -237,11 +295,23 @@ const I18N = {
     pdfReviewing: "Extracting and summarizing {name}...",
     pdfStored: "Stored {name} in private OSS. Summarization has not started.",
     pdfUploadFailed: "Could not upload {name}: {message}",
-    pdfReviewFailed: "{name} remains stored in OSS, but review failed: {message}",
+    pdfReviewFailed: "Review failed for {name}: {message}",
     pdfStoredMeta: "stored in private OSS",
     pdfReviewErrorMeta: "stored; review needs retry",
     pdfSummaryReadyMeta: "summary cached",
     pdfSummaryPendingMeta: "not summarized",
+    pdfLocalMeta: "stored locally",
+    pdfSummaryStaleMeta: "changed — summary may be outdated",
+    pdfProcessingProgress: "Summarizing chunk {done} of {total}",
+    pdfSynthesizing: "Creating the final scientific review...",
+    pdfExtractingLocal: "Extracting text locally...",
+    regenerateSummary: "Regenerate summary",
+    literatureRefreshed: "Literature refreshed: {count} PDFs found.",
+    literatureAdded: "Added {count} PDFs to the local workspace.",
+    removeLocalFileConfirm:
+      "Remove {name} from the local literature folder? The cached summary will be preserved.",
+    localFileDeleted: "Removed {name} from the local literature folder.",
+    localSummaryWriteFailed: "The summary could not be saved locally: {message}",
     summarizeFile: "Summarize",
     viewSummary: "View summary",
     useInChat: "Use in chat",
@@ -253,7 +323,9 @@ const I18N = {
     fileDeleteFailed: "Could not delete {name}: {message}",
     folderNoPdfs: "The selected folder did not contain supported PDF files.",
     summarizeAllBusy: "Summarizing papers...",
+    summarizeAllProgress: "Summarizing {done}/{total} papers...",
     summarizeAllQuestion: "Summarize all literature in this workspace, compare the research questions, methods, main findings, and limitations, and clearly identify any papers whose summaries are unavailable.",
+    summaryConversationQuestion: "Summarize {name}.",
     summariesReady: "The requested paper summaries are ready.",
     thinking: "Thinking",
     pdfSyncing: "Syncing saved PDFs from private OSS...",
@@ -378,6 +450,32 @@ const I18N = {
     loggedOut: "已退出登录。",
     sessionExpired: "登录状态已失效，请重新登录。",
     waitLabel: "请稍候...",
+    workspaceSelectionEyebrow: "本地工作区",
+    workspaceSelectionTitle: "BioDesign Copilot",
+    workspaceSelectionSubtitle:
+      "请选择本地项目工作区以继续。项目文件和生成的摘要都会保存在该文件夹中。",
+    localStorageTitle: "本地数据源",
+    localStorageDescription:
+      "原始 PDF 和工作区状态保留在本机。只有 AI 请求所需的提取文本会发送到函数计算。",
+    workspaceCompatibility: "需要 Chrome 或 Edge 等兼容的桌面浏览器。",
+    workspaceUnsupported:
+      "当前浏览器无法写入本地文件夹。请使用 Chrome 或 Edge 等兼容的桌面浏览器。",
+    selectWorkspaceFolder: "选择工作区文件夹",
+    selectingWorkspace: "正在打开文件夹...",
+    initializeWorkspaceEyebrow: "初始化工作区",
+    initializeWorkspaceTitle: "创建 BioDesign 工作区？",
+    initializeWorkspaceDescription:
+      "此文件夹尚不是 BioDesign Copilot 工作区。是否现在初始化？已有的无关文件不会被修改。",
+    initialize: "初始化",
+    initializingWorkspace: "正在初始化...",
+    cancel: "取消",
+    workspaceLoadFailed: "无法打开此工作区：{message}",
+    workspaceLabel: "工作区",
+    storageLabel: "存储",
+    storageLocal: "本地",
+    changeWorkspace: "切换工作区",
+    workspaceBusy: "请等待本地文件写入完成。",
+    workspaceChanged: "工作区已切换。",
     workspaceEyebrow: "工作区",
     workbenchSubtitle:
       "面向合成生物学设计、文献评审和实验结果解读的人机协同 AI 工作台。",
@@ -391,10 +489,12 @@ const I18N = {
     referencesTitle: "文献与参考资料",
     uploadReferences: "上传参考资料",
     uploadPdfFolder: "上传 PDF 文件夹",
+    addLiterature: "添加文献",
+    refreshLiterature: "刷新文献",
     summarizeAllReferences: "总结全部",
     clearReferences: "清空参考资料",
     referencesHelper:
-      "PDF 论文会私密保存到 OSS 并在登录后自动恢复。只有用户主动要求时才会生成总结。最多选择三篇论文供侧边问答重点使用。",
+      "PDF 保存在所选本地工作区中。仅在用户主动请求时生成摘要，并在本地缓存。",
     experimentEyebrow: "实验证据",
     experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
@@ -467,6 +567,7 @@ const I18N = {
     sideExamplePaper: "这篇论文提示了什么？",
     sideExampleClarify: "运行主分析前我应该澄清什么？",
     sideQuestionLabel: "侧边问题",
+    clearSideChat: "清空问答",
     sideChatPlaceholder: "提出一个不会更新项目计划的问题...",
     askButton: "提问",
     backendProviderAlibaba: "阿里云 FC 后端",
@@ -477,7 +578,7 @@ const I18N = {
     backendFallback: "本地回退",
     backendFallbackMessage:
       "我无法连接 BioDesign Copilot 后端，因此先生成了一份本地演示回复。",
-    noReferenceFiles: "尚未上传参考资料。",
+    noReferenceFiles: "工作区的 literature 文件夹中尚未发现 PDF。",
     noExperimentFiles: "尚未上传实验文件。",
     noExperimentNotes: "尚未添加实验备注。",
     referencesCleared: "已清空参考资料。",
@@ -496,11 +597,22 @@ const I18N = {
     pdfReviewing: "正在提取并总结 {name}...",
     pdfStored: "{name} 已保存到私有 OSS，尚未开始总结。",
     pdfUploadFailed: "无法上传 {name}：{message}",
-    pdfReviewFailed: "{name} 仍保存在 OSS，但评审失败：{message}",
+    pdfReviewFailed: "{name} 评审失败：{message}",
     pdfStoredMeta: "已保存到私有 OSS",
     pdfReviewErrorMeta: "已保存；需要重试评审",
     pdfSummaryReadyMeta: "总结已缓存",
     pdfSummaryPendingMeta: "尚未总结",
+    pdfLocalMeta: "存储于本地",
+    pdfSummaryStaleMeta: "文件已更改，摘要可能已过期",
+    pdfProcessingProgress: "正在总结第 {done}/{total} 个文本块",
+    pdfSynthesizing: "正在生成最终科学评审...",
+    pdfExtractingLocal: "正在本地提取文本...",
+    regenerateSummary: "重新生成摘要",
+    literatureRefreshed: "文献已刷新：发现 {count} 个 PDF。",
+    literatureAdded: "已向本地工作区添加 {count} 个 PDF。",
+    removeLocalFileConfirm: "从本地文献文件夹中移除 {name}？已缓存的摘要会保留。",
+    localFileDeleted: "已从本地文献文件夹移除 {name}。",
+    localSummaryWriteFailed: "无法在本地保存摘要：{message}",
     summarizeFile: "总结",
     viewSummary: "查看总结",
     useInChat: "用于问答",
@@ -512,7 +624,9 @@ const I18N = {
     fileDeleteFailed: "无法删除 {name}：{message}",
     folderNoPdfs: "所选文件夹中没有受支持的 PDF 文件。",
     summarizeAllBusy: "正在总结论文...",
+    summarizeAllProgress: "正在总结论文 {done}/{total}...",
     summarizeAllQuestion: "请总结此工作区中的全部文献，比较研究问题、方法、主要发现和局限性，并明确指出哪些论文尚无可用总结。",
+    summaryConversationQuestion: "请总结 {name}。",
     summariesReady: "所请求的论文总结已完成。",
     thinking: "思考中",
     pdfSyncing: "正在从私有 OSS 同步已保存的 PDF...",
@@ -622,17 +736,29 @@ let lastBackendStatus = "backendReady";
 
 let authToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "";
 let currentAccount = sessionStorage.getItem(ACCOUNT_STORAGE_KEY) || "";
-let projectContext = sessionStorage.getItem(PROJECT_CONTEXT_STORAGE_KEY) || "";
+let projectContext = "";
 let referenceDocuments = [];
 let experimentModules = loadExperimentModules();
 let analysisPanels = loadAnalysisPanels();
 let currentRecommendation = getCurrentRecommendation();
-let sideChatMessages = [];
+let sideChatHistoryAccount = currentAccount;
+let sideChatMessages = loadSideChatMessages(currentAccount);
 let activeAgentRequest = false;
 let activeAgentPanelId = "";
 let activePdfUploads = 0;
-let activeSideChatDocumentKeys = [];
+let activeSideChatDocumentKeys = loadSideChatDocumentKeys(currentAccount);
 let sideChatBusy = false;
+const workspaceManager = new WorkspaceManager();
+const literatureApiClient = new LiteratureApiClient({
+  baseUrl: WORKER_URL,
+  getHeaders: () => getAuthHeaders(),
+  onUnauthorized: () => handleWorkspaceAuthRequired(),
+});
+let literatureModule = null;
+let workspaceAbortController = null;
+let workspaceStateSaveTimer = null;
+let workspaceStateWrite = Promise.resolve();
+let activeLiteratureOperations = 0;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -699,8 +825,8 @@ loginForm.addEventListener("submit", async (event) => {
     }
 
     setAuthSession(data.token, loggedInAccount);
+    restoreSideChatHistoryForAccount(loggedInAccount);
     showAuthenticated(loggedInAccount);
-    await syncStoredPdfDocuments();
   } catch (error) {
     console.warn("Login failed.", error);
     showLoggedOut(error.message || t("loginFailed"));
@@ -710,18 +836,74 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
-logoutButton.addEventListener("click", () => {
+logoutButton.addEventListener("click", logoutFromWorkbench);
+workspaceLogoutButton.addEventListener("click", logoutFromWorkbench);
+
+selectWorkspaceButton.addEventListener("click", async () => {
+  workspaceSelectionError.textContent = "";
+  setWorkspaceSelectionBusy(true, t("selectingWorkspace"));
+  try {
+    const selection = await workspaceManager.selectWorkspace();
+    if (selection.initialized) {
+      await openSelectedWorkspace(false);
+      return;
+    }
+    workspaceInitializationName.textContent = selection.name;
+    workspaceInitializationDialog.showModal();
+  } catch (error) {
+    if (error?.code !== "PICKER_CANCELLED") {
+      workspaceManager.closeWorkspace();
+      workspaceSelectionError.textContent = t("workspaceLoadFailed", {
+        message: error.message || t("loginFailed"),
+      });
+    }
+  } finally {
+    setWorkspaceSelectionBusy(false);
+  }
+});
+
+initializeWorkspaceButton.addEventListener("click", async () => {
+  initializeWorkspaceButton.disabled = true;
+  initializeWorkspaceButton.textContent = t("initializingWorkspace");
+  try {
+    await openSelectedWorkspace(true);
+    workspaceInitializationDialog.close("initialized");
+  } catch (error) {
+    workspaceInitializationDialog.close("failed");
+    workspaceManager.closeWorkspace();
+    workspaceSelectionError.textContent = t("workspaceLoadFailed", {
+      message: error.message || t("loginFailed"),
+    });
+  } finally {
+    initializeWorkspaceButton.disabled = false;
+    initializeWorkspaceButton.textContent = t("initialize");
+  }
+});
+
+cancelWorkspaceInitializationButton.addEventListener("click", () => {
+  workspaceManager.closeWorkspace();
+});
+
+workspaceInitializationDialog.addEventListener("cancel", () => {
+  workspaceManager.closeWorkspace();
+});
+
+changeWorkspaceButton.addEventListener("click", async () => {
   if (activePdfUploads > 0) {
-    showToast(t("pdfUploadCloseWarning"));
+    showToast(t("workspaceBusy"));
     return;
   }
-
-  clearAuthSession();
-  showLoggedOut(t("loggedOut"));
+  try {
+    await leaveCurrentWorkspace();
+    showWorkspaceSelection();
+    showToast(t("workspaceChanged"));
+  } catch (error) {
+    showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+  }
 });
 
 window.addEventListener("beforeunload", (event) => {
-  if (activePdfUploads <= 0) return;
+  if (activePdfUploads <= 0 && activeLiteratureOperations <= 0) return;
 
   event.preventDefault();
   event.returnValue = "";
@@ -729,61 +911,31 @@ window.addEventListener("beforeunload", (event) => {
 
 projectContextInput.addEventListener("input", () => {
   projectContext = projectContextInput.value.trim();
-  sessionStorage.setItem(PROJECT_CONTEXT_STORAGE_KEY, projectContext);
+  scheduleWorkspaceStateSave();
 });
 
 referenceFileInput.addEventListener("change", async (event) => {
-  await handleDocumentFiles({
-    files: Array.from(event.target.files || []),
-    collection: referenceDocuments,
-    maxFiles: MAX_REFERENCE_FILES,
-    onUpdate(nextDocuments) {
-      referenceDocuments = nextDocuments;
-      renderDocumentList(
-        referenceFileList,
-        referenceDocuments,
-        t("noReferenceFiles"),
-        removeReferenceDocument
-      );
-    },
-  });
-  referenceFileInput.value = "";
-});
-
-referenceFolderInput.addEventListener("change", async (event) => {
-  const pdfFiles = Array.from(event.target.files || []).filter(
-    (file) => getFileExtension(file.name) === "pdf"
-  );
-  if (!pdfFiles.length) {
-    showToast(t("folderNoPdfs"));
-    referenceFolderInput.value = "";
-    return;
+  const files = Array.from(event.target.files || []);
+  if (!files.length || !literatureModule) return;
+  activePdfUploads += 1;
+  try {
+    const result = await literatureModule.addFiles(files);
+    applyLiteratureScan(result.documents);
+    showToast(t("literatureAdded", { count: result.addedNames.length }));
+  } catch (error) {
+    showToast(error.message || t("fileParseFailed", { name: "PDF" }));
+  } finally {
+    activePdfUploads = Math.max(0, activePdfUploads - 1);
+    referenceFileInput.value = "";
   }
-
-  await handleDocumentFiles({
-    files: pdfFiles,
-    collection: referenceDocuments,
-    maxFiles: MAX_REFERENCE_FILES,
-    onUpdate(nextDocuments) {
-      referenceDocuments = nextDocuments;
-      renderAllDocumentLists();
-    },
-  });
-  referenceFolderInput.value = "";
 });
 
 summarizeAllReferencesButton.addEventListener("click", async () => {
   await summarizeAllStoredReferences();
 });
 
-clearReferencesButton.addEventListener("click", async () => {
-  await clearDocumentCollection({
-    documents: referenceDocuments,
-    onUpdate(nextDocuments) {
-      referenceDocuments = nextDocuments;
-      renderAllDocumentLists();
-    },
-  });
+refreshLiteratureButton.addEventListener("click", async () => {
+  await refreshLiterature(true);
 });
 
 EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
@@ -926,9 +1078,22 @@ sideChatForm.addEventListener("submit", async (event) => {
   await askSideChat(question);
 });
 
+clearSideChatButton.addEventListener("click", () => {
+  sideChatMessages = [];
+  activeSideChatDocumentKeys = [];
+  try {
+    sessionStorage.removeItem(SIDE_CHAT_HISTORY_STORAGE_KEY);
+  } catch {
+    // The in-memory conversation is still cleared.
+  }
+  renderSideChatConversation();
+});
+
 function initializeWorkbench() {
   projectContextInput.value = projectContext;
   applyLanguage();
+  workspaceCompatibilityMessage.hidden = workspaceManager.isSupported();
+  selectWorkspaceButton.disabled = !workspaceManager.isSupported();
   renderBackendStatus("backendReady");
   renderDocumentList(
     referenceFileList,
@@ -939,11 +1104,7 @@ function initializeWorkbench() {
   renderExperimentModules();
   renderAnalysisPanels();
   setSideChatBusy(sideChatBusy);
-  sideChatHistory.innerHTML = "";
-  addSideChatMessage(
-    "assistant",
-    t("sideChatIntro")
-  );
+  renderSideChatConversation();
 }
 
 async function checkCurrentUser() {
@@ -974,9 +1135,9 @@ async function checkCurrentUser() {
     const accountName = getAccountName(data) || currentAccount || t("signedIn");
     if (accountName !== t("signedIn")) {
       setAuthSession(authToken, accountName);
+      restoreSideChatHistoryForAccount(accountName);
     }
     showAuthenticated(accountName);
-    await syncStoredPdfDocuments();
   } catch (error) {
     console.warn("Session check failed.", error);
     showLoggedOut("");
@@ -991,21 +1152,185 @@ function showAuthenticated(accountName) {
   loginPasswordInput.value = "";
   loginPanel.hidden = true;
   loginPanel.classList.add("is-hidden");
-  appShell.hidden = false;
-  appShell.classList.remove("is-hidden");
-  projectContextInput.focus();
+  showWorkspaceSelection();
 }
 
 function showLoggedOut(message) {
+  closeWorkspaceInMemory();
   clearAuthSession();
   currentAccountName.textContent = t("notSignedIn");
   appShell.hidden = true;
   appShell.classList.add("is-hidden");
+  workspaceSelectionPanel.hidden = true;
+  workspaceSelectionPanel.classList.add("is-hidden");
   loginPanel.hidden = false;
   loginPanel.classList.remove("is-hidden");
   loginPasswordInput.value = "";
   loginError.textContent = message || "";
   loginAccountInput.focus();
+}
+
+function showWorkspaceSelection() {
+  loginPanel.hidden = true;
+  loginPanel.classList.add("is-hidden");
+  appShell.hidden = true;
+  appShell.classList.add("is-hidden");
+  workspaceSelectionPanel.hidden = false;
+  workspaceSelectionPanel.classList.remove("is-hidden");
+  workspaceSelectionError.textContent = workspaceManager.isSupported()
+    ? ""
+    : t("workspaceUnsupported");
+  workspaceCompatibilityMessage.hidden = workspaceManager.isSupported();
+  selectWorkspaceButton.disabled = !workspaceManager.isSupported();
+  if (!selectWorkspaceButton.disabled) selectWorkspaceButton.focus();
+}
+
+function showMainApplication() {
+  workspaceSelectionPanel.hidden = true;
+  workspaceSelectionPanel.classList.add("is-hidden");
+  appShell.hidden = false;
+  appShell.classList.remove("is-hidden");
+  projectContextInput.focus();
+}
+
+function setWorkspaceSelectionBusy(isBusy, label = t("waitLabel")) {
+  selectWorkspaceButton.disabled = isBusy || !workspaceManager.isSupported();
+  selectWorkspaceButton.textContent = isBusy ? label : t("selectWorkspaceFolder");
+}
+
+async function openSelectedWorkspace(initialize) {
+  const result = initialize
+    ? await workspaceManager.initializeWorkspace()
+    : await workspaceManager.loadWorkspace();
+  workspaceAbortController?.abort();
+  workspaceAbortController = new AbortController();
+  literatureModule = new LiteratureModule({
+    workspace: workspaceManager,
+    api: literatureApiClient,
+    pdfjsLib: window.pdfjsLib,
+    pdfWorkerSrc: PDF_JS_WORKER_URL,
+    getLanguage: () => currentLanguage,
+  });
+  const documents = await literatureModule.scan();
+  projectContext = result.state.project.goal || "";
+  projectContextInput.value = projectContext;
+  workspaceNameLabel.textContent = result.workspace.name;
+  applyLiteratureScan(documents);
+  showMainApplication();
+}
+
+function applyLiteratureScan(documents) {
+  const previousById = new Map(referenceDocuments.map((document) => [document.id, document]));
+  referenceDocuments = documents.map((document) => {
+    const previous = previousById.get(document.id);
+    const preserveCachedReview =
+      previous?.review && document.summaryAvailable && document.status !== "stale";
+    return {
+      ...document,
+      type: "application/pdf",
+      extension: "pdf",
+      localWorkspace: true,
+      processingStatus: "",
+      review: preserveCachedReview ? previous.review : null,
+      text: preserveCachedReview ? previous.text : "",
+      selectedForChat: preserveCachedReview ? previous.selectedForChat : false,
+      reviewError: "",
+    };
+  });
+  renderAllDocumentLists();
+}
+
+async function refreshLiterature(showMessage = false) {
+  if (!literatureModule) return;
+  try {
+    const documents = await literatureModule.scan();
+    applyLiteratureScan(documents);
+    if (showMessage) showToast(t("literatureRefreshed", { count: documents.length }));
+  } catch (error) {
+    showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+  }
+}
+
+function scheduleWorkspaceStateSave() {
+  if (!workspaceManager.workspace) return;
+  window.clearTimeout(workspaceStateSaveTimer);
+  workspaceStateSaveTimer = window.setTimeout(() => {
+    workspaceStateSaveTimer = null;
+    workspaceStateWrite = workspaceStateWrite
+      .then(() => saveWorkspaceStateNow())
+      .catch((error) =>
+        showToast(
+          t("workspaceLoadFailed", {
+            message: error.message || t("loginFailed"),
+          })
+        )
+      );
+  }, 450);
+}
+
+async function saveWorkspaceStateNow() {
+  if (!workspaceManager.workspace || !workspaceManager.state) return;
+  const nextState = {
+    ...workspaceManager.state,
+    project: {
+      ...workspaceManager.state.project,
+      goal: projectContextInput.value.trim(),
+    },
+  };
+  await workspaceManager.saveState(nextState);
+}
+
+async function flushWorkspaceState() {
+  if (workspaceStateSaveTimer) {
+    window.clearTimeout(workspaceStateSaveTimer);
+    workspaceStateSaveTimer = null;
+    workspaceStateWrite = workspaceStateWrite.then(() => saveWorkspaceStateNow());
+  }
+  try {
+    await workspaceStateWrite;
+  } finally {
+    workspaceStateWrite = Promise.resolve();
+  }
+}
+
+async function leaveCurrentWorkspace() {
+  workspaceAbortController?.abort();
+  await flushWorkspaceState();
+  closeWorkspaceInMemory();
+}
+
+function closeWorkspaceInMemory() {
+  workspaceAbortController?.abort();
+  workspaceAbortController = null;
+  literatureModule = null;
+  workspaceManager.closeWorkspace();
+  referenceDocuments = [];
+  workspaceNameLabel.textContent = "";
+  activeSideChatDocumentKeys = [];
+  renderAllDocumentLists();
+}
+
+async function logoutFromWorkbench() {
+  if (activePdfUploads > 0) {
+    showToast(t("workspaceBusy"));
+    return;
+  }
+  workspaceAbortController?.abort();
+  try {
+    await flushWorkspaceState();
+  } catch (error) {
+    showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+  }
+  closeWorkspaceInMemory();
+  sideChatHistoryAccount = "";
+  sideChatMessages = [];
+  activeSideChatDocumentKeys = [];
+  renderSideChatConversation();
+  showLoggedOut(t("loggedOut"));
+}
+
+function handleWorkspaceAuthRequired() {
+  showLoggedOut(t("sessionExpired"));
 }
 
 function setLoginBusy(isBusy, label = t("waitLabel")) {
@@ -1173,7 +1498,11 @@ async function handleDocumentFiles({
 
     const extension = getFileExtension(file.name);
 
-    if (extension === "pdf" && BACKEND_PROVIDER === "alibaba") {
+    if (
+      extension === "pdf" &&
+      BACKEND_PROVIDER === "alibaba" &&
+      USE_OSS_WORKSPACE_STORAGE
+    ) {
       const pendingId = makeId();
       const pendingDocument = {
         id: pendingId,
@@ -1416,6 +1745,7 @@ async function syncStoredPdfDocuments() {
     activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter((key) =>
       serverByKey.has(key)
     );
+    saveSideChatMessages();
 
     const reconcileCollection = (documents) =>
       documents
@@ -1523,11 +1853,11 @@ function formatPaperReview(review, filename) {
   };
 
   appendScalar("paperSummaryLabel", value.summary);
-  appendScalar("paperQuestionLabel", value.research_question);
+  appendScalar("paperQuestionLabel", value.researchQuestion || value.research_question);
   appendScalar("paperMethodsLabel", value.methods);
-  appendList("paperResultsLabel", value.key_results);
+  appendList("paperResultsLabel", value.keyResults || value.key_results);
   appendList("paperLimitationsLabel", value.limitations);
-  appendScalar("paperConclusionLabel", value.main_conclusion);
+  appendScalar("paperConclusionLabel", value.mainConclusion || value.main_conclusion);
   return lines.join("\n");
 }
 
@@ -1545,6 +1875,8 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
   documents.forEach((documentItem) => {
     const card = document.createElement("div");
     card.className = "file-card";
+    card.classList.toggle("is-stale", documentItem.status === "stale");
+    card.classList.toggle("has-error", Boolean(documentItem.reviewError));
 
     const details = document.createElement("div");
     const name = document.createElement("div");
@@ -1556,14 +1888,27 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
     if (documentItem.processingStatus === "uploading") {
       meta.textContent = t("pdfUploading", { name: documentItem.filename });
     } else if (documentItem.processingStatus === "reviewing") {
-      meta.textContent = t("pdfReviewing", { name: documentItem.filename });
+      meta.textContent =
+        documentItem.processingMessage ||
+        t("pdfReviewing", { name: documentItem.filename });
     } else if (documentItem.processingStatus === "deleting") {
       meta.textContent = t("deletingFile", { name: documentItem.filename });
     } else {
       const characterCount = Number(
         documentItem.extractedCharacterCount || documentItem.extractedCharCount || 0
       );
-      const storageNote = documentItem.objectKey
+      const storageNote = documentItem.localWorkspace
+        ? [
+            t("pdfLocalMeta"),
+            documentItem.reviewError
+              ? `${t("pdfReviewErrorMeta")}: ${documentItem.reviewError}`
+              : documentItem.status === "stale"
+                ? t("pdfSummaryStaleMeta")
+                : documentItem.summaryAvailable
+                  ? t("pdfSummaryReadyMeta")
+                  : t("pdfSummaryPendingMeta"),
+          ].join(" · ")
+        : documentItem.objectKey
         ? [
             t("pdfStoredMeta"),
             documentItem.reviewError
@@ -1574,7 +1919,7 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
           ].join(" · ")
         : "";
       const evidenceDetails =
-        documentItem.objectKey && !characterCount
+        (documentItem.objectKey || documentItem.localWorkspace) && !characterCount
           ? [
               formatFileSize(documentItem.size),
               documentItem.lastModified
@@ -1593,15 +1938,15 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
 
     const actions = document.createElement("div");
     actions.className = "file-actions";
-    if (documentItem.objectKey) {
+    if (documentItem.objectKey || documentItem.localWorkspace) {
       const chatLabel = document.createElement("label");
       chatLabel.className = "file-chat-toggle";
       const chatCheckbox = document.createElement("input");
       chatCheckbox.type = "checkbox";
       chatCheckbox.checked = Boolean(documentItem.selectedForChat);
       chatCheckbox.disabled = Boolean(documentItem.processingStatus);
-      chatCheckbox.addEventListener("change", () => {
-        setDocumentChatSelection(documentItem.id, chatCheckbox.checked);
+      chatCheckbox.addEventListener("change", async () => {
+        await setDocumentChatSelection(documentItem.id, chatCheckbox.checked);
       });
       const chatText = document.createElement("span");
       chatText.textContent = t("useInChat");
@@ -1611,14 +1956,32 @@ function renderDocumentList(container, documents, emptyText, onRemove) {
       summaryButton.className = "text-button file-summary-button";
       summaryButton.type = "button";
       summaryButton.textContent =
-        documentItem.summaryAvailable && documentItem.review
-          ? t("viewSummary")
-          : t("summarizeFile");
+        documentItem.status === "stale"
+          ? t("regenerateSummary")
+          : documentItem.summaryAvailable
+            ? t("viewSummary")
+            : t("summarizeFile");
       summaryButton.disabled = Boolean(documentItem.processingStatus);
       summaryButton.addEventListener("click", async () => {
         await summarizeStoredPdfById(documentItem.id);
       });
-      actions.append(chatLabel, summaryButton);
+      actions.append(chatLabel);
+      if (
+        documentItem.localWorkspace &&
+        documentItem.status === "stale" &&
+        documentItem.summaryAvailable
+      ) {
+        const staleSummaryButton = document.createElement("button");
+        staleSummaryButton.className = "text-button file-summary-button";
+        staleSummaryButton.type = "button";
+        staleSummaryButton.textContent = t("viewSummary");
+        staleSummaryButton.disabled = Boolean(documentItem.processingStatus);
+        staleSummaryButton.addEventListener("click", async () => {
+          await viewCachedLocalSummary(documentItem.id);
+        });
+        actions.append(staleSummaryButton);
+      }
+      actions.append(summaryButton);
     }
 
     const removeButton = document.createElement("button");
@@ -1703,10 +2066,10 @@ function removeDocumentLocally(id) {
   }
 }
 
-function setDocumentChatSelection(id, selected) {
+async function setDocumentChatSelection(id, selected) {
   const entry = findDocumentEntry(id);
-  if (!entry?.document.objectKey) return;
-  const selectedCount = getStoredWorkspaceDocuments().filter(
+  if (!entry?.document.objectKey && !entry?.document.localWorkspace) return;
+  const selectedCount = [...referenceDocuments, ...collectExperimentDocuments()].filter(
     (documentItem) => documentItem.selectedForChat
   ).length;
   if (selected && !entry.document.selectedForChat && selectedCount >= MAX_SELECTED_CHAT_PDFS) {
@@ -1716,16 +2079,36 @@ function setDocumentChatSelection(id, selected) {
   }
 
   updateDocumentById(id, { selectedForChat: selected });
-  if (selected) {
+  if (selected && entry.document.localWorkspace && entry.document.summaryAvailable) {
+    try {
+      const summary = entry.document.review || (await literatureModule.loadSummary(id));
+      if (summary) {
+        updateDocumentById(id, {
+          review: summary,
+          text: buildLocalSummaryContext(summary, entry.document.filename),
+        });
+      }
+    } catch (error) {
+      updateDocumentById(id, { reviewError: error.message || t("loginFailed") });
+    }
+  } else if (selected && entry.document.objectKey) {
     activeSideChatDocumentKeys = [
       ...new Set([...activeSideChatDocumentKeys, entry.document.objectKey]),
     ].slice(0, MAX_SELECTED_CHAT_PDFS);
-  } else {
+  } else if (entry.document.objectKey) {
     activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter(
       (key) => key !== entry.document.objectKey
     );
   }
+  saveSideChatMessages();
   renderAllDocumentLists();
+}
+
+function buildLocalSummaryContext(summary, filename) {
+  return [
+    `Cached local scientific summary for ${filename}:`,
+    formatPaperReview(summary, filename),
+  ].join("\n\n");
 }
 
 async function deleteStoredPdfFromOss(documentItem) {
@@ -1749,6 +2132,34 @@ async function removeWorkspaceDocument(id) {
   const entry = findDocumentEntry(id);
   if (!entry) return;
   const documentItem = entry.document;
+  if (documentItem.localWorkspace) {
+    if (!window.confirm(t("removeLocalFileConfirm", { name: documentItem.filename }))) {
+      return;
+    }
+    updateDocumentById(id, { processingStatus: "deleting" });
+    renderAllDocumentLists();
+    activePdfUploads += 1;
+    try {
+      const documents = await literatureModule.removeDocument(id);
+      applyLiteratureScan(documents);
+      showToast(t("localFileDeleted", { name: documentItem.filename }));
+    } catch (error) {
+      updateDocumentById(id, {
+        processingStatus: "",
+        reviewError: error.message || t("loginFailed"),
+      });
+      renderAllDocumentLists();
+      showToast(
+        t("fileDeleteFailed", {
+          name: documentItem.filename,
+          message: error.message || t("loginFailed"),
+        })
+      );
+    } finally {
+      activePdfUploads = Math.max(0, activePdfUploads - 1);
+    }
+    return;
+  }
   if (
     documentItem.objectKey &&
     !window.confirm(t("deleteFileConfirm", { name: documentItem.filename }))
@@ -1770,6 +2181,7 @@ async function removeWorkspaceDocument(id) {
     activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter(
       (key) => key !== documentItem.objectKey
     );
+    saveSideChatMessages();
     showToast(t("fileDeleted", { name: documentItem.filename }));
   } catch (error) {
     updateDocumentById(id, { processingStatus: "" });
@@ -1811,6 +2223,9 @@ async function requestStoredPdfSummary(documentItem, force = false) {
 
 async function summarizeStoredPdfById(id, { showInChat = true } = {}) {
   const entry = findDocumentEntry(id);
+  if (entry?.document.localWorkspace) {
+    return summarizeLocalWorkspacePdf(id, { showInChat });
+  }
   if (!entry?.document.objectKey) return null;
   const documentItem = entry.document;
 
@@ -1820,8 +2235,7 @@ async function summarizeStoredPdfById(id, { showInChat = true } = {}) {
         documentItem.review,
         documentItem.filename
       );
-      addSideChatMessage("assistant", reviewMessage);
-      sideChatMessages.push({ role: "assistant", content: reviewMessage });
+      showReviewInSideChat(documentItem, reviewMessage);
     }
     return documentItem.review;
   }
@@ -1857,8 +2271,7 @@ async function summarizeStoredPdfById(id, { showInChat = true } = {}) {
     }
     if (showInChat) {
       const reviewMessage = formatPaperReview(reviewData, documentItem.filename);
-      addSideChatMessage("assistant", reviewMessage);
-      sideChatMessages.push({ role: "assistant", content: reviewMessage });
+      showReviewInSideChat(documentItem, reviewMessage);
     }
     return reviewData;
   } catch (error) {
@@ -1875,6 +2288,138 @@ async function summarizeStoredPdfById(id, { showInChat = true } = {}) {
     );
     return null;
   }
+}
+
+async function viewCachedLocalSummary(id) {
+  const entry = findDocumentEntry(id);
+  if (!entry?.document.localWorkspace || !literatureModule) return null;
+  try {
+    const summary = await literatureModule.loadSummary(id);
+    if (!summary) return null;
+    updateDocumentById(id, {
+      review: summary,
+      text: buildLocalSummaryContext(summary, entry.document.filename),
+    });
+    renderAllDocumentLists();
+    showReviewInSideChat(
+      entry.document,
+      formatPaperReview(summary, entry.document.filename)
+    );
+    return summary;
+  } catch (error) {
+    updateDocumentById(id, { reviewError: error.message || t("loginFailed") });
+    renderAllDocumentLists();
+    showToast(error.message || t("loginFailed"));
+    return null;
+  }
+}
+
+async function summarizeLocalWorkspacePdf(id, { showInChat = true } = {}) {
+  const entry = findDocumentEntry(id);
+  if (!entry?.document.localWorkspace || !literatureModule) return null;
+  const documentItem = entry.document;
+
+  try {
+    if (documentItem.summaryAvailable && documentItem.status !== "stale") {
+      const cached = documentItem.review || (await literatureModule.loadSummary(id));
+      if (cached) {
+        updateDocumentById(id, {
+          review: cached,
+          text: buildLocalSummaryContext(cached, documentItem.filename),
+          reviewError: "",
+        });
+        renderAllDocumentLists();
+        if (showInChat) {
+          showReviewInSideChat(
+            { ...documentItem, localWorkspace: true },
+            formatPaperReview(cached, documentItem.filename)
+          );
+        }
+        return cached;
+      }
+    }
+
+    updateDocumentById(id, {
+      processingStatus: "reviewing",
+      processingMessage: t("pdfExtractingLocal"),
+      reviewError: "",
+    });
+    renderAllDocumentLists();
+    activeLiteratureOperations += 1;
+    const result = await literatureModule.summarize(id, {
+      force: documentItem.status === "stale",
+      signal: workspaceAbortController?.signal,
+      onProgress(progress) {
+        let processingMessage = t("pdfExtractingLocal");
+        if (progress.stage === "summarizing") {
+          processingMessage = t("pdfProcessingProgress", {
+            done: progress.completed,
+            total: progress.total,
+          });
+        } else if (progress.stage === "synthesizing") {
+          processingMessage = t("pdfSynthesizing");
+        }
+        updateDocumentById(id, { processingMessage });
+        renderAllDocumentLists();
+      },
+    });
+    const summary = result.summary;
+    updateDocumentById(id, {
+      processingStatus: "",
+      processingMessage: "",
+      review: summary,
+      text: buildLocalSummaryContext(summary, documentItem.filename),
+      summaryAvailable: true,
+      status: "ready",
+      summaryUpdatedAt: summary.generatedAt,
+      extractedCharacterCount: summary.source?.processedCharacters || 0,
+      extractedCharCount: summary.source?.processedCharacters || 0,
+      originalCharacterCount: summary.source?.processedCharacters || 0,
+      truncated: Boolean(summary.source?.truncated),
+      reviewError: "",
+    });
+    renderAllDocumentLists();
+    showToast(t("summariesReady"));
+    if (showInChat) {
+      showReviewInSideChat(
+        { ...documentItem, localWorkspace: true },
+        formatPaperReview(summary, documentItem.filename)
+      );
+    }
+    return summary;
+  } catch (error) {
+    if (error?.code !== "OPERATION_ABORTED") {
+      updateDocumentById(id, {
+        processingStatus: "",
+        processingMessage: "",
+        reviewError: error.message || t("loginFailed"),
+      });
+      renderAllDocumentLists();
+      showToast(
+        t("pdfReviewFailed", {
+          name: documentItem.filename,
+          message: error.message || t("loginFailed"),
+        })
+      );
+    }
+    return null;
+  } finally {
+    activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
+  }
+}
+
+function showReviewInSideChat(documentItem, reviewMessage) {
+  const question = t("summaryConversationQuestion", {
+    name: documentItem.filename,
+  });
+  addSideChatMessage("user", question);
+  addSideChatMessage("assistant", reviewMessage);
+  activeSideChatDocumentKeys = documentItem.objectKey ? [documentItem.objectKey] : [];
+  if (documentItem.localWorkspace) {
+    updateDocumentById(documentItem.id, { selectedForChat: true });
+    renderAllDocumentLists();
+  }
+  recordSideChatExchange(question, reviewMessage);
 }
 
 async function runWithConcurrency(items, concurrency, mapper) {
@@ -1900,7 +2445,9 @@ async function runWithConcurrency(items, concurrency, mapper) {
 
 async function summarizeAllStoredReferences() {
   const storedReferences = referenceDocuments.filter(
-    (documentItem) => documentItem.objectKey && !documentItem.processingStatus
+    (documentItem) =>
+      (documentItem.objectKey || documentItem.localWorkspace) &&
+      !documentItem.processingStatus
   );
   if (!storedReferences.length || summarizeAllReferencesButton.disabled) {
     showToast(t("noReferenceFiles"));
@@ -1911,11 +2458,23 @@ async function summarizeAllStoredReferences() {
   summarizeAllReferencesButton.textContent = t("summarizeAllBusy");
   try {
     const pending = storedReferences.filter(
-      (documentItem) => !documentItem.summaryAvailable || !documentItem.review
+      (documentItem) =>
+        !documentItem.summaryAvailable ||
+        !documentItem.review ||
+        documentItem.status === "stale"
     );
-    await runWithConcurrency(pending, 2, (documentItem) =>
-      summarizeStoredPdfById(documentItem.id, { showInChat: false })
-    );
+    let completed = 0;
+    await runWithConcurrency(pending, 2, async (documentItem) => {
+      const result = await summarizeStoredPdfById(documentItem.id, {
+        showInChat: false,
+      });
+      completed += 1;
+      summarizeAllReferencesButton.textContent = t("summarizeAllProgress", {
+        done: completed,
+        total: pending.length,
+      });
+      return result;
+    });
     await askSideChat(t("summarizeAllQuestion"));
   } finally {
     summarizeAllReferencesButton.disabled = false;
@@ -1975,6 +2534,7 @@ async function clearDocumentCollection({
   activeSideChatDocumentKeys = activeSideChatDocumentKeys.filter(
     (key) => failedKeys.has(key) || !storedKeys.has(key)
   );
+  saveSideChatMessages();
   results
     .filter((result) => !result.ok)
     .forEach((result) => {
@@ -2266,8 +2826,112 @@ function buildAgentMessages(instruction) {
   ];
 }
 
+function normalizeSideChatMessages(messages) {
+  const candidates = (Array.isArray(messages) ? messages : [])
+    .filter(
+      (message) =>
+        message &&
+        (message.role === "user" || message.role === "assistant") &&
+        typeof message.content === "string" &&
+        message.content.trim()
+    )
+    .slice(-MAX_SIDE_CHAT_HISTORY_MESSAGES * 2)
+    .map((message) => ({
+      role: message.role,
+      content: message.content
+        .trim()
+        .slice(0, MAX_SIDE_CHAT_MESSAGE_CHARACTERS),
+    }));
+  const selected = [];
+  let remainingCharacters = TOTAL_SIDE_CHAT_HISTORY_CHARACTERS;
+
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    if (
+      selected.length >= MAX_SIDE_CHAT_HISTORY_MESSAGES ||
+      remainingCharacters <= 0
+    ) {
+      break;
+    }
+    const candidate = candidates[index];
+    const content = candidate.content.slice(0, remainingCharacters);
+    if (!content) continue;
+    selected.unshift({ ...candidate, content });
+    remainingCharacters -= content.length;
+  }
+
+  while (selected[0]?.role === "assistant") selected.shift();
+  return selected;
+}
+
+function loadSideChatMessages(account) {
+  if (!account) return [];
+  const stored = loadSessionJson(SIDE_CHAT_HISTORY_STORAGE_KEY, null);
+  if (!stored || stored.account !== account || !Array.isArray(stored.messages)) {
+    return [];
+  }
+  return normalizeSideChatMessages(stored.messages);
+}
+
+function loadSideChatDocumentKeys(account) {
+  if (!account) return [];
+  const stored = loadSessionJson(SIDE_CHAT_HISTORY_STORAGE_KEY, null);
+  if (!stored || stored.account !== account || !Array.isArray(stored.documentKeys)) {
+    return [];
+  }
+  return [...new Set(
+    stored.documentKeys.filter((key) => typeof key === "string" && key)
+  )].slice(0, MAX_SELECTED_CHAT_PDFS);
+}
+
+function saveSideChatMessages() {
+  sideChatMessages = normalizeSideChatMessages(sideChatMessages);
+  if (!currentAccount) return;
+  try {
+    sessionStorage.setItem(
+      SIDE_CHAT_HISTORY_STORAGE_KEY,
+      JSON.stringify({
+        account: currentAccount,
+        messages: sideChatMessages,
+        documentKeys: activeSideChatDocumentKeys.slice(
+          0,
+          MAX_SELECTED_CHAT_PDFS
+        ),
+      })
+    );
+  } catch {
+    // Multi-round chat still works in memory if session storage is unavailable.
+  }
+}
+
+function restoreSideChatHistoryForAccount(account) {
+  if (!account || sideChatHistoryAccount === account) return;
+  sideChatHistoryAccount = account;
+  sideChatMessages = loadSideChatMessages(account);
+  activeSideChatDocumentKeys = loadSideChatDocumentKeys(account);
+  renderSideChatConversation();
+}
+
+function renderSideChatConversation() {
+  sideChatHistory.innerHTML = "";
+  if (!sideChatMessages.length) {
+    addSideChatMessage("assistant", t("sideChatIntro"));
+    return;
+  }
+  sideChatMessages.forEach((message) =>
+    addSideChatMessage(message.role, message.content)
+  );
+}
+
+function recordSideChatExchange(question, reply) {
+  sideChatMessages.push(
+    { role: "user", content: question },
+    { role: "assistant", content: reply }
+  );
+  saveSideChatMessages();
+}
+
 function buildSideChatMessages(question) {
-  const recentMessages = sideChatMessages.slice(-8);
+  const recentMessages = normalizeSideChatMessages(sideChatMessages);
 
   return [
     ...recentMessages,
@@ -2901,6 +3565,7 @@ function setSideChatBusy(isBusy) {
   sideChatBusy = isBusy;
   sideChatInput.disabled = isBusy;
   sendSideChatButton.disabled = isBusy;
+  clearSideChatButton.disabled = isBusy;
   sendSideChatButton.textContent = isBusy ? t("thinking") : t("askButton");
 }
 
@@ -2936,7 +3601,6 @@ async function askSideChat(question) {
 
   const messagesForBackend = buildSideChatMessages(question);
   addSideChatMessage("user", question);
-  sideChatMessages.push({ role: "user", content: question });
   const thinkingMessage = addSideChatThinking();
   setSideChatBusy(true);
 
@@ -2959,7 +3623,9 @@ async function askSideChat(question) {
 
     const reply = response.reply || t("sideChatNoAnswer");
     addSideChatMessage("assistant", reply);
-    sideChatMessages.push({ role: "assistant", content: reply });
+    if (!response.fallback) {
+      recordSideChatExchange(question, reply);
+    }
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       console.warn("Backend auth required.", error);
@@ -2969,7 +3635,6 @@ async function askSideChat(question) {
     console.warn("Side chat backend failed; using local fallback.", error);
     const reply = `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`;
     addSideChatMessage("assistant", reply);
-    sideChatMessages.push({ role: "assistant", content: reply });
   } finally {
     thinkingMessage.remove();
     setSideChatBusy(false);

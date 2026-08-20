@@ -53,6 +53,50 @@
       </form>
     </section>
 
+    <section id="workspaceSelectionPanel" class="workspace-selection-panel is-hidden" hidden aria-label="Workspace selection">
+      <div class="workspace-selection-card">
+        <div class="language-control workspace-language-control">
+          <label for="workspaceLanguageSelect" data-i18n="languageLabel">Language</label>
+          <select id="workspaceLanguageSelect" data-language-select>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
+        <p class="eyebrow" data-i18n="workspaceSelectionEyebrow">Local Workspace</p>
+        <h1 data-i18n="workspaceSelectionTitle">BioDesign Copilot</h1>
+        <p class="workspace-selection-copy" data-i18n="workspaceSelectionSubtitle">
+          Select a local project workspace to continue. Project files and generated summaries remain in that folder.
+        </p>
+        <div class="privacy-boundary-note">
+          <strong data-i18n="localStorageTitle">Local source of truth</strong>
+          <span data-i18n="localStorageDescription">Original PDFs and workspace state stay on this device. Only extracted text needed for an AI request is sent to Function Compute.</span>
+        </div>
+        <p id="workspaceCompatibilityMessage" class="workspace-compatibility-message" data-i18n="workspaceCompatibility">
+          Requires a compatible desktop browser such as Chrome or Edge.
+        </p>
+        <button id="selectWorkspaceButton" class="primary-button workspace-select-button" type="button" data-i18n="selectWorkspaceFolder">
+          Select Workspace Folder
+        </button>
+        <p id="workspaceSelectionError" class="login-error" role="alert" aria-live="polite"></p>
+        <button id="workspaceLogoutButton" class="text-button" type="button" data-i18n="logoutButton">Logout</button>
+      </div>
+    </section>
+
+    <dialog id="workspaceInitializationDialog" class="workspace-dialog">
+      <form method="dialog" class="workspace-dialog-card">
+        <p class="eyebrow" data-i18n="initializeWorkspaceEyebrow">Initialize Workspace</p>
+        <h2 data-i18n="initializeWorkspaceTitle">Create a BioDesign workspace?</h2>
+        <p data-i18n="initializeWorkspaceDescription">
+          This folder is not yet a BioDesign Copilot workspace. Initialize it now? Existing unrelated files will not be changed.
+        </p>
+        <p id="workspaceInitializationName" class="workspace-folder-name"></p>
+        <div class="workspace-dialog-actions">
+          <button id="cancelWorkspaceInitializationButton" class="text-button" value="cancel" type="submit" data-i18n="cancel">Cancel</button>
+          <button id="initializeWorkspaceButton" class="primary-button" value="default" type="button" data-i18n="initialize">Initialize</button>
+        </div>
+      </form>
+    </dialog>
+
     <main id="appShell" class="app-shell is-hidden" hidden>
       <header class="workbench-header">
         <div class="workbench-title-group">
@@ -75,6 +119,13 @@
           <div id="backendStatusLabel" class="status-pill" aria-label="Backend status">
             <span></span>
             Alibaba FC backend
+          </div>
+          <div class="workspace-status-group" aria-label="Local workspace status">
+            <div class="workspace-chip">
+              <span><span data-i18n="workspaceLabel">Workspace</span>: <strong id="workspaceNameLabel"></strong></span>
+              <span><span data-i18n="storageLabel">Storage</span>: <strong data-i18n="storageLocal">Local</strong></span>
+            </div>
+            <button id="changeWorkspaceButton" class="text-button" type="button" data-i18n="changeWorkspace">Change Workspace</button>
           </div>
           <div class="account-chip" aria-label="Current account">
             <span id="currentAccountName" class="current-account">Not signed in</span>
@@ -113,34 +164,24 @@
                 <h2 data-i18n="referencesTitle">Literature & References</h2>
               </div>
               <div class="panel-actions">
-                <label class="file-picker" for="referenceFileInput" data-i18n="uploadReferences">Upload references</label>
-                <label class="file-picker" for="referenceFolderInput" data-i18n="uploadPdfFolder">Upload PDF folder</label>
+                <label class="file-picker" for="referenceFileInput" data-i18n="addLiterature">Add Literature</label>
                 <button id="summarizeAllReferencesButton" class="secondary-button" type="button" data-i18n="summarizeAllReferences">
                   Summarize all
                 </button>
-                <button id="clearReferencesButton" class="secondary-button" type="button" data-i18n="clearReferences">
-                  Clear references
+                <button id="refreshLiteratureButton" class="secondary-button" type="button" data-i18n="refreshLiterature">
+                  Refresh Literature
                 </button>
               </div>
             </div>
             <p class="panel-helper" data-i18n="referencesHelper">
-              PDF papers are stored privately in OSS and restored after login. Summaries run only when requested; select up to three papers to focus Side Chat.
+              PDFs stay in the selected workspace. Summaries run only when requested and are cached locally.
             </p>
             <input
               id="referenceFileInput"
               class="sr-only"
               type="file"
-              accept=".pdf,.txt,.csv,.xlsx,.xls"
-              multiple
-            />
-            <input
-              id="referenceFolderInput"
-              class="sr-only"
-              type="file"
               accept=".pdf,application/pdf"
               multiple
-              webkitdirectory
-              directory
             />
             <div id="referenceFileList" class="file-list" aria-live="polite"></div>
           </section>
@@ -317,6 +358,11 @@
                   Ask questions without changing the current recommendation.
                 </p>
               </div>
+              <div class="panel-actions">
+                <button id="clearSideChatButton" class="secondary-button" type="button" data-i18n="clearSideChat">
+                  Clear chat
+                </button>
+              </div>
             </div>
             <div class="side-examples" aria-label="Example side questions">
               <button class="side-example-button" type="button" data-i18n="sideExampleFiles">Summarize the uploaded files.</button>
@@ -347,6 +393,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- SheetJS/xlsx is used in-browser to extract visible cell values from Excel reference files. -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="workspace-manager.js"></script>
+    <script src="literature-module.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -198,6 +198,10 @@ test("frontend upload does not automatically invoke PDF review", () => {
     path.join(__dirname, "../../docs/app.js"),
     "utf8"
   );
+  const workspaceSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/workspace-manager.js"),
+    "utf8"
+  );
   const uploadStart = frontendSource.indexOf("async function uploadPdfToOss");
   const uploadEnd = frontendSource.indexOf(
     "async function syncStoredPdfDocuments",
@@ -207,7 +211,10 @@ test("frontend upload does not automatically invoke PDF review", () => {
 
   assert.ok(uploadStart >= 0 && uploadEnd > uploadStart);
   assert.doesNotMatch(uploadFunction, /\/api\/documents\/review/);
-  assert.match(frontendSource, /referenceFolderInput/);
+  assert.match(frontendSource, /USE_OSS_WORKSPACE_STORAGE = false/);
+  assert.match(frontendSource, /literatureModule\.addFiles/);
+  assert.match(workspaceSource, /showDirectoryPicker/);
+  assert.doesNotMatch(frontendSource, /await syncStoredPdfDocuments\(\)/);
   assert.match(frontendSource, /addSideChatThinking/);
   assert.match(frontendSource, /SIDE_CHAT_HISTORY_STORAGE_KEY/);
   assert.match(frontendSource, /recordSideChatExchange/);
@@ -277,7 +284,14 @@ test("existing login and CORS preflight still work", async () => {
 });
 
 test("document endpoints reject unauthenticated access", async () => {
-  const [listResponse, uploadResponse, reviewResponse, deleteResponse] = await Promise.all([
+  const [
+    listResponse,
+    uploadResponse,
+    reviewResponse,
+    deleteResponse,
+    localChunkResponse,
+    localSynthesisResponse
+  ] = await Promise.all([
     handler(apiEvent("GET", "/api/documents", undefined, false), context),
     handler(
       apiEvent(
@@ -305,6 +319,24 @@ test("document endpoints reject unauthenticated access", async () => {
         false
       ),
       context
+    ),
+    handler(
+      apiEvent(
+        "POST",
+        "/api/literature/summarize-chunk",
+        { filename: "local.pdf", chunkIndex: 0, totalChunks: 1, text: "evidence" },
+        false
+      ),
+      context
+    ),
+    handler(
+      apiEvent(
+        "POST",
+        "/api/literature/synthesize",
+        { filename: "local.pdf", chunkSummaries: [{ summary: "evidence" }] },
+        false
+      ),
+      context
     )
   ]);
 
@@ -312,6 +344,53 @@ test("document endpoints reject unauthenticated access", async () => {
   assert.equal(uploadResponse.statusCode, 401);
   assert.equal(reviewResponse.statusCode, 401);
   assert.equal(deleteResponse.statusCode, 401);
+  assert.equal(localChunkResponse.statusCode, 401);
+  assert.equal(localSynthesisResponse.statusCode, 401);
+});
+
+test("local literature endpoints are stateless and never read or write OSS", async () => {
+  const pdfReadsBefore = pdfGetCalls;
+  const objectsBefore = objectStore.size;
+  const chunkResponse = await handler(
+    apiEvent("POST", "/api/literature/summarize-chunk", {
+      filename: "../local-paper.pdf",
+      chunkIndex: 0,
+      totalChunks: 1,
+      text: "Machine-readable evidence from a local academic PDF. ".repeat(20),
+      language: "en"
+    }),
+    context
+  );
+  const chunkBody = parseResponse(chunkResponse);
+  assert.equal(chunkResponse.statusCode, 200);
+  assert.equal(chunkBody.ok, true);
+  assert.equal(chunkBody.chunkSummary.summary.includes("controlled"), true);
+
+  const synthesisResponse = await handler(
+    apiEvent("POST", "/api/literature/synthesize", {
+      filename: "/Users/example/private/local-paper.pdf",
+      size: 1200,
+      lastModified: 1780000000000,
+      pageCount: 5,
+      extractionTruncated: false,
+      chunkSummaries: [chunkBody.chunkSummary],
+      language: "en"
+    }),
+    context
+  );
+  const synthesisBody = parseResponse(synthesisResponse);
+  assert.equal(synthesisResponse.statusCode, 200);
+  assert.equal(synthesisBody.ok, true);
+  assert.equal(synthesisBody.summary.summary.includes("controlled"), true);
+  assert.equal(synthesisBody.model, process.env.REQUESTY_MODEL);
+  assert.equal(pdfGetCalls, pdfReadsBefore);
+  assert.equal(objectStore.size, objectsBefore);
+
+  const lastRequest = capturedLlmRequests.at(-1);
+  const userMessage = lastRequest.messages.at(-1).content;
+  assert.match(userMessage, /local-paper\.pdf/);
+  assert.doesNotMatch(userMessage, /Users\/example|private\//);
+  assert.doesNotMatch(userMessage, /objectKey|OSS/);
 });
 
 test("authenticated PDF upload URL uses an owned, sanitized key", async () => {

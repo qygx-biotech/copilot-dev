@@ -15,10 +15,12 @@ It keeps the same `/chat` response shape as the Cloudflare Worker so the existin
 - `ADMIN_ACCOUNT` - Existing stable login account used in the authenticated OSS ownership prefix.
 - `ADMIN_PASSWORD_HASH` - Existing bcrypt password hash.
 - `JWT_SECRET` - Existing JWT signing secret.
-- `OSS_BUCKET` - Private OSS bucket used by the storage diagnostic and persistent PDF workflow.
-- `OSS_REGION` - OSS region ID, such as `oss-cn-beijing`.
-- `OSS_INTERNAL_ENDPOINT` - Internal OSS endpoint used for Function Compute-to-OSS traffic.
-- `OSS_PUBLIC_ENDPOINT` - Public OSS endpoint used only to create short-lived browser upload URLs. Server-side reads continue to use the internal endpoint.
+- `OSS_BUCKET` - Legacy private OSS bucket used by retained diagnostic/document endpoints.
+- `OSS_REGION` - Legacy OSS region ID, such as `oss-cn-beijing`.
+- `OSS_INTERNAL_ENDPOINT` - Legacy internal OSS endpoint.
+- `OSS_PUBLIC_ENDPOINT` - Legacy public OSS endpoint for signed uploads.
+
+The OSS variables and RAM role are not used by the active local-workspace literature routes. They are still required only if the retained `/api/test-oss` or `/api/documents/*` endpoints must remain operational.
 
 Do not configure permanent Alibaba Cloud AccessKeys for the function. OSS operations use temporary STS credentials supplied by the attached Function Compute RAM role through the Node.js invocation context (with the Function Compute-provided `ALIBABA_CLOUD_*` environment variables as a runtime fallback).
 
@@ -40,18 +42,15 @@ npm test
 3. Create an HTTP trigger for the function.
 4. Use this handler setting:
    - `index.handler`
-5. Set environment variables:
+5. Set the environment variables required by login and AI requests:
    - `REQUESTY_API_KEY`
    - `REQUESTY_MODEL`
    - `ADMIN_ACCOUNT`
    - `ADMIN_PASSWORD_HASH`
    - `JWT_SECRET`
-   - `OSS_BUCKET`
-   - `OSS_REGION`
-   - `OSS_INTERNAL_ENDPOINT`
-   - `OSS_PUBLIC_ENDPOINT`
-6. Attach the existing `BioDesignCopilotFCRole` execution role to the function. Do not add long-lived AccessKey values.
-   In addition to its existing `GetObject` and `PutObject` permissions, its custom policy must allow prefix listing on the bucket so login can discover saved papers:
+   Keep the four `OSS_*` variables as well only when deploying the retained legacy OSS endpoints.
+6. If legacy OSS endpoints remain enabled, attach the existing `BioDesignCopilotFCRole` execution role to the function. Do not add long-lived AccessKey values.
+   In addition to its existing `GetObject` and `PutObject` permissions, its custom policy must allow prefix listing if the legacy document-list route is retained:
 
    ```json
    {
@@ -66,25 +65,50 @@ npm test
    }
    ```
 
-   `ListObjects` uses the bucket itself as the RAM resource; the `oss:Prefix` condition restricts the listable scope. Application authentication further narrows every request to the current account's exact hashed prefix.
+   `ListObjects` uses the bucket itself as the RAM resource; the `oss:Prefix` condition restricts the listable scope. Legacy application authentication further narrows every request to the current account's exact hashed prefix.
 
-   The object-level statement for this branch must include `oss:GetObject`, `oss:PutObject`, and `oss:DeleteObject` on `acs:oss:*:*:biodesign-copilot-files-2026/uploads/*`. `DeleteObject` is required because Remove and Clear now synchronize deletions to OSS.
+   The legacy object-level statement must include `oss:GetObject`, `oss:PutObject`, and `oss:DeleteObject` on `acs:oss:*:*:biodesign-copilot-files-2026/uploads/*` if those old endpoints remain deployed.
 7. Install production dependencies and package the root handler with `node_modules`:
 
    ```bash
    cd alibaba-fc
    npm ci --omit=dev
-   zip -r ../alibaba-fc-oss-pdf-review.zip index.js package.json package-lock.json node_modules
+   zip -r ../alibaba-fc-local-workspace.zip index.js package.json package-lock.json node_modules
    ```
 
-8. Upload `alibaba-fc-oss-pdf-review.zip`. Keep the handler set to `index.handler`.
-9. For multi-chunk paper reviews, configure at least 1 GB memory and a 300-second timeout for the initial milestone.
+8. Upload `alibaba-fc-local-workspace.zip`. Keep the handler set to `index.handler`.
+9. The local-workspace routes process one bounded chunk per invocation and a separate bounded synthesis request. Keep the existing memory and timeout settings; the legacy server-side OSS review still benefits from 1 GB memory and a 300-second timeout.
 10. Keep the existing HTTP-trigger CORS origin for the GitHub Pages frontend.
-11. Keep the private OSS bucket CORS rule that allows the GitHub Pages origin to send `PUT` requests with `Content-Type: application/pdf`.
+11. The local-workspace flow does not require OSS bucket CORS. Keep the old rule only if the retained legacy signed-upload endpoint is still in use elsewhere.
 12. Copy the public HTTP endpoint into `docs/app.js` as `ALIBABA_FC_URL` and keep `BACKEND_PROVIDER = "alibaba"`.
 13. Publish the updated `docs/` directory through the existing GitHub Pages deployment.
 
-The only new production dependency for this branch is `unpdf@1.8.0`. Its serverless PDF.js build extracts embedded text without OCR or native canvas binaries.
+No production dependency was added for the local-workspace routes. The existing `unpdf@1.8.0` dependency remains for the retained legacy OSS PDF review path.
+
+## Local-Workspace Literature Endpoints
+
+Both new endpoints require the existing JWT bearer token and are stateless with respect to project storage:
+
+- `POST /api/literature/summarize-chunk` accepts one extracted-text chunk, its bounded index/count, language, and filename.
+- `POST /api/literature/synthesize` accepts bounded chunk summaries plus minimal source metadata and returns a structured paper review.
+
+Neither route accepts a filesystem path, PDF bytes, an OSS key, or a project folder. Neither route reads or writes OSS.
+
+Example smoke test after obtaining `TOKEN`:
+
+```bash
+curl -sS -X POST "$FC_URL/api/literature/summarize-chunk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"paper.pdf","chunkIndex":0,"totalChunks":1,"language":"en","text":"Extracted machine-readable paper text..."}' \
+  | jq
+
+curl -sS -X POST "$FC_URL/api/literature/synthesize" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"paper.pdf","size":1234,"lastModified":1780000000000,"pageCount":1,"language":"en","chunkSummaries":[{"summary":"Chunk summary","researchQuestion":null,"methods":null,"keyResults":[],"limitations":[],"mainConclusion":null}]}' \
+  | jq
+```
 
 ## Endpoint Tests
 
