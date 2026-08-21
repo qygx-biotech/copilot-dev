@@ -113,7 +113,7 @@ The JSON must exactly follow this shape:
 
 const sideChatSystemPrompt = `${coreSystemPrompt}
 
-This is a conversational Side Chat request. Use the supplied recent user/assistant messages as conversation history and answer the latest user question directly. Resolve pronouns and short follow-up questions from that history. Do not claim to have read a file unless processed evidence for that file is supplied in the current request. A workspace inventory proves only that a file exists. If a selected file is marked unsupported, unprocessed, or processing-failed, explicitly say its contents are not available for AI analysis and do not infer its contents from the filename. Return a concise plain-text answer; structured JSON is not required.`.trim();
+This is a conversational Side Chat request. Use the supplied recent user/assistant messages as conversation history and answer the latest user question directly. Resolve pronouns and short follow-up questions from that history. Do not claim to have read a file unless processed evidence for that file is supplied in the current request. A workspace inventory proves only that a file exists. If a selected file is marked unsupported, unprocessed, or processing-failed, explicitly say its contents are not available for AI analysis and do not infer its contents from the filename. Return a concise Markdown answer; use headings, lists, links, tables, or code only when they improve readability. Do not wrap the whole answer in a Markdown code fence. Structured JSON is not required.`.trim();
 
 function jsonResponse(data, statusCode = 200, event = null, extraHeaders = {}) {
   return {
@@ -3344,7 +3344,7 @@ function parseSideChatResponse(modelText) {
     if (typeof parsedValue === "string") plainText = parsedValue.trim();
     if (isPlainObject(parsedValue)) return null;
   } catch {
-    // Plain text is the expected Side Chat response format.
+    // Side Chat accepts a direct Markdown string as well as legacy JSON replies.
   }
   plainText = plainText
     .replace(/^```(?:text|markdown)?\s*/i, "")

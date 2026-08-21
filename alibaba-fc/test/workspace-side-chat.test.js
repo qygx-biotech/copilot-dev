@@ -137,3 +137,30 @@ test("Workspace rows preserve full names while clamping long files to two lines"
   assert.match(longNames[2], /[\u3400-\u9fff]/);
   assert.ok(longNames.every((filename) => filename.endsWith(".pdf")));
 });
+
+test("Side Chat hides empty-state prompts after history and renders safe Markdown", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const htmlSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/index.html"),
+    "utf8"
+  );
+  const stylesSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/styles.css"),
+    "utf8"
+  );
+
+  assert.match(htmlSource, /id="sideChatExamples"/);
+  assert.match(appSource, /sideChatExamples\.hidden = !isEmpty/);
+  assert.match(appSource, /data-side-chat-intro/);
+  assert.match(appSource, /renderSideChatMarkdown\(body, content\)/);
+  assert.doesNotMatch(appSource, /body\.textContent = content/);
+  assert.match(appSource, /\^\(\?:https\?:\|mailto:\)/);
+  assert.match(stylesSource, /\.side-examples\[hidden\]\s*\{[^}]*display:\s*none/s);
+  assert.match(stylesSource, /\.side-message-body pre\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(stylesSource, /\.side-message-body table\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(stylesSource, /\.side-message > strong\s*\{/);
+  assert.doesNotMatch(stylesSource, /\.side-message strong\s*\{/);
+});

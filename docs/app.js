@@ -50,6 +50,7 @@ const sideChatHistory = document.querySelector("#sideChatHistory");
 const sendSideChatButton = document.querySelector("#sendSideChatButton");
 const clearSideChatButton = document.querySelector("#clearSideChatButton");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
+const sideChatExamples = document.querySelector("#sideChatExamples");
 const sideChatContextChips = document.querySelector("#sideChatContextChips");
 
 const MAX_REFERENCE_FILES = 100;
@@ -1547,7 +1548,8 @@ function applyLanguage() {
 
   if (!sideChatMessages.length && sideChatHistory.childElementCount <= 1) {
     sideChatHistory.innerHTML = "";
-    addSideChatMessage("assistant", t("sideChatIntro"));
+    setSideChatEmptyState(true);
+    addSideChatMessage("assistant", t("sideChatIntro"), { isIntro: true });
   }
 }
 
@@ -3064,8 +3066,10 @@ function saveSideChatMessages() {
 
 function renderSideChatConversation() {
   sideChatHistory.innerHTML = "";
-  if (!sideChatMessages.length) {
-    addSideChatMessage("assistant", t("sideChatIntro"));
+  const isEmpty = !sideChatMessages.length;
+  setSideChatEmptyState(isEmpty);
+  if (isEmpty) {
+    addSideChatMessage("assistant", t("sideChatIntro"), { isIntro: true });
     return;
   }
   sideChatMessages.forEach((message) =>
@@ -3889,16 +3893,268 @@ function updateSideChatThinking(message, progress) {
   }
 }
 
-function addSideChatMessage(role, content) {
+function setSideChatEmptyState(isEmpty) {
+  sideChatExamples.hidden = !isEmpty;
+}
+
+function isMarkdownBlockStart(lines, index) {
+  const line = lines[index] || "";
+  const nextLine = lines[index + 1] || "";
+  return (
+    /^\s*```/.test(line) ||
+    /^\s{0,3}#{1,6}\s+/.test(line) ||
+    /^\s{0,3}>\s?/.test(line) ||
+    /^\s*(?:[-+*]|\d+\.)\s+/.test(line) ||
+    /^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line) ||
+    (line.includes("|") && isMarkdownTableDivider(nextLine))
+  );
+}
+
+function isMarkdownTableDivider(line) {
+  const cells = splitMarkdownTableRow(line);
+  return (
+    cells.length > 1 &&
+    cells.every((cell) => /^:?-{3,}:?$/.test(cell.trim()))
+  );
+}
+
+function splitMarkdownTableRow(line) {
+  let value = String(line || "").trim();
+  if (value.startsWith("|")) value = value.slice(1);
+  if (value.endsWith("|") && !value.endsWith("\\|")) value = value.slice(0, -1);
+
+  const cells = [];
+  let cell = "";
+  let escaped = false;
+  for (const character of value) {
+    if (escaped) {
+      cell += character;
+      escaped = false;
+    } else if (character === "\\") {
+      escaped = true;
+    } else if (character === "|") {
+      cells.push(cell.trim());
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+  if (escaped) cell += "\\";
+  cells.push(cell.trim());
+  return cells;
+}
+
+function appendSideChatInlineMarkdown(parent, value, depth = 0) {
+  const text = String(value || "");
+  if (!text || depth > 4) {
+    parent.appendChild(document.createTextNode(text));
+    return;
+  }
+
+  const tokenPattern = /`([^`\n]+)`|\[([^\]\n]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|\*([^*\n]+)\*|_([^_\n]+)_/g;
+  let cursor = 0;
+  let match;
+
+  while ((match = tokenPattern.exec(text))) {
+    if (match.index > cursor) {
+      parent.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+    }
+
+    let element;
+    if (match[1] !== undefined) {
+      element = document.createElement("code");
+      element.textContent = match[1];
+    } else if (match[2] !== undefined) {
+      const href = match[3];
+      if (/^(?:https?:|mailto:)/i.test(href)) {
+        element = document.createElement("a");
+        element.href = href;
+        if (/^https?:/i.test(href)) {
+          element.target = "_blank";
+          element.rel = "noopener noreferrer";
+        }
+        appendSideChatInlineMarkdown(element, match[2], depth + 1);
+      } else {
+        element = document.createTextNode(match[0]);
+      }
+    } else {
+      const tagName =
+        match[4] !== undefined || match[5] !== undefined
+          ? "strong"
+          : match[6] !== undefined
+            ? "del"
+            : "em";
+      const innerText =
+        match[4] ?? match[5] ?? match[6] ?? match[7] ?? match[8] ?? "";
+      element = document.createElement(tagName);
+      appendSideChatInlineMarkdown(element, innerText, depth + 1);
+    }
+
+    parent.appendChild(element);
+    cursor = tokenPattern.lastIndex;
+  }
+
+  if (cursor < text.length) {
+    parent.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+}
+
+function appendSideChatMarkdownLines(parent, lines) {
+  lines.forEach((line, index) => {
+    appendSideChatInlineMarkdown(parent, line);
+    if (index < lines.length - 1) parent.appendChild(document.createElement("br"));
+  });
+}
+
+function renderSideChatMarkdown(container, content) {
+  const lines = String(content || "").replace(/\r\n?/g, "\n").split("\n");
+  const fragment = document.createDocumentFragment();
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+
+    const fence = line.match(/^\s*```([^\s`]*)\s*$/);
+    if (fence) {
+      const codeLines = [];
+      index += 1;
+      while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      if (index < lines.length) index += 1;
+      const pre = document.createElement("pre");
+      const code = document.createElement("code");
+      code.textContent = codeLines.join("\n");
+      if (fence[1]) code.dataset.language = fence[1].toLowerCase();
+      pre.appendChild(code);
+      fragment.appendChild(pre);
+      continue;
+    }
+
+    const heading = line.match(/^\s{0,3}(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const element = document.createElement(`h${heading[1].length}`);
+      appendSideChatInlineMarkdown(element, heading[2]);
+      fragment.appendChild(element);
+      index += 1;
+      continue;
+    }
+
+    if (/^\s{0,3}>\s?/.test(line)) {
+      const quoteLines = [];
+      while (index < lines.length && /^\s{0,3}>\s?/.test(lines[index])) {
+        quoteLines.push(lines[index].replace(/^\s{0,3}>\s?/, ""));
+        index += 1;
+      }
+      const blockquote = document.createElement("blockquote");
+      appendSideChatMarkdownLines(blockquote, quoteLines);
+      fragment.appendChild(blockquote);
+      continue;
+    }
+
+    const listItem = line.match(/^\s*(?:([-+*])|(\d+)\.)\s+(.+)$/);
+    if (listItem) {
+      const ordered = listItem[2] !== undefined;
+      const list = document.createElement(ordered ? "ol" : "ul");
+      if (ordered && Number(listItem[2]) !== 1) list.start = Number(listItem[2]);
+      while (index < lines.length) {
+        const itemMatch = lines[index].match(/^\s*(?:([-+*])|(\d+)\.)\s+(.+)$/);
+        if (!itemMatch || (itemMatch[2] !== undefined) !== ordered) break;
+        const item = document.createElement("li");
+        appendSideChatInlineMarkdown(item, itemMatch[3]);
+        list.appendChild(item);
+        index += 1;
+      }
+      fragment.appendChild(list);
+      continue;
+    }
+
+    if (/^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      fragment.appendChild(document.createElement("hr"));
+      index += 1;
+      continue;
+    }
+
+    if (line.includes("|") && isMarkdownTableDivider(lines[index + 1] || "")) {
+      const headings = splitMarkdownTableRow(line);
+      const alignments = splitMarkdownTableRow(lines[index + 1]).map((cell) => ({
+        left: cell.startsWith(":"),
+        right: cell.endsWith(":"),
+      }));
+      const table = document.createElement("table");
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      headings.forEach((cell, cellIndex) => {
+        const headingCell = document.createElement("th");
+        const alignment = alignments[cellIndex];
+        if (alignment?.left && alignment.right) headingCell.style.textAlign = "center";
+        else if (alignment?.right) headingCell.style.textAlign = "right";
+        appendSideChatInlineMarkdown(headingCell, cell);
+        headRow.appendChild(headingCell);
+      });
+      head.appendChild(headRow);
+      table.appendChild(head);
+      index += 2;
+
+      const body = document.createElement("tbody");
+      while (index < lines.length && lines[index].includes("|") && lines[index].trim()) {
+        const row = document.createElement("tr");
+        splitMarkdownTableRow(lines[index]).forEach((cell, cellIndex) => {
+          const tableCell = document.createElement("td");
+          const alignment = alignments[cellIndex];
+          if (alignment?.left && alignment.right) tableCell.style.textAlign = "center";
+          else if (alignment?.right) tableCell.style.textAlign = "right";
+          appendSideChatInlineMarkdown(tableCell, cell);
+          row.appendChild(tableCell);
+        });
+        body.appendChild(row);
+        index += 1;
+      }
+      table.appendChild(body);
+      fragment.appendChild(table);
+      continue;
+    }
+
+    const paragraphLines = [line];
+    index += 1;
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !isMarkdownBlockStart(lines, index)
+    ) {
+      paragraphLines.push(lines[index]);
+      index += 1;
+    }
+    const paragraph = document.createElement("p");
+    appendSideChatMarkdownLines(paragraph, paragraphLines);
+    fragment.appendChild(paragraph);
+  }
+
+  container.replaceChildren(fragment);
+}
+
+function addSideChatMessage(role, content, { isIntro = false } = {}) {
+  if (!isIntro) {
+    setSideChatEmptyState(false);
+    sideChatHistory.querySelector("[data-side-chat-intro]")?.remove();
+  }
+
   const message = document.createElement("article");
   message.className = `side-message ${role}`;
+  if (isIntro) message.dataset.sideChatIntro = "true";
 
   const label = document.createElement("strong");
   label.textContent =
     role === "user" ? t("sideChatUserLabel") : t("sideChatAssistantLabel");
 
   const body = document.createElement("div");
-  body.textContent = content;
+  body.className = "side-message-body";
+  renderSideChatMarkdown(body, content);
 
   message.append(label, body);
   sideChatHistory.appendChild(message);
