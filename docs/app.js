@@ -202,7 +202,7 @@ const I18N = {
     summarizeAllReferences: "Summarize all",
     clearReferences: "Clear references",
     referencesHelper:
-      "PDFs stay in the selected workspace. Paper Cards are generated during literature synchronization and cached locally.",
+      "PDFs stay in the selected workspace. Paper Cards are generated only when an agent request needs literature and are then cached locally.",
     experimentEyebrow: "Experiment Evidence",
     experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
@@ -321,7 +321,7 @@ const I18N = {
     pdfSummaryReadyMeta: "Paper Card ready",
     pdfSummaryPendingMeta: "Paper Card pending",
     paperCardRetryMeta: "Card retry",
-    paperCardRetryTooltip: "Paper Card generation failed: {message}. Refresh Workspace to retry.",
+    paperCardRetryTooltip: "Paper Card generation failed: {message}. It will retry when the paper is next needed, or you can generate it manually.",
     pdfLocalMeta: "stored locally",
     pdfSummaryStaleMeta: "changed — Paper Card must be regenerated",
     pdfProcessingProgress: "Summarizing chunk {done} of {total}",
@@ -527,7 +527,7 @@ const I18N = {
     summarizeAllReferences: "总结全部",
     clearReferences: "清空参考资料",
     referencesHelper:
-      "PDF 保存在所选本地工作区中。同步文献时会生成论文卡片并在本地缓存。",
+      "PDF 保存在所选本地工作区中。仅在智能体请求需要文献时生成论文卡片，随后在本地缓存。",
     experimentEyebrow: "实验证据",
     experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
@@ -646,7 +646,7 @@ const I18N = {
     pdfSummaryReadyMeta: "论文卡片已就绪",
     pdfSummaryPendingMeta: "论文卡片待生成",
     paperCardRetryMeta: "卡片待重试",
-    paperCardRetryTooltip: "论文卡片生成失败：{message}。刷新工作区即可重试。",
+    paperCardRetryTooltip: "论文卡片生成失败：{message}。下次请求需要该论文时会重试，也可以手动生成。",
     pdfLocalMeta: "存储于本地",
     pdfSummaryStaleMeta: "文件已更改，需要重新生成论文卡片",
     pdfProcessingProgress: "正在总结第 {done}/{total} 个文本块",
@@ -1263,10 +1263,7 @@ async function openSelectedWorkspace(initialize) {
     pdfWorkerSrc: PDF_JS_WORKER_URL,
     getLanguage: () => currentLanguage,
   });
-  const paperCardSync = await literatureModule.syncPaperLibrary({
-    signal: workspaceAbortController.signal,
-  });
-  const documents = paperCardSync.documents;
+  const documents = await literatureModule.scan();
   workspaceTree = await workspaceManager.scanDirectoryTree();
   projectContextService = new ProjectContextService({
     workspace: workspaceManager,
@@ -1330,9 +1327,7 @@ function applyPreparedContextToDocuments(localWorkspaceContext) {
 async function refreshLiterature(showMessage = false) {
   if (!literatureModule) return;
   try {
-    const { documents } = await literatureModule.syncPaperLibrary({
-      signal: workspaceAbortController?.signal,
-    });
+    const documents = await literatureModule.scan();
     applyLiteratureScan(documents);
     if (showMessage) showToast(t("literatureRefreshed", { count: documents.length }));
   } catch (error) {
@@ -1344,9 +1339,7 @@ async function refreshWorkspaceExplorer(showMessage = false) {
   if (!literatureModule || !workspaceManager.workspace) return;
   refreshWorkspaceButton.disabled = true;
   try {
-    const { documents } = await literatureModule.syncPaperLibrary({
-      signal: workspaceAbortController?.signal,
-    });
+    const documents = await literatureModule.scan();
     const nextTree = await workspaceManager.scanDirectoryTree();
     workspaceTree = nextTree;
     applyLiteratureScan(documents);
@@ -2945,12 +2938,26 @@ async function runAgentInstruction(panelId) {
       throw new Error(t("backendDisabled"));
     }
 
-    const localWorkspaceContext = projectContextService && workspaceTree
-      ? await projectContextService.buildProjectContext({
+    let localWorkspaceContext = null;
+    if (projectContextService && workspaceTree) {
+      activeLiteratureOperations += 1;
+      try {
+        localWorkspaceContext = await projectContextService.buildContext({
+          question: instruction,
+          selectedPaths: [...selectedWorkspacePaths],
+          selectedPaperIds: getSelectedPaperIds(),
           workspaceTree,
           projectGoal: getProjectContext(),
-        })
-      : null;
+          signal: workspaceAbortController?.signal,
+        });
+        applyLiteratureScan(literatureModule.documents);
+        applyPreparedContextToDocuments(localWorkspaceContext);
+        renderWorkspaceExplorer();
+        renderAllDocumentLists();
+      } finally {
+        activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
+      }
+    }
 
     response = await sendWorkbenchRequest({
       mode: "agent_instruction",

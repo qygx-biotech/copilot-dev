@@ -98,7 +98,7 @@ The existing authenticated `POST /chat` route also accepts an optional bounded `
 
 ### Local Paper Cards and routing
 
-Literature synchronization hashes each PDF and generates one cached Paper Card per source version through the existing local extraction and bounded LLM map-reduce flow. Cards are stored at `.biodesign/literature/summaries/<paper_id>.json` to preserve compatibility with existing workspaces. Unchanged hashes reuse the card; changed sources regenerate only their own card; deleted sources remove their card and `.biodesign/literature/cache/<paper_id>.json` derived entry.
+Workspace open and Refresh only synchronize folder metadata and content hashes; they never call the Paper Card LLM flow. When Side Chat or Agent Work determines that literature is needed, it generates missing Paper Cards through the existing local extraction and bounded LLM map-reduce flow before answering. Cards are stored at `.biodesign/literature/summaries/<paper_id>.json` to preserve compatibility with existing workspaces. Unchanged hashes reuse the card; changed sources regenerate only when next needed; deleted sources remove their card and `.biodesign/literature/cache/<paper_id>.json` derived entry during a metadata scan.
 
 Workspace-tree PDF selections are mapped to stable paper IDs. Explicitly selected literature papers define the retrieval scope for literature-relevant questions. With no paper selection, Side Chat ranks the compact cards locally using titles, LLM-generated semantic fields, topics, keywords, and exact scientific identifiers, then retrieves detailed source excerpts only from the matched papers when the question requires them. Retrieved excerpts are request-scoped and are not written into conversation history.
 

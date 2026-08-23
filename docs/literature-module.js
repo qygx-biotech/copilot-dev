@@ -530,8 +530,26 @@
         await this.workspace.writeFile(`literature/${filename}`, source);
         addedNames.push(filename);
       }
-      const sync = await this.syncPaperLibrary();
-      return { addedNames, documents: sync.documents, paperCardSync: sync };
+      // Adding a paper only updates the local library inventory. Paper Card
+      // generation is intentionally deferred until an agent request needs
+      // literature evidence.
+      const documents = await this.scan();
+      return {
+        addedNames,
+        documents,
+        paperCardSync: {
+          documents,
+          generatedPaperIds: [],
+          reusedPaperIds: documents
+            .filter(
+              (document) =>
+                document.isLiteraturePaper && document.paperCardStatus === "ready"
+            )
+            .map((document) => document.id),
+          failures: [],
+          deferred: true,
+        },
+      };
     }
 
     async uniqueFilename(filename) {
@@ -597,7 +615,7 @@
       return document;
     }
 
-    async syncPaperLibrary(options = {}) {
+    async ensurePaperCards(options = {}) {
       await this.scan();
       const allowedIds = Array.isArray(options.paperIds)
         ? new Set(options.paperIds)
@@ -673,6 +691,12 @@
           .filter((paperId) => !generatedPaperIds.includes(paperId)),
         failures,
       };
+    }
+
+    // Compatibility alias for existing integrations that explicitly request
+    // processing. Folder refresh paths call scan() directly and never call it.
+    async syncPaperLibrary(options = {}) {
+      return this.ensurePaperCards(options);
     }
 
     async removeDocument(documentId) {

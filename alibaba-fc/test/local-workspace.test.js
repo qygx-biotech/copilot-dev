@@ -502,7 +502,17 @@ test("Paper Cards are generated once, reused, regenerated on change, and removed
 
 test("adding a duplicate PDF creates a clear unique filename", async () => {
   const { manager } = await makeInitializedWorkspace();
-  const module = new LiteratureModule({ workspace: manager, api: {}, pdfjsLib: {} });
+  let llmCalls = 0;
+  const module = new LiteratureModule({
+    workspace: manager,
+    api: {
+      async summarizeChunk() {
+        llmCalls += 1;
+        throw new Error("Paper Cards must stay deferred during upload.");
+      },
+    },
+    pdfjsLib: {},
+  });
   const file = new Blob(["pdf bytes"], { type: "application/pdf" });
   Object.defineProperty(file, "name", { value: "paper.pdf" });
   await module.addFiles([file]);
@@ -512,6 +522,8 @@ test("adding a duplicate PDF creates a clear unique filename", async () => {
     result.documents.map((document) => document.filename),
     ["paper (2).pdf", "paper.pdf"]
   );
+  assert.ok(result.documents.every((document) => document.paperCardStatus === "pending"));
+  assert.equal(llmCalls, 0);
 });
 
 test("local PDF map-reduce sends text only to FC and restores the local cache", async () => {
@@ -672,7 +684,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   });
   assert.equal(first.scope.type, "files");
   assert.equal(first.files[0].analysisStatus, "processed");
-  assert.equal(first.files[0].evidenceType, "generated-summary");
+  assert.equal(first.files[0].evidenceType, "cached-summary");
   assert.ok(chunkCalls > 0);
   assert.equal(synthesisCalls, 1);
 
@@ -778,15 +790,19 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
         limitations: [],
         mainConclusion: null,
       }),
-      synthesize: async ({ filename }) => ({
-        ...cards[filename],
-        keyResults: cards[filename].mainFindings || [],
-        limitations: [],
-        mainConclusion: null,
-      }),
+      synthesize: async ({ filename }) => {
+        synthesisCalls.push(filename);
+        return {
+          ...cards[filename],
+          keyResults: cards[filename].mainFindings || [],
+          limitations: [],
+          mainConclusion: null,
+        };
+      },
     },
   });
-  await literature.syncPaperLibrary();
+  const synthesisCalls = [];
+  await literature.scan();
   const ids = Object.fromEntries(
     literature.documents.map((document) => [document.filename, document.id])
   );
@@ -803,6 +819,27 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   const workspaceTree = await manager.scanDirectoryTree();
   const service = new ProjectContextService({ workspace: manager, literature });
 
+  const idle = await service.buildContext({
+    question: "Change the interface language to Chinese.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.equal(idle.literature.discoveryMode, "not-needed");
+  assert.deepEqual(idle.files, []);
+  assert.deepEqual(synthesisCalls, []);
+  assert.ok(
+    literature.documents.every((document) => document.paperCardStatus === "pending")
+  );
+  const camelCaseUiQuestion = await service.buildContext({
+    question: "How does sideChat work?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.equal(camelCaseUiQuestion.literature.discoveryMode, "not-needed");
+  assert.deepEqual(synthesisCalls, []);
+
   const selectedA = await service.buildContext({
     question: "Summarize the selected paper.",
     selectedPaths: ["literature/paper-a.pdf"],
@@ -812,6 +849,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(selectedA.literature.discoveryMode, "selected");
   assert.deepEqual(selectedA.literature.relevantPaperIds, [ids["paper-a.pdf"]]);
   assert.deepEqual(selectedA.files.map((file) => file.paperId), [ids["paper-a.pdf"]]);
+  assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
 
   const selectedButUnrelated = await service.buildContext({
     question: "Change the interface language to Chinese.",
@@ -824,6 +862,25 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   ]);
   assert.equal(selectedButUnrelated.literature.discoveryMode, "not-needed");
   assert.deepEqual(selectedButUnrelated.files, []);
+  assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
+
+  const automatic = await service.buildContext({
+    question: "What exact kcat was reported for the A163V EctD variant?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.equal(automatic.literature.discoveryMode, "automatic");
+  assert.deepEqual(automatic.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
+  assert.deepEqual(automatic.files.map((file) => file.paperId), [ids["paper-b.pdf"]]);
+  assert.match(automatic.files[0].content, /12\.4 s-1/);
+  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  assert.deepEqual(new Set(synthesisCalls), new Set([
+    "paper-a.pdf",
+    "paper-b.pdf",
+    "paper-c.pdf",
+  ]));
+  detailReads.length = 0;
 
   const comparison = await service.buildContext({
     question: "Compare these papers and their experimental designs.",
@@ -848,18 +905,6 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     new Set([ids["paper-a.pdf"], ids["paper-b.pdf"], ids["paper-c.pdf"]])
   );
   detailReads.length = 0;
-
-  const automatic = await service.buildContext({
-    question: "What exact kcat was reported for the A163V EctD variant?",
-    selectedPaths: [],
-    selectedPaperIds: [],
-    workspaceTree,
-  });
-  assert.equal(automatic.literature.discoveryMode, "automatic");
-  assert.deepEqual(automatic.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
-  assert.deepEqual(automatic.files.map((file) => file.paperId), [ids["paper-b.pdf"]]);
-  assert.match(automatic.files[0].content, /12\.4 s-1/);
-  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
 
   const followUp = await service.buildContext({
     question: "What about its limitations?",
@@ -890,7 +935,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(unrelated.literature.discoveryMode, "not-needed");
   assert.deepEqual(unrelated.literature.relevantPaperIds, []);
   assert.deepEqual(unrelated.files, []);
-  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  assert.deepEqual(detailReads, []);
 
   const noMatch = await service.buildContext({
     question: "Find a paper about CRISPR-Cas9 genome editing.",

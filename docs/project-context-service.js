@@ -31,6 +31,10 @@
     /\b(it|its|they|their|those|these|former|latter|same paper|that study)\b|它|该论文|这篇|这些论文|它们|前者|后者/i;
   const COLLECTION_LITERATURE_PATTERN =
     /\b(compare|all papers|these papers|those papers|uploaded papers|paper library|literature library|across papers)\b|比较.*论文|所有论文|这些论文|文献库|跨论文/i;
+  const SCIENTIFIC_LITERATURE_PATTERN =
+    /\b(enzyme|enzymatic|gene|protein|mutation|variant|organism|strain|metabolite|metabolic|pathway|biosynthesis|biocatalyst|catalytic|kinetic|activity|assay|fermentation|bioreactor|yield|titer|productivity|hplc|kcat|km|ectd|ectoine|hydroxyectoine)\b|酶|基因|蛋白|突变|菌株|代谢物|代谢通路|生物合成|催化|动力学|活性|发酵|产率|滴度/i;
+  const BIOLOGICAL_IDENTIFIER_PATTERN =
+    /\b[A-Z]\d{1,5}[A-Z]\b|\b[a-z]{2,5}[A-Z]\d*\b|\b[A-Z][a-z]{1,4}[A-Z]\d*\b/;
 
   const STOP_WORDS = new Set([
     "about",
@@ -135,6 +139,16 @@
 
   function questionNeedsSourceEvidence(question) {
     return DETAIL_QUESTION_PATTERN.test(String(question || ""));
+  }
+
+  function questionMayNeedLiterature(question) {
+    const value = String(question || "");
+    if (PROJECT_METADATA_QUESTION_PATTERN.test(value)) return false;
+    return Boolean(
+      LITERATURE_QUESTION_PATTERN.test(value) ||
+        SCIENTIFIC_LITERATURE_PATTERN.test(value) ||
+        BIOLOGICAL_IDENTIFIER_PATTERN.test(value)
+    );
   }
 
   function questionRequiresFileEvidence(question) {
@@ -562,6 +576,18 @@
       const selectedNonPaperFiles = selectedFiles.filter(
         (file) => !selectedPaperPaths.has(file.relativePath)
       );
+      const conversationContext = this.buildConversationContext(options.conversation);
+      const recentIds = conversationContext.recentlyDiscussedPaperIds.filter(
+        (paperId) =>
+          this.literature?.documents?.some(
+            (document) =>
+              document.id === paperId && document.paperCardStatus === "ready"
+          )
+      );
+      const question = String(options.question || "");
+      const followUpNeedsLiterature = Boolean(
+        recentIds.length && LITERATURE_FOLLOW_UP_PATTERN.test(question)
+      );
 
       let relevantPaperIds = [];
       let discoveryMode = "not-needed";
@@ -571,26 +597,36 @@
           candidatePaperIds: selectedPaperIds,
         });
         const literatureNeeded = Boolean(
-          LITERATURE_QUESTION_PATTERN.test(String(options.question || "")) ||
-          LITERATURE_FOLLOW_UP_PATTERN.test(String(options.question || "")) ||
-          questionNeedsSourceEvidence(options.question) ||
+          questionMayNeedLiterature(question) ||
+          followUpNeedsLiterature ||
+          questionNeedsSourceEvidence(question) ||
           selectedMatches.length
         );
         if (literatureNeeded) {
+          await this.ensurePaperCards(selectedPaperIds, options);
           relevantPaperIds = selectedPaperIds;
           discoveryMode = "selected";
         }
       } else {
-        const matches = await this.matchPapers(options.question, {
+        let matches = await this.matchPapers(options.question, {
           topK: Math.min(5, this.limits.maxEvidenceFiles),
         });
-        const recentIds = this.buildConversationContext(
-          options.conversation
-        ).recentlyDiscussedPaperIds.filter((paperId) =>
-          this.literature?.documents?.some(
-            (document) => document.id === paperId && document.paperCardStatus === "ready"
-          )
+        const discoveryNeeded = Boolean(
+          questionMayNeedLiterature(question) ||
+            followUpNeedsLiterature ||
+            matches.length
         );
+        if (discoveryNeeded) {
+          const followUpPaperIds =
+            followUpNeedsLiterature &&
+            !COLLECTION_LITERATURE_PATTERN.test(question)
+              ? recentIds
+              : null;
+          await this.ensurePaperCards(followUpPaperIds, options);
+          matches = await this.matchPapers(options.question, {
+            topK: Math.min(5, this.limits.maxEvidenceFiles),
+          });
+        }
         if (matches.some((match) => match.score > 0)) {
           relevantPaperIds = matches.map((match) => match.paperId);
           discoveryMode = "automatic";
@@ -644,6 +680,21 @@
       this.addLibraryNotices(context);
       this.addFileNotices(context);
       return context;
+    }
+
+    async ensurePaperCards(paperIds, options = {}) {
+      const targets = (this.literature?.documents || []).filter(
+        (document) =>
+          document.isLiteraturePaper &&
+          (!Array.isArray(paperIds) || paperIds.includes(document.id)) &&
+          document.paperCardStatus !== "ready"
+      );
+      if (!targets.length) return null;
+      return this.literature.ensurePaperCards({
+        ...(Array.isArray(paperIds) ? { paperIds } : {}),
+        signal: options.signal,
+        onProgress: options.onProgress,
+      });
     }
 
     getSelectedPaperIds(selectedPaths, suppliedPaperIds = []) {
@@ -861,6 +912,15 @@
           document = this.literature.findDocumentByPath(file.relativePath);
         }
         if (!document) throw new Error("The selected PDF is no longer indexed.");
+        if (
+          document.isLiteraturePaper &&
+          document.paperCardStatus === "failed"
+        ) {
+          throw new Error(
+            document.paperCardError ||
+              "Paper Card generation failed and can be retried on the next request."
+          );
+        }
         const requiresFileEvidence = questionRequiresFileEvidence(options.question);
         if (!document.summaryAvailable && !requiresFileEvidence) {
           return {
@@ -950,6 +1010,7 @@
     formatPaperSummary,
     normalizeStoredConversation,
     questionNeedsSourceEvidence,
+    questionMayNeedLiterature,
     questionRequiresFileEvidence,
     rankPaperCards,
     selectRelevantExcerpts,

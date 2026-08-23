@@ -124,6 +124,51 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.doesNotMatch(htmlSource, /Experimental Results/);
 });
 
+test("workspace open, login, and Refresh never generate Paper Cards", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const moduleSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/literature-module.js"),
+    "utf8"
+  );
+  const sliceFunction = (startLabel, endLabel) => {
+    const start = appSource.indexOf(startLabel);
+    const end = appSource.indexOf(endLabel, start + startLabel.length);
+    assert.ok(start >= 0 && end > start, `${startLabel} should be present`);
+    return appSource.slice(start, end);
+  };
+
+  const loginHandler = sliceFunction(
+    'loginForm.addEventListener("submit"',
+    'logoutButton.addEventListener("click"'
+  );
+  const openWorkspace = sliceFunction(
+    "async function openSelectedWorkspace",
+    "function applyLiteratureScan"
+  );
+  const refreshLiterature = sliceFunction(
+    "async function refreshLiterature",
+    "async function refreshWorkspaceExplorer"
+  );
+  const refreshWorkspace = sliceFunction(
+    "async function refreshWorkspaceExplorer",
+    "function scheduleWorkspaceStateSave"
+  );
+  const eagerPattern = /ensurePaperCards|syncPaperLibrary|\.summarize\(/;
+
+  assert.doesNotMatch(loginHandler, eagerPattern);
+  assert.match(openWorkspace, /literatureModule\.scan\(\)/);
+  assert.doesNotMatch(openWorkspace, eagerPattern);
+  assert.match(refreshLiterature, /literatureModule\.scan\(\)/);
+  assert.doesNotMatch(refreshLiterature, eagerPattern);
+  assert.match(refreshWorkspace, /literatureModule\.scan\(\)/);
+  assert.doesNotMatch(refreshWorkspace, eagerPattern);
+  assert.match(moduleSource, /async addFiles\([\s\S]*?const documents = await this\.scan\(\)/);
+  assert.match(moduleSource, /async ensurePaperCards\(/);
+});
+
 test("Workspace rows preserve full names while clamping long files to two lines", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),
