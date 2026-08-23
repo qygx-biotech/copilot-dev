@@ -13,6 +13,7 @@
     minimumReadableCharacters: 200,
     maxChunks: 48,
   });
+  const PAPER_CARD_VERSION = 1;
 
   class LiteratureError extends Error {
     constructor(code, message, cause = null) {
@@ -187,6 +188,44 @@
     return String(value || "paper.pdf").split(/[\\/]/).pop().slice(0, 240) || "paper.pdf";
   }
 
+  function normalizeCardText(value) {
+    const text = typeof value === "string" ? value.trim() : "";
+    return text || null;
+  }
+
+  function normalizeCardList(value, limit = 30) {
+    const values = Array.isArray(value)
+      ? value
+      : typeof value === "string" && value.trim()
+        ? [value]
+        : [];
+    return [...new Set(
+      values
+        .filter((item) => typeof item === "string" && item.trim())
+        .map((item) => item.trim().slice(0, 1200))
+    )].slice(0, limit);
+  }
+
+  async function hashLiteratureFile(file, cryptoProvider = root.crypto) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (cryptoProvider?.subtle?.digest) {
+      const digest = await cryptoProvider.subtle.digest("SHA-256", bytes);
+      const hex = [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+      return `sha256:${hex}`;
+    }
+
+    // Deterministic fallback for older test/browser environments without
+    // SubtleCrypto. It is used only for change detection, never for security.
+    let hash = 0x811c9dc5;
+    for (const byte of bytes) {
+      hash ^= byte;
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return `fnv1a32:${hash.toString(16).padStart(8, "0")}:${bytes.length}`;
+  }
+
   class LiteratureApiClient {
     constructor(options) {
       this.baseUrl = String(options.baseUrl || "").replace(/\/$/, "");
@@ -281,9 +320,52 @@
       this.pdfWorkerSrc = options.pdfWorkerSrc || "";
       this.getLanguage = options.getLanguage || (() => "en");
       this.now = options.now || (() => new Date());
+      this.cryptoProvider = options.cryptoProvider || root.crypto;
       this.config = { ...LITERATURE_CONFIG, ...(options.config || {}) };
       this.index = null;
       this.documents = [];
+    }
+
+    serializeDocument(document) {
+      return {
+        id: document.id,
+        relativePath: document.relativePath,
+        filename: document.filename,
+        size: Number(document.size),
+        lastModified: Number(document.lastModified),
+        sourceHash: document.sourceHash,
+        status: document.status,
+        summaryPath: document.summaryPath,
+        paperCardPath: document.paperCardPath || document.summaryPath,
+        paperCardVersion: Number(document.paperCardVersion) || 0,
+        paperCardStatus: document.paperCardStatus || "pending",
+        paperCardError: String(document.paperCardError || "").slice(0, 1000),
+        isLiteraturePaper: document.isLiteraturePaper === true,
+        summaryUpdatedAt: document.summaryUpdatedAt || "",
+      };
+    }
+
+    async persistIndex() {
+      this.index = {
+        schemaVersion: 1,
+        documents: this.documents.map((document) => this.serializeDocument(document)),
+        updatedAt: this.now().toISOString(),
+      };
+      await this.workspace.writeJson(".biodesign/literature/index.json", this.index);
+      return this.index;
+    }
+
+    async removeDerivedRecord(document) {
+      const paths = new Set([
+        document?.paperCardPath,
+        document?.summaryPath,
+        document?.id ? `.biodesign/literature/cache/${document.id}.json` : "",
+      ]);
+      for (const path of paths) {
+        if (path && (await this.workspace.fileExists(path))) {
+          await this.workspace.removeFile(path);
+        }
+      }
     }
 
     async scan() {
@@ -311,43 +393,130 @@
 
       const documents = [];
       for (const file of scanned) {
+        const isLiteraturePaper = file.relativePath.startsWith("literature/");
         let old = previousByPath.get(file.relativePath) || null;
-        if (!old) {
+        if (!old && !isLiteraturePaper) {
           const key = `${Number(file.size)}:${Number(file.lastModified)}`;
           const candidates = (metadataGroups.get(key) || []).filter((candidate) => unmatched.has(candidate));
           if (candidates.length === 1) old = candidates[0];
         }
-        if (old) unmatched.delete(old);
 
-        const changed = Boolean(
+        let metadataChanged = Boolean(
           old &&
             (Number(old.size) !== Number(file.size) ||
               Number(old.lastModified) !== Number(file.lastModified))
         );
+        // Literature files are hashed on every sync. Size and mtime are useful
+        // shortcuts for other workspace PDFs, but they are not sufficient for
+        // the Paper Card lifecycle because a replacement can preserve both.
+        const sourceFile =
+          isLiteraturePaper || !old?.sourceHash || metadataChanged
+            ? await this.workspace.readFile(file.relativePath)
+            : null;
+        const sourceHash =
+          sourceFile === null
+            ? old.sourceHash
+            : await hashLiteratureFile(sourceFile, this.cryptoProvider);
+        if (!old && isLiteraturePaper) {
+          const candidates = previous.filter(
+            (candidate) =>
+              unmatched.has(candidate) && candidate.sourceHash === sourceHash
+          );
+          if (candidates.length === 1) {
+            old = candidates[0];
+            metadataChanged = Boolean(
+              Number(old.size) !== Number(file.size) ||
+                Number(old.lastModified) !== Number(file.lastModified)
+            );
+          }
+        }
+        if (old) unmatched.delete(old);
+        const sourceChanged = Boolean(
+          old && (!old.sourceHash || old.sourceHash !== sourceHash)
+        );
         const id = old?.id || this.workspace.createId();
         const summaryPath =
           old?.summaryPath || `.biodesign/literature/summaries/${id}.json`;
-        const summaryAvailable = await this.workspace.fileExists(summaryPath);
-        documents.push({
+        const paperCardPath = old?.paperCardPath || summaryPath;
+        const needsCardUpgrade = Boolean(
+          old && Number(old.paperCardVersion) !== PAPER_CARD_VERSION
+        );
+        if (sourceChanged || needsCardUpgrade) {
+          await this.removeDerivedRecord({ ...old, id, summaryPath, paperCardPath });
+        }
+
+        let paperCard = null;
+        let paperCardError = "";
+        if (await this.workspace.fileExists(paperCardPath)) {
+          try {
+            paperCard = await this.workspace.readJson(paperCardPath);
+            const cardMatchesSource =
+              paperCard.documentId === id &&
+              paperCard.paperId === id &&
+              Number(paperCard.paperCardVersion) === PAPER_CARD_VERSION &&
+              paperCard.source?.hash === sourceHash;
+            if (!cardMatchesSource) {
+              await this.removeDerivedRecord({ id, summaryPath, paperCardPath });
+              paperCard = null;
+            }
+          } catch (error) {
+            await this.removeDerivedRecord({ id, summaryPath, paperCardPath });
+            paperCardError = error.message || "The cached Paper Card was invalid.";
+          }
+        }
+
+        const cardReady = Boolean(paperCard);
+        const preserveFailure = Boolean(
+          old?.paperCardStatus === "failed" &&
+            !sourceChanged &&
+            !needsCardUpgrade &&
+            !cardReady
+        );
+        const document = {
           id,
           relativePath: file.relativePath,
           filename: file.name,
           size: Number(file.size),
           lastModified: Number(file.lastModified),
-          status: changed && summaryAvailable ? "stale" : "ready",
+          sourceHash,
+          status: cardReady ? "ready" : preserveFailure ? "failed" : "pending",
           summaryPath,
-          summaryAvailable,
-          summaryStale: changed && summaryAvailable,
-        });
+          paperCardPath,
+          paperCardVersion: cardReady ? PAPER_CARD_VERSION : 0,
+          paperCardStatus: cardReady ? "ready" : preserveFailure ? "failed" : "pending",
+          paperCardError:
+            paperCardError || (preserveFailure ? String(old.paperCardError || "") : ""),
+          summaryAvailable: cardReady,
+          summaryStale: false,
+          summaryUpdatedAt: cardReady ? paperCard.generatedAt : "",
+          isLiteraturePaper,
+        };
+
+        if (
+          cardReady &&
+          (paperCard.fileName !== file.name ||
+            paperCard.source?.filename !== file.name ||
+            paperCard.source?.relativePath !== file.relativePath)
+        ) {
+          paperCard.fileName = file.name;
+          paperCard.source = {
+            ...paperCard.source,
+            filename: file.name,
+            relativePath: file.relativePath,
+            size: Number(file.size),
+            lastModified: Number(file.lastModified),
+          };
+          await this.workspace.writeJson(paperCardPath, paperCard);
+        }
+        documents.push(document);
       }
 
-      this.index = {
-        schemaVersion: 1,
-        documents: documents.map(({ summaryAvailable, summaryStale, ...document }) => document),
-        updatedAt: this.now().toISOString(),
-      };
+      for (const removedDocument of unmatched) {
+        await this.removeDerivedRecord(removedDocument);
+      }
+
       this.documents = documents;
-      await this.workspace.writeJson(".biodesign/literature/index.json", this.index);
+      await this.persistIndex();
       return documents;
     }
 
@@ -361,7 +530,8 @@
         await this.workspace.writeFile(`literature/${filename}`, source);
         addedNames.push(filename);
       }
-      return { addedNames, documents: await this.scan() };
+      const sync = await this.syncPaperLibrary();
+      return { addedNames, documents: sync.documents, paperCardSync: sync };
     }
 
     async uniqueFilename(filename) {
@@ -390,18 +560,124 @@
       );
     }
 
-    async loadSummary(documentId) {
+    async getPaperCard(documentId) {
       const document = this.findDocument(documentId);
-      if (!(await this.workspace.fileExists(document.summaryPath))) return null;
-      const summary = await this.workspace.readJson(document.summaryPath);
-      if (summary.documentId !== document.id) {
-        throw new LiteratureError("SUMMARY_MISMATCH", "The cached summary belongs to a different paper record.");
+      const path = document.paperCardPath || document.summaryPath;
+      if (!(await this.workspace.fileExists(path))) return null;
+      const card = await this.workspace.readJson(path);
+      if (
+        card.documentId !== document.id ||
+        card.paperId !== document.id ||
+        Number(card.paperCardVersion) !== PAPER_CARD_VERSION ||
+        card.source?.hash !== document.sourceHash
+      ) {
+        throw new LiteratureError(
+          "PAPER_CARD_MISMATCH",
+          "The cached Paper Card does not match the current source paper."
+        );
       }
-      return summary;
+      return card;
+    }
+
+    async loadSummary(documentId) {
+      return this.getPaperCard(documentId);
+    }
+
+    async deletePaperCard(documentId) {
+      const document = this.findDocument(documentId);
+      await this.removeDerivedRecord(document);
+      document.status = "pending";
+      document.paperCardStatus = "pending";
+      document.paperCardVersion = 0;
+      document.paperCardError = "";
+      document.summaryAvailable = false;
+      document.summaryStale = false;
+      document.summaryUpdatedAt = "";
+      await this.persistIndex();
+      return document;
+    }
+
+    async syncPaperLibrary(options = {}) {
+      await this.scan();
+      const allowedIds = Array.isArray(options.paperIds)
+        ? new Set(options.paperIds)
+        : null;
+      const targets = this.documents.filter(
+        (document) =>
+          document.isLiteraturePaper &&
+          (!allowedIds || allowedIds.has(document.id)) &&
+          document.paperCardStatus !== "ready"
+      );
+      const generatedPaperIds = [];
+      const failures = [];
+
+      for (let index = 0; index < targets.length; index += 1) {
+        const document = targets[index];
+        options.onProgress?.({
+          stage: "paper-card",
+          paperId: document.id,
+          relativePath: document.relativePath,
+          completed: index,
+          total: targets.length,
+        });
+        try {
+          await this.createPaperCard(document.id, {
+            force: true,
+            signal: options.signal,
+            onProgress: (progress) =>
+              options.onProgress?.({
+                ...progress,
+                paperId: document.id,
+                relativePath: document.relativePath,
+                paperCompleted: index,
+                paperTotal: targets.length,
+              }),
+          });
+          generatedPaperIds.push(document.id);
+        } catch (error) {
+          if (error?.code === "OPERATION_ABORTED" || options.signal?.aborted) {
+            throw error;
+          }
+          document.status = "failed";
+          document.paperCardStatus = "failed";
+          document.paperCardVersion = 0;
+          document.paperCardError = String(
+            error.message || "Paper Card generation failed."
+          ).slice(0, 1000);
+          document.summaryAvailable = false;
+          document.summaryStale = false;
+          await this.removeDerivedRecord(document);
+          await this.persistIndex();
+          failures.push({
+            paperId: document.id,
+            relativePath: document.relativePath,
+            error: document.paperCardError,
+          });
+        }
+      }
+
+      options.onProgress?.({
+        stage: "paper-card-complete",
+        completed: targets.length,
+        total: targets.length,
+      });
+      return {
+        documents: this.documents,
+        generatedPaperIds,
+        reusedPaperIds: this.documents
+          .filter(
+            (document) =>
+              document.isLiteraturePaper && document.paperCardStatus === "ready"
+          )
+          .map((document) => document.id)
+          .filter((paperId) => !generatedPaperIds.includes(paperId)),
+        failures,
+      };
     }
 
     async removeDocument(documentId) {
       const document = this.findDocument(documentId);
+      await this.removeDerivedRecord(document);
       await this.workspace.removeFile(document.relativePath);
       return this.scan();
     }
@@ -418,11 +694,17 @@
       });
     }
 
-    async summarize(documentId, options = {}) {
+    async createPaperCard(documentId, options = {}) {
       const document = this.findDocument(documentId);
-      const cached = await this.loadSummary(documentId);
-      if (!options.force && document.status !== "stale" && cached) {
-        return { summary: cached, cached: true };
+      let cached = null;
+      try {
+        cached = await this.getPaperCard(documentId);
+      } catch (error) {
+        if (!options.force) throw error;
+        await this.removeDerivedRecord(document);
+      }
+      if (!options.force && document.paperCardStatus === "ready" && cached) {
+        return { summary: cached, card: cached, cached: true };
       }
 
       const signal = options.signal;
@@ -487,9 +769,11 @@
       );
 
       const latestFile = await this.workspace.readFile(document.relativePath);
+      const latestHash = await hashLiteratureFile(latestFile, this.cryptoProvider);
       if (
         latestFile.size !== originalMetadata.size ||
-        latestFile.lastModified !== originalMetadata.lastModified
+        latestFile.lastModified !== originalMetadata.lastModified ||
+        latestHash !== document.sourceHash
       ) {
         throw new LiteratureError(
           "SOURCE_CHANGED",
@@ -498,45 +782,100 @@
       }
 
       const generatedAt = this.now().toISOString();
-      const summary = {
+      const methods = normalizeCardList(synthesized.methods);
+      const methodsSummary =
+        normalizeCardText(synthesized.methodsSummary) ||
+        (typeof synthesized.methods === "string"
+          ? normalizeCardText(synthesized.methods)
+          : methods.join("; ") || null);
+      const mainFindings = normalizeCardList([
+        ...normalizeCardList(synthesized.mainFindings),
+        ...normalizeCardList(synthesized.keyResults),
+      ]);
+      const importantResults = normalizeCardList([
+        ...normalizeCardList(synthesized.importantResults),
+        ...normalizeCardList(synthesized.keyResults),
+      ]);
+      const shortSummary =
+        normalizeCardText(synthesized.shortSummary) ||
+        normalizeCardText(synthesized.summary) ||
+        "";
+      const card = {
         schemaVersion: 1,
+        paperCardVersion: PAPER_CARD_VERSION,
+        paperId: document.id,
         documentId: document.id,
+        fileName: document.filename,
         generatedAt,
         source: {
           filename: document.filename,
+          relativePath: document.relativePath,
           size: document.size,
           lastModified: document.lastModified,
+          hash: document.sourceHash,
           pageCount: extracted.pageCount,
           processedCharacters: chunkResult.processedCharacters,
           truncated: extracted.truncated || chunkResult.truncated,
         },
         model: synthesized.model || null,
-        title: extracted.metadataTitle || synthesized.title || document.filename || null,
-        summary: String(synthesized.summary || ""),
-        researchQuestion: synthesized.researchQuestion || null,
-        methods: synthesized.methods || null,
-        keyResults: Array.isArray(synthesized.keyResults) ? synthesized.keyResults : [],
-        limitations: Array.isArray(synthesized.limitations) ? synthesized.limitations : [],
-        mainConclusion: synthesized.mainConclusion || null,
-        keywords: Array.isArray(synthesized.keywords) ? synthesized.keywords : [],
+        title:
+          extracted.metadataTitle || normalizeCardText(synthesized.title) || null,
+        authors: normalizeCardList(synthesized.authors),
+        year:
+          Number.isInteger(Number(synthesized.year)) &&
+          Number(synthesized.year) >= 1800 &&
+          Number(synthesized.year) <= 2100
+            ? Number(synthesized.year)
+            : null,
+        abstractSummary: normalizeCardText(synthesized.abstractSummary),
+        researchQuestion: normalizeCardText(synthesized.researchQuestion),
+        mainFindings,
+        methods,
+        methodsSummary,
+        organisms: normalizeCardList(synthesized.organisms),
+        genes: normalizeCardList(synthesized.genes),
+        proteins: normalizeCardList(synthesized.proteins),
+        pathways: normalizeCardList(synthesized.pathways),
+        metabolites: normalizeCardList(synthesized.metabolites),
+        experimentalConditions: normalizeCardList(synthesized.experimentalConditions),
+        measurements: normalizeCardList(synthesized.measurements),
+        importantResults,
+        limitations: normalizeCardList(synthesized.limitations),
+        keywords: normalizeCardList(synthesized.keywords),
+        topics: normalizeCardList(synthesized.topics),
+        shortSummary,
+        // Compatibility aliases keep the existing summary UI and request
+        // formatting stable while the richer Paper Card becomes the source
+        // for discovery.
+        summary: String(synthesized.summary || shortSummary || ""),
+        keyResults: normalizeCardList([
+          ...normalizeCardList(synthesized.keyResults),
+          ...mainFindings,
+        ]),
+        mainConclusion: normalizeCardText(synthesized.mainConclusion),
       };
 
       assertNotAborted(signal);
-      await this.workspace.writeJson(document.summaryPath, summary);
+      await this.workspace.writeJson(document.paperCardPath || document.summaryPath, card);
       document.status = "ready";
+      document.paperCardStatus = "ready";
+      document.paperCardVersion = PAPER_CARD_VERSION;
+      document.paperCardError = "";
       document.summaryAvailable = true;
       document.summaryStale = false;
       document.summaryUpdatedAt = generatedAt;
-      await this.workspace.writeJson(".biodesign/literature/index.json", {
-        ...this.index,
-        updatedAt: generatedAt,
-      });
+      await this.persistIndex();
       options.onProgress?.({ stage: "complete", completed: 1, total: 1 });
       return {
-        summary,
+        summary: card,
+        card,
         cached: false,
         sourceText: options.includeSourceText ? extracted.text : "",
       };
+    }
+
+    async summarize(documentId, options = {}) {
+      return this.createPaperCard(documentId, options);
     }
   }
 
@@ -545,8 +884,10 @@
     LiteratureApiClient,
     LiteratureError,
     LiteratureModule,
+    PAPER_CARD_VERSION,
     chunkLiteratureText,
     extractLocalPdf,
+    hashLiteratureFile,
     runWithConcurrency,
   };
 });

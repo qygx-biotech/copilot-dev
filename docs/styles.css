@@ -554,6 +554,11 @@ textarea:focus {
   font-size: 0.72rem;
 }
 
+.workspace-file-row.has-paper-card-error .workspace-tree-meta {
+  color: var(--danger);
+  font-weight: 760;
+}
+
 .workbench-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.75fr) minmax(760px, 1.55fr) minmax(320px, 0.7fr);

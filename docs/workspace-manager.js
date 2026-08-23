@@ -123,7 +123,20 @@
         !Number.isFinite(Number(document.size)) ||
         !Number.isFinite(Number(document.lastModified)) ||
         typeof document.summaryPath !== "string" ||
-        !document.summaryPath.startsWith(".biodesign/literature/summaries/")
+        !document.summaryPath.startsWith(".biodesign/literature/summaries/") ||
+        (document.sourceHash !== undefined &&
+          (typeof document.sourceHash !== "string" || !document.sourceHash)) ||
+        (document.paperCardStatus !== undefined &&
+          !["pending", "ready", "failed"].includes(document.paperCardStatus)) ||
+        (document.paperCardError !== undefined &&
+          typeof document.paperCardError !== "string") ||
+        (document.paperCardVersion !== undefined &&
+          ![0, 1].includes(Number(document.paperCardVersion))) ||
+        (document.paperCardPath !== undefined &&
+          (typeof document.paperCardPath !== "string" ||
+            !document.paperCardPath.startsWith(".biodesign/literature/summaries/"))) ||
+        (document.isLiteraturePaper !== undefined &&
+          typeof document.isLiteraturePaper !== "boolean")
       ) {
         throw new WorkspaceError(
           "INVALID_LITERATURE_INDEX",
@@ -140,6 +153,7 @@
       value.schemaVersion !== WORKSPACE_SCHEMA_VERSION ||
       typeof value.documentId !== "string" ||
       !value.documentId ||
+      (value.paperId !== undefined && value.paperId !== value.documentId) ||
       typeof value.generatedAt !== "string" ||
       !isPlainObject(value.source) ||
       typeof value.source.filename !== "string" ||
@@ -152,6 +166,44 @@
         "INVALID_LITERATURE_SUMMARY",
         "The literature summary does not match the supported schema."
       );
+    }
+    if (value.paperCardVersion !== undefined) {
+      const stringLists = [
+        "authors",
+        "mainFindings",
+        "methods",
+        "organisms",
+        "genes",
+        "proteins",
+        "pathways",
+        "metabolites",
+        "experimentalConditions",
+        "measurements",
+        "importantResults",
+        "topics",
+      ];
+      const validStringLists = stringLists.every(
+        (key) =>
+          Array.isArray(value[key]) &&
+          value[key].every((item) => typeof item === "string")
+      );
+      if (
+        value.paperCardVersion !== 1 ||
+        value.paperId !== value.documentId ||
+        typeof value.fileName !== "string" ||
+        !value.fileName ||
+        typeof value.source.hash !== "string" ||
+        !value.source.hash ||
+        typeof value.source.relativePath !== "string" ||
+        typeof value.shortSummary !== "string" ||
+        (value.year !== null && !Number.isInteger(value.year)) ||
+        !validStringLists
+      ) {
+        throw new WorkspaceError(
+          "INVALID_LITERATURE_SUMMARY",
+          "The Paper Card does not match the supported schema."
+        );
+      }
     }
     return value;
   }
@@ -210,12 +262,17 @@
     }
 
     for (const message of value.messages) {
+      const validPaperIds = (ids) =>
+        ids === undefined ||
+        (Array.isArray(ids) && ids.every((id) => typeof id === "string" && id));
       const validContext =
         message?.context === undefined ||
         (isPlainObject(message.context) &&
           (message.context.type === "project" || message.context.type === "files") &&
           Array.isArray(message.context.files) &&
-          message.context.files.every((path) => typeof path === "string"));
+          message.context.files.every((path) => typeof path === "string") &&
+          validPaperIds(message.context.selectedPaperIds) &&
+          validPaperIds(message.context.relevantPaperIds));
       if (
         !isPlainObject(message) ||
         typeof message.id !== "string" ||

@@ -90,11 +90,17 @@ No production dependency was added for the local-workspace routes. The existing 
 Both new endpoints require the existing JWT bearer token and are stateless with respect to project storage:
 
 - `POST /api/literature/summarize-chunk` accepts one extracted-text chunk, its bounded index/count, language, and filename.
-- `POST /api/literature/synthesize` accepts bounded chunk summaries plus minimal source metadata and returns a structured paper review.
+- `POST /api/literature/synthesize` accepts bounded chunk summaries plus minimal source metadata and returns the structured content used by a local Paper Card.
 
 Neither route accepts a filesystem path, PDF bytes, an OSS key, or a project folder. Neither route reads or writes OSS.
 
-The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its scope, project summaries, file inventory, processed evidence, and limitation notices before adding them to the Side Chat system context. Inventory entries are explicitly metadata-only. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
+The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its scope, structured selected/relevant paper IDs, project summaries, file inventory, processed evidence, and limitation notices before adding them to the Side Chat system context. Inventory entries are explicitly metadata-only. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
+
+### Local Paper Cards and routing
+
+Literature synchronization hashes each PDF and generates one cached Paper Card per source version through the existing local extraction and bounded LLM map-reduce flow. Cards are stored at `.biodesign/literature/summaries/<paper_id>.json` to preserve compatibility with existing workspaces. Unchanged hashes reuse the card; changed sources regenerate only their own card; deleted sources remove their card and `.biodesign/literature/cache/<paper_id>.json` derived entry.
+
+Workspace-tree PDF selections are mapped to stable paper IDs. Explicitly selected literature papers define the retrieval scope for literature-relevant questions. With no paper selection, Side Chat ranks the compact cards locally using titles, LLM-generated semantic fields, topics, keywords, and exact scientific identifiers, then retrieves detailed source excerpts only from the matched papers when the question requires them. Retrieved excerpts are request-scoped and are not written into conversation history.
 
 Example smoke test after obtaining `TOKEN`:
 

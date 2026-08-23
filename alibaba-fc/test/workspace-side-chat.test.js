@@ -15,6 +15,12 @@ test("local workspace chat context is whitelisted, bounded, and explicit about i
       type: "files",
       files: ["literature/paper1.pdf", "experiments/run.xlsx"],
     },
+    literature: {
+      selectedPaperIds: ["paper-a"],
+      relevantPaperIds: ["paper-a"],
+      discoveryMode: "selected",
+      retrievalRequired: true,
+    },
     project: {
       workspaceName: "EctD Project",
       goal: "Improve EctD activity",
@@ -23,6 +29,7 @@ test("local workspace chat context is whitelisted, bounded, and explicit about i
     },
     inventory: [
       {
+        paperId: "paper-a",
         name: "paper1.pdf",
         relativePath: "literature/paper1.pdf",
         extension: "pdf",
@@ -42,6 +49,7 @@ test("local workspace chat context is whitelisted, bounded, and explicit about i
     ],
     files: [
       {
+        paperId: "paper-a",
         name: "paper1.pdf",
         relativePath: "literature/paper1.pdf",
         extension: "pdf",
@@ -65,6 +73,9 @@ test("local workspace chat context is whitelisted, bounded, and explicit about i
   });
 
   assert.equal(sanitized.scope.type, "files");
+  assert.deepEqual(sanitized.literature.selectedPaperIds, ["paper-a"]);
+  assert.deepEqual(sanitized.literature.relevantPaperIds, ["paper-a"]);
+  assert.equal(sanitized.literature.discoveryMode, "selected");
   assert.deepEqual(sanitized.scope.files, [
     "literature/paper1.pdf",
     "experiments/run.xlsx",
@@ -80,6 +91,8 @@ test("local workspace chat context is whitelisted, bounded, and explicit about i
   assert.match(prompt, /status: unsupported/i);
   assert.match(prompt, /do not yet have an AI content processor/i);
   assert.match(prompt, /The cached paper understanding/);
+  assert.match(prompt, /Explicitly selected paper IDs: paper-a/);
+  assert.match(prompt, /Paper IDs used for this turn: paper-a/);
 });
 
 test("invalid local workspace context is ignored rather than trusted", () => {

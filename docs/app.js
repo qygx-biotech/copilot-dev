@@ -202,7 +202,7 @@ const I18N = {
     summarizeAllReferences: "Summarize all",
     clearReferences: "Clear references",
     referencesHelper:
-      "PDFs stay in the selected workspace. Summaries run only when requested and are cached locally.",
+      "PDFs stay in the selected workspace. Paper Cards are generated during literature synchronization and cached locally.",
     experimentEyebrow: "Experiment Evidence",
     experimentTitle: "Experimental Results",
     uploadResults: "Upload results",
@@ -318,22 +318,24 @@ const I18N = {
     pdfReviewFailed: "Review failed for {name}: {message}",
     pdfStoredMeta: "stored in private OSS",
     pdfReviewErrorMeta: "stored; review needs retry",
-    pdfSummaryReadyMeta: "summary cached",
-    pdfSummaryPendingMeta: "not summarized",
+    pdfSummaryReadyMeta: "Paper Card ready",
+    pdfSummaryPendingMeta: "Paper Card pending",
+    paperCardRetryMeta: "Card retry",
+    paperCardRetryTooltip: "Paper Card generation failed: {message}. Refresh Workspace to retry.",
     pdfLocalMeta: "stored locally",
-    pdfSummaryStaleMeta: "changed — summary may be outdated",
+    pdfSummaryStaleMeta: "changed — Paper Card must be regenerated",
     pdfProcessingProgress: "Summarizing chunk {done} of {total}",
     pdfSynthesizing: "Creating the final scientific review...",
     pdfExtractingLocal: "Extracting text locally...",
-    regenerateSummary: "Regenerate summary",
+    regenerateSummary: "Regenerate Paper Card",
     literatureRefreshed: "Literature refreshed: {count} PDFs found.",
     literatureAdded: "Added {count} PDFs to the local workspace.",
     removeLocalFileConfirm:
-      "Remove {name} from the local literature folder? The cached summary will be preserved.",
+      "Remove {name} from the local literature folder? Its Paper Card and derived cache will also be deleted.",
     localFileDeleted: "Removed {name} from the local literature folder.",
     localSummaryWriteFailed: "The summary could not be saved locally: {message}",
-    summarizeFile: "Summarize",
-    viewSummary: "View summary",
+    summarizeFile: "Generate Paper Card",
+    viewSummary: "View Paper Card",
     useInChat: "Use in chat",
     chatSelectionLimit: "Select at most {count} PDFs for focused Side Chat.",
     deletingFile: "Deleting {name} from private OSS...",
@@ -346,7 +348,7 @@ const I18N = {
     summarizeAllProgress: "Summarizing {done}/{total} papers...",
     summarizeAllQuestion: "Summarize all literature in this workspace, compare the research questions, methods, main findings, and limitations, and clearly identify any papers whose summaries are unavailable.",
     summaryConversationQuestion: "Summarize {name}.",
-    summariesReady: "The requested paper summaries are ready.",
+    summariesReady: "The requested Paper Cards are ready.",
     thinking: "Thinking",
     pdfSyncing: "Syncing saved PDFs from private OSS...",
     pdfSynced: "Synced {count} saved PDF files from OSS.",
@@ -525,7 +527,7 @@ const I18N = {
     summarizeAllReferences: "总结全部",
     clearReferences: "清空参考资料",
     referencesHelper:
-      "PDF 保存在所选本地工作区中。仅在用户主动请求时生成摘要，并在本地缓存。",
+      "PDF 保存在所选本地工作区中。同步文献时会生成论文卡片并在本地缓存。",
     experimentEyebrow: "实验证据",
     experimentTitle: "实验结果",
     uploadResults: "上传结果文件",
@@ -641,21 +643,23 @@ const I18N = {
     pdfReviewFailed: "{name} 评审失败：{message}",
     pdfStoredMeta: "已保存到私有 OSS",
     pdfReviewErrorMeta: "已保存；需要重试评审",
-    pdfSummaryReadyMeta: "总结已缓存",
-    pdfSummaryPendingMeta: "尚未总结",
+    pdfSummaryReadyMeta: "论文卡片已就绪",
+    pdfSummaryPendingMeta: "论文卡片待生成",
+    paperCardRetryMeta: "卡片待重试",
+    paperCardRetryTooltip: "论文卡片生成失败：{message}。刷新工作区即可重试。",
     pdfLocalMeta: "存储于本地",
-    pdfSummaryStaleMeta: "文件已更改，摘要可能已过期",
+    pdfSummaryStaleMeta: "文件已更改，需要重新生成论文卡片",
     pdfProcessingProgress: "正在总结第 {done}/{total} 个文本块",
     pdfSynthesizing: "正在生成最终科学评审...",
     pdfExtractingLocal: "正在本地提取文本...",
-    regenerateSummary: "重新生成摘要",
+    regenerateSummary: "重新生成论文卡片",
     literatureRefreshed: "文献已刷新：发现 {count} 个 PDF。",
     literatureAdded: "已向本地工作区添加 {count} 个 PDF。",
-    removeLocalFileConfirm: "从本地文献文件夹中移除 {name}？已缓存的摘要会保留。",
+    removeLocalFileConfirm: "从本地文献文件夹中移除 {name}？对应论文卡片和派生缓存也会删除。",
     localFileDeleted: "已从本地文献文件夹移除 {name}。",
     localSummaryWriteFailed: "无法在本地保存摘要：{message}",
-    summarizeFile: "总结",
-    viewSummary: "查看总结",
+    summarizeFile: "生成论文卡片",
+    viewSummary: "查看论文卡片",
     useInChat: "用于问答",
     chatSelectionLimit: "侧边问答最多选择 {count} 个 PDF。",
     deletingFile: "正在从私有 OSS 删除 {name}...",
@@ -668,7 +672,7 @@ const I18N = {
     summarizeAllProgress: "正在总结论文 {done}/{total}...",
     summarizeAllQuestion: "请总结此工作区中的全部文献，比较研究问题、方法、主要发现和局限性，并明确指出哪些论文尚无可用总结。",
     summaryConversationQuestion: "请总结 {name}。",
-    summariesReady: "所请求的论文总结已完成。",
+    summariesReady: "所请求的论文卡片已就绪。",
     thinking: "思考中",
     pdfSyncing: "正在从私有 OSS 同步已保存的 PDF...",
     pdfSynced: "已从 OSS 同步 {count} 个 PDF 文件。",
@@ -1259,7 +1263,10 @@ async function openSelectedWorkspace(initialize) {
     pdfWorkerSrc: PDF_JS_WORKER_URL,
     getLanguage: () => currentLanguage,
   });
-  const documents = await literatureModule.scan();
+  const paperCardSync = await literatureModule.syncPaperLibrary({
+    signal: workspaceAbortController.signal,
+  });
+  const documents = paperCardSync.documents;
   workspaceTree = await workspaceManager.scanDirectoryTree();
   projectContextService = new ProjectContextService({
     workspace: workspaceManager,
@@ -1295,7 +1302,7 @@ function applyLiteratureScan(documents) {
       review: preserveCachedReview ? previous.review : null,
       text: preserveCachedReview ? previous.text : "",
       selectedForChat: preserveCachedReview ? previous.selectedForChat : false,
-      reviewError: "",
+      reviewError: document.paperCardError || "",
     };
   });
   syncWorkspaceSelectionToDocuments();
@@ -1323,7 +1330,9 @@ function applyPreparedContextToDocuments(localWorkspaceContext) {
 async function refreshLiterature(showMessage = false) {
   if (!literatureModule) return;
   try {
-    const documents = await literatureModule.scan();
+    const { documents } = await literatureModule.syncPaperLibrary({
+      signal: workspaceAbortController?.signal,
+    });
     applyLiteratureScan(documents);
     if (showMessage) showToast(t("literatureRefreshed", { count: documents.length }));
   } catch (error) {
@@ -1335,10 +1344,10 @@ async function refreshWorkspaceExplorer(showMessage = false) {
   if (!literatureModule || !workspaceManager.workspace) return;
   refreshWorkspaceButton.disabled = true;
   try {
-    const [documents, nextTree] = await Promise.all([
-      literatureModule.scan(),
-      workspaceManager.scanDirectoryTree(),
-    ]);
+    const { documents } = await literatureModule.syncPaperLibrary({
+      signal: workspaceAbortController?.signal,
+    });
+    const nextTree = await workspaceManager.scanDirectoryTree();
     workspaceTree = nextTree;
     applyLiteratureScan(documents);
     const availablePaths = new Set(
@@ -1962,10 +1971,16 @@ function formatPaperReview(review, filename) {
     }
   };
 
-  appendScalar("paperSummaryLabel", value.summary);
+  appendScalar("paperSummaryLabel", value.shortSummary || value.summary);
   appendScalar("paperQuestionLabel", value.researchQuestion || value.research_question);
-  appendScalar("paperMethodsLabel", value.methods);
-  appendList("paperResultsLabel", value.keyResults || value.key_results);
+  if (Array.isArray(value.methods)) appendList("paperMethodsLabel", value.methods);
+  else appendScalar("paperMethodsLabel", value.methods || value.methodsSummary);
+  appendList(
+    "paperResultsLabel",
+    Array.isArray(value.mainFindings) && value.mainFindings.length
+      ? value.mainFindings
+      : value.keyResults || value.key_results
+  );
   appendList("paperLimitationsLabel", value.limitations);
   appendScalar("paperConclusionLabel", value.mainConclusion || value.main_conclusion);
   return lines.join("\n");
@@ -2190,6 +2205,13 @@ function renderWorkspaceTreeNode(node, isRoot = false) {
   label.className = "workspace-tree-row workspace-file-row";
   label.classList.toggle("is-selected", selectedWorkspacePaths.has(node.relativePath));
   label.title = node.relativePath;
+  const literatureDocument = (literatureModule?.documents || []).find(
+    (document) => document.relativePath === node.relativePath
+  );
+  const paperCardFailed =
+    literatureDocument?.isLiteraturePaper &&
+    literatureDocument.paperCardStatus === "failed";
+  label.classList.toggle("has-paper-card-error", Boolean(paperCardFailed));
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -2205,7 +2227,14 @@ function renderWorkspaceTreeNode(node, isRoot = false) {
   name.title = node.name;
   const meta = document.createElement("span");
   meta.className = "workspace-tree-meta";
-  meta.textContent = formatFileSize(node.size);
+  meta.textContent = paperCardFailed
+    ? t("paperCardRetryMeta")
+    : formatFileSize(node.size);
+  if (paperCardFailed) {
+    meta.title = t("paperCardRetryTooltip", {
+      message: literatureDocument.paperCardError || t("loginFailed"),
+    });
+  }
   label.append(checkbox, icon, name, meta);
   item.appendChild(label);
   return item;
@@ -3097,10 +3126,23 @@ function recordSideChatExchange(question, reply) {
 
 function getCurrentChatContextSnapshot() {
   const files = [...selectedWorkspacePaths].sort();
+  const selectedPaperIds = getSelectedPaperIds();
   return {
     type: files.length ? "files" : "project",
     files,
+    selectedPaperIds,
+    relevantPaperIds: selectedPaperIds,
   };
+}
+
+function getSelectedPaperIds() {
+  return (literatureModule?.documents || [])
+    .filter(
+      (document) =>
+        document.isLiteraturePaper &&
+        selectedWorkspacePaths.has(document.relativePath)
+    )
+    .map((document) => document.id);
 }
 
 function buildSideChatMessages(question, conversationContext) {
@@ -3803,6 +3845,7 @@ async function askSideChat(question) {
     const localWorkspaceContext = await projectContextService.buildContext({
       question,
       selectedPaths: contextSnapshot.files,
+      selectedPaperIds: contextSnapshot.selectedPaperIds,
       workspaceTree,
       projectGoal: getProjectContext(),
       conversation: sideChatConversation,
@@ -3811,6 +3854,9 @@ async function askSideChat(question) {
         updateSideChatThinking(thinkingMessage, progress);
       },
     });
+    userMessage.context.relevantPaperIds = [
+      ...(localWorkspaceContext.literature?.relevantPaperIds || []),
+    ];
     contextPrepared = true;
     applyLiteratureScan(literatureModule.documents);
     applyPreparedContextToDocuments(localWorkspaceContext);

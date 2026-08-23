@@ -12,6 +12,7 @@
     maxEvidenceFiles: 20,
     maxSummaryCharactersPerFile: 7000,
     maxSourceCharactersPerFile: 6500,
+    maxTotalEvidenceCharacters: 50000,
     maxConversationMessages: 20,
     maxConversationMessageCharacters: 4000,
     maxConversationCharacters: 24000,
@@ -21,9 +22,15 @@
   };
 
   const DETAIL_QUESTION_PATTERN =
-    /\b(exact|concentration|dose|dosage|amount|value|third|second|first|figure|table|supplement|time|duration|temperature|ph|rpm|od\d*|measur(?:e|ed|ement)|assay|protocol|condition|replicate|statistical|significance|how many|how much)\b|浓度|剂量|数值|图\s*\d|表\s*\d|时间|温度|转速|测量|实验条件|重复|显著性/i;
+    /\b(exact|concentration|dose|dosage|amount|value|third|second|first|figure|table|supplement|time|duration|temperature|ph|rpm|od\d*|measur(?:e|ed|ement)|assay|protocol|condition|replicate|statistical|significance|mutation|variant|methods?|experimental designs?|designs?|kcat|km|hplc|quote|quotation|equation|formula|detailed conclusion|how many|how much)\b|\b[A-Z]\d{1,5}[A-Z]\b|浓度|剂量|数值|图\s*\d|表\s*\d|时间|温度|转速|测量|实验条件|实验设计|方法|重复|显著性|突变|引用|原文|方程|公式/i;
   const PROJECT_METADATA_QUESTION_PATTERN =
     /\b(what files|which files|files are selected|current selection|workspace contain|project goal|project context|what are we trying to achieve)\b|选择了哪些文件|当前选择|工作区.*文件|项目目标|项目背景/i;
+  const LITERATURE_QUESTION_PATTERN =
+    /\b(paper|papers|article|articles|study|studies|literature|publication|authors?|findings?|methods?|limitations?|conclusions?|compare|evidence|reported|according to|summarize|summary)\b|论文|文献|研究|作者|发现|方法|局限|结论|比较|证据|报道|总结|摘要/i;
+  const LITERATURE_FOLLOW_UP_PATTERN =
+    /\b(it|its|they|their|those|these|former|latter|same paper|that study)\b|它|该论文|这篇|这些论文|它们|前者|后者/i;
+  const COLLECTION_LITERATURE_PATTERN =
+    /\b(compare|all papers|these papers|those papers|uploaded papers|paper library|literature library|across papers)\b|比较.*论文|所有论文|这些论文|文献库|跨论文/i;
 
   const STOP_WORDS = new Set([
     "about",
@@ -36,7 +43,14 @@
     "have",
     "how",
     "into",
+    "for",
+    "is",
+    "it",
+    "of",
     "paper",
+    "project",
+    "the",
+    "to",
     "that",
     "their",
     "then",
@@ -83,17 +97,36 @@
   }
 
   function formatPaperSummary(summary, relativePath) {
+    const list = (value) =>
+      Array.isArray(value) && value.length
+        ? value.map((item) => `- ${item}`).join("\n")
+        : "";
+    const methods = Array.isArray(summary.methods)
+      ? summary.methods.join("; ")
+      : summary.methods;
     const lines = [
-      `Cached scientific understanding for ${relativePath}:`,
+      `Cached Paper Card for ${relativePath} (routing summary; source paper remains authoritative):`,
       summary.title ? `Title: ${summary.title}` : "",
-      summary.summary ? `Summary: ${summary.summary}` : "",
-      summary.researchQuestion ? `Research question: ${summary.researchQuestion}` : "",
-      summary.methods ? `Methods: ${summary.methods}` : "",
-      Array.isArray(summary.keyResults) && summary.keyResults.length
-        ? `Key results:\n${summary.keyResults.map((item) => `- ${item}`).join("\n")}`
+      Array.isArray(summary.authors) && summary.authors.length
+        ? `Authors: ${summary.authors.join(", ")}`
         : "",
-      Array.isArray(summary.limitations) && summary.limitations.length
-        ? `Limitations:\n${summary.limitations.map((item) => `- ${item}`).join("\n")}`
+      summary.year ? `Year: ${summary.year}` : "",
+      summary.shortSummary || summary.summary
+        ? `Short summary: ${summary.shortSummary || summary.summary}`
+        : "",
+      summary.abstractSummary ? `Abstract summary: ${summary.abstractSummary}` : "",
+      summary.researchQuestion ? `Research question: ${summary.researchQuestion}` : "",
+      methods || summary.methodsSummary
+        ? `Methods: ${methods || summary.methodsSummary}`
+        : "",
+      list(summary.mainFindings || summary.keyResults)
+        ? `Main findings:\n${list(summary.mainFindings || summary.keyResults)}`
+        : "",
+      list(summary.importantResults)
+        ? `Important results:\n${list(summary.importantResults)}`
+        : "",
+      list(summary.limitations)
+        ? `Limitations:\n${list(summary.limitations)}`
         : "",
       summary.mainConclusion ? `Main conclusion: ${summary.mainConclusion}` : "",
     ];
@@ -113,8 +146,84 @@
     return [...new Set(
       String(question || "")
         .toLowerCase()
-        .match(/[a-z0-9][a-z0-9-]{2,}|[\u3400-\u9fff]{2,}/g) || []
+        .match(/[a-z0-9][a-z0-9-]{1,}|[\u3400-\u9fff]{2,}/g) || []
     )].filter((token) => !STOP_WORDS.has(token));
+  }
+
+  function cardSearchSections(card) {
+    const join = (value) =>
+      Array.isArray(value) ? value.join(" ") : String(value || "");
+    return [
+      { weight: 10, text: join([card.title, card.fileName]) },
+      {
+        weight: 9,
+        text: [
+          card.organisms,
+          card.genes,
+          card.proteins,
+          card.pathways,
+          card.metabolites,
+        ].map(join).join(" "),
+      },
+      { weight: 8, text: [card.keywords, card.topics].map(join).join(" ") },
+      {
+        weight: 5,
+        text: [
+          card.researchQuestion,
+          card.mainFindings,
+          card.methods,
+          card.methodsSummary,
+          card.experimentalConditions,
+          card.measurements,
+          card.importantResults,
+          card.mainConclusion,
+        ].map(join).join(" "),
+      },
+      {
+        weight: 3,
+        text: [card.shortSummary, card.abstractSummary, card.summary, card.limitations]
+          .map(join)
+          .join(" "),
+      },
+    ];
+  }
+
+  function rankPaperCards(cards, query, options = {}) {
+    const terms = tokenizeQuestion(query);
+    const topK = Math.max(1, Number(options.topK) || 5);
+    const collectionLiteratureQuestion = COLLECTION_LITERATURE_PATTERN.test(
+      String(query || "")
+    );
+    const ranked = (Array.isArray(cards) ? cards : []).map(({ document, card }) => {
+      let score = 0;
+      let matchedTerms = 0;
+      const sections = cardSearchSections(card).map((section) => ({
+        ...section,
+        text: section.text.toLowerCase(),
+      }));
+      for (const term of terms) {
+        let termScore = 0;
+        for (const section of sections) {
+          if (section.text.includes(term)) termScore = Math.max(termScore, section.weight);
+        }
+        if (termScore > 0) {
+          matchedTerms += 1;
+          score += termScore;
+        }
+      }
+      if (terms.length && matchedTerms === terms.length) score += 5;
+      return { paperId: document.id, document, card, score, matchedTerms };
+    });
+    ranked.sort(
+      (left, right) =>
+        right.score - left.score ||
+        String(left.document.filename).localeCompare(String(right.document.filename))
+    );
+    if (collectionLiteratureQuestion && ranked.length && ranked[0].score === 0) {
+      return ranked.slice(0, topK);
+    }
+    const minimumScore = Number(options.minimumScore) || 5;
+    return ranked.filter((item) => item.score >= minimumScore).slice(0, topK);
   }
 
   function makeTextWindows(text, size = 1800, overlap = 220) {
@@ -212,6 +321,18 @@
                     .map(normalizePath)
                     .filter(Boolean)
                 )].slice(0, limits.maxInventoryFiles),
+                selectedPaperIds: [...new Set(
+                  (Array.isArray(message.context.selectedPaperIds)
+                    ? message.context.selectedPaperIds
+                    : [])
+                    .filter((paperId) => typeof paperId === "string" && paperId)
+                )].slice(0, limits.maxEvidenceFiles),
+                relevantPaperIds: [...new Set(
+                  (Array.isArray(message.context.relevantPaperIds)
+                    ? message.context.relevantPaperIds
+                    : [])
+                    .filter((paperId) => typeof paperId === "string" && paperId)
+                )].slice(0, limits.maxEvidenceFiles),
               },
             }
           : {}),
@@ -358,11 +479,30 @@
     }
 
     buildConversationContext(conversation) {
+      const recentlyDiscussedPaperIds = [];
+      for (const message of [...(conversation?.messages || [])].reverse()) {
+        const ids = [
+          ...(message?.context?.relevantPaperIds || []),
+          ...(message?.context?.selectedPaperIds || []),
+        ];
+        for (const paperId of ids) {
+          if (
+            typeof paperId === "string" &&
+            paperId &&
+            !recentlyDiscussedPaperIds.includes(paperId)
+          ) {
+            recentlyDiscussedPaperIds.push(paperId);
+          }
+          if (recentlyDiscussedPaperIds.length >= this.limits.maxEvidenceFiles) break;
+        }
+        if (recentlyDiscussedPaperIds.length >= this.limits.maxEvidenceFiles) break;
+      }
       return {
         summary: String(
           conversation?.summary || this.workspace.state?.memory?.conversationSummary || ""
         ).slice(0, 12000),
         recentMessages: boundedMessages(conversation?.messages, this.limits),
+        recentlyDiscussedPaperIds,
       };
     }
 
@@ -380,6 +520,7 @@
           const document = literatureByPath.get(entry.relativePath);
           const extension = fileExtension(entry.name);
           return {
+            paperId: document?.id || null,
             name: entry.name,
             relativePath: entry.relativePath,
             extension,
@@ -388,6 +529,7 @@
             processor: extension === "pdf" ? "pdf" : null,
             summaryAvailable: Boolean(document?.summaryAvailable),
             summaryStatus: document?.status || "unprocessed",
+            paperCardStatus: document?.paperCardStatus || "unprocessed",
           };
         });
     }
@@ -398,7 +540,6 @@
           .map(normalizePath)
           .filter(Boolean)
       )];
-      if (!selectedPaths.length) return this.buildProjectContext(options);
       const entriesByPath = new Map(
         flattenWorkspaceTree(options.workspaceTree).map((entry) => [
           entry.relativePath,
@@ -408,10 +549,193 @@
       const selectedFiles = selectedPaths
         .map((path) => entriesByPath.get(path))
         .filter((entry) => entry?.type === "file");
-      if (selectedFiles.length === 1) {
-        return this.buildSingleFileContext(selectedFiles[0], options);
+      const selectedPaperIds = this.getSelectedPaperIds(
+        selectedPaths,
+        options.selectedPaperIds
+      );
+      const selectedPaperIdSet = new Set(selectedPaperIds);
+      const selectedPaperPaths = new Set(
+        (this.literature?.documents || [])
+          .filter((document) => selectedPaperIdSet.has(document.id))
+          .map((document) => document.relativePath)
+      );
+      const selectedNonPaperFiles = selectedFiles.filter(
+        (file) => !selectedPaperPaths.has(file.relativePath)
+      );
+
+      let relevantPaperIds = [];
+      let discoveryMode = "not-needed";
+      if (selectedPaperIds.length) {
+        const selectedMatches = await this.matchPapers(options.question, {
+          topK: selectedPaperIds.length,
+          candidatePaperIds: selectedPaperIds,
+        });
+        const literatureNeeded = Boolean(
+          LITERATURE_QUESTION_PATTERN.test(String(options.question || "")) ||
+          LITERATURE_FOLLOW_UP_PATTERN.test(String(options.question || "")) ||
+          questionNeedsSourceEvidence(options.question) ||
+          selectedMatches.length
+        );
+        if (literatureNeeded) {
+          relevantPaperIds = selectedPaperIds;
+          discoveryMode = "selected";
+        }
+      } else {
+        const matches = await this.matchPapers(options.question, {
+          topK: Math.min(5, this.limits.maxEvidenceFiles),
+        });
+        const recentIds = this.buildConversationContext(
+          options.conversation
+        ).recentlyDiscussedPaperIds.filter((paperId) =>
+          this.literature?.documents?.some(
+            (document) => document.id === paperId && document.paperCardStatus === "ready"
+          )
+        );
+        if (matches.some((match) => match.score > 0)) {
+          relevantPaperIds = matches.map((match) => match.paperId);
+          discoveryMode = "automatic";
+        } else if (
+          recentIds.length &&
+          LITERATURE_FOLLOW_UP_PATTERN.test(String(options.question || ""))
+        ) {
+          relevantPaperIds = recentIds.slice(0, this.limits.maxEvidenceFiles);
+          if (relevantPaperIds.length) discoveryMode = "conversation-follow-up";
+        } else {
+          relevantPaperIds = matches.map((match) => match.paperId);
+          if (relevantPaperIds.length) discoveryMode = "automatic";
+        }
       }
-      return this.buildMultiFileContext(selectedFiles, options);
+
+      const context = this.baseContext(
+        options,
+        selectedPaths.length ? "files" : "project",
+        selectedFiles
+      );
+      context.literature = {
+        selectedPaperIds,
+        relevantPaperIds,
+        discoveryMode,
+        retrievalRequired: relevantPaperIds.length > 0,
+      };
+
+      const paperEvidence = await this.retrievePaperEvidence(
+        options.question,
+        relevantPaperIds,
+        options
+      );
+      const otherEvidence = [];
+      for (const file of selectedNonPaperFiles.slice(0, this.limits.maxEvidenceFiles)) {
+        otherEvidence.push(await this.buildFileEvidence(file, options));
+      }
+      context.files = [...paperEvidence, ...otherEvidence].slice(
+        0,
+        this.limits.maxEvidenceFiles
+      );
+
+      if (
+        !selectedPaperIds.length &&
+        !relevantPaperIds.length &&
+        LITERATURE_QUESTION_PATTERN.test(String(options.question || ""))
+      ) {
+        context.notices.push(
+          "No sufficiently relevant ready Paper Card was found, so no uploaded literature evidence was added."
+        );
+      }
+      this.addLibraryNotices(context);
+      this.addFileNotices(context);
+      return context;
+    }
+
+    getSelectedPaperIds(selectedPaths, suppliedPaperIds = []) {
+      const availableIds = new Set(
+        (this.literature?.documents || [])
+          .filter((document) => document.isLiteraturePaper)
+          .map((document) => document.id)
+      );
+      const supplied = [...new Set(
+        (Array.isArray(suppliedPaperIds) ? suppliedPaperIds : []).filter(
+          (paperId) => typeof paperId === "string" && availableIds.has(paperId)
+        )
+      )];
+      if (supplied.length) return supplied.slice(0, this.limits.maxEvidenceFiles);
+      const selectedPathSet = new Set(selectedPaths);
+      return (this.literature?.documents || [])
+        .filter(
+          (document) =>
+            document.isLiteraturePaper && selectedPathSet.has(document.relativePath)
+        )
+        .map((document) => document.id)
+        .slice(0, this.limits.maxEvidenceFiles);
+    }
+
+    async matchPapers(query, options = {}) {
+      const cards = [];
+      const candidateIds = Array.isArray(options.candidatePaperIds)
+        ? new Set(options.candidatePaperIds)
+        : null;
+      for (const document of this.literature?.documents || []) {
+        if (
+          !document.isLiteraturePaper ||
+          (candidateIds && !candidateIds.has(document.id)) ||
+          document.paperCardStatus !== "ready" ||
+          !document.summaryAvailable
+        ) continue;
+        try {
+          const card = await this.literature.getPaperCard(document.id);
+          if (card) cards.push({ document, card });
+        } catch {
+          // One invalid card must not prevent other papers from being ranked.
+        }
+      }
+      return rankPaperCards(cards, query, options);
+    }
+
+    async retrievePaperEvidence(query, paperIds, options = {}) {
+      const boundedIds = [...new Set(Array.isArray(paperIds) ? paperIds : [])]
+        .slice(0, this.limits.maxEvidenceFiles);
+      const entriesByPath = new Map(
+        flattenWorkspaceTree(options.workspaceTree).map((entry) => [
+          entry.relativePath,
+          entry,
+        ])
+      );
+      const evidence = [];
+      const perPaperBudget = Math.max(
+        2200,
+        Math.floor(this.limits.maxTotalEvidenceCharacters / Math.max(1, boundedIds.length))
+      );
+      const summaryBudget = Math.min(
+        this.limits.maxSummaryCharactersPerFile,
+        Math.max(1400, Math.floor(perPaperBudget * 0.45))
+      );
+      const sourceBudget = Math.min(
+        this.limits.maxSourceCharactersPerFile,
+        Math.max(700, perPaperBudget - summaryBudget)
+      );
+      // Retrieval is deliberately per paper so one selected paper cannot consume
+      // the entire evidence budget for a comparison question.
+      for (const paperId of boundedIds) {
+        const document = this.literature?.documents?.find(
+          (candidate) => candidate.id === paperId
+        );
+        if (!document) continue;
+        const file = entriesByPath.get(document.relativePath) || {
+          name: document.filename,
+          relativePath: document.relativePath,
+          type: "file",
+          size: document.size,
+          lastModified: document.lastModified,
+        };
+        const item = await this.buildFileEvidence(file, {
+          ...options,
+          question: query,
+          maxSummaryCharacters: summaryBudget,
+          maxSourceCharacters: sourceBudget,
+        });
+        item.paperId = document.id;
+        evidence.push(item);
+      }
+      return evidence;
     }
 
     baseContext(options, type, files = []) {
@@ -432,35 +756,22 @@
         inventory: this.buildInventory(options.workspaceTree),
         files: [],
         notices: [],
+        literature: {
+          selectedPaperIds: [],
+          relevantPaperIds: [],
+          discoveryMode: "not-needed",
+          retrievalRequired: false,
+        },
       };
     }
 
     async buildProjectContext(options) {
       const context = this.baseContext(options, "project");
-      const documents = (this.literature?.documents || [])
-        .filter((document) => document.summaryAvailable)
-        .slice(0, this.limits.maxProjectSummaries);
-      for (const document of documents) {
-        try {
-          const summary = await this.literature.loadSummary(document.id);
-          if (!summary) continue;
-          context.files.push({
-            name: document.filename,
-            relativePath: document.relativePath,
-            extension: "pdf",
-            analysisStatus: document.status === "stale" ? "cached-stale" : "processed",
-            evidenceType: "cached-summary",
-            content: formatPaperSummary(summary, document.relativePath).slice(
-              0,
-              this.limits.maxSummaryCharactersPerFile
-            ),
-          });
-        } catch (error) {
-          context.notices.push(
-            `Cached understanding for ${document.relativePath} could not be loaded: ${error.message}`
-          );
-        }
-      }
+      this.addLibraryNotices(context);
+      return context;
+    }
+
+    addLibraryNotices(context) {
       const unprocessed = context.inventory.filter(
         (item) => item.processor === "pdf" && !item.summaryAvailable
       );
@@ -475,7 +786,6 @@
           `${unsupported.length} non-PDF file(s) are visible in the workspace but do not yet have an AI content processor.`
         );
       }
-      return context;
     }
 
     async buildSingleFileContext(file, options) {
@@ -581,7 +891,8 @@
             });
         let content = formatPaperSummary(result.summary, file.relativePath).slice(
           0,
-          this.limits.maxSummaryCharactersPerFile
+          Number(options.maxSummaryCharacters) ||
+            this.limits.maxSummaryCharactersPerFile
         );
         let evidenceType = result.cached ? "cached-summary" : "generated-summary";
         if (questionNeedsSourceEvidence(options.question)) {
@@ -597,7 +908,9 @@
               })
             ).text;
           const excerpts = selectRelevantExcerpts(sourceText, options.question, {
-            maxCharacters: this.limits.maxSourceCharactersPerFile,
+            maxCharacters:
+              Number(options.maxSourceCharacters) ||
+              this.limits.maxSourceCharactersPerFile,
           });
           if (excerpts) {
             content = `${content}\n\nQuestion-specific source evidence:\n${excerpts}`;
@@ -638,6 +951,7 @@
     normalizeStoredConversation,
     questionNeedsSourceEvidence,
     questionRequiresFileEvidence,
+    rankPaperCards,
     selectRelevantExcerpts,
   };
 });

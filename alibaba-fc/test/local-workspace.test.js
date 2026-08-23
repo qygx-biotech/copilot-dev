@@ -301,6 +301,8 @@ test("Side Chat conversations persist locally and clear without touching project
       context: {
         type: "files",
         files: ["literature/paper1.pdf", "literature/paper2.pdf"],
+        selectedPaperIds: ["paper-1", "paper-2"],
+        relevantPaperIds: ["paper-1", "paper-2"],
       },
       createdAt: "2026-08-20T06:01:00.000Z",
     },
@@ -321,6 +323,10 @@ test("Side Chat conversations persist locally and clear without touching project
   assert.deepEqual(restored.messages[0].context.files, [
     "literature/paper1.pdf",
     "literature/paper2.pdf",
+  ]);
+  assert.deepEqual(restored.messages[0].context.selectedPaperIds, [
+    "paper-1",
+    "paper-2",
   ]);
 
   const cleared = await restoredStore.clearActiveConversation();
@@ -366,63 +372,132 @@ test("workspace state rejects secret-bearing keys without overwriting the file",
   );
 });
 
-test("literature scan preserves IDs across refresh and marks changed PDFs stale", async () => {
+test("Paper Cards are generated once, reused, regenerated on change, and removed with the source", async () => {
   const { manager } = await makeInitializedWorkspace();
-  await manager.writeFile("literature/paper-a.pdf", new Blob(["first pdf"]));
-  const module = new LiteratureModule({
-    workspace: manager,
-    api: {},
-    pdfjsLib: {},
-  });
-  const firstScan = await module.scan();
-  assert.equal(firstScan.length, 1);
-  const documentId = firstScan[0].id;
-
-  const summary = {
-    schemaVersion: 1,
-    documentId,
-    generatedAt: "2026-08-20T05:00:00.000Z",
-    source: {
-      filename: "paper-a.pdf",
-      size: firstScan[0].size,
-      lastModified: firstScan[0].lastModified,
+  await manager.writeFile("literature/paper-a.pdf", new Blob(["first pdf content"]));
+  let chunkCalls = 0;
+  let synthesisCalls = 0;
+  const api = {
+    async summarizeChunk() {
+      chunkCalls += 1;
+      return {
+        summary: "EctD activity evidence.",
+        researchQuestion: "How can EctD activity be improved?",
+        methods: "Enzyme activity assay",
+        keyResults: ["A163V improved activity"],
+        limitations: [],
+        mainConclusion: "The variant was more active.",
+      };
     },
-    model: "test-model",
-    title: "Paper A",
-    summary: "Summary A",
-    researchQuestion: null,
-    methods: null,
-    keyResults: [],
-    limitations: [],
-    mainConclusion: null,
-    keywords: [],
+    async synthesize() {
+      synthesisCalls += 1;
+      return {
+        title: "Paper A",
+        authors: ["A. Researcher"],
+        year: 2024,
+        shortSummary: "A163V improves EctD activity.",
+        summary: "A Paper Card summary.",
+        researchQuestion: "How can EctD activity be improved?",
+        mainFindings: ["A163V improved activity"],
+        methods: ["Enzyme activity assay"],
+        methodsSummary: "The authors compared purified enzyme variants.",
+        organisms: ["Escherichia coli"],
+        genes: ["ectD"],
+        proteins: ["EctD"],
+        pathways: ["hydroxyectoine biosynthesis"],
+        metabolites: ["hydroxyectoine"],
+        experimentalConditions: [],
+        measurements: ["kcat", "Km"],
+        importantResults: ["A163V increased kcat"],
+        keyResults: ["A163V improved activity"],
+        limitations: [],
+        mainConclusion: "The variant was more active.",
+        keywords: ["EctD", "A163V"],
+        topics: ["enzyme engineering"],
+      };
+    },
   };
-  await manager.writeJson(firstScan[0].summaryPath, summary);
-  const unchanged = await module.scan();
-  assert.equal(unchanged[0].id, documentId);
-  assert.equal(unchanged[0].summaryAvailable, true);
-  assert.equal(unchanged[0].status, "ready");
+  const pdfjsLib = {
+    getDocument() {
+      return {
+        promise: Promise.resolve({
+          numPages: 1,
+          getPage: async () => ({
+            getTextContent: async () => ({
+              items: [
+                {
+                  str: "Machine-readable EctD paper evidence. ".repeat(40),
+                  hasEOL: true,
+                },
+              ],
+            }),
+          }),
+          getMetadata: async () => ({ info: { Title: "Paper A" } }),
+          destroy: async () => {},
+        }),
+      };
+    },
+  };
+  let module = new LiteratureModule({
+    workspace: manager,
+    api,
+    pdfjsLib,
+  });
+  const firstSync = await module.syncPaperLibrary();
+  const documentId = firstSync.documents[0].id;
+  const cardPath = firstSync.documents[0].paperCardPath;
+  const firstHash = firstSync.documents[0].sourceHash;
+  const firstCard = await module.getPaperCard(documentId);
+  assert.equal(firstCard.paperId, documentId);
+  assert.equal(firstCard.source.hash, firstHash);
+  assert.deepEqual(firstCard.genes, ["ectD"]);
+  assert.equal(await manager.fileExists(cardPath), true);
+  assert.equal(synthesisCalls, 1);
+
+  module = new LiteratureModule({ workspace: manager, api, pdfjsLib });
+  const restarted = await module.syncPaperLibrary();
+  assert.deepEqual(restarted.generatedPaperIds, []);
+  assert.ok(restarted.reusedPaperIds.includes(documentId));
+  assert.equal(synthesisCalls, 1);
 
   const literatureDirectory = await manager.getDirectory("literature");
   const renamedHandle = await literatureDirectory.getFileHandle("paper-a.pdf");
   literatureDirectory.children.delete("paper-a.pdf");
   renamedHandle.name = "renamed-paper.pdf";
   literatureDirectory.children.set("renamed-paper.pdf", renamedHandle);
-  const renamed = await module.scan();
-  assert.equal(renamed[0].id, documentId);
-  assert.equal(renamed[0].filename, "renamed-paper.pdf");
-  assert.equal(renamed[0].status, "ready");
+  const renamed = await module.syncPaperLibrary();
+  assert.equal(renamed.documents[0].id, documentId);
+  assert.equal(renamed.documents[0].filename, "renamed-paper.pdf");
+  assert.equal((await module.getPaperCard(documentId)).fileName, "renamed-paper.pdf");
+  assert.equal(synthesisCalls, 1);
 
-  await manager.writeFile("literature/renamed-paper.pdf", new Blob(["changed pdf content"]));
-  const changed = await module.scan();
-  assert.equal(changed[0].id, documentId);
-  assert.equal(changed[0].status, "stale");
-  assert.equal(changed[0].summaryStale, true);
+  const preservedLastModified = renamedHandle.lastModified;
+  renamedHandle.bytes = new TextEncoder().encode("other pdf content");
+  const sameMetadataChange = await module.syncPaperLibrary();
+  assert.equal(sameMetadataChange.documents[0].lastModified, preservedLastModified);
+  assert.notEqual(sameMetadataChange.documents[0].sourceHash, firstHash);
+  assert.equal(synthesisCalls, 2);
 
+  const retrievalCachePath = `.biodesign/literature/cache/${documentId}.json`;
+  await manager.writeJson(retrievalCachePath, { paperId: documentId, chunks: [] });
+  await manager.writeFile(
+    "literature/renamed-paper.pdf",
+    new Blob(["changed pdf content with a different source hash"])
+  );
+  const changed = await module.syncPaperLibrary();
+  assert.equal(changed.documents[0].id, documentId);
+  assert.notEqual(changed.documents[0].sourceHash, firstHash);
+  assert.equal(synthesisCalls, 3);
+  assert.equal((await module.getPaperCard(documentId)).source.hash, changed.documents[0].sourceHash);
+  assert.equal(await manager.fileExists(retrievalCachePath), false);
+
+  await manager.writeJson(retrievalCachePath, { paperId: documentId, chunks: [] });
   await manager.removeFile("literature/renamed-paper.pdf");
-  const removed = await module.scan();
-  assert.deepEqual(removed, []);
-  assert.equal(await manager.fileExists(firstScan[0].summaryPath), true);
+  const removed = await module.syncPaperLibrary();
+  assert.deepEqual(removed.documents, []);
+  assert.equal(await manager.fileExists(cardPath), false);
+  assert.equal(await manager.fileExists(retrievalCachePath), false);
+  assert.ok(chunkCalls >= 2);
 });
 
 test("adding a duplicate PDF creates a clear unique filename", async () => {
@@ -583,7 +658,8 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
     workspaceTree: tree,
     projectGoal: "Improve enzyme activity",
   });
-  assert.equal(metadataOnly.files[0].analysisStatus, "unprocessed");
+  assert.deepEqual(metadataOnly.files, []);
+  assert.equal(metadataOnly.literature.retrievalRequired, false);
   assert.equal(chunkCalls, 0);
   assert.equal(synthesisCalls, 0);
   assert.equal(extractionCalls, 0);
@@ -633,9 +709,204 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   assert.match(unsupported.notices[0], /do not yet have an AI content processor/);
 });
 
-test("an LLM failure leaves the literature index valid and writes no summary", async () => {
+test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto-matches Paper Cards", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  for (const filename of ["paper-a.pdf", "paper-b.pdf", "paper-c.pdf"]) {
+    await manager.writeFile(`literature/${filename}`, new Blob([`%PDF-${filename}`]));
+  }
+  const cards = {
+    "paper-a.pdf": {
+      title: "Fermentation oxygen transfer study",
+      shortSummary: "This paper studies oxygen transfer during fermentation.",
+      summary: "Fermentation evidence.",
+      methods: ["Bioreactor monitoring"],
+      organisms: ["Escherichia coli"],
+      keywords: ["fermentation", "oxygen transfer"],
+      topics: ["bioprocessing"],
+    },
+    "paper-b.pdf": {
+      title: "Engineering the EctD A163V variant",
+      shortSummary: "The A163V mutation changes EctD catalytic activity.",
+      summary: "EctD enzyme-engineering evidence.",
+      researchQuestion: "How does A163V affect EctD activity?",
+      mainFindings: ["A163V increased catalytic activity"],
+      methods: ["HPLC", "enzyme kinetics"],
+      organisms: ["Escherichia coli"],
+      genes: ["ectD"],
+      proteins: ["EctD"],
+      metabolites: ["ectoine", "hydroxyectoine"],
+      measurements: ["kcat", "Km"],
+      importantResults: ["A163V increased kcat"],
+      keywords: ["A163V", "EctD", "kcat"],
+      topics: ["enzyme engineering"],
+    },
+    "paper-c.pdf": {
+      title: "Hydroxyectoine transport analysis",
+      shortSummary: "This paper examines hydroxyectoine transport.",
+      summary: "Transport evidence.",
+      methods: ["Transport assay"],
+      metabolites: ["hydroxyectoine"],
+      keywords: ["transport"],
+      topics: ["membrane transport"],
+    },
+  };
+  const pdfjsLib = {
+    getDocument() {
+      return {
+        promise: Promise.resolve({
+          numPages: 1,
+          getPage: async () => ({
+            getTextContent: async () => ({
+              items: [{ str: "Machine-readable paper evidence. ".repeat(40), hasEOL: true }],
+            }),
+          }),
+          getMetadata: async () => ({ info: {} }),
+          destroy: async () => {},
+        }),
+      };
+    },
+  };
+  const literature = new LiteratureModule({
+    workspace: manager,
+    pdfjsLib,
+    api: {
+      summarizeChunk: async () => ({
+        summary: "Chunk evidence",
+        researchQuestion: null,
+        methods: null,
+        keyResults: [],
+        limitations: [],
+        mainConclusion: null,
+      }),
+      synthesize: async ({ filename }) => ({
+        ...cards[filename],
+        keyResults: cards[filename].mainFindings || [],
+        limitations: [],
+        mainConclusion: null,
+      }),
+    },
+  });
+  await literature.syncPaperLibrary();
+  const ids = Object.fromEntries(
+    literature.documents.map((document) => [document.filename, document.id])
+  );
+  const detailReads = [];
+  literature.extractText = async (paperId) => {
+    detailReads.push(paperId);
+    return {
+      text:
+        paperId === ids["paper-b.pdf"]
+          ? "The A163V EctD variant had an exact kcat of 12.4 s-1 and Km of 0.8 mM measured by HPLC."
+          : "Other source detail.",
+    };
+  };
+  const workspaceTree = await manager.scanDirectoryTree();
+  const service = new ProjectContextService({ workspace: manager, literature });
+
+  const selectedA = await service.buildContext({
+    question: "Summarize the selected paper.",
+    selectedPaths: ["literature/paper-a.pdf"],
+    selectedPaperIds: [ids["paper-a.pdf"]],
+    workspaceTree,
+  });
+  assert.equal(selectedA.literature.discoveryMode, "selected");
+  assert.deepEqual(selectedA.literature.relevantPaperIds, [ids["paper-a.pdf"]]);
+  assert.deepEqual(selectedA.files.map((file) => file.paperId), [ids["paper-a.pdf"]]);
+
+  const selectedButUnrelated = await service.buildContext({
+    question: "Change the interface language to Chinese.",
+    selectedPaths: ["literature/paper-a.pdf"],
+    selectedPaperIds: [ids["paper-a.pdf"]],
+    workspaceTree,
+  });
+  assert.deepEqual(selectedButUnrelated.literature.selectedPaperIds, [
+    ids["paper-a.pdf"],
+  ]);
+  assert.equal(selectedButUnrelated.literature.discoveryMode, "not-needed");
+  assert.deepEqual(selectedButUnrelated.files, []);
+
+  const comparison = await service.buildContext({
+    question: "Compare these papers and their experimental designs.",
+    selectedPaths: [
+      "literature/paper-a.pdf",
+      "literature/paper-b.pdf",
+      "literature/paper-c.pdf",
+    ],
+    selectedPaperIds: [
+      ids["paper-a.pdf"],
+      ids["paper-b.pdf"],
+      ids["paper-c.pdf"],
+    ],
+    workspaceTree,
+  });
+  assert.deepEqual(
+    new Set(comparison.files.map((file) => file.paperId)),
+    new Set([ids["paper-a.pdf"], ids["paper-b.pdf"], ids["paper-c.pdf"]])
+  );
+  assert.deepEqual(
+    new Set(detailReads),
+    new Set([ids["paper-a.pdf"], ids["paper-b.pdf"], ids["paper-c.pdf"]])
+  );
+  detailReads.length = 0;
+
+  const automatic = await service.buildContext({
+    question: "What exact kcat was reported for the A163V EctD variant?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.equal(automatic.literature.discoveryMode, "automatic");
+  assert.deepEqual(automatic.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
+  assert.deepEqual(automatic.files.map((file) => file.paperId), [ids["paper-b.pdf"]]);
+  assert.match(automatic.files[0].content, /12\.4 s-1/);
+  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+
+  const followUp = await service.buildContext({
+    question: "What about its limitations?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+    conversation: {
+      messages: [
+        {
+          role: "user",
+          context: {
+            relevantPaperIds: [ids["paper-b.pdf"]],
+            selectedPaperIds: [],
+          },
+        },
+      ],
+    },
+  });
+  assert.equal(followUp.literature.discoveryMode, "conversation-follow-up");
+  assert.deepEqual(followUp.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
+
+  const unrelated = await service.buildContext({
+    question: "Change the interface language to Chinese.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.equal(unrelated.literature.discoveryMode, "not-needed");
+  assert.deepEqual(unrelated.literature.relevantPaperIds, []);
+  assert.deepEqual(unrelated.files, []);
+  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+
+  const noMatch = await service.buildContext({
+    question: "Find a paper about CRISPR-Cas9 genome editing.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.equal(noMatch.literature.retrievalRequired, false);
+  assert.deepEqual(noMatch.files, []);
+  assert.match(noMatch.notices.join("\n"), /No sufficiently relevant ready Paper Card/);
+});
+
+test("Paper Card failure preserves source state, isolates other papers, and supports retry", async () => {
   const { manager } = await makeInitializedWorkspace();
   await manager.writeFile("literature/failure.pdf", new Blob(["%PDF-fake"]));
+  await manager.writeFile("literature/success.pdf", new Blob(["%PDF-success"]));
   const pdfjsLib = {
     getDocument() {
       return {
@@ -652,21 +923,59 @@ test("an LLM failure leaves the literature index valid and writes no summary", a
       };
     },
   };
+  let shouldFail = true;
   const module = new LiteratureModule({
     workspace: manager,
     pdfjsLib,
     api: {
-      summarizeChunk: async () => {
-        throw new Error("simulated network failure");
+      summarizeChunk: async ({ filename }) => {
+        if (shouldFail && filename === "failure.pdf") {
+          throw new Error("simulated network failure");
+        }
+        return {
+          summary: `${filename} evidence`,
+          researchQuestion: null,
+          methods: null,
+          keyResults: [],
+          limitations: [],
+          mainConclusion: null,
+        };
       },
+      synthesize: async ({ filename }) => ({
+        title: filename,
+        summary: `${filename} Paper Card`,
+        shortSummary: `${filename} is available.`,
+        methods: [],
+        keyResults: [],
+        limitations: [],
+        keywords: [],
+        topics: [],
+      }),
     },
   });
-  const [document] = await module.scan();
-  await assert.rejects(module.summarize(document.id), /simulated network failure/);
-  assert.equal(await manager.fileExists(document.summaryPath), false);
+  const firstSync = await module.syncPaperLibrary();
+  const failed = firstSync.documents.find((document) => document.filename === "failure.pdf");
+  const succeeded = firstSync.documents.find((document) => document.filename === "success.pdf");
+  assert.equal(firstSync.failures.length, 1);
+  assert.equal(failed.paperCardStatus, "failed");
+  assert.match(failed.paperCardError, /simulated network failure/);
+  assert.equal(await manager.fileExists(failed.paperCardPath), false);
+  assert.equal(await manager.fileExists(failed.relativePath), true);
+  assert.equal(succeeded.paperCardStatus, "ready");
+  assert.equal(await manager.fileExists(succeeded.paperCardPath), true);
+
   const index = await manager.readJson(".biodesign/literature/index.json");
-  assert.equal(index.documents.length, 1);
-  assert.equal(index.documents[0].id, document.id);
+  assert.equal(index.documents.length, 2);
+  assert.equal(
+    index.documents.find((document) => document.id === failed.id).paperCardStatus,
+    "failed"
+  );
+
+  shouldFail = false;
+  const retry = await module.syncPaperLibrary();
+  assert.ok(retry.generatedPaperIds.includes(failed.id));
+  assert.equal(module.findDocument(failed.id).paperCardStatus, "ready");
+  assert.equal(await manager.fileExists(failed.paperCardPath), true);
 });
 
 test("scanned and encrypted local PDFs produce controlled parser errors", async () => {
