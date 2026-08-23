@@ -196,7 +196,31 @@ test("Workspace rows preserve full names while clamping long files to two lines"
   assert.ok(longNames.every((filename) => filename.endsWith(".pdf")));
 });
 
-test("Side Chat hides empty-state prompts after history and renders safe Markdown", () => {
+test("desktop workbench contains the Workspace and gives Side Chat more width", () => {
+  const stylesSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/styles.css"),
+    "utf8"
+  );
+
+  assert.match(
+    stylesSource,
+    /\.workbench-grid\s*\{[^}]*grid-template-columns:\s*minmax\(300px, 0\.75fr\) minmax\(560px, 1\.25fr\) minmax\(380px, 0\.85fr\)/s
+  );
+  assert.match(
+    stylesSource,
+    /\.analysis-panel-body\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s
+  );
+  assert.match(
+    stylesSource,
+    /\.analysis-pane\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*0/s
+  );
+  assert.match(
+    stylesSource,
+    /\.inputs-column \.workbench-panel\s*\{[^}]*overflow:\s*hidden/s
+  );
+});
+
+test("Side Chat hides empty-state prompts and renders safe Markdown with math", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),
     "utf8"
@@ -211,14 +235,24 @@ test("Side Chat hides empty-state prompts after history and renders safe Markdow
   );
 
   assert.match(htmlSource, /id="sideChatExamples"/);
+  assert.match(htmlSource, /katex@0\.18\.1\/dist\/katex\.min\.css/);
+  assert.match(htmlSource, /katex@0\.18\.1\/dist\/katex\.min\.js/);
+  assert.match(htmlSource, /katex@0\.18\.1\/dist\/contrib\/auto-render\.min\.js/);
   assert.match(appSource, /sideChatExamples\.hidden = !isEmpty/);
   assert.match(appSource, /data-side-chat-intro/);
   assert.match(appSource, /renderSideChatMarkdown\(body, content\)/);
   assert.doesNotMatch(appSource, /body\.textContent = content/);
   assert.match(appSource, /\^\(\?:https\?:\|mailto:\)/);
+  assert.match(appSource, /window\.renderMathInElement\(container/);
+  assert.match(appSource, /\{ left: "\$\$", right: "\$\$", display: true \}/);
+  assert.match(appSource, /\{ left: "\$", right: "\$", display: false \}/);
+  assert.match(appSource, /ignoredTags: \["script", "noscript", "style", "textarea", "pre", "code", "option"\]/);
+  assert.match(appSource, /throwOnError: false/);
+  assert.match(appSource, /trust: false/);
   assert.match(stylesSource, /\.side-examples\[hidden\]\s*\{[^}]*display:\s*none/s);
   assert.match(stylesSource, /\.side-message-body pre\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(stylesSource, /\.side-message-body table\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(stylesSource, /\.side-message-body \.katex-display\s*\{[^}]*overflow-x:\s*auto/s);
   assert.match(stylesSource, /\.side-message > strong\s*\{/);
   assert.doesNotMatch(stylesSource, /\.side-message strong\s*\{/);
 });

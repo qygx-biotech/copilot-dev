@@ -561,7 +561,7 @@ textarea:focus {
 
 .workbench-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.75fr) minmax(760px, 1.55fr) minmax(320px, 0.7fr);
+  grid-template-columns: minmax(300px, 0.75fr) minmax(560px, 1.25fr) minmax(380px, 0.85fr);
   gap: 18px;
   margin-top: 16px;
   align-items: start;
@@ -571,6 +571,28 @@ textarea:focus {
   display: grid;
   gap: 16px;
   min-width: 0;
+}
+
+.inputs-column .workbench-panel,
+.inputs-column .panel-header,
+.inputs-column .project-context-field {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.inputs-column .workbench-panel {
+  overflow: hidden;
+}
+
+.inputs-column .panel-header {
+  flex-wrap: wrap;
+}
+
+.inputs-column .panel-header > :first-child,
+.inputs-column .panel-actions,
+.project-context-field textarea {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .center-column {
@@ -940,14 +962,15 @@ textarea:focus {
 
 .analysis-panel-body {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
 .analysis-pane {
   display: flex;
   flex-direction: column;
-  min-height: 620px;
+  min-width: 0;
+  min-height: 0;
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -955,8 +978,8 @@ textarea:focus {
 }
 
 .analysis-command-pane textarea {
-  flex: 1;
-  min-height: 360px;
+  flex: 0 1 auto;
+  min-height: 220px;
 }
 
 .agent-actions {
@@ -999,7 +1022,7 @@ textarea:focus {
   gap: 14px;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .recommendation-sections section {
@@ -1291,6 +1314,24 @@ textarea:focus {
 .side-message-body hr {
   border: 0;
   border-top: 1px solid var(--line);
+}
+
+.side-message-body .katex {
+  color: inherit;
+  font-size: 1em;
+}
+
+.side-message-body .katex-display {
+  max-width: 100%;
+  margin: 0.8em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2em 0;
+}
+
+.side-math-source {
+  max-width: 100%;
+  overflow-wrap: normal;
 }
 
 .thinking-content,

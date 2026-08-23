@@ -3958,6 +3958,7 @@ function isMarkdownBlockStart(lines, index) {
     /^\s{0,3}#{1,6}\s+/.test(line) ||
     /^\s{0,3}>\s?/.test(line) ||
     /^\s*(?:[-+*]|\d+\.)\s+/.test(line) ||
+    /^\s*\$\$/.test(line) ||
     /^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line) ||
     (line.includes("|") && isMarkdownTableDivider(nextLine))
   );
@@ -4004,7 +4005,7 @@ function appendSideChatInlineMarkdown(parent, value, depth = 0) {
     return;
   }
 
-  const tokenPattern = /`([^`\n]+)`|\[([^\]\n]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|\*([^*\n]+)\*|_([^_\n]+)_/g;
+  const tokenPattern = /(?<displayMath>(?<!\\)\$\$[^$\n]+?\$\$)|(?<inlineMath>(?<!\\)\$(?!\$)(?:\\.|[^$\\\n])+?(?<!\\)\$)|`(?<code>[^`\n]+)`|\[(?<linkText>[^\]\n]+)\]\((?<href>[^)\s]+)(?:\s+"[^"]*")?\)|\*\*(?<strongA>[^*\n]+)\*\*|__(?<strongB>[^_\n]+)__|~~(?<deleted>[^~\n]+)~~|\*(?<emphasisA>[^*\n]+)\*|_(?<emphasisB>[^_\n]+)_/g;
   let cursor = 0;
   let match;
 
@@ -4013,12 +4014,17 @@ function appendSideChatInlineMarkdown(parent, value, depth = 0) {
       parent.appendChild(document.createTextNode(text.slice(cursor, match.index)));
     }
 
+    const groups = match.groups || {};
     let element;
-    if (match[1] !== undefined) {
+    if (groups.displayMath !== undefined || groups.inlineMath !== undefined) {
+      element = document.createElement("span");
+      element.className = "side-math-source";
+      element.textContent = groups.displayMath || groups.inlineMath;
+    } else if (groups.code !== undefined) {
       element = document.createElement("code");
-      element.textContent = match[1];
-    } else if (match[2] !== undefined) {
-      const href = match[3];
+      element.textContent = groups.code;
+    } else if (groups.linkText !== undefined) {
+      const href = groups.href;
       if (/^(?:https?:|mailto:)/i.test(href)) {
         element = document.createElement("a");
         element.href = href;
@@ -4026,19 +4032,24 @@ function appendSideChatInlineMarkdown(parent, value, depth = 0) {
           element.target = "_blank";
           element.rel = "noopener noreferrer";
         }
-        appendSideChatInlineMarkdown(element, match[2], depth + 1);
+        appendSideChatInlineMarkdown(element, groups.linkText, depth + 1);
       } else {
         element = document.createTextNode(match[0]);
       }
     } else {
       const tagName =
-        match[4] !== undefined || match[5] !== undefined
+        groups.strongA !== undefined || groups.strongB !== undefined
           ? "strong"
-          : match[6] !== undefined
+          : groups.deleted !== undefined
             ? "del"
             : "em";
       const innerText =
-        match[4] ?? match[5] ?? match[6] ?? match[7] ?? match[8] ?? "";
+        groups.strongA ??
+        groups.strongB ??
+        groups.deleted ??
+        groups.emphasisA ??
+        groups.emphasisB ??
+        "";
       element = document.createElement(tagName);
       appendSideChatInlineMarkdown(element, innerText, depth + 1);
     }
@@ -4059,6 +4070,26 @@ function appendSideChatMarkdownLines(parent, lines) {
   });
 }
 
+function renderSideChatMath(container) {
+  if (typeof window.renderMathInElement !== "function") return;
+  try {
+    window.renderMathInElement(container, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code", "option"],
+      throwOnError: false,
+      strict: "ignore",
+      trust: false,
+    });
+  } catch (error) {
+    console.warn("Side Chat math rendering failed; preserving the TeX source.", error);
+  }
+}
+
 function renderSideChatMarkdown(container, content) {
   const lines = String(content || "").replace(/\r\n?/g, "\n").split("\n");
   const fragment = document.createDocumentFragment();
@@ -4068,6 +4099,37 @@ function renderSideChatMarkdown(container, content) {
     const line = lines[index];
     if (!line.trim()) {
       index += 1;
+      continue;
+    }
+
+    if (/^\s*\$\$/.test(line)) {
+      const mathLines = [];
+      let closed = false;
+      let firstLine = line.replace(/^\s*\$\$/, "");
+      const sameLineClose = firstLine.match(/^(.*?)\$\$\s*$/);
+      if (sameLineClose) {
+        mathLines.push(sameLineClose[1]);
+        closed = true;
+        index += 1;
+      } else {
+        if (firstLine) mathLines.push(firstLine);
+        index += 1;
+        while (index < lines.length) {
+          const closeIndex = lines[index].indexOf("$$");
+          if (closeIndex >= 0) {
+            mathLines.push(lines[index].slice(0, closeIndex));
+            closed = true;
+            index += 1;
+            break;
+          }
+          mathLines.push(lines[index]);
+          index += 1;
+        }
+      }
+      const mathBlock = document.createElement("div");
+      mathBlock.className = "side-math-source";
+      mathBlock.textContent = `$$${mathLines.join("\n")}${closed ? "$$" : ""}`;
+      fragment.appendChild(mathBlock);
       continue;
     }
 
@@ -4189,6 +4251,7 @@ function renderSideChatMarkdown(container, content) {
   }
 
   container.replaceChildren(fragment);
+  renderSideChatMath(container);
 }
 
 function addSideChatMessage(role, content, { isIntro = false } = {}) {
