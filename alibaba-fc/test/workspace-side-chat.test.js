@@ -220,6 +220,24 @@ test("desktop workbench contains the Workspace and gives Side Chat more width", 
   );
 });
 
+test("Side Chat context wraps long paper names without widening its column", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const stylesSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/styles.css"),
+    "utf8"
+  );
+
+  assert.match(stylesSource, /\.side-chat-panel\s*\{[^}]*min-width:\s*0[^}]*max-width:\s*100%/s);
+  assert.match(stylesSource, /\.side-chat-context-chips\s*\{[^}]*min-width:\s*0[^}]*max-width:\s*100%/s);
+  assert.match(stylesSource, /\.context-chip\s*\{[^}]*min-width:\s*0[^}]*max-width:\s*100%/s);
+  assert.match(stylesSource, /\.context-chip span\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*white-space:\s*normal/s);
+  assert.match(stylesSource, /\.context-chip-remove\s*\{[^}]*flex:\s*0 0 auto/s);
+  assert.match(appSource, /chip\.title = path/);
+});
+
 test("Side Chat hides empty-state prompts and renders safe Markdown with math", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),
