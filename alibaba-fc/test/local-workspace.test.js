@@ -452,6 +452,23 @@ test("Paper Cards are generated once, reused, regenerated on change, and removed
   assert.equal(firstCard.source.hash, firstHash);
   assert.deepEqual(firstCard.genes, ["ectD"]);
   assert.equal(await manager.fileExists(cardPath), true);
+  const firstIndex = await manager.readJson(".biodesign/literature/index.json");
+  assert.deepEqual(firstIndex.documents[0].discovery, {
+    fileName: "paper-a.pdf",
+    title: "Paper A",
+    authors: ["A. Researcher"],
+    year: 2024,
+    topics: ["enzyme engineering"],
+    keywords: ["EctD", "A163V"],
+    identifiers: [
+      "Escherichia coli",
+      "ectD",
+      "EctD",
+      "hydroxyectoine biosynthesis",
+      "hydroxyectoine",
+    ],
+    shortDescription: "A163V improves EctD activity.",
+  });
   assert.equal(synthesisCalls, 1);
 
   module = new LiteratureModule({ workspace: manager, api, pdfjsLib });
@@ -684,7 +701,8 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   });
   assert.equal(first.scope.type, "files");
   assert.equal(first.files[0].analysisStatus, "processed");
-  assert.equal(first.files[0].evidenceType, "cached-summary");
+  assert.match(first.files[0].evidenceType, /source-excerpts/);
+  assert.match(first.files[0].content, /Broad source excerpt/);
   assert.ok(chunkCalls > 0);
   assert.equal(synthesisCalls, 1);
 
@@ -695,7 +713,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
     workspaceTree: tree,
     projectGoal: "Improve enzyme activity",
   });
-  assert.equal(second.files[0].evidenceType, "cached-summary");
+  assert.match(second.files[0].evidenceType, /source-excerpts/);
   assert.equal(chunkCalls, callsAfterFirstTurn);
   assert.equal(synthesisCalls, 1);
 
@@ -818,6 +836,52 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   };
   const workspaceTree = await manager.scanDirectoryTree();
   const service = new ProjectContextService({ workspace: manager, literature });
+  manager.state.memory.projectSummary = "Saved EctD project memory.";
+
+  const routerPayloads = [];
+  literature.api.routeContext = async (payload) => {
+    routerPayloads.push(payload);
+    return {
+      useLiterature: false,
+      paperIds: [],
+      useProjectMemory: false,
+      memoryIds: [],
+      reason: "This is a general concept question.",
+    };
+  };
+  const genericConcept = await service.buildContext({
+    question: "What does kcat mean?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+    enableContextRouter: true,
+  });
+  assert.equal(genericConcept.routing.mode, "llm");
+  assert.equal(genericConcept.routing.useLiterature, false);
+  assert.deepEqual(genericConcept.files, []);
+  assert.equal(genericConcept.project.projectSummary, "");
+  assert.deepEqual(synthesisCalls, []);
+  assert.ok(routerPayloads[0].literatureIndex.every((item) => item.status === "pending"));
+
+  literature.api.routeContext = async () => ({
+    useLiterature: false,
+    paperIds: [],
+    useProjectMemory: true,
+    memoryIds: ["project_summary"],
+    reason: "The user asks about saved project state.",
+  });
+  const memoryRouted = await service.buildContext({
+    question: "What was our saved project summary?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+    enableContextRouter: true,
+  });
+  assert.equal(memoryRouted.routing.useProjectMemory, true);
+  assert.equal(memoryRouted.project.projectSummary, "Saved EctD project memory.");
+  assert.deepEqual(memoryRouted.files, []);
+  assert.deepEqual(synthesisCalls, []);
+  delete literature.api.routeContext;
 
   const idle = await service.buildContext({
     question: "Change the interface language to Chinese.",
@@ -863,6 +927,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(selectedButUnrelated.literature.discoveryMode, "not-needed");
   assert.deepEqual(selectedButUnrelated.files, []);
   assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
+  detailReads.length = 0;
 
   const automatic = await service.buildContext({
     question: "What exact kcat was reported for the A163V EctD variant?",
@@ -880,6 +945,47 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     "paper-b.pdf",
     "paper-c.pdf",
   ]));
+  detailReads.length = 0;
+
+  literature.api.routeContext = async (payload) => {
+    routerPayloads.push(payload);
+    return {
+      useLiterature: true,
+      paperIds: [ids["paper-b.pdf"]],
+      useProjectMemory: false,
+      memoryIds: [],
+      reason: "The compact index semantically matches the catalyst study.",
+    };
+  };
+  const semanticRoute = await service.buildContext({
+    question: "Which study describes the catalyst optimization strategy?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+    enableContextRouter: true,
+  });
+  assert.equal(semanticRoute.routing.mode, "llm");
+  assert.deepEqual(semanticRoute.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
+  assert.match(semanticRoute.files[0].evidenceType, /source-excerpts/);
+  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  const readyRouterIndex = routerPayloads.at(-1).literatureIndex;
+  assert.equal(readyRouterIndex.length, 3);
+  assert.ok(readyRouterIndex.every((item) => item.paperCardAvailable));
+  assert.equal(Object.hasOwn(readyRouterIndex[0], "mainFindings"), false);
+  delete literature.api.routeContext;
+  detailReads.length = 0;
+
+  const filenameReference = await service.buildContext({
+    question: "Summarize paper-c.pdf.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+  });
+  assert.deepEqual(filenameReference.literature.relevantPaperIds, [
+    ids["paper-c.pdf"],
+  ]);
+  assert.match(filenameReference.files[0].content, /Broad source excerpt/);
+  assert.deepEqual(detailReads, [ids["paper-c.pdf"]]);
   detailReads.length = 0;
 
   const comparison = await service.buildContext({
@@ -925,6 +1031,8 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   });
   assert.equal(followUp.literature.discoveryMode, "conversation-follow-up");
   assert.deepEqual(followUp.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
+  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  detailReads.length = 0;
 
   const unrelated = await service.buildContext({
     question: "Change the interface language to Chinese.",
@@ -1015,6 +1123,28 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
     index.documents.find((document) => document.id === failed.id).paperCardStatus,
     "failed"
   );
+
+  module.api.routeContext = async () => ({
+    useLiterature: true,
+    paperIds: [failed.id],
+    useProjectMemory: false,
+    memoryIds: [],
+    reason: "The prompt names the failed paper.",
+  });
+  const failedContext = await new ProjectContextService({
+    workspace: manager,
+    literature: module,
+  }).buildContext({
+    question: "Compare the failed paper with the literature library.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: await manager.scanDirectoryTree(),
+    enableContextRouter: true,
+  });
+  assert.equal(failedContext.literature.discoveryMode, "not-ready");
+  assert.deepEqual(failedContext.literature.relevantPaperIds, []);
+  assert.deepEqual(failedContext.files, []);
+  delete module.api.routeContext;
 
   shouldFail = false;
   const retry = await module.syncPaperLibrary();

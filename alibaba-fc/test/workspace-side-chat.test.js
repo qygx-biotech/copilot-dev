@@ -93,6 +93,7 @@ test("local workspace chat context is whitelisted, bounded, and explicit about i
   assert.match(prompt, /The cached paper understanding/);
   assert.match(prompt, /Explicitly selected paper IDs: paper-a/);
   assert.match(prompt, /Paper IDs used for this turn: paper-a/);
+  assert.match(prompt, /Pre-answer context router:/);
 });
 
 test("invalid local workspace context is ignored rather than trusted", () => {
@@ -117,6 +118,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.ok(chatStart >= 0 && chatEnd > chatStart);
   assert.doesNotMatch(chatFunction, /currentRecommendation\s*=/);
   assert.doesNotMatch(chatFunction, /runAgentInstruction/);
+  assert.match(chatFunction, /enableContextRouter:\s*true/);
   assert.match(htmlSource, /id="analysisPanelStack"/);
   assert.match(htmlSource, /id="addAnalysisPanelButton"/);
   assert.match(htmlSource, /id="sideChatHistory"/);

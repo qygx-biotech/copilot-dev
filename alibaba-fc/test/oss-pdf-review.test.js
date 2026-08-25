@@ -22,6 +22,7 @@ let deleteCalls = 0;
 let pdfGetCalls = 0;
 let llmFetchCalls = 0;
 const queuedChatCompletionTexts = [];
+const queuedRouterCompletionTexts = [];
 const queuedChatHttpStatuses = [];
 const capturedLlmRequests = [];
 
@@ -122,7 +123,17 @@ global.fetch = async (_url, options = {}) => {
   }
   let content;
 
-  if (systemMessage.includes("one excerpt of an academic paper")) {
+  if (systemMessage.includes("lightweight context and memory router")) {
+    content = queuedRouterCompletionTexts.length
+      ? queuedRouterCompletionTexts.shift()
+      : JSON.stringify({
+          use_literature: false,
+          paper_ids: [],
+          use_project_memory: false,
+          memory_ids: [],
+          reason: "No local context is needed."
+        });
+  } else if (systemMessage.includes("one excerpt of an academic paper")) {
     content = JSON.stringify({
       summary: "This excerpt describes a controlled paper review experiment.",
       research_question: "Can the proposed review workflow preserve evidence?",
@@ -296,7 +307,8 @@ test("document endpoints reject unauthenticated access", async () => {
     reviewResponse,
     deleteResponse,
     localChunkResponse,
-    localSynthesisResponse
+    localSynthesisResponse,
+    contextRouterResponse
   ] = await Promise.all([
     handler(apiEvent("GET", "/api/documents", undefined, false), context),
     handler(
@@ -343,6 +355,15 @@ test("document endpoints reject unauthenticated access", async () => {
         false
       ),
       context
+    ),
+    handler(
+      apiEvent(
+        "POST",
+        "/api/context/route",
+        { userQuery: "Which paper?", literatureIndex: [] },
+        false
+      ),
+      context
     )
   ]);
 
@@ -352,6 +373,7 @@ test("document endpoints reject unauthenticated access", async () => {
   assert.equal(deleteResponse.statusCode, 401);
   assert.equal(localChunkResponse.statusCode, 401);
   assert.equal(localSynthesisResponse.statusCode, 401);
+  assert.equal(contextRouterResponse.statusCode, 401);
 });
 
 test("local literature endpoints are stateless and never read or write OSS", async () => {
@@ -397,6 +419,66 @@ test("local literature endpoints are stateless and never read or write OSS", asy
   assert.match(userMessage, /local-paper\.pdf/);
   assert.doesNotMatch(userMessage, /Users\/example|private\//);
   assert.doesNotMatch(userMessage, /objectKey|OSS/);
+});
+
+test("context router uses only compact indexes and preserves explicit paper scope", async () => {
+  queuedRouterCompletionTexts.push(
+    JSON.stringify({
+      use_literature: true,
+      paper_ids: ["paper-b"],
+      use_project_memory: true,
+      memory_ids: ["project_summary", "not-available"],
+      reason: "The question asks about the selected study."
+    })
+  );
+  const response = await handler(
+    apiEvent("POST", "/api/context/route", {
+      userQuery: "What exact value did the selected paper report?",
+      selectedPaperIds: ["paper-a"],
+      recentlyReferencedPaperIds: ["paper-b"],
+      literatureIndex: [
+        {
+          paperId: "paper-a",
+          fileName: "paper-a.pdf",
+          title: "Selected EctD study",
+          authors: ["A. Scientist"],
+          year: 2024,
+          topics: ["enzyme engineering"],
+          keywords: ["EctD"],
+          identifiers: ["A163V"],
+          shortDescription: "A compact routing description.",
+          status: "ready",
+          paperCardAvailable: true,
+          fullPaperText: "must not be sent"
+        },
+        {
+          paperId: "paper-b",
+          fileName: "paper-b.pdf",
+          title: "Unselected study",
+          status: "ready",
+          paperCardAvailable: true
+        }
+      ],
+      availableMemoryDescriptions: [
+        { id: "project_summary", description: "Saved project summary is available." }
+      ]
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.ok, true);
+  assert.deepEqual(body.routing.paperIds, ["paper-a"]);
+  assert.deepEqual(body.routing.memoryIds, ["project_summary"]);
+
+  const request = capturedLlmRequests.at(-1);
+  const routerInput = JSON.parse(request.messages.at(-1).content);
+  assert.equal(routerInput.literature_index.length, 2);
+  assert.equal(
+    Object.hasOwn(routerInput.literature_index[0], "fullPaperText"),
+    false
+  );
+  assert.match(request.messages[0].content, /not the answering agent/i);
 });
 
 test("authenticated PDF upload URL uses an owned, sanitized key", async () => {

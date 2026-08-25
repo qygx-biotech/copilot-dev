@@ -111,6 +111,23 @@
     }
 
     for (const document of value.documents) {
+      const discovery = document?.discovery;
+      const validDiscovery =
+        discovery === undefined ||
+        (isPlainObject(discovery) &&
+          typeof discovery.fileName === "string" &&
+          discovery.fileName &&
+          (discovery.title === null || typeof discovery.title === "string") &&
+          Array.isArray(discovery.authors) &&
+          discovery.authors.every((item) => typeof item === "string") &&
+          (discovery.year === null || Number.isInteger(discovery.year)) &&
+          Array.isArray(discovery.topics) &&
+          discovery.topics.every((item) => typeof item === "string") &&
+          Array.isArray(discovery.keywords) &&
+          discovery.keywords.every((item) => typeof item === "string") &&
+          Array.isArray(discovery.identifiers) &&
+          discovery.identifiers.every((item) => typeof item === "string") &&
+          typeof discovery.shortDescription === "string");
       if (
         !isPlainObject(document) ||
         typeof document.id !== "string" ||
@@ -136,7 +153,8 @@
           (typeof document.paperCardPath !== "string" ||
             !document.paperCardPath.startsWith(".biodesign/literature/summaries/"))) ||
         (document.isLiteraturePaper !== undefined &&
-          typeof document.isLiteraturePaper !== "boolean")
+          typeof document.isLiteraturePaper !== "boolean") ||
+        !validDiscovery
       ) {
         throw new WorkspaceError(
           "INVALID_LITERATURE_INDEX",

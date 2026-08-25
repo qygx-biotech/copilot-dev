@@ -3856,6 +3856,7 @@ async function askSideChat(question) {
       workspaceTree,
       projectGoal: getProjectContext(),
       conversation: sideChatConversation,
+      enableContextRouter: true,
       signal: workspaceAbortController?.signal,
       onProgress(progress) {
         updateSideChatThinking(thinkingMessage, progress);

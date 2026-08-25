@@ -206,6 +206,36 @@
     )].slice(0, limit);
   }
 
+  function createPaperDiscoveryRecord(card, filename) {
+    const source = card && typeof card === "object" ? card : {};
+    const year = Number(source.year);
+    const identifiers = normalizeCardList(
+      source.identifiers || [
+        ...normalizeCardList(source.organisms),
+        ...normalizeCardList(source.genes),
+        ...normalizeCardList(source.proteins),
+        ...normalizeCardList(source.pathways),
+        ...normalizeCardList(source.metabolites),
+      ],
+      60
+    );
+    return {
+      fileName: safeFilename(filename || source.fileName),
+      title: normalizeCardText(source.title),
+      authors: normalizeCardList(source.authors, 30),
+      year:
+        Number.isInteger(year) && year >= 1800 && year <= 2100 ? year : null,
+      topics: normalizeCardList(source.topics, 30),
+      keywords: normalizeCardList(source.keywords, 40),
+      identifiers,
+      shortDescription: String(
+        source.shortDescription || source.shortSummary || source.summary || ""
+      )
+        .trim()
+        .slice(0, 1600),
+    };
+  }
+
   async function hashLiteratureFile(file, cryptoProvider = root.crypto) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (cryptoProvider?.subtle?.digest) {
@@ -264,6 +294,33 @@
         signal
       );
       return { ...data.summary, model: data.model || null };
+    }
+
+    async routeContext(payload, signal) {
+      const data = await this.request(
+        "/api/context/route",
+        {
+          userQuery: String(payload.userQuery || "").slice(0, 6000),
+          selectedPaperIds: Array.isArray(payload.selectedPaperIds)
+            ? payload.selectedPaperIds.slice(0, 20)
+            : [],
+          recentlyReferencedPaperIds: Array.isArray(
+            payload.recentlyReferencedPaperIds
+          )
+            ? payload.recentlyReferencedPaperIds.slice(0, 20)
+            : [],
+          literatureIndex: Array.isArray(payload.literatureIndex)
+            ? payload.literatureIndex.slice(0, 100)
+            : [],
+          availableMemoryDescriptions: Array.isArray(
+            payload.availableMemoryDescriptions
+          )
+            ? payload.availableMemoryDescriptions.slice(0, 12)
+            : [],
+        },
+        signal
+      );
+      return data.routing;
     }
 
     async request(path, body, signal) {
@@ -341,6 +398,10 @@
         paperCardStatus: document.paperCardStatus || "pending",
         paperCardError: String(document.paperCardError || "").slice(0, 1000),
         isLiteraturePaper: document.isLiteraturePaper === true,
+        discovery: createPaperDiscoveryRecord(
+          document.discovery,
+          document.filename
+        ),
         summaryUpdatedAt: document.summaryUpdatedAt || "",
       };
     }
@@ -508,6 +569,7 @@
           };
           await this.workspace.writeJson(paperCardPath, paperCard);
         }
+        document.discovery = createPaperDiscoveryRecord(paperCard, file.name);
         documents.push(document);
       }
 
@@ -611,6 +673,7 @@
       document.summaryAvailable = false;
       document.summaryStale = false;
       document.summaryUpdatedAt = "";
+      document.discovery = createPaperDiscoveryRecord(null, document.filename);
       await this.persistIndex();
       return document;
     }
@@ -888,6 +951,7 @@
       document.summaryAvailable = true;
       document.summaryStale = false;
       document.summaryUpdatedAt = generatedAt;
+      document.discovery = createPaperDiscoveryRecord(card, document.filename);
       await this.persistIndex();
       options.onProgress?.({ stage: "complete", completed: 1, total: 1 });
       return {
@@ -910,6 +974,7 @@
     LiteratureModule,
     PAPER_CARD_VERSION,
     chunkLiteratureText,
+    createPaperDiscoveryRecord,
     extractLocalPdf,
     hashLiteratureFile,
     runWithConcurrency,
