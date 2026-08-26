@@ -9,16 +9,15 @@
   const CONTEXT_LIMITS = {
     maxInventoryFiles: 500,
     maxProjectSummaries: 20,
-    maxEvidenceFiles: 20,
-    maxSummaryCharactersPerFile: 7000,
-    maxSourceCharactersPerFile: 6500,
-    maxTotalEvidenceCharacters: 50000,
-    maxConversationMessages: 20,
-    maxConversationMessageCharacters: 4000,
-    maxConversationCharacters: 24000,
-    maxStoredMessages: 60,
-    maxStoredMessageCharacters: 12000,
-    maxStoredConversationCharacters: 96000,
+    maxEvidenceFiles: 150,
+    maxSummaryCharactersPerFile: 5000,
+    maxSourceCharactersPerFile: 5000,
+    maxTotalEvidenceCharacters: 360000,
+    maxConversationMessages: 40,
+    maxConversationMessageCharacters: 120000,
+    maxConversationCharacters: 120000,
+    maxStoredMessages: 100,
+    maxConversationSummaryCharacters: 48000,
   };
 
   const DETAIL_QUESTION_PATTERN =
@@ -361,7 +360,7 @@
       .map((message) => ({
         id: message.id,
         role: message.role,
-        content: message.content.trim().slice(0, limits.maxStoredMessageCharacters),
+        content: message.content.trim(),
         ...(message.role === "user" && isPlainObject(message.context)
           ? {
               context: {
@@ -388,22 +387,17 @@
           : {}),
         createdAt: message.createdAt,
       }));
-    const messages = [];
-    let remaining = limits.maxStoredConversationCharacters;
-    for (let index = candidates.length - 1; index >= 0; index -= 1) {
-      if (messages.length >= limits.maxStoredMessages || remaining <= 0) break;
-      const content = candidates[index].content.slice(0, remaining);
-      if (!content) continue;
-      messages.unshift({ ...candidates[index], content });
-      remaining -= content.length;
-    }
+    const messages = candidates.slice(-limits.maxStoredMessages);
     return {
       schemaVersion: CHAT_SCHEMA_VERSION,
       id: String(conversation.id || ""),
       title: String(conversation.title || "Side Chat").slice(0, 120),
       createdAt: String(conversation.createdAt || ""),
       updatedAt: String(conversation.updatedAt || ""),
-      summary: String(conversation.summary || "").slice(0, 12000),
+      summary: String(conversation.summary || "").slice(
+        0,
+        limits.maxConversationSummaryCharacters
+      ),
       messages,
     };
   }
@@ -550,7 +544,7 @@
       return {
         summary: String(
           conversation?.summary || this.workspace.state?.memory?.conversationSummary || ""
-        ).slice(0, 12000),
+        ).slice(0, this.limits.maxConversationSummaryCharacters),
         recentMessages: boundedMessages(conversation?.messages, this.limits),
         recentlyDiscussedPaperIds,
       };
@@ -978,16 +972,16 @@
       );
       const evidence = [];
       const perPaperBudget = Math.max(
-        2200,
+        1200,
         Math.floor(this.limits.maxTotalEvidenceCharacters / Math.max(1, boundedIds.length))
       );
       const summaryBudget = Math.min(
         this.limits.maxSummaryCharactersPerFile,
-        Math.max(1400, Math.floor(perPaperBudget * 0.45))
+        Math.max(700, Math.floor(perPaperBudget * 0.45))
       );
       const sourceBudget = Math.min(
         this.limits.maxSourceCharactersPerFile,
-        Math.max(700, perPaperBudget - summaryBudget)
+        Math.max(500, perPaperBudget - summaryBudget)
       );
       // Retrieval is deliberately per paper so one selected paper cannot consume
       // the entire evidence budget for a comparison question.

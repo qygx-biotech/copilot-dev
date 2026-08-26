@@ -11,6 +11,7 @@ const {
   extractLocalPdf,
 } = require("../../docs/literature-module.js");
 const {
+  CONTEXT_LIMITS,
   ProjectContextService,
   WorkspaceChatStore,
   flattenWorkspaceTree,
@@ -337,6 +338,30 @@ test("Side Chat conversations persist locally and clear without touching project
     false
   );
   assert.equal(await (await manager.readFile("notes.txt")).text(), "keep me");
+});
+
+test("Side Chat persistence keeps a complete long model reply", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  const store = new WorkspaceChatStore({ workspace: manager });
+  const conversation = await store.loadActiveConversation();
+  const longReply = `# Complete answer\n\n${Array.from(
+    { length: 1000 },
+    () => "Full provider output."
+  ).join(" ")}`;
+  assert.ok(longReply.length > 12000);
+  conversation.messages.push({
+    id: manager.createId(),
+    role: "assistant",
+    content: longReply,
+    createdAt: "2026-08-20T06:01:10.000Z",
+  });
+
+  await store.saveConversation(conversation);
+  const restored = await new WorkspaceChatStore({ workspace: manager })
+    .loadActiveConversation();
+  assert.equal(restored.messages[0].content, longReply);
+  assert.equal(CONTEXT_LIMITS.maxEvidenceFiles, 150);
+  assert.equal(CONTEXT_LIMITS.maxTotalEvidenceCharacters, 360000);
 });
 
 test("workspace state rejects secret-bearing keys without overwriting the file", async () => {

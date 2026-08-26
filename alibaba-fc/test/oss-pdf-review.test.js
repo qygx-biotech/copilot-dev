@@ -481,6 +481,41 @@ test("context router uses only compact indexes and preserves explicit paper scop
   assert.match(request.messages[0].content, /not the answering agent/i);
 });
 
+test("context router preserves an explicit scope of 100 papers", async () => {
+  const paperIds = Array.from({ length: 100 }, (_, index) => `paper-${index + 1}`);
+  queuedRouterCompletionTexts.push(
+    JSON.stringify({
+      use_literature: true,
+      paper_ids: [paperIds[0]],
+      use_project_memory: false,
+      memory_ids: [],
+      reason: "Use the complete explicitly selected paper scope."
+    })
+  );
+
+  const response = await handler(
+    apiEvent("POST", "/api/context/route", {
+      userQuery: "Compare every selected paper.",
+      selectedPaperIds: paperIds,
+      literatureIndex: paperIds.map((paperId, index) => ({
+        paperId,
+        fileName: `${paperId}.pdf`,
+        title: `Study ${index + 1}`,
+        status: "ready",
+        paperCardAvailable: true
+      }))
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(body.routing.paperIds, paperIds);
+
+  const routerInput = JSON.parse(capturedLlmRequests.at(-1).messages.at(-1).content);
+  assert.equal(routerInput.selected_paper_ids.length, 100);
+  assert.equal(routerInput.literature_index.length, 100);
+});
+
 test("authenticated PDF upload URL uses an owned, sanitized key", async () => {
   const response = await handler(
     apiEvent("POST", "/api/documents/upload-url", {
@@ -752,12 +787,37 @@ test("Side Chat accepts plain-text follow-ups and preserves multi-round history"
   );
 
   const request = capturedLlmRequests.at(-1);
-  assert.equal(request.max_tokens, 1800);
+  assert.equal(Object.hasOwn(request, "max_tokens"), false);
   assert.deepEqual(
     request.messages
       .filter((message) => message.role !== "system")
       .map((message) => message.role),
     ["user", "assistant", "user"]
+  );
+});
+
+test("Side Chat preserves a long provider reply without imposing an output cap", async () => {
+  const longReply = `## Detailed answer\n\n${Array.from(
+    { length: 700 },
+    () => "Evidence-backed explanation."
+  ).join(" ")}`;
+  assert.ok(longReply.length > 12000);
+  queuedChatCompletionTexts.push(longReply);
+
+  const response = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [{ role: "user", content: "Give me the complete analysis." }]
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.fallback, false);
+  assert.equal(body.reply, longReply);
+  assert.equal(
+    Object.hasOwn(capturedLlmRequests.at(-1), "max_tokens"),
+    false
   );
 });
 
@@ -780,18 +840,30 @@ test("Side Chat retries one transient Requesty response", async () => {
 });
 
 test("chat history is bounded while retaining the latest turn", () => {
-  const messages = Array.from({ length: 30 }, (_, index) => ({
+  const messages = Array.from({ length: 60 }, (_, index) => ({
     role: index % 2 ? "assistant" : "user",
     content: `${index}:${"x".repeat(3990)}`
   }));
   const sanitized = _test.sanitizeChatMessagesForLlm(messages);
-  assert.ok(sanitized.length <= 20);
+  assert.ok(sanitized.length <= 40);
   assert.equal(sanitized[0].role, "user");
-  assert.equal(sanitized.at(-1).content.startsWith("29:"), true);
+  assert.equal(sanitized.at(-1).content.startsWith("59:"), true);
   assert.ok(
     sanitized.reduce((total, message) => total + message.content.length, 0) <=
-      24000
+      120000
   );
+});
+
+test("a long prior Side Chat answer remains available to the next turn", () => {
+  const longAnswer = "Prior answer detail. ".repeat(2500).trim();
+  const sanitized = _test.sanitizeChatMessagesForLlm([
+    { role: "user", content: "Give me a detailed analysis." },
+    { role: "assistant", content: longAnswer },
+    { role: "user", content: "Now compare its last two sections." }
+  ]);
+
+  assert.equal(sanitized[1].content, longAnswer);
+  assert.equal(sanitized.at(-1).content, "Now compare its last two sections.");
 });
 
 test("side chat routes by cached summaries and avoids loading unrelated PDFs", async () => {

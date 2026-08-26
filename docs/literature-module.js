@@ -12,6 +12,8 @@
     maxExtractedCharacters: 180000,
     minimumReadableCharacters: 200,
     maxChunks: 48,
+    maxRouterPapers: 100,
+    maxRouterQueryCharacters: 24000,
   });
   const PAPER_CARD_VERSION = 1;
 
@@ -300,17 +302,23 @@
       const data = await this.request(
         "/api/context/route",
         {
-          userQuery: String(payload.userQuery || "").slice(0, 6000),
+          userQuery: String(payload.userQuery || "").slice(
+            0,
+            LITERATURE_CONFIG.maxRouterQueryCharacters
+          ),
           selectedPaperIds: Array.isArray(payload.selectedPaperIds)
-            ? payload.selectedPaperIds.slice(0, 20)
+            ? payload.selectedPaperIds.slice(0, LITERATURE_CONFIG.maxRouterPapers)
             : [],
           recentlyReferencedPaperIds: Array.isArray(
             payload.recentlyReferencedPaperIds
           )
-            ? payload.recentlyReferencedPaperIds.slice(0, 20)
+            ? payload.recentlyReferencedPaperIds.slice(
+                0,
+                LITERATURE_CONFIG.maxRouterPapers
+              )
             : [],
           literatureIndex: Array.isArray(payload.literatureIndex)
-            ? payload.literatureIndex.slice(0, 100)
+            ? payload.literatureIndex.slice(0, LITERATURE_CONFIG.maxRouterPapers)
             : [],
           availableMemoryDescriptions: Array.isArray(
             payload.availableMemoryDescriptions

@@ -102,6 +102,48 @@ test("invalid local workspace context is ignored rather than trusted", () => {
   assert.equal(buildLocalWorkspaceContext(null), null);
 });
 
+test("local workspace chat accepts 100 papers plus experiment evidence", () => {
+  const paperIds = Array.from({ length: 100 }, (_, index) => `paper-${index + 1}`);
+  const files = [
+    ...paperIds.map((paperId, index) => ({
+      paperId,
+      name: `paper-${index + 1}.pdf`,
+      relativePath: `literature/paper-${index + 1}.pdf`,
+      extension: "pdf",
+      analysisStatus: "processed",
+      evidenceType: "cached-summary",
+      content: `Paper ${index + 1} evidence. ${"x".repeat(1800)}`,
+    })),
+    ...Array.from({ length: 40 }, (_, index) => ({
+      name: `experiment-${index + 1}.csv`,
+      relativePath: `experiments/experiment-${index + 1}.csv`,
+      extension: "csv",
+      analysisStatus: "processed",
+      evidenceType: "experiment-summary",
+      content: `Experiment ${index + 1} evidence. ${"y".repeat(1800)}`,
+    })),
+  ];
+
+  const sanitized = sanitizeLocalWorkspaceContext({
+    literature: {
+      selectedPaperIds: paperIds,
+      relevantPaperIds: paperIds,
+      discoveryMode: "selected",
+      retrievalRequired: true,
+    },
+    files,
+  });
+
+  assert.equal(sanitized.literature.selectedPaperIds.length, 100);
+  assert.equal(sanitized.literature.relevantPaperIds.length, 100);
+  assert.equal(sanitized.files.length, 140);
+  assert.ok(sanitized.files.every((file) => file.content.length > 0));
+  assert.ok(
+    sanitized.files.reduce((total, file) => total + file.content.length, 0) <=
+      360000
+  );
+});
+
 test("Side Chat remains isolated from Agent Work recommendation state", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),

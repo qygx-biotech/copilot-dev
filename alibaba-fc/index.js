@@ -26,6 +26,7 @@ const TOTAL_EXPERIMENT_TEXT_LIMIT = 26000;
 const MAX_PDF_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_STORED_PDF_DOCUMENTS = 100;
 const MAX_CHAT_PDF_CONTENT_DOCUMENTS = 3;
+const MAX_CHAT_SELECTED_DOCUMENTS = 100;
 const MAX_CHAT_SUMMARY_DOCUMENTS = 100;
 const MAX_LISTED_PDF_DOCUMENTS = 100;
 const MAX_PDF_REVIEW_CHARACTERS = 96000;
@@ -37,20 +38,21 @@ const MIN_MACHINE_READABLE_PDF_CHARACTERS = 200;
 const MAX_PDF_PAGES = 100;
 const PDF_PARSE_TIMEOUT_MS = 30000;
 const PDF_REVIEW_SIDECAR_FILENAME = ".paper-review.json";
-const TOTAL_PDF_SUMMARY_CONTEXT_LIMIT = 36000;
-const MAX_CHAT_HISTORY_MESSAGES = 20;
-const MAX_CHAT_MESSAGE_CHARACTERS = 6000;
-const TOTAL_CHAT_HISTORY_CHARACTERS = 24000;
+const TOTAL_PDF_SUMMARY_CONTEXT_LIMIT = 180000;
+const MAX_CHAT_HISTORY_MESSAGES = 40;
+const MAX_CHAT_MESSAGE_CHARACTERS = 120000;
+const TOTAL_CHAT_HISTORY_CHARACTERS = 120000;
 const REQUESTY_MAX_ATTEMPTS = 2;
 const MAX_LOCAL_LITERATURE_CHUNK_CHARACTERS = 12000;
 const MAX_LOCAL_LITERATURE_CHUNKS = 48;
 const MAX_LOCAL_LITERATURE_SUMMARY_CONTEXT = 60000;
 const MAX_CONTEXT_ROUTER_PAPERS = 100;
 const MAX_CONTEXT_ROUTER_MEMORIES = 12;
-const MAX_CONTEXT_ROUTER_PAYLOAD_CHARACTERS = 90000;
+const MAX_CONTEXT_ROUTER_QUERY_CHARACTERS = 24000;
+const MAX_CONTEXT_ROUTER_PAYLOAD_CHARACTERS = 600000;
 const MAX_LOCAL_WORKSPACE_INVENTORY_FILES = 500;
-const MAX_LOCAL_WORKSPACE_EVIDENCE_FILES = 20;
-const MAX_LOCAL_WORKSPACE_EVIDENCE_CHARACTERS = 52000;
+const MAX_LOCAL_WORKSPACE_EVIDENCE_FILES = 150;
+const MAX_LOCAL_WORKSPACE_EVIDENCE_CHARACTERS = 360000;
 const EXPERIMENT_MODULE_LABELS = {
   strainEngineering: "Strain Engineering",
   fermentation: "Fermentation",
@@ -1844,7 +1846,7 @@ function normalizeContextRoutingDecision(
   const paperIds = useLiterature
     ? selectedPaperIds.length
       ? selectedPaperIds
-      : [...new Set(requestedPaperIds)].slice(0, 20)
+      : [...new Set(requestedPaperIds)].slice(0, MAX_CONTEXT_ROUTER_PAPERS)
     : [];
   const useProjectMemory = source.use_project_memory === true;
   const memoryIds = useProjectMemory
@@ -1863,7 +1865,9 @@ function normalizeContextRoutingDecision(
 
 async function handleContextRouting(event, context, env) {
   const body = getRequestBody(event);
-  const userQuery = String(body.userQuery || "").trim().slice(0, 6000);
+  const userQuery = String(body.userQuery || "")
+    .trim()
+    .slice(0, MAX_CONTEXT_ROUTER_QUERY_CHARACTERS);
   const papers = (Array.isArray(body.literatureIndex) ? body.literatureIndex : [])
     .slice(0, MAX_CONTEXT_ROUTER_PAPERS)
     .map(normalizeContextRouterPaper)
@@ -1872,13 +1876,13 @@ async function handleContextRouting(event, context, env) {
   const selectedPaperIds = [...new Set(
     (Array.isArray(body.selectedPaperIds) ? body.selectedPaperIds : [])
       .filter((paperId) => typeof paperId === "string" && availablePaperIds.has(paperId))
-  )].slice(0, 20);
+  )].slice(0, MAX_CONTEXT_ROUTER_PAPERS);
   const recentlyReferencedPaperIds = [...new Set(
     (Array.isArray(body.recentlyReferencedPaperIds)
       ? body.recentlyReferencedPaperIds
       : [])
       .filter((paperId) => typeof paperId === "string" && availablePaperIds.has(paperId))
-  )].slice(0, 20);
+  )].slice(0, MAX_CONTEXT_ROUTER_PAPERS);
   const memories = (Array.isArray(body.availableMemoryDescriptions)
     ? body.availableMemoryDescriptions
     : [])
@@ -2599,7 +2603,7 @@ async function resolveStoredPdfChatContext({
       .map((key) => key.trim())
   )]
     .filter((key) => descriptorByKey.has(key))
-    .slice(0, MAX_CHAT_PDF_CONTENT_DOCUMENTS);
+    .slice(0, MAX_CHAT_SELECTED_DOCUMENTS);
   const reviewResult = await loadStoredReviewRecords({
     descriptors,
     user,
@@ -3600,7 +3604,7 @@ function sanitizeChatMessagesForLlm(messages) {
 function parseSideChatResponse(modelText) {
   const parsedObject = parseModelJson(modelText);
   if (typeof parsedObject?.reply === "string" && parsedObject.reply.trim()) {
-    return { reply: parsedObject.reply.trim().slice(0, 12000) };
+    return { reply: parsedObject.reply.trim() };
   }
 
   let plainText = String(modelText || "").trim();
@@ -3615,7 +3619,7 @@ function parseSideChatResponse(modelText) {
     .replace(/^```(?:text|markdown)?\s*/i, "")
     .replace(/\s*```$/, "")
     .trim();
-  return plainText ? { reply: plainText.slice(0, 12000) } : null;
+  return plainText ? { reply: plainText } : null;
 }
 
 async function callRequesty(
@@ -3665,8 +3669,7 @@ async function callRequesty(
   const requestBody = {
     model,
     messages: requestMessages,
-    temperature: 0.3,
-    ...(responseMode === "side_chat" ? { max_tokens: 1800 } : {})
+    temperature: 0.3
   };
   const completion = await requestRequestyCompletion(requestBody, apiKey);
   if (!completion.ok) {

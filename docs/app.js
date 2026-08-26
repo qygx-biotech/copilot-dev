@@ -55,7 +55,7 @@ const sideChatContextChips = document.querySelector("#sideChatContextChips");
 
 const MAX_REFERENCE_FILES = 100;
 const MAX_BROWSER_REFERENCE_FILES = 8;
-const MAX_SELECTED_CHAT_PDFS = 3;
+const MAX_SELECTED_CHAT_PDFS = 100;
 const MAX_EXPERIMENT_FILES_PER_MODULE = 12;
 const MAX_EXPERIMENT_FILES = 36;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
