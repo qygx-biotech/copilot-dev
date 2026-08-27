@@ -802,6 +802,62 @@ test("Side Chat accepts plain-text follow-ups and preserves multi-round history"
   );
 });
 
+test("the long-term project goal is a system message for answers and recommendations", async () => {
+  capturedLlmRequests.length = 0;
+  const projectGoal =
+    "Over the next several weeks, select the best-supported enzyme variant for the final project decision.";
+
+  queuedChatCompletionTexts.push("The answer is framed against the final goal.");
+  const sideChatResponse = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      projectContext: projectGoal,
+      messages: [{ role: "user", content: "How should I interpret this result?" }]
+    }),
+    context
+  );
+  assert.equal(sideChatResponse.statusCode, 200);
+  const sideChatRequest = capturedLlmRequests.at(-1);
+  const sideChatGoalMessage = sideChatRequest.messages.find(
+    (message) =>
+      message.role === "system" &&
+      message.content.includes("Long-term project context and final goal")
+  );
+  assert.ok(sideChatGoalMessage);
+  assert.match(sideChatGoalMessage.content, new RegExp(projectGoal));
+
+  queuedChatCompletionTexts.push(
+    JSON.stringify({
+      reply: "The recommendation is framed against the final goal.",
+      project: {
+        summary: "Goal-aware recommendation.",
+        organism: "Not specified",
+        missingInformation: [],
+        safetyLevel: "Planning review",
+        safetyNotes: "Human review remains required.",
+        draftMemo: "Review the evidence against the final goal."
+      }
+    })
+  );
+  const agentWorkResponse = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "agent_instruction",
+      projectContext: projectGoal,
+      messages: [{ role: "user", content: "Recommend the next analysis." }]
+    }),
+    context
+  );
+  assert.equal(agentWorkResponse.statusCode, 200);
+  const agentWorkRequest = capturedLlmRequests.at(-1);
+  const agentWorkGoalMessage = agentWorkRequest.messages.find(
+    (message) =>
+      message.role === "system" &&
+      message.content.includes("Long-term project context and final goal")
+  );
+  assert.ok(agentWorkGoalMessage);
+  assert.match(agentWorkGoalMessage.content, new RegExp(projectGoal));
+});
+
 test("Side Chat executes provider tool calls through the read-only loop", async () => {
   capturedLlmRequests.length = 0;
   queuedChatCompletionMessages.push(

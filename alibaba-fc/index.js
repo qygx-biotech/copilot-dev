@@ -18,6 +18,7 @@ const OSS = require("ali-oss");
 const { extractText, getDocumentProxy, getMeta } = require("unpdf");
 const {
   SIDE_CHAT_TOOL_DEFINITIONS,
+  buildDurableProjectSystemMessage,
   buildSideChatCatalog,
   compactSideChatAgentMessages,
   createSideChatKnowledgeBase,
@@ -101,6 +102,8 @@ You must avoid:
 - instructions that enable unsafe or unsupervised experimentation
 
 Keep wet-lab guidance high-level and safety-aware. For side_chat requests, answer the question without claiming to update the official recommendation. Consider whether the next useful step belongs in strain engineering, fermentation, downstream processing, or additional analysis. Do not assume all problems are in strain engineering. Human scientists remain responsible for interpreting evidence and approving experimental decisions.
+
+When a long-term project context and final-goal system message is supplied, use it to frame every answer and recommendation across the life of the project while still following the user's current request and the evidence available for that turn.
 `.trim();
 
 const systemPrompt = `${coreSystemPrompt}
@@ -3742,6 +3745,14 @@ async function callRequesty(
       content: systemPrompt
     }
   ];
+  const durableProjectContext =
+    buildDurableProjectSystemMessage(workspaceContext);
+  if (durableProjectContext) {
+    requestMessages.push({
+      role: "system",
+      content: durableProjectContext
+    });
+  }
   const contextMessage = buildWorkspaceContext(workspaceContext);
 
   if (contextMessage) {
@@ -4176,6 +4187,7 @@ exports.handler = async function handler(rawEvent, context) {
 exports._test = {
   SIDE_CHAT_TOOL_DEFINITIONS,
   buildOwnedPdfObjectKey,
+  buildDurableProjectSystemMessage,
   buildSideChatCatalog,
   chunkPdfText,
   compactSideChatAgentMessages,

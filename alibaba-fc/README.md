@@ -94,7 +94,7 @@ Both new endpoints require the existing JWT bearer token and are stateless with 
 
 Neither route accepts a filesystem path, PDF bytes, an OSS key, or a project folder. Neither route reads or writes OSS.
 
-The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its scope, structured selected/relevant paper IDs, project summaries, file inventory, processed evidence, and limitation notices before adding them to the Side Chat system context. Inventory entries are explicitly metadata-only. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
+The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its scope, structured selected/relevant paper IDs, project summaries, file inventory, processed evidence, and limitation notices before adding them to the Side Chat system context. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence so every answer and recommendation is framed by the long-term final goal. Inventory entries are explicitly metadata-only. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
 
 ### Local Paper Cards and routing
 

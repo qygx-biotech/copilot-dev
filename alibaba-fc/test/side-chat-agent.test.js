@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   SIDE_CHAT_TOOL_DEFINITIONS,
+  buildDurableProjectSystemMessage,
   buildSideChatCatalog,
   compactSideChatAgentMessages,
   createSideChatKnowledgeBase,
@@ -86,6 +87,25 @@ test("the backend Side Chat loop exposes only read-only tools", () => {
         )
     )
   );
+});
+
+test("durable project context becomes system guidance without duplicating the goal", () => {
+  const goal =
+    "Over several weeks, identify the best-supported EctD variant for the final design review.";
+  const message = buildDurableProjectSystemMessage({
+    projectContext: goal,
+    localWorkspaceContext: {
+      project: {
+        goal,
+        projectSummary: "This summary remains ordinary saved project memory."
+      }
+    }
+  });
+
+  assert.match(message, /Long-term project context and final goal/);
+  assert.match(message, new RegExp(goal));
+  assert.equal(message.split(goal).length - 1, 1);
+  assert.match(message, /every answer or recommendation/);
 });
 
 test("catalog is progressive and file content loads only through an exact item id", () => {
@@ -202,6 +222,10 @@ test("the agent loop keeps inspection private and returns only the final answer"
   });
   assert.equal(requests.length, 2);
   assert.ok(requests[0].tools.length > 0);
+  assert.equal(requests[0].messages[1].role, "system");
+  assert.match(requests[0].messages[1].content, /Understand EctD variants/);
+  assert.match(requests[0].messages[2].content, /workspace catalog/i);
+  assert.equal(requests[0].messages[3].role, "user");
   assert.equal(
     requests[1].messages.some(
       (message) =>
