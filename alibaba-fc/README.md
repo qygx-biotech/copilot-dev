@@ -73,7 +73,7 @@ npm test
    ```bash
    cd alibaba-fc
    npm ci --omit=dev
-   zip -r ../alibaba-fc-local-workspace.zip index.js package.json package-lock.json node_modules
+   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js package.json package-lock.json node_modules
    ```
 
 8. Upload `alibaba-fc-local-workspace.zip`. Keep the handler set to `index.handler`.

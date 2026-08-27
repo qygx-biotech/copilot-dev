@@ -22,6 +22,7 @@ let deleteCalls = 0;
 let pdfGetCalls = 0;
 let llmFetchCalls = 0;
 const queuedChatCompletionTexts = [];
+const queuedChatCompletionMessages = [];
 const queuedRouterCompletionTexts = [];
 const queuedChatHttpStatuses = [];
 const capturedLlmRequests = [];
@@ -122,6 +123,7 @@ global.fetch = async (_url, options = {}) => {
     }
   }
   let content;
+  let messageOverride = null;
 
   if (systemMessage.includes("lightweight context and memory router")) {
     content = queuedRouterCompletionTexts.length
@@ -152,23 +154,27 @@ global.fetch = async (_url, options = {}) => {
       main_conclusion: "The tested workflow preserved evidence successfully."
     });
   } else {
-    content = queuedChatCompletionTexts.length
-      ? queuedChatCompletionTexts.shift()
-      : JSON.stringify({
-          reply: "The stored PDF evidence was available to Side Chat.",
-          project: {
-            summary: "Stored PDF reviewed.",
-            organism: "Not applicable",
-            missingInformation: [],
-            safetyLevel: "Planning review",
-            safetyNotes: "Human review remains required.",
-            draftMemo: "The stored PDF was included as evidence."
-          }
-        });
+    if (queuedChatCompletionMessages.length) {
+      messageOverride = queuedChatCompletionMessages.shift();
+    } else {
+      content = queuedChatCompletionTexts.length
+        ? queuedChatCompletionTexts.shift()
+        : JSON.stringify({
+            reply: "The stored PDF evidence was available to Side Chat.",
+            project: {
+              summary: "Stored PDF reviewed.",
+              organism: "Not applicable",
+              missingInformation: [],
+              safetyLevel: "Planning review",
+              safetyNotes: "Human review remains required.",
+              draftMemo: "The stored PDF was included as evidence."
+            }
+          });
+    }
   }
 
   return new Response(
-    JSON.stringify({ choices: [{ message: { content } }] }),
+    JSON.stringify({ choices: [{ message: messageOverride || { content } }] }),
     { status: 200, headers: { "Content-Type": "application/json" } }
   );
 };
@@ -794,6 +800,89 @@ test("Side Chat accepts plain-text follow-ups and preserves multi-round history"
       .map((message) => message.role),
     ["user", "assistant", "user"]
   );
+});
+
+test("Side Chat executes provider tool calls through the read-only loop", async () => {
+  capturedLlmRequests.length = 0;
+  queuedChatCompletionMessages.push(
+    {
+      content: null,
+      tool_calls: [
+        {
+          id: "read-reference-1",
+          type: "function",
+          function: {
+            name: "read_workspace_item",
+            arguments: JSON.stringify({ item_id: "local:1" })
+          }
+        }
+      ]
+    },
+    {
+      content: "The selected reference reports improved A163V activity."
+    }
+  );
+
+  const response = await handler(
+    apiEvent("POST", "/chat", {
+      mode: "side_chat",
+      messages: [
+        { role: "user", content: "What does the selected reference report?" }
+      ],
+      localWorkspaceContext: {
+        scope: {
+          type: "files",
+          files: ["literature/paper-a.pdf"]
+        },
+        inventory: [
+          {
+            paperId: "paper-a",
+            name: "paper-a.pdf",
+            relativePath: "literature/paper-a.pdf",
+            extension: "pdf",
+            size: 1200,
+            processor: "pdf",
+            summaryAvailable: true,
+            summaryStatus: "ready"
+          }
+        ],
+        files: [
+          {
+            paperId: "paper-a",
+            name: "paper-a.pdf",
+            relativePath: "literature/paper-a.pdf",
+            extension: "pdf",
+            analysisStatus: "processed",
+            evidenceType: "cached-summary",
+            content: "The A163V variant showed improved catalytic activity."
+          }
+        ]
+      }
+    }),
+    context
+  );
+  const body = parseResponse(response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(
+    body.reply,
+    "The selected reference reports improved A163V activity."
+  );
+  assert.equal(capturedLlmRequests.length, 2);
+  assert.deepEqual(
+    capturedLlmRequests[0].tools.map((tool) => tool.function.name),
+    [
+      "list_workspace_items",
+      "search_workspace_items",
+      "read_workspace_item",
+      "read_project_context"
+    ]
+  );
+  const toolResult = capturedLlmRequests[1].messages.find(
+    (message) => message.role === "tool"
+  );
+  assert.equal(toolResult.tool_call_id, "read-reference-1");
+  assert.match(toolResult.content, /A163V variant showed improved/);
 });
 
 test("Side Chat preserves a long provider reply without imposing an output cap", async () => {

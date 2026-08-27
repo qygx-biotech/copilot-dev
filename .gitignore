@@ -6,3 +6,4 @@ worker/.wrangler/
 .dev.vars
 worker/.dev.vars
 .DS_Store
+learn-claude-code/

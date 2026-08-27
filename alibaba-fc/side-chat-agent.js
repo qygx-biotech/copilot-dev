@@ -1,0 +1,958 @@
+"use strict";
+
+// Side Chat is an answer-only agent. Its tools inspect the bounded context that
+// the browser already supplied; they cannot reach the server filesystem, run a
+// command, mutate a project, start Agent Work, or delegate to another agent.
+
+const MAX_AGENT_STEPS = 8;
+const MAX_TOTAL_TOOL_CALLS = 24;
+const MAX_TOOL_RESULT_CHARACTERS = 24000;
+const MAX_READ_CHARACTERS = 16000;
+const MAX_LIST_RESULTS = 100;
+const MAX_SEARCH_RESULTS = 20;
+const MAX_CATALOG_CHARACTERS = 60000;
+const AGENT_CONTEXT_CHARACTER_LIMIT = 220000;
+const KEEP_RECENT_TOOL_RESULTS = 3;
+
+const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
+  {
+    type: "function",
+    function: {
+      name: "list_workspace_items",
+      description:
+        "List registered local workspace items by category or path prefix. This returns metadata only, not file contents.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            enum: ["all", "reference", "experiment", "workspace"]
+          },
+          path_prefix: { type: "string" },
+          limit: { type: "integer", minimum: 1, maximum: MAX_LIST_RESULTS }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_workspace_items",
+      description:
+        "Search registered filenames, metadata, and available processed evidence. Use the returned item id with read_workspace_item when more detail is needed.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", minLength: 1 },
+          category: {
+            type: "string",
+            enum: ["all", "reference", "experiment", "workspace"]
+          },
+          limit: { type: "integer", minimum: 1, maximum: MAX_SEARCH_RESULTS }
+        },
+        required: ["query"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_workspace_item",
+      description:
+        "Read bounded processed evidence for one exact item id from the registered workspace catalog. It never reads an arbitrary path.",
+      parameters: {
+        type: "object",
+        properties: {
+          item_id: { type: "string", minLength: 1 },
+          offset: { type: "integer", minimum: 0 },
+          max_characters: {
+            type: "integer",
+            minimum: 200,
+            maximum: MAX_READ_CHARACTERS
+          }
+        },
+        required: ["item_id"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_project_context",
+      description:
+        "Recall one exact, already-saved project-context record from the catalog. This tool is read-only and never creates or updates memory.",
+      parameters: {
+        type: "object",
+        properties: {
+          context_id: { type: "string", minLength: 1 }
+        },
+        required: ["context_id"],
+        additionalProperties: false
+      }
+    }
+  }
+]);
+
+const SIDE_CHAT_TOOL_NAMES = new Set(
+  SIDE_CHAT_TOOL_DEFINITIONS.map((tool) => tool.function.name)
+);
+
+function isPlainObject(value) {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function normalizePath(value) {
+  return String(value || "")
+    .replaceAll("\\", "/")
+    .replace(/^\/+/, "")
+    .replace(/\/{2,}/g, "/")
+    .trim()
+    .slice(0, 500);
+}
+
+function boundedInteger(value, fallback, minimum, maximum) {
+  const number = Number(value);
+  if (!Number.isInteger(number)) return fallback;
+  return Math.min(maximum, Math.max(minimum, number));
+}
+
+function categoryForPath(path, fallback = "workspace") {
+  const normalized = normalizePath(path).toLowerCase();
+  if (
+    normalized.startsWith("literature/") ||
+    normalized.startsWith("references/") ||
+    normalized.startsWith("reference/")
+  ) {
+    return "reference";
+  }
+  if (
+    normalized.startsWith("experiments/") ||
+    normalized.startsWith("experiment/")
+  ) {
+    return "experiment";
+  }
+  return fallback;
+}
+
+function makeUniqueId(prefix, usedIds) {
+  let index = 1;
+  let candidate = `${prefix}:${index}`;
+  while (usedIds.has(candidate)) {
+    index += 1;
+    candidate = `${prefix}:${index}`;
+  }
+  usedIds.add(candidate);
+  return candidate;
+}
+
+function createSideChatKnowledgeBase(workspaceContext = {}) {
+  const context = isPlainObject(workspaceContext) ? workspaceContext : {};
+  const local = isPlainObject(context.localWorkspaceContext)
+    ? context.localWorkspaceContext
+    : null;
+  const items = [];
+  const itemsById = new Map();
+  const localItemsByPath = new Map();
+  const usedIds = new Set();
+  const projectContext = new Map();
+
+  const addItem = ({
+    prefix,
+    name,
+    path,
+    category,
+    source,
+    status = "processed",
+    evidenceType = "processed-evidence",
+    content = "",
+    metadata = {}
+  }) => {
+    const normalizedPath = normalizePath(path || name);
+    const item = {
+      id: makeUniqueId(prefix, usedIds),
+      name: String(name || normalizedPath || "unnamed-item").trim().slice(0, 180),
+      path: normalizedPath,
+      category: categoryForPath(normalizedPath, category || "workspace"),
+      source: String(source || "workspace").slice(0, 80),
+      status: String(status || "unprocessed").slice(0, 80),
+      evidenceType: String(evidenceType || "inventory-only").slice(0, 100),
+      content: String(content || ""),
+      metadata: isPlainObject(metadata) ? metadata : {}
+    };
+    items.push(item);
+    itemsById.set(item.id, item);
+    return item;
+  };
+
+  const addMemory = (id, label, value) => {
+    const content = String(value || "").trim();
+    if (!content) return;
+    projectContext.set(id, {
+      id,
+      label,
+      description: content.replace(/\s+/g, " ").slice(0, 320),
+      content
+    });
+  };
+
+  if (local) {
+    for (const file of Array.isArray(local.inventory) ? local.inventory : []) {
+      if (!isPlainObject(file)) continue;
+      const path = normalizePath(file.relativePath || file.name);
+      const item = addItem({
+        prefix: "local",
+        name: file.name,
+        path,
+        category: file.paperId ? "reference" : categoryForPath(path),
+        source: "local-workspace",
+        status: file.summaryAvailable
+          ? file.summaryStatus || "processed"
+          : file.processor
+            ? file.summaryStatus || "unprocessed"
+            : "unsupported",
+        evidenceType: file.summaryAvailable ? "paper-card-available" : "inventory-only",
+        metadata: {
+          extension: file.extension || "",
+          size: Number(file.size) || 0,
+          paperId: file.paperId || null,
+          processor: file.processor || null
+        }
+      });
+      if (path) localItemsByPath.set(path, item);
+    }
+
+    for (const file of Array.isArray(local.files) ? local.files : []) {
+      if (!isPlainObject(file)) continue;
+      const path = normalizePath(file.relativePath || file.name);
+      const existing = localItemsByPath.get(path);
+      if (existing) {
+        existing.status = String(file.analysisStatus || existing.status).slice(0, 80);
+        existing.evidenceType = String(
+          file.evidenceType || existing.evidenceType
+        ).slice(0, 100);
+        existing.content = String(file.content || "");
+        existing.metadata = {
+          ...existing.metadata,
+          paperId: file.paperId || existing.metadata.paperId || null,
+          extension: file.extension || existing.metadata.extension || ""
+        };
+      } else {
+        const item = addItem({
+          prefix: "local",
+          name: file.name,
+          path,
+          category: file.paperId ? "reference" : categoryForPath(path),
+          source: "local-workspace",
+          status: file.analysisStatus,
+          evidenceType: file.evidenceType,
+          content: file.content,
+          metadata: {
+            extension: file.extension || "",
+            paperId: file.paperId || null
+          }
+        });
+        if (path) localItemsByPath.set(path, item);
+      }
+    }
+
+    const project = isPlainObject(local.project) ? local.project : {};
+    addMemory("workspace_name", "Workspace name", project.workspaceName);
+    addMemory("project_goal", "Project goal", project.goal);
+    addMemory("project_summary", "Saved project summary", project.projectSummary);
+    addMemory(
+      "literature_summary",
+      "Saved literature summary",
+      project.literatureSummary
+    );
+    addMemory(
+      "experimental_summary",
+      "Saved experimental summary",
+      project.experimentalSummary
+    );
+  }
+
+  addMemory("legacy_project_context", "Project context", context.projectContext);
+
+  for (const document of Array.isArray(context.referenceDocuments)
+    ? context.referenceDocuments
+    : []) {
+    addItem({
+      prefix: "reference",
+      name: document.filename,
+      path: document.filename,
+      category: "reference",
+      source: "reference-upload",
+      status: "processed",
+      evidenceType: document.type || "text",
+      content: document.text,
+      metadata: { truncated: document.truncated === true }
+    });
+  }
+
+  for (const document of Array.isArray(context.experimentDocuments)
+    ? context.experimentDocuments
+    : []) {
+    addItem({
+      prefix: "experiment",
+      name: document.filename,
+      path: document.filename,
+      category: "experiment",
+      source: document.module || "experiment-upload",
+      status: "processed",
+      evidenceType: document.type || "text",
+      content: document.text,
+      metadata: { truncated: document.truncated === true }
+    });
+  }
+
+  const modules = isPlainObject(context.experimentModules)
+    ? context.experimentModules
+    : {};
+  for (const [moduleId, moduleData] of Object.entries(modules)) {
+    for (const document of Array.isArray(moduleData?.documents)
+      ? moduleData.documents
+      : []) {
+      addItem({
+        prefix: "experiment",
+        name: document.filename,
+        path: document.filename,
+        category: "experiment",
+        source: moduleData.label || moduleId,
+        status: "processed",
+        evidenceType: document.type || "text",
+        content: document.text,
+        metadata: { truncated: document.truncated === true }
+      });
+    }
+    for (const [index, note] of (Array.isArray(moduleData?.notes)
+      ? moduleData.notes
+      : []).entries()) {
+      addItem({
+        prefix: "experiment-note",
+        name: `${moduleData.label || moduleId} note ${index + 1}`,
+        path: `notes/${moduleId}/${index + 1}`,
+        category: "experiment",
+        source: moduleData.label || moduleId,
+        status: "processed",
+        evidenceType: "experiment-note",
+        content: note.text,
+        metadata: { createdAt: note.createdAt || "" }
+      });
+    }
+  }
+
+  for (const [index, note] of (Array.isArray(context.experimentNotes)
+    ? context.experimentNotes
+    : []).entries()) {
+    addItem({
+      prefix: "experiment-note",
+      name: `Experiment note ${index + 1}`,
+      path: `notes/experiment/${index + 1}`,
+      category: "experiment",
+      source: note.module || "experiment-note",
+      status: "processed",
+      evidenceType: "experiment-note",
+      content: note.text,
+      metadata: { createdAt: note.createdAt || "" }
+    });
+  }
+
+  const addStoredDocuments = (documents, prefix, evidenceType) => {
+    for (const document of Array.isArray(documents) ? documents : []) {
+      addItem({
+        prefix,
+        name: document.filename,
+        path: document.filename,
+        category: "reference",
+        source: "private-pdf-library",
+        status: "processed",
+        evidenceType,
+        content: document.text,
+        metadata: { truncated: document.truncated === true }
+      });
+    }
+  };
+  addStoredDocuments(context.storedDocuments, "stored-pdf", "pdf-source-text");
+  addStoredDocuments(
+    context.storedDocumentSummaries,
+    "stored-summary",
+    "cached-paper-summary"
+  );
+
+  for (const document of Array.isArray(context.storedDocumentInventory)
+    ? context.storedDocumentInventory
+    : []) {
+    const filename = String(document?.filename || "").trim();
+    if (!filename) continue;
+    const alreadyRegistered = items.some(
+      (item) =>
+        item.source === "private-pdf-library" && item.name === filename
+    );
+    if (!alreadyRegistered) {
+      addItem({
+        prefix: "stored-inventory",
+        name: filename,
+        path: filename,
+        category: "reference",
+        source: "private-pdf-library",
+        status: document.summaryAvailable ? "summary-available" : "unprocessed",
+        evidenceType: "inventory-only",
+        content: "",
+        metadata: { module: document.module || "" }
+      });
+    }
+  }
+
+  return {
+    items,
+    itemsById,
+    projectContext,
+    scope: local?.scope || null,
+    notices: Array.isArray(local?.notices) ? local.notices.slice(0, 40) : []
+  };
+}
+
+function itemCatalogEntry(item) {
+  return {
+    id: item.id,
+    category: item.category,
+    path: item.path || item.name,
+    status: item.status,
+    evidence_type: item.evidenceType,
+    content_available: Boolean(item.content)
+  };
+}
+
+function singleLineCatalogText(value, limit = 600) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function buildSideChatCatalog(knowledgeBase) {
+  const scope = knowledgeBase.scope?.type === "files"
+    ? `Selected files: ${(knowledgeBase.scope.files || [])
+        .map((path) => singleLineCatalogText(path, 500))
+        .filter(Boolean)
+        .join(", ") || "none"}`
+    : "Entire project";
+  const catalogItemLines = [];
+  let catalogCharacters = 0;
+  for (const item of knowledgeBase.items) {
+    const entry = itemCatalogEntry(item);
+    const line = `- ${singleLineCatalogText(entry.id, 120)} | ${entry.category} | ${singleLineCatalogText(entry.path, 500)} | status=${singleLineCatalogText(entry.status, 80)} | evidence=${singleLineCatalogText(entry.evidence_type, 100)} | content=${entry.content_available ? "available" : "unavailable"}`;
+    if (catalogCharacters + line.length > MAX_CATALOG_CHARACTERS) break;
+    catalogItemLines.push(line);
+    catalogCharacters += line.length + 1;
+  }
+  if (catalogItemLines.length < knowledgeBase.items.length) {
+    catalogItemLines.push(
+      `- ... ${knowledgeBase.items.length - catalogItemLines.length} additional item(s) omitted from this compact catalog; use list_workspace_items or search_workspace_items.`
+    );
+  }
+  const itemLines = catalogItemLines.length
+    ? catalogItemLines.join("\n")
+    : "- (no workspace items supplied)";
+  const memoryLines = knowledgeBase.projectContext.size
+    ? [...knowledgeBase.projectContext.values()]
+        .map(
+          (record) =>
+            `- ${record.id} | ${record.label} | ${record.description}`
+        )
+        .join("\n")
+    : "- (no saved project context supplied)";
+  const noticeLines = knowledgeBase.notices.length
+    ? knowledgeBase.notices
+        .map((notice) => `- ${singleLineCatalogText(notice, 700)}`)
+        .join("\n")
+    : "- none";
+
+  return [
+    "Read-only Side Chat workspace catalog.",
+    `Scope: ${scope}`,
+    "The catalog is metadata, not evidence. Load only the records needed for the current question.",
+    "Workspace items:",
+    itemLines,
+    "Saved project-context catalog:",
+    memoryLines,
+    "Known limitations:",
+    noticeLines
+  ].join("\n");
+}
+
+function normalizeCategory(value) {
+  return ["reference", "experiment", "workspace"].includes(value)
+    ? value
+    : "all";
+}
+
+function listWorkspaceItems(args, knowledgeBase) {
+  const category = normalizeCategory(args.category);
+  const prefix = normalizePath(args.path_prefix).toLowerCase();
+  const limit = boundedInteger(args.limit, 50, 1, MAX_LIST_RESULTS);
+  const matches = knowledgeBase.items.filter(
+    (item) =>
+      (category === "all" || item.category === category) &&
+      (!prefix || (item.path || item.name).toLowerCase().startsWith(prefix))
+  );
+  return JSON.stringify(
+    {
+      items: matches.slice(0, limit).map(itemCatalogEntry),
+      returned: Math.min(matches.length, limit),
+      total_matches: matches.length,
+      truncated: matches.length > limit
+    },
+    null,
+    2
+  );
+}
+
+function searchTokens(value) {
+  return [...new Set(
+    String(value || "")
+      .toLowerCase()
+      .match(/[a-z0-9][a-z0-9._-]{1,}|[\u3400-\u9fff]{2,}/g) || []
+  )];
+}
+
+function evidenceSnippet(content, tokens, maxCharacters = 700) {
+  const value = String(content || "");
+  if (!value) return "";
+  const lower = value.toLowerCase();
+  const positions = tokens
+    .map((token) => lower.indexOf(token))
+    .filter((position) => position >= 0);
+  const start = positions.length
+    ? Math.max(0, Math.min(...positions) - Math.floor(maxCharacters / 4))
+    : 0;
+  const snippet = value.slice(start, start + maxCharacters);
+  return `${start ? "…" : ""}${snippet}${start + snippet.length < value.length ? "…" : ""}`;
+}
+
+function searchWorkspaceItems(args, knowledgeBase) {
+  const query = String(args.query || "").trim().slice(0, 1000);
+  if (!query) return JSON.stringify({ error: "query is required" });
+  const category = normalizeCategory(args.category);
+  const limit = boundedInteger(args.limit, 8, 1, MAX_SEARCH_RESULTS);
+  const tokens = searchTokens(query);
+  const results = knowledgeBase.items
+    .filter((item) => category === "all" || item.category === category)
+    .map((item) => {
+      const metadata = `${item.name} ${item.path} ${item.category} ${item.source} ${JSON.stringify(item.metadata)}`.toLowerCase();
+      const evidence = item.content.toLowerCase();
+      const metadataMatches = tokens.filter((token) => metadata.includes(token));
+      const evidenceMatches = tokens.filter((token) => evidence.includes(token));
+      const score = metadataMatches.length * 8 + evidenceMatches.length * 3;
+      return {
+        item,
+        score,
+        matchedTokens: [...new Set([...metadataMatches, ...evidenceMatches])]
+      };
+    })
+    .filter((result) => result.score > 0)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        (left.item.path || left.item.name).localeCompare(
+          right.item.path || right.item.name
+        )
+    )
+    .slice(0, limit)
+    .map((result) => ({
+      ...itemCatalogEntry(result.item),
+      matched_terms: result.matchedTokens,
+      snippet: evidenceSnippet(result.item.content, result.matchedTokens)
+    }));
+  return JSON.stringify({ query, results, returned: results.length }, null, 2);
+}
+
+function readWorkspaceItem(args, knowledgeBase) {
+  const itemId = String(args.item_id || "").trim();
+  const item = knowledgeBase.itemsById.get(itemId);
+  if (!item) {
+    return JSON.stringify({
+      error: "Unknown workspace item id.",
+      item_id: itemId
+    });
+  }
+  if (!item.content) {
+    return JSON.stringify(
+      {
+        ...itemCatalogEntry(item),
+        error:
+          "Processed content is unavailable for this item in the current request. Its catalog entry proves only that it exists."
+      },
+      null,
+      2
+    );
+  }
+  const offset = boundedInteger(
+    args.offset,
+    0,
+    0,
+    Math.max(0, item.content.length)
+  );
+  const maxCharacters = boundedInteger(
+    args.max_characters,
+    12000,
+    200,
+    MAX_READ_CHARACTERS
+  );
+  const content = item.content.slice(offset, offset + maxCharacters);
+  return JSON.stringify(
+    {
+      ...itemCatalogEntry(item),
+      offset,
+      content,
+      next_offset:
+        offset + content.length < item.content.length
+          ? offset + content.length
+          : null,
+      total_characters: item.content.length
+    },
+    null,
+    2
+  );
+}
+
+function readProjectContext(args, knowledgeBase) {
+  const contextId = String(args.context_id || "").trim();
+  const record = knowledgeBase.projectContext.get(contextId);
+  if (!record) {
+    return JSON.stringify({
+      error: "Unknown project-context id.",
+      context_id: contextId
+    });
+  }
+  return JSON.stringify(
+    {
+      id: record.id,
+      label: record.label,
+      content: record.content
+    },
+    null,
+    2
+  );
+}
+
+const SIDE_CHAT_TOOL_HANDLERS = Object.freeze({
+  list_workspace_items: listWorkspaceItems,
+  search_workspace_items: searchWorkspaceItems,
+  read_workspace_item: readWorkspaceItem,
+  read_project_context: readProjectContext
+});
+
+// Hooks keep policy and result budgeting outside the stable agent loop.
+const SIDE_CHAT_HOOKS = Object.freeze({
+  PreToolUse: Object.freeze([
+    (toolCall) => {
+      const name = toolCall?.function?.name;
+      if (!SIDE_CHAT_TOOL_NAMES.has(name)) {
+        return `Blocked: '${String(name || "unknown")}' is not a Side Chat read-only tool.`;
+      }
+      return null;
+    }
+  ]),
+  PostToolUse: Object.freeze([
+    (_toolCall, output) => {
+      const value = String(output || "");
+      if (value.length <= MAX_TOOL_RESULT_CHARACTERS) return value;
+      return `${value.slice(0, MAX_TOOL_RESULT_CHARACTERS)}\n[Result truncated; call the same read-only tool with a narrower query or later offset.]`;
+    }
+  ]),
+  Stop: Object.freeze([])
+});
+
+function triggerSideChatHooks(event, ...args) {
+  let value = null;
+  for (const hook of SIDE_CHAT_HOOKS[event] || []) {
+    const result = hook(...args);
+    if (result !== null && result !== undefined) value = result;
+  }
+  return value;
+}
+
+function parseToolArguments(toolCall) {
+  const raw = toolCall?.function?.arguments;
+  if (isPlainObject(raw)) return raw;
+  if (typeof raw !== "string" || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isPlainObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function executeSideChatTool(toolCall, knowledgeBase) {
+  const blocked = triggerSideChatHooks("PreToolUse", toolCall);
+  if (blocked) return String(blocked);
+  const args = parseToolArguments(toolCall);
+  if (!args) return "Error: tool arguments must be one valid JSON object.";
+  const handler = SIDE_CHAT_TOOL_HANDLERS[toolCall.function.name];
+  let output;
+  try {
+    output = handler(args, knowledgeBase);
+  } catch (error) {
+    output = `Error: ${String(error?.message || error).slice(0, 500)}`;
+  }
+  return String(
+    triggerSideChatHooks("PostToolUse", toolCall, output) ?? output
+  );
+}
+
+function estimateMessageCharacters(messages) {
+  return JSON.stringify(messages || []).length;
+}
+
+function cloneAgentMessage(message) {
+  return {
+    ...message,
+    ...(Array.isArray(message?.tool_calls)
+      ? {
+          tool_calls: message.tool_calls.map((toolCall) => ({
+            ...toolCall,
+            function: { ...(toolCall.function || {}) }
+          }))
+        }
+      : {})
+  };
+}
+
+function compactSideChatAgentMessages(
+  messages,
+  activeRequest,
+  characterLimit = AGENT_CONTEXT_CHARACTER_LIMIT
+) {
+  let compacted = (Array.isArray(messages) ? messages : []).map(cloneAgentMessage);
+  const toolIndexes = compacted
+    .map((message, index) => (message.role === "tool" ? index : -1))
+    .filter((index) => index >= 0);
+
+  for (const index of toolIndexes.slice(0, -KEEP_RECENT_TOOL_RESULTS)) {
+    const content = String(compacted[index].content || "");
+    if (content.length <= 1200) continue;
+    compacted[index].content = `${content.slice(0, 700)}\n[Earlier read result compacted. Call the same read-only tool again to recover detail.]`;
+  }
+
+  if (estimateMessageCharacters(compacted) <= characterLimit) return compacted;
+
+  const firstToolCallIndex = compacted.findIndex(
+    (message) =>
+      message.role === "assistant" && Array.isArray(message.tool_calls)
+  );
+  const traceStart = firstToolCallIndex >= 0 ? firstToolCallIndex : compacted.length;
+  const systemMessages = compacted.filter(
+    (message, index) => index < traceStart && message.role === "system"
+  );
+  const conversation = compacted.filter(
+    (message, index) => index < traceStart && message.role !== "system"
+  );
+  const trace = compacted.slice(traceStart);
+  const activeQuestion = String(activeRequest || "").trim();
+  const selectedConversation = [];
+  let remaining = Math.max(
+    12000,
+    characterLimit - estimateMessageCharacters([...systemMessages, ...trace]) - 4000
+  );
+
+  for (let index = conversation.length - 1; index >= 0; index -= 1) {
+    const message = conversation[index];
+    const size = estimateMessageCharacters([message]);
+    const isActiveQuestion =
+      message.role === "user" &&
+      activeQuestion &&
+      String(message.content || "").includes(activeQuestion);
+    if (size <= remaining || isActiveQuestion) {
+      selectedConversation.unshift(message);
+      remaining = Math.max(0, remaining - size);
+    }
+  }
+  while (selectedConversation[0]?.role === "assistant") {
+    selectedConversation.shift();
+  }
+
+  const removedCount = conversation.length - selectedConversation.length;
+  compacted = [
+    ...systemMessages,
+    ...(removedCount
+      ? [
+          {
+            role: "system",
+            content: `Earlier conversation compacted in memory (${removedCount} message(s) omitted). Preserve the current request exactly: ${activeQuestion}`
+          }
+        ]
+      : []),
+    ...selectedConversation,
+    ...trace
+  ];
+
+  if (estimateMessageCharacters(compacted) > characterLimit) {
+    compacted = compacted.map((message) => {
+      if (message.role !== "tool") return message;
+      const content = String(message.content || "");
+      return content.length > 700
+        ? {
+            ...message,
+            content: `${content.slice(0, 500)}\n[Read result compacted; call the tool again for detail.]`
+          }
+        : message;
+    });
+  }
+  return compacted;
+}
+
+function normalizeToolCalls(message) {
+  return (Array.isArray(message?.tool_calls) ? message.tool_calls : [])
+    .filter((toolCall) => toolCall && toolCall.type === "function")
+    .map((toolCall, index) => ({
+      id: String(toolCall.id || `side-chat-tool-${index + 1}`),
+      type: "function",
+      function: {
+        name: String(toolCall.function?.name || ""),
+        arguments:
+          typeof toolCall.function?.arguments === "string"
+            ? toolCall.function.arguments
+            : JSON.stringify(toolCall.function?.arguments || {})
+      }
+    }));
+}
+
+function latestUserRequest(messages) {
+  for (let index = (messages || []).length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "user") {
+      return String(messages[index].content || "").trim();
+    }
+  }
+  return "";
+}
+
+function isContextLengthFailure(result) {
+  const text = `${result?.error || ""} ${result?.reason || ""} ${result?.message || ""}`.toLowerCase();
+  return [
+    "prompt_too_long",
+    "prompt too long",
+    "context_length_exceeded",
+    "context length",
+    "too many tokens",
+    "maximum context"
+  ].some((marker) => text.includes(marker));
+}
+
+async function runSideChatAgent({
+  conversationMessages,
+  workspaceContext,
+  systemPrompt,
+  requestTurn,
+  parseFinalAnswer
+}) {
+  const knowledgeBase = createSideChatKnowledgeBase(workspaceContext);
+  const activeRequest = latestUserRequest(conversationMessages);
+  let agentMessages = [
+    { role: "system", content: systemPrompt },
+    { role: "system", content: buildSideChatCatalog(knowledgeBase) },
+    ...(Array.isArray(conversationMessages) ? conversationMessages : [])
+  ];
+  let totalToolCalls = 0;
+  let reactiveCompactionRetries = 0;
+
+  for (let step = 0; step < MAX_AGENT_STEPS; step += 1) {
+    agentMessages = compactSideChatAgentMessages(
+      agentMessages,
+      activeRequest
+    );
+    const turn = await requestTurn({
+      messages: agentMessages,
+      tools: SIDE_CHAT_TOOL_DEFINITIONS,
+      temperature: 0.2
+    });
+    if (!turn.ok) {
+      if (
+        reactiveCompactionRetries < 1 &&
+        isContextLengthFailure(turn)
+      ) {
+        reactiveCompactionRetries += 1;
+        agentMessages = compactSideChatAgentMessages(
+          agentMessages,
+          activeRequest,
+          Math.floor(AGENT_CONTEXT_CHARACTER_LIMIT * 0.55)
+        );
+        step -= 1;
+        continue;
+      }
+      return turn;
+    }
+
+    const toolCalls = normalizeToolCalls(turn.message);
+    if (!toolCalls.length) {
+      const parsed = parseFinalAnswer(turn.message?.content);
+      if (!parsed) {
+        return {
+          ok: false,
+          error: "InvalidLlmResponse",
+          reason: "Model returned no usable Side Chat answer."
+        };
+      }
+      triggerSideChatHooks("Stop", agentMessages, parsed);
+      return { ok: true, data: parsed };
+    }
+
+    agentMessages.push({
+      role: "assistant",
+      content:
+        typeof turn.message?.content === "string"
+          ? turn.message.content
+          : null,
+      tool_calls: toolCalls
+    });
+
+    for (const toolCall of toolCalls) {
+      totalToolCalls += 1;
+      const output =
+        totalToolCalls <= MAX_TOTAL_TOOL_CALLS
+          ? executeSideChatTool(toolCall, knowledgeBase)
+          : "Blocked: Side Chat reached its bounded read-only tool-call budget. Answer from the evidence already loaded.";
+      agentMessages.push({
+        role: "tool",
+        tool_call_id: toolCall.id,
+        name: toolCall.function.name,
+        content: output
+      });
+    }
+  }
+
+  const finalMessages = compactSideChatAgentMessages(
+    [
+      {
+        ...agentMessages[0],
+        content: `${agentMessages[0].content}\n\nThe bounded inspection loop is complete. Do not call more tools; answer the current question now from the evidence already loaded, and state any limitation.`
+      },
+      ...agentMessages.slice(1)
+    ],
+    activeRequest
+  );
+  const finalTurn = await requestTurn({
+    messages: finalMessages,
+    tools: [],
+    temperature: 0.2
+  });
+  if (!finalTurn.ok) return finalTurn;
+  const parsed = parseFinalAnswer(finalTurn.message?.content);
+  return parsed
+    ? { ok: true, data: parsed }
+    : {
+        ok: false,
+        error: "SideChatStepLimit",
+        reason: "Side Chat reached its inspection limit without a usable final answer."
+      };
+}
+
+module.exports = {
+  SIDE_CHAT_TOOL_DEFINITIONS,
+  buildSideChatCatalog,
+  compactSideChatAgentMessages,
+  createSideChatKnowledgeBase,
+  executeSideChatTool,
+  runSideChatAgent
+};

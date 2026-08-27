@@ -23,6 +23,7 @@ Original PDFs, workspace metadata, project state, literature indexes, and genera
 - `docs/project-context-service.js` - bounded project/file context construction plus workspace-backed Side Chat persistence.
 - `docs/app.js` - UI integration, authentication, Workspace explorer, Side Chat, and workspace lifecycle.
 - `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`).
+- `alibaba-fc/side-chat-agent.js` - bounded answer-only Side Chat loop with read-only workspace inspection tools.
 - `worker/` - retained alternate Cloudflare Worker backend.
 
 ## Workspace structure
@@ -116,7 +117,7 @@ Both require the existing JWT bearer token. Deployment instructions and legacy O
 
 The left column has one generic Workspace explorer beneath Project Context. Checkboxes provide multi-file selection, the current context is shown as removable chips above Side Chat, and no selection means **Entire Project**. Project scope uses the saved goal/state, processed paper summaries, and file inventory without pretending that unprocessed files were read.
 
-Side Chat sends bounded recent conversation history, the current question, and the context prepared for that turn to the existing authenticated `/chat` endpoint. Each user message stores its own project/file context snapshot. The active conversation is restored from `.biodesign/chat/` when the same workspace is reopened; **Clear chat** deletes only that conversation.
+Side Chat sends bounded recent conversation history, the current question, and the context prepared for that turn to the existing authenticated `/chat` endpoint. The backend exposes a compact workspace catalog first, then runs a bounded answer-only loop whose tools can list, search, and read only the supplied context or recall already-saved project context. It has no command, write, edit, delete, task, Agent Work, or recommendation tool. Internal inspection turns are compacted in memory and only the final answer returns to the browser. Each user message stores its own project/file context snapshot. The active conversation is restored from `.biodesign/chat/` when the same workspace is reopened; **Clear chat** deletes only that conversation.
 
 PDF is the only robust content processor in this milestone. Files such as `.xlsx`, `.csv`, `.fasta`, and `.txt` remain first-class visible workspace files, but Side Chat reports them as unsupported rather than inferring their contents. Embeddings, vector search, full RAG, Excel analysis, OCR, cloud sync, and automatic directory-handle restoration remain out of scope.
 
