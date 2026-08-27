@@ -821,6 +821,8 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
       };
     },
   };
+  const synthesisCalls = [];
+  const operationOrder = [];
   const literature = new LiteratureModule({
     workspace: manager,
     pdfjsLib,
@@ -835,6 +837,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
       }),
       synthesize: async ({ filename }) => {
         synthesisCalls.push(filename);
+        operationOrder.push(`paper-card:${filename}`);
         return {
           ...cards[filename],
           keyResults: cards[filename].mainFindings || [],
@@ -844,7 +847,6 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
       },
     },
   });
-  const synthesisCalls = [];
   await literature.scan();
   const ids = Object.fromEntries(
     literature.documents.map((document) => [document.filename, document.id])
@@ -861,6 +863,11 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   };
   const workspaceTree = await manager.scanDirectoryTree();
   const service = new ProjectContextService({ workspace: manager, literature });
+  const originalMatchPapers = service.matchPapers.bind(service);
+  service.matchPapers = async (...args) => {
+    operationOrder.push("match-papers");
+    return originalMatchPapers(...args);
+  };
   manager.state.memory.projectSummary = "Saved EctD project memory.";
 
   const routerPayloads = [];
@@ -929,6 +936,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(camelCaseUiQuestion.literature.discoveryMode, "not-needed");
   assert.deepEqual(synthesisCalls, []);
 
+  operationOrder.length = 0;
   const selectedA = await service.buildContext({
     question: "Summarize the selected paper.",
     selectedPaths: ["literature/paper-a.pdf"],
@@ -939,6 +947,27 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(selectedA.literature.relevantPaperIds, [ids["paper-a.pdf"]]);
   assert.deepEqual(selectedA.files.map((file) => file.paperId), [ids["paper-a.pdf"]]);
   assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
+  assert.deepEqual(operationOrder.slice(0, 2), [
+    "paper-card:paper-a.pdf",
+    "match-papers",
+  ]);
+
+  operationOrder.length = 0;
+  const selectedAWithCard = await service.buildContext({
+    question: "Summarize the selected paper again.",
+    selectedPaths: ["literature/paper-a.pdf"],
+    selectedPaperIds: [ids["paper-a.pdf"]],
+    workspaceTree,
+  });
+  assert.deepEqual(selectedAWithCard.literature.relevantPaperIds, [
+    ids["paper-a.pdf"],
+  ]);
+  assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
+  assert.equal(operationOrder[0], "match-papers");
+  assert.equal(
+    operationOrder.some((operation) => operation.startsWith("paper-card:")),
+    false
+  );
 
   const selectedButUnrelated = await service.buildContext({
     question: "Change the interface language to Chinese.",

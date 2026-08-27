@@ -23,7 +23,7 @@
   const DETAIL_QUESTION_PATTERN =
     /\b(exact|concentration|dose|dosage|amount|value|third|second|first|figure|table|supplement|time|duration|temperature|ph|rpm|od\d*|measur(?:e|ed|ement)|assay|protocol|condition|replicate|statistical|significance|mutation|variant|methods?|experimental designs?|designs?|kcat|km|hplc|quote|quotation|equation|formula|detailed conclusion|how many|how much)\b|\b[A-Z]\d{1,5}[A-Z]\b|浓度|剂量|数值|图\s*\d|表\s*\d|时间|温度|转速|测量|实验条件|实验设计|方法|重复|显著性|突变|引用|原文|方程|公式/i;
   const PROJECT_METADATA_QUESTION_PATTERN =
-    /\b(what files|which files|files are selected|current selection|workspace contain|project goal|project context|what are we trying to achieve)\b|选择了哪些文件|当前选择|工作区.*文件|项目目标|项目背景/i;
+    /\b(what files|which files|files are selected|current selection|workspace contain|project goal|project context|project summary|saved (?:project|literature|experimental) summary|summarize (?:the )?project|what are we trying to achieve)\b|选择了哪些文件|当前选择|工作区.*文件|项目目标|项目背景|项目摘要|已保存的(?:项目|文献|实验)摘要/i;
   const LITERATURE_QUESTION_PATTERN =
     /\b(paper|papers|article|articles|study|studies|literature|publication|authors?|findings?|methods?|limitations?|conclusions?|compare|evidence|reported|according to|summarize|summary)\b|论文|文献|研究|作者|发现|方法|局限|结论|比较|证据|报道|总结|摘要/i;
   const LITERATURE_FOLLOW_UP_PATTERN =
@@ -759,6 +759,20 @@
       const selectedNonPaperFiles = selectedFiles.filter(
         (file) => !selectedPaperPaths.has(file.relativePath)
       );
+      const question = String(options.question || "");
+      const paperQuestion = questionMayNeedLiterature(question);
+
+      // Side Chat's one allowed project mutation happens before routing: create
+      // missing local Paper Cards for the explicit paper scope, or for the
+      // literature library when no paper is selected. Existing ready cards are
+      // reused, so matching always sees the best available compact index.
+      if (paperQuestion) {
+        await this.ensurePaperCards(
+          selectedPaperIds.length ? selectedPaperIds : null,
+          options
+        );
+      }
+
       const conversationContext = this.buildConversationContext(options.conversation);
       const recentIds = conversationContext.recentlyDiscussedPaperIds.filter(
         (paperId) =>
@@ -767,14 +781,12 @@
               document.id === paperId && document.paperCardStatus === "ready"
           )
       );
-      const question = String(options.question || "");
       const followUpNeedsLiterature = Boolean(
         recentIds.length && LITERATURE_FOLLOW_UP_PATTERN.test(question)
       );
       const memoryDescriptions = this.buildMemoryDescriptions();
       let matches = await this.matchPapers(question, {
         topK: Math.min(5, this.limits.maxEvidenceFiles),
-        readyOnly: false,
         ...(selectedPaperIds.length
           ? { candidatePaperIds: selectedPaperIds }
           : {}),
@@ -800,7 +812,6 @@
       let discoveryMode = "not-needed";
       if (routing.useLiterature) {
         if (selectedPaperIds.length) {
-          await this.ensurePaperCards(selectedPaperIds, options);
           relevantPaperIds = selectedPaperIds.filter((paperId) =>
             this.literature.documents.some(
               (document) =>
@@ -814,15 +825,8 @@
             routedPaperIds = recentIds;
           }
           if (!routedPaperIds.length) {
-            const pendingMatches = await this.matchPapers(question, {
-              topK: Math.min(5, this.limits.maxEvidenceFiles),
-              readyOnly: false,
-              candidateStatuses: ["pending", "failed"],
-              minimumScore: 10,
-            });
-            routedPaperIds = pendingMatches.map((match) => match.paperId);
+            routedPaperIds = matches.map((match) => match.paperId);
           }
-          await this.ensurePaperCards(routedPaperIds.length ? routedPaperIds : null, options);
           const readyIds = new Set(
             this.literature.documents
               .filter((document) => document.paperCardStatus === "ready")

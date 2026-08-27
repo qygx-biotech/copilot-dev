@@ -70,7 +70,7 @@ function makeWorkspaceContext() {
   };
 }
 
-test("Side Chat exposes only read-only tools", () => {
+test("the backend Side Chat loop exposes only read-only tools", () => {
   const names = SIDE_CHAT_TOOL_DEFINITIONS.map((tool) => tool.function.name);
   assert.deepEqual(names, [
     "list_workspace_items",
