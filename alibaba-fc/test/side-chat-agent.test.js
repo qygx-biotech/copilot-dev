@@ -342,6 +342,74 @@ test("a large workspace keeps a compact catalog while tools retain the full inde
   assert.match(listed.items[0].path, /^literature\/500-/);
 });
 
+test("the current source registry overrides stale chat claims about missing nested papers", async () => {
+  const workspaceContext = {
+    localWorkspaceContext: {
+      scope: { type: "project", files: [] },
+      sourceMap: {
+        sourceCounts: {
+          papersDiscovered: 32,
+          papersSearchable: 0,
+        },
+      },
+      inventory: Array.from({ length: 32 }, (_, index) => ({
+        paperId: `P${index + 1}`,
+        sourceId: `P${index + 1}`,
+        sourceKind: "paper",
+        name: `paper-${index + 1}.pdf`,
+        relativePath: `literature/imported-library/paper-${index + 1}.pdf`,
+        extension: "pdf",
+        processor: "pdf",
+        parseStatus: "not_started",
+        indexStatus: "not_started",
+      })),
+    },
+  };
+  const knowledgeBase = createSideChatKnowledgeBase(workspaceContext);
+  const catalog = buildSideChatCatalog(knowledgeBase);
+  assert.match(catalog, /32 paper\(s\) discovered; 0 searchable/i);
+  assert.match(catalog, /supersede older conversation claims/i);
+
+  const listed = JSON.parse(
+    executeSideChatTool(toolCall("list_papers", { limit: 50 }), knowledgeBase)
+  );
+  assert.equal(listed.total_matches, 32);
+  assert.ok(
+    listed.items.every((item) =>
+      item.path.startsWith("literature/imported-library/")
+    )
+  );
+
+  let firstTurnMessages = null;
+  const result = await runSideChatAgent({
+    conversationMessages: [
+      {
+        role: "assistant",
+        content: "Only .DS_Store exists and folder permission is unavailable.",
+      },
+      { role: "user", content: "Restart the analysis process." },
+    ],
+    workspaceContext,
+    systemPrompt: "Current system catalog facts override stale assistant claims.",
+    parseFinalAnswer: (content) => ({ reply: content }),
+    requestTurn: async ({ messages }) => {
+      firstTurnMessages = messages;
+      return {
+        ok: true,
+        message: {
+          content: "The current registry contains 32 nested papers; I will not rely on the stale missing-file claim.",
+        },
+      };
+    },
+  });
+  assert.match(result.data.reply, /32 nested papers/i);
+  assert.ok(
+    firstTurnMessages.some(
+      (message) => message.role === "system" && /32 paper\(s\) discovered/.test(message.content)
+    )
+  );
+});
+
 test("the pre-tool hook blocks action tools even when the model invents one", () => {
   const knowledgeBase = createSideChatKnowledgeBase(makeWorkspaceContext());
   const result = executeSideChatTool(

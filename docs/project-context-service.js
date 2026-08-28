@@ -1388,7 +1388,9 @@
     applyProgressiveInventory(context, question) {
       if (
         PROJECT_METADATA_QUESTION_PATTERN.test(String(question || "")) ||
-        SOURCE_CATALOG_QUESTION_PATTERN.test(String(question || ""))
+        SOURCE_CATALOG_QUESTION_PATTERN.test(String(question || "")) ||
+        CORPUS_FAILURE_FOLLOW_UP_PATTERN.test(String(question || "")) ||
+        MANAGED_WORKER_RECOVERY_PATTERN.test(String(question || ""))
       ) return;
       const activeSourceIds = new Set([
         ...(context.sourceMap?.selectedPaperIds || []),

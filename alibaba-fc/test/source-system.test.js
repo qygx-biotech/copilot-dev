@@ -239,7 +239,13 @@ test("TEST A: 32 discovered and 0 searchable starts full corpus preparation and 
       1000
     );
   }
-  const system = await makeSystem(workspace);
+  let mapCalls = 0;
+  const system = await makeSystem(workspace, {
+    async mapWorker(input) {
+      mapCalls += 1;
+      return validMapFor(input, `corpus theme ${mapCalls % 4}`);
+    },
+  });
   await system.registry.reconcile(treeFor(workspace));
   const literature = makeLiteratureHarness(system);
   const service = new ProjectContextService({ workspace, literature });
@@ -264,10 +270,104 @@ test("TEST A: 32 discovered and 0 searchable starts full corpus preparation and 
   assert.equal(system.registry.counts().papersSearchable, 32);
   assert.equal(system.preparation.metrics.fullHashCalls, 32);
   assert.equal(system.parseCalls, 32);
+  assert.equal(mapCalls, 32);
   assert.equal(context.files[0].evidenceType, "corpus-workflow");
   assert.ok(progress.some((update) => update.stage === "corpus-prepare"));
   assert.ok(progress.some((update) => update.stage === "corpus-map"));
+  const completedMapUpdates = progress.filter(
+    (update) => update.stage === "corpus-map" && update.paperId
+  );
+  assert.deepEqual(
+    completedMapUpdates.map((update) => update.completed),
+    Array.from({ length: 32 }, (_, index) => index + 1)
+  );
+  assert.ok(completedMapUpdates.every((update) => update.total === 32));
+  assert.ok(completedMapUpdates.every((update) => update.outcome === "analyzed"));
+  assert.equal(new Set(completedMapUpdates.map((update) => update.paperId)).size, 32);
   assert.doesNotMatch(context.files[0].content, /cannot summarize|cannot analyze/i);
+});
+
+test("restart follow-ups retain all nested literature metadata despite stale chat claims", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/.DS_Store", "metadata", 1000);
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(
+      `literature/imported-library/paper-${String(index).padStart(2, "0")}.pdf`,
+      `Nested paper ${index}.`,
+      1000
+    );
+  }
+  const nestedTree = {
+    name: "workspace",
+    relativePath: "",
+    type: "directory",
+    children: [
+      {
+        name: "literature",
+        relativePath: "literature",
+        type: "directory",
+        children: [
+          {
+            name: ".DS_Store",
+            relativePath: "literature/.DS_Store",
+            type: "file",
+            size: workspace.files.get("literature/.DS_Store").size,
+            lastModified: 1000,
+            children: [],
+          },
+          {
+            name: "imported-library",
+            relativePath: "literature/imported-library",
+            type: "directory",
+            children: Array.from({ length: 32 }, (_, index) => {
+              const relativePath = `literature/imported-library/paper-${String(index + 1).padStart(2, "0")}.pdf`;
+              const file = workspace.files.get(relativePath);
+              return {
+                name: relativePath.split("/").at(-1),
+                relativePath,
+                type: "file",
+                size: file.size,
+                lastModified: file.lastModified,
+                children: [],
+              };
+            }),
+          },
+        ],
+      },
+    ],
+  };
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(nestedTree);
+  const literature = makeLiteratureHarness(system);
+  const service = new ProjectContextService({ workspace, literature });
+
+  const context = await service.buildContext({
+    question: "Restart the analysis processing workflow.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: nestedTree,
+    conversation: {
+      messages: [
+        {
+          id: "old-assistant-claim",
+          role: "assistant",
+          content: "There are no readable literature files; only .DS_Store is present.",
+          createdAt: "2026-08-28T10:00:00.000Z",
+        },
+      ],
+    },
+  });
+
+  const paperInventory = context.inventory.filter(
+    (item) => item.sourceKind === "paper"
+  );
+  assert.equal(system.registry.counts().papersDiscovered, 32);
+  assert.equal(paperInventory.length, 32);
+  assert.ok(
+    paperInventory.every((item) =>
+      item.relativePath.startsWith("literature/imported-library/")
+    )
+  );
 });
 
 test("corpus intent detector covers English and Chinese whole-library requests", () => {

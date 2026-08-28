@@ -3023,25 +3023,35 @@
       });
 
       journal.phase = "map";
-      await persist({
-        stage: "corpus-map",
-        completed: Object.keys(journal.maps).length +
-          Object.keys(journal.prepareFailures).length,
-        total: sourceIds.length,
-      });
       const readySourceIds = sourceIds.filter(
         (sourceId) => journal.prepareCompleted[sourceId]
       );
-      const mapSourceIds = retryPaperIds.length
-        ? readySourceIds.filter((sourceId) => {
-            const source = this.registry.get(sourceId);
-            const mapped = journal.maps[sourceId];
-            return retryPaperIdSet.has(sourceId) ||
-              !mapped ||
-              mapped.contentHash !== source?.contentHash ||
-              mapped.statSignature !== source?.statSignature;
-          })
-        : readySourceIds;
+      const mapSourceIds = readySourceIds.filter((sourceId) => {
+        const source = this.registry.get(sourceId);
+        const mapped = journal.maps[sourceId];
+        return retryPaperIdSet.has(sourceId) ||
+          !mapped ||
+          mapped.contentHash !== source?.contentHash ||
+          mapped.statSignature !== source?.statSignature;
+      });
+      const mapSourceIdSet = new Set(mapSourceIds);
+      const mapProgressPaperIds = new Set(
+        sourceIds.filter((sourceId) => {
+          if (mapSourceIdSet.has(sourceId)) return false;
+          const source = this.registry.get(sourceId);
+          const mapped = journal.maps[sourceId];
+          return Boolean(
+            mapped &&
+            mapped.contentHash === source?.contentHash &&
+            mapped.statSignature === source?.statSignature
+          );
+        })
+      );
+      await persist({
+        stage: "corpus-map",
+        completed: mapProgressPaperIds.size,
+        total: sourceIds.length,
+      });
       await runBounded(mapSourceIds, mapConcurrency, async (sourceId) => {
         const readySource = this.registry.get(sourceId);
         const completed = journal.maps[sourceId];
@@ -3171,9 +3181,7 @@
             journal.status = "paused";
             await persist({
               stage: "corpus-map",
-              completed: Object.keys(journal.maps).length +
-                Object.keys(journal.mapFailures).length +
-                Object.keys(journal.prepareFailures).length,
+              completed: mapProgressPaperIds.size,
               total: sourceIds.length,
             });
             throw error;
@@ -3194,12 +3202,13 @@
           }
           delete journal.maps[sourceId];
         }
+        mapProgressPaperIds.add(sourceId);
         await persist({
           stage: "corpus-map",
-          completed: Object.keys(journal.maps).length +
-            Object.keys(journal.mapFailures).length +
-            Object.keys(journal.prepareFailures).length,
+          completed: mapProgressPaperIds.size,
           total: sourceIds.length,
+          paperId: sourceId,
+          outcome: journal.maps[sourceId] ? "analyzed" : "failed",
         });
       });
 

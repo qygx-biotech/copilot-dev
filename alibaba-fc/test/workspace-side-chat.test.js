@@ -305,6 +305,10 @@ test("workspace open, login, and Refresh never generate Paper Cards", () => {
   );
   const refreshLiterature = sliceFunction(
     "async function refreshLiterature",
+    "async function reconcileCurrentWorkspaceCatalog"
+  );
+  const reconcileWorkspace = sliceFunction(
+    "async function reconcileCurrentWorkspaceCatalog",
     "async function refreshWorkspaceExplorer"
   );
   const refreshWorkspace = sliceFunction(
@@ -318,10 +322,32 @@ test("workspace open, login, and Refresh never generate Paper Cards", () => {
   assert.doesNotMatch(openWorkspace, eagerPattern);
   assert.match(refreshLiterature, /literatureModule\.scan\(\)/);
   assert.doesNotMatch(refreshLiterature, eagerPattern);
-  assert.match(refreshWorkspace, /literatureModule\.scan\(\{ tree: nextTree \}\)/);
+  assert.match(refreshWorkspace, /reconcileCurrentWorkspaceCatalog\(\)/);
   assert.doesNotMatch(refreshWorkspace, eagerPattern);
+  assert.match(reconcileWorkspace, /literatureModule\.scan\(\{ tree: nextTree \}\)/);
+  assert.doesNotMatch(reconcileWorkspace, eagerPattern);
   assert.match(moduleSource, /async addFiles\([\s\S]*?const documents = await this\.scan\(\)/);
   assert.match(moduleSource, /async ensurePaperCards\(/);
+});
+
+test("Side Chat reconciles current nested-file metadata before routing without eager processing", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const chatStart = appSource.indexOf("async function askSideChat");
+  const chatEnd = appSource.indexOf("function updateSideChatThinking", chatStart);
+  const chatFunction = appSource.slice(chatStart, chatEnd);
+  const reconcileCall = chatFunction.indexOf("await reconcileCurrentWorkspaceCatalog()");
+  const contextBuild = chatFunction.indexOf("projectContextService.buildContext");
+
+  assert.ok(reconcileCall >= 0);
+  assert.ok(contextBuild > reconcileCall);
+  assert.doesNotMatch(
+    chatFunction.slice(0, contextBuild),
+    /ensurePaperCards|\.summarize\(|ensureSourceReady/
+  );
+  assert.match(appSource, /scanDirectoryTree\(\)[\s\S]*literatureModule\.scan\(\{ tree: nextTree \}\)/);
 });
 
 test("Workspace rows preserve full names while clamping long files to two lines", () => {

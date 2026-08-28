@@ -727,10 +727,25 @@ function buildSideChatCatalog(knowledgeBase) {
         .map((notice) => `- ${singleLineCatalogText(notice, 700)}`)
         .join("\n")
     : "- none";
+  const hasPaperCounts = isPlainObject(knowledgeBase.sourceMap?.sourceCounts) &&
+    (Object.hasOwn(knowledgeBase.sourceMap.sourceCounts, "papersDiscovered") ||
+      Object.hasOwn(knowledgeBase.sourceMap.sourceCounts, "papersSearchable"));
+  const papersDiscovered = Math.max(
+    0,
+    Number(knowledgeBase.sourceMap?.sourceCounts?.papersDiscovered) || 0
+  );
+  const papersSearchable = Math.max(
+    0,
+    Number(knowledgeBase.sourceMap?.sourceCounts?.papersSearchable) || 0
+  );
+  const registryState = hasPaperCounts
+    ? `Current authoritative source registry: ${papersDiscovered} paper(s) discovered; ${papersSearchable} searchable. These current facts supersede older conversation claims about file presence, permissions, readiness, or worker state. A discovered paper exists even when it still needs lazy preparation.`
+    : "Current authoritative source registry: no discovered paper count was supplied for this turn.";
 
   return [
     "Read-only workspace catalog of sources.",
     `Scope: ${scope}`,
+    registryState,
     "The catalog is metadata, not evidence. Load only the records needed for the current question.",
     "Workspace items:",
     itemLines,

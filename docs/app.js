@@ -1341,23 +1341,28 @@ async function refreshLiterature(showMessage = false) {
   }
 }
 
+async function reconcileCurrentWorkspaceCatalog() {
+  const nextTree = await workspaceManager.scanDirectoryTree();
+  const documents = await literatureModule.scan({ tree: nextTree });
+  workspaceTree = nextTree;
+  applyLiteratureScan(documents);
+  const availablePaths = new Set(
+    flattenWorkspaceTree(workspaceTree)
+      .filter((entry) => entry.type === "file")
+      .map((entry) => entry.relativePath)
+  );
+  selectedWorkspacePaths = new Set(
+    [...selectedWorkspacePaths].filter((path) => availablePaths.has(path))
+  );
+  syncWorkspaceSelectionToDocuments();
+  return availablePaths;
+}
+
 async function refreshWorkspaceExplorer(showMessage = false) {
   if (!literatureModule || !workspaceManager.workspace) return;
   refreshWorkspaceButton.disabled = true;
   try {
-    const nextTree = await workspaceManager.scanDirectoryTree();
-    const documents = await literatureModule.scan({ tree: nextTree });
-    workspaceTree = nextTree;
-    applyLiteratureScan(documents);
-    const availablePaths = new Set(
-      flattenWorkspaceTree(workspaceTree)
-        .filter((entry) => entry.type === "file")
-        .map((entry) => entry.relativePath)
-    );
-    selectedWorkspacePaths = new Set(
-      [...selectedWorkspacePaths].filter((path) => availablePaths.has(path))
-    );
-    syncWorkspaceSelectionToDocuments();
+    const availablePaths = await reconcileCurrentWorkspaceCatalog();
     renderWorkspaceExplorer();
     renderSideChatContext();
     if (showMessage) {
@@ -3938,7 +3943,7 @@ async function askSideChat(question) {
   const conversationContext = projectContextService.buildConversationContext(
     sideChatConversation
   );
-  const contextSnapshot = getCurrentChatContextSnapshot();
+  let contextSnapshot = getCurrentChatContextSnapshot();
   const userMessage = {
     id: makeId(),
     role: "user",
@@ -3955,6 +3960,12 @@ async function askSideChat(question) {
 
   try {
     activeLiteratureOperations += 1;
+    // Directory reconciliation is metadata-only: it discovers newly added or
+    // nested papers without hashing, parsing, indexing, or invoking an LLM.
+    await reconcileCurrentWorkspaceCatalog();
+    renderWorkspaceExplorer();
+    contextSnapshot = getCurrentChatContextSnapshot();
+    userMessage.context = contextSnapshot;
     const localWorkspaceContext = await projectContextService.buildContext({
       surface: "side_chat",
       question,
