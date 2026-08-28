@@ -810,6 +810,7 @@ let expandedWorkspacePaths = new Set([""]);
 let projectContextService = null;
 let workspaceChatStore = null;
 let lastSourceUsage = null;
+let activeCorpusProgress = null;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -2278,15 +2279,42 @@ function sourceStatusLabel(source) {
 function renderSideChatContext() {
   if (!sideChatContextChips) return;
   sideChatContextChips.innerHTML = "";
+  if (activeCorpusProgress) {
+    const progress = document.createElement("span");
+    progress.className = "context-chip source-coverage-chip";
+    const phaseLabels = currentLanguage === "zh"
+      ? {
+          prepare: "正在准备论文",
+          map: "正在分析论文",
+          group: "正在归纳主题",
+          reduce: "正在综合主题",
+          verify: "正在核验论断",
+          answer: "正在生成回答",
+        }
+      : {
+          prepare: "Preparing papers",
+          map: "Analyzing papers",
+          group: "Grouping themes",
+          reduce: "Synthesizing themes",
+          verify: "Verifying claims",
+          answer: "Preparing answer",
+        };
+    progress.textContent = `${phaseLabels[activeCorpusProgress.phase] || activeCorpusProgress.phase} · ${activeCorpusProgress.completed || 0}/${activeCorpusProgress.total || 0}`;
+    sideChatContextChips.appendChild(progress);
+  }
   if (lastSourceUsage) {
     const usage = document.createElement("span");
     usage.className = "context-chip source-coverage-chip";
     const literature = lastSourceUsage.literature || {};
     const experiments = lastSourceUsage.experiments || {};
     const coverage = literature.coverage || {};
-    usage.textContent = currentLanguage === "zh"
-      ? `来源：论文 ${literature.relevantPaperIds?.length || 0} · 实验 ${experiments.relevantExperimentIds?.length || 0} · 可检索 ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`
-      : `Sources: ${literature.relevantPaperIds?.length || 0} paper(s) · ${experiments.relevantExperimentIds?.length || 0} experiment(s) · searchable ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`;
+    usage.textContent = literature.corpusWideRequest
+      ? currentLanguage === "zh"
+        ? `来源：${coverage.papersIncludedInSnapshot || 0} 篇论文 · 已分析 ${coverage.papersSuccessfullyAnalyzed || 0}/${coverage.papersIncludedInSnapshot || 0} · 失败 ${coverage.papersFailed || 0} · 缺失 ${coverage.papersMissing || 0}`
+        : `Sources: ${coverage.papersIncludedInSnapshot || 0} papers · analyzed ${coverage.papersSuccessfullyAnalyzed || 0}/${coverage.papersIncludedInSnapshot || 0} · failed ${coverage.papersFailed || 0} · missing ${coverage.papersMissing || 0}`
+      : currentLanguage === "zh"
+        ? `来源：论文 ${literature.relevantPaperIds?.length || 0} · 实验 ${experiments.relevantExperimentIds?.length || 0} · 可检索 ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`
+        : `Sources: ${literature.relevantPaperIds?.length || 0} paper(s) · ${experiments.relevantExperimentIds?.length || 0} experiment(s) · searchable ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`;
     sideChatContextChips.appendChild(usage);
     if (literature.discoveryMode === "automatic" && literature.relevantPaperIds?.length) {
       const names = literature.relevantPaperIds
@@ -3912,6 +3940,7 @@ async function askSideChat(question) {
   addSideChatMessage("user", question);
   const thinkingMessage = addSideChatThinking();
   setSideChatBusy(true);
+  activeCorpusProgress = null;
   let contextPrepared = false;
 
   try {
@@ -3928,6 +3957,10 @@ async function askSideChat(question) {
       enableContextRouter: false,
       signal: workspaceAbortController?.signal,
       onProgress(progress) {
+        if (progress.workflowId) {
+          activeCorpusProgress = progress;
+          renderSideChatContext();
+        }
         updateSideChatThinking(thinkingMessage, progress);
       },
     });
@@ -3935,6 +3968,7 @@ async function askSideChat(question) {
       literature: localWorkspaceContext.literature,
       experiments: localWorkspaceContext.experiments,
     };
+    activeCorpusProgress = null;
     renderSideChatContext();
     userMessage.context.relevantPaperIds = [
       ...(localWorkspaceContext.literature?.relevantPaperIds || []),
@@ -3962,7 +3996,10 @@ async function askSideChat(question) {
         messages: messagesForBackend,
         localWorkspaceContext,
       });
-      reply = response.reply || t("sideChatNoAnswer");
+      reply = appendCorpusCoverage(
+        response.reply || t("sideChatNoAnswer"),
+        localWorkspaceContext.literature
+      );
     }
 
     addSideChatMessage("assistant", reply);
@@ -3984,26 +4021,65 @@ async function askSideChat(question) {
     const reply = contextPrepared
       ? `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`
       : t("sideChatContextFailed", { message: error.message || t("loginFailed") });
-    addSideChatMessage("assistant", reply);
+    const coveredReply = contextPrepared
+      ? appendCorpusCoverage(reply, lastSourceUsage?.literature)
+      : reply;
+    addSideChatMessage("assistant", coveredReply);
     sideChatMessages.push({
       id: makeId(),
       role: "assistant",
-      content: reply,
+      content: coveredReply,
       createdAt: new Date().toISOString(),
     });
     await persistSideChatConversation().catch(() => {});
   } finally {
     activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
+    activeCorpusProgress = null;
+    renderSideChatContext();
     thinkingMessage.remove();
     setSideChatBusy(false);
     sideChatInput.focus();
   }
 }
 
+function appendCorpusCoverage(reply, literature) {
+  if (!literature?.corpusWideRequest) return reply;
+  const coverage = literature.coverage || {};
+  const included = coverage.papersIncludedInSnapshot || 0;
+  const analyzed = coverage.papersSuccessfullyAnalyzed || 0;
+  const failed = coverage.papersFailed || 0;
+  const missing = coverage.papersMissing || 0;
+  const line = currentLanguage === "zh"
+    ? `**覆盖范围：** 纳入 ${included} 篇；成功分析 ${analyzed}/${included}；失败 ${failed}；缺失 ${missing}。${analyzed < included ? `以下综述仅覆盖成功分析的 ${analyzed} 篇文献。` : ""}`
+    : `**Coverage:** ${included} included; ${analyzed}/${included} successfully analyzed; ${failed} failed; ${missing} missing.${analyzed < included ? ` The review covers only the ${analyzed} successfully analyzed papers.` : ""}`;
+  return `${line}\n\n${String(reply || "").trim()}`;
+}
+
 function updateSideChatThinking(message, progress) {
   const text = message.querySelector(".thinking-content > span:first-child");
   if (!text) return;
-  if (progress.stage === "summarizing") {
+  if (progress.stage?.startsWith("corpus-")) {
+    const labels = currentLanguage === "zh"
+      ? {
+          "corpus-snapshot": "正在确定论文范围",
+          "corpus-prepare": "正在准备论文",
+          "corpus-map": "正在分析论文",
+          "corpus-group": "正在归纳主题",
+          "corpus-reduce": "正在综合主题",
+          "corpus-verify": "正在核验论断",
+          "corpus-answer": "正在生成回答",
+        }
+      : {
+          "corpus-snapshot": "Selecting paper scope",
+          "corpus-prepare": "Preparing papers",
+          "corpus-map": "Analyzing papers",
+          "corpus-group": "Grouping themes",
+          "corpus-reduce": "Synthesizing themes",
+          "corpus-verify": "Verifying claims",
+          "corpus-answer": "Preparing answer",
+        };
+    text.textContent = `${labels[progress.stage] || progress.phase} · ${progress.completed || 0}/${progress.total || 0}`;
+  } else if (progress.stage === "summarizing") {
     text.textContent = t("sideChatProcessingPdf", {
       name: progress.relativePath?.split("/").pop() || "PDF",
       done: progress.completed,

@@ -322,6 +322,9 @@
               evidenceRef: String(item.evidenceRef || "").slice(0, 300),
               text: String(item.claimCandidate || "").slice(0, 1600),
             })),
+          paperCard: payload.paperCard && typeof payload.paperCard === "object"
+            ? payload.paperCard
+            : null,
           language: payload.language === "zh" ? "zh" : "en",
         },
         signal

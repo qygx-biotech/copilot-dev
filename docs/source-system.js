@@ -9,9 +9,11 @@
   const SOURCE_ARTIFACT_SCHEMA_VERSION = 1;
   const SOURCE_EXTRACTOR_VERSION = "local-source-v1";
   const EXPERIMENT_NORMALIZER_VERSION = "generic-tabular-v1";
-  const CORPUS_WORKFLOW_VERSION = 1;
-  const CORPUS_MAP_SCHEMA_VERSION = 1;
-  const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v1";
+  const CORPUS_WORKFLOW_VERSION = 2;
+  const CORPUS_MAP_SCHEMA_VERSION = 2;
+  const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
+  const DEFAULT_CORPUS_PREPARE_CONCURRENCY = 2;
+  const DEFAULT_CORPUS_MAP_CONCURRENCY = 2;
   const LARGE_RESULT_CHARACTERS = 24000;
   const SOURCE_PATH = ".biodesign/sources/registry.json";
   const JOB_PATH = ".biodesign/jobs/index.json";
@@ -172,11 +174,27 @@
     };
   }
 
+  function normalizeSynthesisQuestion(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[\s\u00a0]+/g, " ")
+      .replace(/[.!?。！？]+$/g, "")
+      .trim();
+  }
+
   function normalizeCorpusMapResult(mapped, workerInput) {
     const allowedEvidenceRefs = new Set(
       workerInput.evidence.map((item) => item.evidenceRef)
     );
-    const findings = (Array.isArray(mapped?.findings) ? mapped.findings : [])
+    const findingsInput = Array.isArray(mapped?.majorFindings)
+      ? mapped.majorFindings
+      : Array.isArray(mapped?.major_findings)
+        ? mapped.major_findings
+        : Array.isArray(mapped?.findings)
+          ? mapped.findings
+          : [];
+    const findings = findingsInput
       .slice(0, 20)
       .map((finding) => ({
         claim: String(finding?.claim || "").trim().slice(0, 1200),
@@ -194,15 +212,33 @@
       modelVersion: String(mapped?.modelVersion || "host-default-v1").slice(0, 200),
       paperId: workerInput.paperId,
       contentHash: workerInput.contentHash,
+      title: String(mapped?.title || workerInput.title || "").trim().slice(0, 500),
       relevance: ["high", "medium", "low", "none"].includes(mapped?.relevance)
         ? mapped.relevance
         : findings.length
           ? "medium"
           : "none",
       themes: uniqueStrings(asList(mapped?.themes), 20),
+      researchQuestion: String(
+        mapped?.researchQuestion || mapped?.research_question || ""
+      ).trim().slice(0, 1200),
       findings,
+      majorFindings: findings,
       methods: uniqueStrings(asList(mapped?.methods), 30),
+      organisms: uniqueStrings(asList(mapped?.organisms), 30),
+      genes: uniqueStrings(asList(mapped?.genes), 30),
+      proteins: uniqueStrings(asList(mapped?.proteins), 30),
+      pathways: uniqueStrings(asList(mapped?.pathways), 30),
+      experimentalStrategies: uniqueStrings(
+        asList(mapped?.experimentalStrategies || mapped?.experimental_strategies),
+        30
+      ),
       limitations: uniqueStrings(asList(mapped?.limitations), 30),
+      connectionsToOtherTopics: uniqueStrings(
+        asList(mapped?.connectionsToOtherTopics || mapped?.connections_to_other_topics),
+        30
+      ),
+      usedPaperCard: workerInput.paperCard ? true : false,
     };
   }
 
@@ -662,6 +698,7 @@
                 phase: value.phase,
                 question: value.question,
                 snapshotCount: Array.isArray(value.snapshot) ? value.snapshot.length : undefined,
+                coverage: value.coverage,
                 failureCount: value.failures ? Object.keys(value.failures).length : undefined,
                 failures: value.failures
                   ? Object.fromEntries(
@@ -681,6 +718,7 @@
                       papersIncluded: value.reduction.papersIncluded,
                       papersFailed: value.reduction.papersFailed,
                       themes: (value.reduction.themes || []).slice(0, 20),
+                      groupSyntheses: (value.reduction.groupSyntheses || []).slice(0, 30),
                       findings: (value.reduction.findings || []).slice(0, 40),
                     }
                   : undefined,
@@ -1846,18 +1884,109 @@
     workflowId(question, sourceIds) {
       return `summarize-paper-corpus-${stableStringHash([
         CORPUS_WORKFLOW_VERSION,
-        question,
+        normalizeSynthesisQuestion(question),
         [...sourceIds].sort().join(","),
       ].join("|"))}`;
     }
 
+    async readOptionalPaperCard(source) {
+      const artifact = source?.artifacts?.paperCard;
+      if (
+        source?.paperCardStatus !== "ready" ||
+        !artifact?.path ||
+        artifact.contentHash !== source.contentHash ||
+        !(await this.workspace.fileExists(artifact.path))
+      ) return null;
+      try {
+        const card = await this.workspace.readJson(artifact.path);
+        return {
+          title: String(card?.title || "").slice(0, 500),
+          researchQuestion: String(card?.researchQuestion || "").slice(0, 1200),
+          summary: String(card?.shortSummary || card?.summary || "").slice(0, 2400),
+          themes: uniqueStrings([
+            ...asList(card?.topics),
+            ...asList(card?.keywords),
+          ], 30),
+          methods: uniqueStrings(asList(card?.methods), 30),
+          organisms: uniqueStrings(asList(card?.organisms), 30),
+          genes: uniqueStrings(asList(card?.genes), 30),
+          proteins: uniqueStrings(asList(card?.proteins), 30),
+          pathways: uniqueStrings(asList(card?.pathways), 30),
+          limitations: uniqueStrings(asList(card?.limitations), 30),
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    updateCoverage(journal, papersDiscovered) {
+      const prepareFailures = journal.prepareFailures || {};
+      const mapFailures = journal.mapFailures || {};
+      const missingPaperIds = uniqueStrings(
+        Object.entries(prepareFailures)
+          .filter(([, failure]) =>
+            ["SOURCE_MISSING", "SOURCE_NOT_FOUND"].includes(failure?.code)
+          )
+          .map(([sourceId]) => sourceId),
+        10000
+      );
+      const missingSet = new Set(missingPaperIds);
+      const failedPaperIds = uniqueStrings([
+        ...Object.keys(prepareFailures).filter((sourceId) => !missingSet.has(sourceId)),
+        ...Object.keys(mapFailures),
+      ], 10000);
+      const changedPaperIds = uniqueStrings(
+        (journal.snapshot || [])
+          .filter((entry) => entry.changedDuringPreparation === true)
+          .map((entry) => entry.sourceId),
+        10000
+      );
+      journal.failures = {
+        ...prepareFailures,
+        ...mapFailures,
+      };
+      journal.coverage = {
+        papersDiscovered,
+        papersIncludedInSnapshot: (journal.snapshot || []).length,
+        papersSuccessfullyPrepared: Object.keys(journal.prepareCompleted || {}).length,
+        papersPreparationCacheHits: Object.values(journal.prepareCompleted || {})
+          .filter((entry) => entry.cached === true).length,
+        papersSuccessfullyAnalyzed: Object.keys(journal.maps || {}).length,
+        papersFailed: failedPaperIds.length,
+        papersMissing: missingPaperIds.length,
+        includedPaperIds: (journal.snapshot || []).map((entry) => entry.sourceId),
+        preparedPaperIds: Object.keys(journal.prepareCompleted || {}),
+        analyzedPaperIds: Object.keys(journal.maps || {}),
+        failedPaperIds,
+        missingPaperIds,
+        changedPaperIds,
+      };
+      return journal.coverage;
+    }
+
     async run(question, options = {}) {
-      const sources = this.registry.list({ sourceKind: "paper" });
+      const discoveredSources = this.registry.list({ sourceKind: "paper" });
+      const requestedIds = uniqueStrings(asList(options.paperIds), 10000);
+      const requestedSet = requestedIds.length ? new Set(requestedIds) : null;
+      const sources = requestedSet
+        ? requestedIds
+            .map((sourceId) => this.registry.get(sourceId))
+            .filter((source) => source?.sourceKind === "paper")
+        : discoveredSources;
       const sourceIds = sources.map((source) => source.sourceId);
       const workflowId = this.workflowId(question, sourceIds);
       const path = `${WORKFLOW_DIRECTORY}/${workflowId}.json`;
       const workflowIndexPath = `${WORKFLOW_DIRECTORY}/corpus-index.json`;
-      const questionKey = stableStringHash(String(question || ""));
+      const normalizedQuestion = normalizeSynthesisQuestion(question);
+      const questionKey = stableStringHash(normalizedQuestion);
+      const prepareConcurrency = Math.min(
+        8,
+        Math.max(1, Number(options.prepareConcurrency || options.concurrency) || DEFAULT_CORPUS_PREPARE_CONCURRENCY)
+      );
+      const mapConcurrency = Math.min(
+        8,
+        Math.max(1, Number(options.mapConcurrency || options.concurrency) || DEFAULT_CORPUS_MAP_CONCURRENCY)
+      );
       const workflowIndex = await this.workspace.fileExists(workflowIndexPath)
         ? await this.workspace.readJson(workflowIndexPath)
         : { schemaVersion: 1, byQuestion: {} };
@@ -1882,194 +2011,450 @@
       if (await this.workspace.fileExists(path)) journal = await this.workspace.readJson(path);
       if (!journal) {
         journal = {
-          schemaVersion: 1,
+          schemaVersion: 2,
           workflowVersion: CORPUS_WORKFLOW_VERSION,
           workflowId,
-          workflowType: "summarize-paper-corpus",
+          workflowType: "corpus_literature_synthesis",
           question: String(question || "Summarize the paper corpus."),
+          normalizedQuestion,
           status: "running",
           phase: "snapshot",
           snapshot: sources.map((source) => ({
             sourceId: source.sourceId,
-            statSignature: source.statSignature,
-            contentHash: source.contentHash,
+            path: source.path,
+            observedStatSignature: source.statSignature,
+            observedContentHash: source.contentHash,
           })),
+          corpusVersion: stableStringHash(
+            sources.map((source) => `${source.sourceId}:${source.statSignature}`).sort().join("|")
+          ),
+          prepareCompleted: {},
+          prepareFailures: {},
           maps: {},
+          mapFailures: {},
           failures: {},
           groups: [],
           reduction: null,
           verification: [],
+          verificationByClaim: {},
+          concurrency: {
+            prepare: prepareConcurrency,
+            map: mapConcurrency,
+            verify: mapConcurrency,
+          },
           createdAt: nowIso(this.now),
           updatedAt: nowIso(this.now),
         };
       }
       journal.status = "running";
       journal.completedAt = null;
-      journal.snapshot = sources.map((source) => ({
-        sourceId: source.sourceId,
-        statSignature: source.statSignature,
-        contentHash: source.contentHash,
-      }));
-      const persist = async () => {
+      journal.normalizedQuestion = normalizedQuestion;
+      journal.prepareCompleted ||= {};
+      journal.prepareFailures ||= {};
+      journal.maps ||= {};
+      journal.mapFailures ||= {};
+      journal.verificationByClaim ||= {};
+      journal.concurrency = {
+        prepare: prepareConcurrency,
+        map: mapConcurrency,
+        verify: mapConcurrency,
+      };
+      journal.corpusVersion = stableStringHash(
+        sources.map((source) => `${source.sourceId}:${source.statSignature}`).sort().join("|")
+      );
+      journal.snapshot = sources.map((source) => {
+        const previous = (journal.snapshot || []).find(
+          (entry) => entry.sourceId === source.sourceId
+        );
+        return {
+          sourceId: source.sourceId,
+          path: source.path,
+          observedStatSignature: source.statSignature,
+          observedContentHash: source.contentHash,
+          ...(previous?.preparedStatSignature
+            ? {
+                preparedStatSignature: previous.preparedStatSignature,
+                preparedContentHash: previous.preparedContentHash,
+                changedDuringPreparation: previous.changedDuringPreparation === true,
+              }
+            : {}),
+        };
+      });
+      for (const state of [
+        journal.prepareCompleted,
+        journal.prepareFailures,
+        journal.maps,
+        journal.mapFailures,
+      ]) {
+        for (const sourceId of Object.keys(state)) {
+          if (!sourceIds.includes(sourceId)) delete state[sourceId];
+        }
+      }
+      let persistQueue = Promise.resolve();
+      const persist = async (progress = {}) => {
+        this.updateCoverage(journal, discoveredSources.length);
         journal.updatedAt = nowIso(this.now);
-        await this.workspace.writeJson(path, journal);
+        const savedJournal = JSON.parse(JSON.stringify(journal));
+        persistQueue = persistQueue.then(() => this.workspace.writeJson(path, savedJournal));
+        await persistQueue;
         options.onProgress?.({
           workflowId,
           phase: journal.phase,
-          completed: Object.keys(journal.maps).length + Object.keys(journal.failures).length,
-          total: sourceIds.length,
+          completed: Number.isFinite(Number(progress.completed))
+            ? Number(progress.completed)
+            : 0,
+          total: Number.isFinite(Number(progress.total))
+            ? Number(progress.total)
+            : sourceIds.length,
+          coverage: { ...journal.coverage },
+          ...progress,
         });
       };
-      await persist();
+      await persist({ stage: "corpus-snapshot", completed: sourceIds.length, total: sourceIds.length });
 
       journal.phase = "prepare";
-      await persist();
-      await runBounded(sourceIds, Math.min(2, Number(options.concurrency) || 2), async (sourceId) => {
-        const source = this.registry.get(sourceId);
-        const completed = journal.maps[sourceId];
-        const mapCachePath = `${WORKFLOW_DIRECTORY}/maps/${sourceId}/${stableStringHash(journal.question)}.json`;
-        if (
-          completed &&
-          completed.contentHash &&
-          source.contentHash === completed.contentHash &&
-          source.statSignature === completed.statSignature
-        ) return;
+      await persist({ stage: "corpus-prepare", completed: 0, total: sourceIds.length });
+      await runBounded(sourceIds, prepareConcurrency, async (sourceId) => {
         try {
-          await this.preparation.ensureSourceReady([sourceId], "search", options);
-          const readySource = this.registry.get(sourceId) || this.registry.records.find((item) => item.sourceId === sourceId);
+          const readiness = await this.preparation.ensureSourceReady(
+            [sourceId],
+            "search",
+            options
+          );
+          const readySource = this.registry.get(sourceId);
+          if (!readySource) {
+            throw new SourceSystemError("SOURCE_MISSING", "The source disappeared during corpus preparation.");
+          }
           const snapshotEntry = journal.snapshot.find(
             (entry) => entry.sourceId === sourceId
           );
           if (snapshotEntry) {
-            snapshotEntry.contentHash = readySource.contentHash;
-            snapshotEntry.statSignature = readySource.statSignature;
+            snapshotEntry.preparedContentHash = readySource.contentHash;
+            snapshotEntry.preparedStatSignature = readySource.statSignature;
+            snapshotEntry.changedDuringPreparation =
+              snapshotEntry.observedStatSignature !== readySource.statSignature;
           }
-          if (await this.workspace.fileExists(mapCachePath)) {
-            const cachedMap = await this.workspace.readJson(mapCachePath);
-            if (
-              cachedMap.contentHash === readySource.contentHash &&
-              cachedMap.question === journal.question &&
-              Number(cachedMap.workflowVersion) === CORPUS_WORKFLOW_VERSION &&
-              Number(cachedMap.mapSchemaVersion) === CORPUS_MAP_SCHEMA_VERSION &&
-              cachedMap.mapPromptVersion === CORPUS_MAP_PROMPT_VERSION &&
-              (!options.mapModelVersion ||
-                cachedMap.mapModelVersion === options.mapModelVersion)
-            ) {
-              journal.maps[sourceId] = cachedMap.result;
-              delete journal.failures[sourceId];
-              await persist();
-              return;
-            }
-          }
-          journal.phase = "map";
-          const search = await this.literatureTools.searchPaperContent(
-            readySource.sourceId,
-            journal.question,
-            { topK: 8, signal: options.signal }
-          );
-          let evidence = search?.resultHandle ? await this.results.read(search.resultHandle) : search;
-          if (!Array.isArray(evidence) || !evidence.length) {
-            const fallbackEvidence = await this.literatureTools.readPaperEvidence(
-              readySource.sourceId,
-              { limit: 8, signal: options.signal }
-            );
-            const rows = fallbackEvidence?.resultHandle
-              ? await this.results.read(fallbackEvidence.resultHandle)
-              : fallbackEvidence;
-            evidence = (rows || []).map((item) => ({
-              snippet: item.text,
-              page: item.page,
-              chunkId: String(item.evidenceHandle || "").split(":").at(-1),
-            }));
-          }
-          const workerInput = {
-            paperId: readySource.sourceId,
-            contentHash: readySource.contentHash,
-            question: journal.question,
-            evidence: (evidence || []).map((item) => ({
-              claimCandidate: item.snippet,
-              evidenceRef: `${readySource.sourceId}:p${item.page}:${item.chunkId}`,
-            })),
-          };
-          // Each mapper receives only this bounded object: no parent conversation or
-          // accumulated tool history enters the worker context.
-          const mapped = this.mapWorker
-            ? await this.mapWorker(workerInput, { signal: options.signal })
-            : {
-                paperId: readySource.sourceId,
-                contentHash: readySource.contentHash,
-                relevance: workerInput.evidence.length ? "high" : "low",
-                themes: tokenize(journal.question).slice(0, 8),
-                findings: workerInput.evidence.slice(0, 6).map((item) => ({
-                  claim: item.claimCandidate.slice(0, 900),
-                  evidenceRefs: [item.evidenceRef],
-                })),
-                methods: [],
-                limitations: [],
-              };
-          const normalizedMap = normalizeCorpusMapResult(mapped, workerInput);
-          journal.maps[sourceId] = {
-            ...normalizedMap,
-            statSignature: readySource.statSignature,
-          };
-          await this.workspace.writeJson(mapCachePath, {
-            schemaVersion: 1,
-            workflowVersion: CORPUS_WORKFLOW_VERSION,
-            mapSchemaVersion: CORPUS_MAP_SCHEMA_VERSION,
-            mapPromptVersion: CORPUS_MAP_PROMPT_VERSION,
-            mapModelVersion: normalizedMap.modelVersion,
-            question: journal.question,
+          journal.prepareCompleted[sourceId] = {
             sourceId,
             contentHash: readySource.contentHash,
-            result: journal.maps[sourceId],
-            updatedAt: nowIso(this.now),
-          });
-          delete journal.failures[sourceId];
+            statSignature: readySource.statSignature,
+            cached: readiness.sources?.[0]?.cached === true,
+          };
+          delete journal.prepareFailures[sourceId];
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED") {
             journal.status = "paused";
-            await persist();
+            await persist({
+              stage: "corpus-prepare",
+              completed: Object.keys(journal.prepareCompleted).length +
+                Object.keys(journal.prepareFailures).length,
+              total: sourceIds.length,
+            });
             throw error;
           }
-          journal.failures[sourceId] = compactError(error);
+          journal.prepareFailures[sourceId] = {
+            ...compactError(error),
+            stage: "prepare",
+          };
+          delete journal.prepareCompleted[sourceId];
+          delete journal.maps[sourceId];
+          delete journal.mapFailures[sourceId];
         }
-        await persist();
+        await persist({
+          stage: "corpus-prepare",
+          completed: Object.keys(journal.prepareCompleted).length +
+            Object.keys(journal.prepareFailures).length,
+          total: sourceIds.length,
+        });
+      });
+
+      journal.phase = "map";
+      await persist({ stage: "corpus-map", completed: 0, total: sourceIds.length });
+      const readySourceIds = sourceIds.filter(
+        (sourceId) => journal.prepareCompleted[sourceId]
+      );
+      await runBounded(readySourceIds, mapConcurrency, async (sourceId) => {
+        const readySource = this.registry.get(sourceId);
+        const completed = journal.maps[sourceId];
+        const mapCacheSignature = stableStringHash([
+          normalizedQuestion,
+          CORPUS_MAP_SCHEMA_VERSION,
+          CORPUS_MAP_PROMPT_VERSION,
+          options.mapModelVersion || "default-model",
+        ].join("|"));
+        const mapCachePath = `${WORKFLOW_DIRECTORY}/maps/${sourceId}/${mapCacheSignature}.json`;
+        try {
+          if (
+            completed?.contentHash &&
+            readySource?.contentHash === completed.contentHash &&
+            readySource?.statSignature === completed.statSignature
+          ) {
+            delete journal.mapFailures[sourceId];
+          } else if (await this.workspace.fileExists(mapCachePath)) {
+            const cachedMap = await this.workspace.readJson(mapCachePath);
+            if (
+              cachedMap.contentHash === readySource?.contentHash &&
+              cachedMap.normalizedQuestion === normalizedQuestion &&
+              Number(cachedMap.workflowVersion) === CORPUS_WORKFLOW_VERSION &&
+              Number(cachedMap.mapSchemaVersion) === CORPUS_MAP_SCHEMA_VERSION &&
+              cachedMap.mapPromptVersion === CORPUS_MAP_PROMPT_VERSION &&
+              (!options.mapModelVersion || cachedMap.mapModelVersion === options.mapModelVersion)
+            ) {
+              journal.maps[sourceId] = cachedMap.result;
+              delete journal.mapFailures[sourceId];
+            }
+          }
+          if (!readySource) {
+            throw new SourceSystemError("SOURCE_MISSING", "The prepared source is no longer available.");
+          }
+          if (!journal.maps[sourceId] || journal.maps[sourceId].contentHash !== readySource.contentHash) {
+            const search = await this.literatureTools.searchPaperContent(
+              readySource.sourceId,
+              journal.question,
+              { topK: 8, signal: options.signal }
+            );
+            let evidence = search?.resultHandle ? await this.results.read(search.resultHandle) : search;
+            if (!Array.isArray(evidence) || !evidence.length) {
+              const fallbackEvidence = await this.literatureTools.readPaperEvidence(
+                readySource.sourceId,
+                { limit: 8, signal: options.signal }
+              );
+              const rows = fallbackEvidence?.resultHandle
+                ? await this.results.read(fallbackEvidence.resultHandle)
+                : fallbackEvidence;
+              evidence = (rows || []).map((item) => ({
+                snippet: item.text,
+                page: item.page,
+                chunkId: String(item.evidenceHandle || "").split(":").at(-1),
+              }));
+            }
+            const paperArtifact = await this.preparation.readPaperArtifact(sourceId);
+            const paperCard = await this.readOptionalPaperCard(readySource);
+            const workerInput = {
+              paperId: readySource.sourceId,
+              contentHash: readySource.contentHash,
+              title: paperArtifact.metadataTitle || readySource.displayName,
+              question: journal.question,
+              paperCard,
+              evidence: (evidence || []).map((item) => ({
+                claimCandidate: item.snippet,
+                evidenceRef: `${readySource.sourceId}:p${item.page}:${item.chunkId}`,
+              })),
+            };
+            // Each mapper receives only this bounded object: no parent conversation or
+            // accumulated tool history enters the worker context.
+            const mapped = this.mapWorker
+              ? await this.mapWorker(workerInput, { signal: options.signal })
+              : {
+                  paperId: readySource.sourceId,
+                  contentHash: readySource.contentHash,
+                  title: workerInput.title,
+                  relevance: workerInput.evidence.length ? "high" : "low",
+                  researchQuestion: paperCard?.researchQuestion || "",
+                  themes: paperCard?.themes?.length
+                    ? paperCard.themes
+                    : tokenize(journal.question).slice(0, 8),
+                  findings: workerInput.evidence.slice(0, 6).map((item) => ({
+                    claim: item.claimCandidate.slice(0, 900),
+                    evidenceRefs: [item.evidenceRef],
+                  })),
+                  methods: paperCard?.methods || [],
+                  organisms: paperCard?.organisms || [],
+                  genes: paperCard?.genes || [],
+                  proteins: paperCard?.proteins || [],
+                  pathways: paperCard?.pathways || [],
+                  limitations: paperCard?.limitations || [],
+                };
+            const normalizedMap = normalizeCorpusMapResult(mapped, workerInput);
+            journal.maps[sourceId] = {
+              ...normalizedMap,
+              statSignature: readySource.statSignature,
+            };
+            await this.workspace.writeJson(mapCachePath, {
+              schemaVersion: 1,
+              workflowVersion: CORPUS_WORKFLOW_VERSION,
+              mapSchemaVersion: CORPUS_MAP_SCHEMA_VERSION,
+              mapPromptVersion: CORPUS_MAP_PROMPT_VERSION,
+              mapModelVersion: normalizedMap.modelVersion,
+              normalizedQuestion,
+              sourceId,
+              contentHash: readySource.contentHash,
+              result: journal.maps[sourceId],
+              updatedAt: nowIso(this.now),
+            });
+            delete journal.mapFailures[sourceId];
+          }
+        } catch (error) {
+          if (error?.code === "OPERATION_ABORTED") {
+            journal.status = "paused";
+            await persist({
+              stage: "corpus-map",
+              completed: Object.keys(journal.maps).length +
+                Object.keys(journal.mapFailures).length +
+                Object.keys(journal.prepareFailures).length,
+              total: sourceIds.length,
+            });
+            throw error;
+          }
+          journal.mapFailures[sourceId] = {
+            ...compactError(error),
+            stage: "map",
+          };
+          delete journal.maps[sourceId];
+        }
+        await persist({
+          stage: "corpus-map",
+          completed: Object.keys(journal.maps).length +
+            Object.keys(journal.mapFailures).length +
+            Object.keys(journal.prepareFailures).length,
+          total: sourceIds.length,
+        });
       });
 
       journal.phase = "group";
-      const themeGroups = new Map();
+      const groupIndex = new Map();
+      const addGroup = (category, label, paperId) => {
+        const normalizedLabel = String(label || "").trim();
+        if (!normalizedLabel) return;
+        const key = `${category}:${normalizedLabel.toLowerCase()}`;
+        const group = groupIndex.get(key) || {
+          category,
+          label: normalizedLabel,
+          paperIds: [],
+        };
+        group.paperIds = uniqueStrings([...group.paperIds, paperId], 10000);
+        groupIndex.set(key, group);
+      };
       for (const mapped of Object.values(journal.maps)) {
-        for (const theme of mapped.themes || ["other"]) {
-          const group = themeGroups.get(theme) || [];
-          group.push(mapped.paperId);
-          themeGroups.set(theme, group);
+        const themes = mapped.themes?.length ? mapped.themes : ["other"];
+        for (const value of themes) addGroup("theme", value, mapped.paperId);
+        for (const value of mapped.methods || []) addGroup("methodology", value, mapped.paperId);
+        for (const value of mapped.organisms || []) addGroup("organism", value, mapped.paperId);
+        for (const value of [
+          ...(mapped.genes || []),
+          ...(mapped.proteins || []),
+          ...(mapped.pathways || []),
+        ]) addGroup("biological-entity", value, mapped.paperId);
+        for (const value of mapped.experimentalStrategies || []) {
+          addGroup("experimental-strategy", value, mapped.paperId);
         }
       }
-      journal.groups = [...themeGroups].map(([theme, paperIds]) => ({ theme, paperIds }));
-      await persist();
+      journal.groups = [...groupIndex.values()].sort(
+        (left, right) => left.category.localeCompare(right.category) ||
+          left.label.localeCompare(right.label)
+      );
+      await persist({
+        stage: "corpus-group",
+        completed: journal.groups.length,
+        total: journal.groups.length,
+      });
 
       journal.phase = "reduce";
-      const topicFindings = journal.groups.map((group) => ({
-        theme: group.theme,
-        paperIds: group.paperIds,
-        findings: group.paperIds.flatMap(
-          (paperId) => journal.maps[paperId]?.findings || []
-        ),
-      }));
+      const findingIndex = new Map();
+      for (const mapped of Object.values(journal.maps)) {
+        for (const finding of mapped.findings || []) {
+          const key = String(finding.claim || "").toLowerCase().replace(/\s+/g, " ").trim();
+          if (!key) continue;
+          const existing = findingIndex.get(key) || {
+            claim: finding.claim,
+            supportingPaperIds: [],
+            evidenceRefs: [],
+          };
+          existing.supportingPaperIds = uniqueStrings(
+            [...existing.supportingPaperIds, mapped.paperId],
+            10000
+          );
+          existing.evidenceRefs = uniqueStrings(
+            [...existing.evidenceRefs, ...(finding.evidenceRefs || [])],
+            10000
+          );
+          findingIndex.set(key, existing);
+        }
+      }
+      const findings = [...findingIndex.values()].sort(
+        (left, right) =>
+          right.supportingPaperIds.length - left.supportingPaperIds.length ||
+          left.claim.localeCompare(right.claim)
+      );
+      const groupSyntheses = journal.groups.map((group) => {
+        const paperIdSet = new Set(group.paperIds);
+        const groupFindings = findings.filter((finding) =>
+          finding.supportingPaperIds.some((paperId) => paperIdSet.has(paperId))
+        );
+        return {
+          category: group.category,
+          label: group.label,
+          paperIds: group.paperIds,
+          paperCount: group.paperIds.length,
+          claimCount: groupFindings.length,
+          claims: groupFindings,
+        };
+      });
+      const themeSyntheses = groupSyntheses.filter(
+        (group) => group.category === "theme"
+      );
       journal.reduction = {
         papersIncluded: Object.keys(journal.maps).length,
-        papersFailed: Object.keys(journal.failures).length,
-        themes: journal.groups,
-        topicFindings,
-        findings: Object.values(journal.maps).flatMap((mapped) => mapped.findings || []),
+        papersFailed: journal.coverage.papersFailed + journal.coverage.papersMissing,
+        themes: journal.groups
+          .filter((group) => group.category === "theme")
+          .map((group) => ({ theme: group.label, paperIds: group.paperIds })),
+        topicFindings: themeSyntheses.map((group) => ({
+          theme: group.label,
+          paperIds: group.paperIds,
+          findings: group.claims,
+        })),
+        groupSyntheses,
+        findings,
+        globalSynthesis: {
+          coverage: { ...journal.coverage },
+          groupCounts: groupSyntheses.map((group) => ({
+            category: group.category,
+            label: group.label,
+            paperCount: group.paperCount,
+            paperIds: group.paperIds,
+          })),
+          totalStructuredClaims: findings.length,
+        },
       };
-      await persist();
+      await persist({
+        stage: "corpus-reduce",
+        completed: groupSyntheses.length,
+        total: groupSyntheses.length,
+      });
 
       journal.phase = "verify";
-      journal.verification = await runBounded(
-        journal.reduction.findings.slice(0, 20),
-        Math.min(2, Number(options.concurrency) || 2),
+      const verificationTargets = [...journal.reduction.findings]
+        .sort((left, right) =>
+          Number(/\d/.test(right.claim)) - Number(/\d/.test(left.claim)) ||
+          right.supportingPaperIds.length - left.supportingPaperIds.length
+        )
+        .slice(0, 40);
+      const verificationTargetKeys = new Set(
+        verificationTargets.map((finding) => stableStringHash([
+          finding.claim,
+          ...(finding.evidenceRefs || []),
+        ].join("|")))
+      );
+      for (const claimKey of Object.keys(journal.verificationByClaim)) {
+        if (!verificationTargetKeys.has(claimKey)) {
+          delete journal.verificationByClaim[claimKey];
+        }
+      }
+      await persist({
+        stage: "corpus-verify",
+        completed: Object.keys(journal.verificationByClaim).length,
+        total: verificationTargets.length,
+      });
+      await runBounded(
+        verificationTargets,
+        mapConcurrency,
         async (finding) => {
+          const claimKey = stableStringHash([
+            finding.claim,
+            ...(finding.evidenceRefs || []),
+          ].join("|"));
+          if (journal.verificationByClaim[claimKey]) return;
           const located = [];
           for (const reference of finding.evidenceRefs || []) {
             const separator = String(reference).indexOf(":p");
@@ -2092,19 +2477,33 @@
                   excerpt: String(evidence[0].text || "").slice(0, 600),
                 });
               }
-            } catch {
+            } catch (error) {
+              if (error?.code === "OPERATION_ABORTED") throw error;
               // The failed reference is retained below as unlocated evidence.
             }
           }
-          return {
+          journal.verificationByClaim[claimKey] = {
+            claimKey,
             claim: finding.claim,
+            supportingPaperIds: finding.supportingPaperIds,
             evidenceRefs: finding.evidenceRefs,
             locatedEvidence: located,
             status: located.length ? "original-evidence-located" : "unverified",
           };
+          await persist({
+            stage: "corpus-verify",
+            completed: Object.keys(journal.verificationByClaim).length,
+            total: verificationTargets.length,
+          });
         }
       );
-      journal.phase = "persist";
+      journal.verification = verificationTargets
+        .map((finding) => journal.verificationByClaim[stableStringHash([
+          finding.claim,
+          ...(finding.evidenceRefs || []),
+        ].join("|"))])
+        .filter(Boolean);
+      journal.phase = "answer";
       journal.status = "completed";
       journal.completedAt = nowIso(this.now);
       journal.cacheKey = stableStringHash([
@@ -2121,7 +2520,11 @@
           Object.values(journal.maps).map((mapped) => mapped.modelVersion)
         ).sort().join("|"),
       ].join("|"));
-      await persist();
+      await persist({
+        stage: "corpus-answer",
+        completed: journal.coverage.papersSuccessfullyAnalyzed,
+        total: journal.coverage.papersIncludedInSnapshot,
+      });
       console.info("corpus_workflow_completed", {
         workflowId,
         papersIncluded: journal.reduction.papersIncluded,

@@ -144,6 +144,50 @@ test("local workspace chat accepts 100 papers plus experiment evidence", () => {
   );
 });
 
+test("corpus coverage survives sanitization and is rendered explicitly", () => {
+  const sanitized = sanitizeLocalWorkspaceContext({
+    literature: {
+      selectedPaperIds: [],
+      relevantPaperIds: Array.from({ length: 32 }, (_, index) => `P${index + 1}`),
+      discoveryMode: "corpus",
+      corpusWideRequest: true,
+      corpusScope: "entire-project",
+      retrievalRequired: true,
+      coverage: {
+        papersDiscovered: 32,
+        papersSearchable: 30,
+        papersIncludedInSnapshot: 32,
+        papersSuccessfullyPrepared: 30,
+        papersSuccessfullyAnalyzed: 30,
+        papersFailed: 2,
+        papersMissing: 0,
+        failedPaperIds: ["P7", "P18"],
+      },
+    },
+    routing: {
+      useLiterature: true,
+      paperIds: Array.from({ length: 32 }, (_, index) => `P${index + 1}`),
+      mode: "corpus-intent",
+    },
+  });
+
+  assert.equal(sanitized.literature.corpusWideRequest, true);
+  assert.equal(sanitized.literature.coverage.papersSuccessfullyAnalyzed, 30);
+  assert.deepEqual(sanitized.literature.coverage.failedPaperIds, ["P7", "P18"]);
+  assert.equal(sanitized.routing.mode, "corpus-intent");
+  assert.match(buildLocalWorkspaceContext(sanitized), /analyzed 30; failed 2/i);
+
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  assert.match(appSource, /Preparing papers/);
+  assert.match(appSource, /Analyzing papers/);
+  assert.match(appSource, /Synthesizing themes/);
+  assert.match(appSource, /Verifying claims/);
+  assert.match(appSource, /appendCorpusCoverage/);
+});
+
 test("Side Chat remains isolated from Agent Work recommendation state", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),

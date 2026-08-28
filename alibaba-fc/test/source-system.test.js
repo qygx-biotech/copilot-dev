@@ -12,6 +12,10 @@ const {
   ExperimentTools,
   CorpusWorkflowService,
 } = require("../../docs/source-system.js");
+const {
+  ProjectContextService,
+  detectCorpusWideLiteratureIntent,
+} = require("../../docs/project-context-service.js");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -118,12 +122,50 @@ async function makeSystem(workspace, options = {}) {
   });
   return {
     registry,
+    jobs,
+    results,
     preparation,
     literatureTools,
     experimentTools,
     corpusWorkflows,
     get parseCalls() {
       return parseCalls;
+    },
+  };
+}
+
+function makeLiteratureHarness(system) {
+  const documents = system.registry.list({ sourceKind: "paper" }).map((source) => ({
+    id: source.sourceId,
+    relativePath: source.path,
+    filename: source.displayName,
+    size: source.sizeBytes,
+    lastModified: source.mtimeNs,
+    isLiteraturePaper: true,
+    paperCardStatus: "pending",
+    summaryAvailable: false,
+    discovery: { fileName: source.displayName },
+  }));
+  const sourceSystem = {
+    registry: system.registry,
+    preparation: system.preparation,
+    literatureTools: system.literatureTools,
+    experimentTools: system.experimentTools,
+    corpusWorkflows: system.corpusWorkflows,
+    results: system.results,
+  };
+  return {
+    documents,
+    sourceSystem,
+    preparation: system.preparation,
+    findDocumentByPath(path) {
+      return documents.find((document) => document.relativePath === path) || null;
+    },
+    async scan() {
+      return documents;
+    },
+    async createPaperCard() {
+      return { summary: null };
     },
   };
 }
@@ -143,6 +185,142 @@ test("folder reconciliation catalogs 150 papers without full hashes, parses, or 
   assert.equal(system.preparation.metrics.fullHashCalls, 0);
   assert.equal(system.parseCalls, 0);
   assert.equal(workspace.readFileCalls, 0);
+});
+
+test("TEST A: 32 discovered and 0 searchable starts full corpus preparation and analysis", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(
+      `literature/paper-${String(index).padStart(2, "0")}.pdf`,
+      `Paper ${index} reports evidence for corpus theme ${index % 4}.`,
+      1000
+    );
+  }
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const literature = makeLiteratureHarness(system);
+  const service = new ProjectContextService({ workspace, literature });
+  const progress = [];
+
+  assert.equal(system.registry.counts().papersSearchable, 0);
+  const context = await service.buildContext({
+    question: "Summarize all papers",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(workspace),
+    onProgress(update) {
+      if (update.workflowId) progress.push(update);
+    },
+  });
+
+  assert.equal(context.literature.corpusWideRequest, true);
+  assert.equal(context.literature.discoveryMode, "corpus");
+  assert.equal(context.literature.relevantPaperIds.length, 32);
+  assert.equal(context.literature.coverage.papersIncludedInSnapshot, 32);
+  assert.equal(context.literature.coverage.papersSuccessfullyPrepared, 32);
+  assert.equal(context.literature.coverage.papersSuccessfullyAnalyzed, 32);
+  assert.equal(system.registry.counts().papersSearchable, 32);
+  assert.equal(system.preparation.metrics.fullHashCalls, 32);
+  assert.equal(system.parseCalls, 32);
+  assert.equal(context.files[0].evidenceType, "corpus-workflow");
+  assert.ok(progress.some((update) => update.stage === "corpus-prepare"));
+  assert.ok(progress.some((update) => update.stage === "corpus-map"));
+  assert.doesNotMatch(context.files[0].content, /cannot summarize|cannot analyze/i);
+});
+
+test("corpus intent detector covers English and Chinese whole-library requests", () => {
+  for (const question of [
+    "summarize my literature",
+    "review all papers in this project",
+    "write a literature review based on my papers",
+    "what are the major themes across all my papers?",
+    "compare the overall findings of the literature",
+    "How many papers in the folder? Help me write a literature reviews.",
+    "我总共有多少篇文献，帮我总结一下内容",
+    "帮我对所有文献写一个综述",
+    "总结整个文献库",
+  ]) assert.equal(detectCorpusWideLiteratureIntent(question), true, question);
+  for (const question of [
+    "What is kcat?",
+    "Summarize this paper.",
+    "Compare these papers and their experimental designs.",
+  ]) assert.equal(detectCorpusWideLiteratureIntent(question), false, question);
+});
+
+test("TEST C: a generic concept question does not prepare the 32-paper corpus", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `Paper ${index}.`, 1000);
+  }
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const literature = makeLiteratureHarness(system);
+  const service = new ProjectContextService({ workspace, literature });
+
+  const context = await service.buildContext({
+    question: "What is kcat?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(workspace),
+  });
+
+  assert.equal(context.literature.corpusWideRequest, false);
+  assert.equal(context.literature.discoveryMode, "not-needed");
+  assert.equal(system.preparation.metrics.fullHashCalls, 0);
+  assert.equal(system.parseCalls, 0);
+});
+
+test("TEST D: summarizing one selected paper prepares only that paper", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `Paper ${index} evidence.`, 1000);
+  }
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const literature = makeLiteratureHarness(system);
+  const selected = literature.documents[0];
+  const service = new ProjectContextService({ workspace, literature });
+
+  const context = await service.buildContext({
+    question: "Summarize this paper.",
+    selectedPaths: [selected.relativePath],
+    selectedPaperIds: [selected.id],
+    workspaceTree: treeFor(workspace),
+  });
+
+  assert.equal(context.literature.discoveryMode, "selected");
+  assert.deepEqual(context.literature.relevantPaperIds, [selected.id]);
+  assert.equal(system.preparation.metrics.fullHashCalls, 1);
+  assert.equal(system.parseCalls, 1);
+  assert.equal(system.registry.counts().papersSearchable, 1);
+});
+
+test("TEST E: reviewing selected papers snapshots only the three selected sources", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `Paper ${index} evidence.`, 1000);
+  }
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const literature = makeLiteratureHarness(system);
+  const selected = literature.documents.slice(0, 3);
+  const service = new ProjectContextService({ workspace, literature });
+
+  const context = await service.buildContext({
+    question: "Write a review of these papers.",
+    selectedPaths: selected.map((document) => document.relativePath),
+    selectedPaperIds: selected.map((document) => document.id),
+    workspaceTree: treeFor(workspace),
+  });
+
+  assert.equal(context.literature.corpusWideRequest, true);
+  assert.equal(context.literature.corpusScope, "selected");
+  assert.deepEqual(context.literature.relevantPaperIds, selected.map((item) => item.id));
+  assert.equal(context.literature.coverage.papersIncludedInSnapshot, 3);
+  assert.equal(context.literature.coverage.papersSuccessfullyAnalyzed, 3);
+  assert.equal(system.preparation.metrics.fullHashCalls, 3);
+  assert.equal(system.parseCalls, 3);
+  assert.equal(system.registry.counts().papersSearchable, 3);
 });
 
 test("a paper is prepared lazily once and unchanged follow-ups reuse hash and text", async () => {
@@ -452,6 +630,142 @@ test("corpus workflow journals progress and resumes unchanged per-paper maps", a
   assert.equal(firstJournal.cacheKey, secondJournal.cacheKey);
 });
 
+test("TEST B: corpus workflow reuses 20 searchable papers and prepares the remaining 12", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `Finding from paper ${index}.`, 1000);
+  }
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const paperIds = system.registry.list({ sourceKind: "paper" }).map((source) => source.sourceId);
+  await system.preparation.ensureSourceReady(paperIds.slice(0, 20), "search");
+  assert.equal(system.registry.counts().papersSearchable, 20);
+
+  const result = await system.corpusWorkflows.run(
+    "Write a literature review of all papers",
+    { paperIds }
+  );
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(journal.coverage.papersIncludedInSnapshot, 32);
+  assert.equal(journal.coverage.papersSuccessfullyPrepared, 32);
+  assert.equal(journal.coverage.papersPreparationCacheHits, 20);
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 32);
+  assert.equal(system.preparation.metrics.fullHashCalls, 32);
+  assert.equal(system.parseCalls, 32);
+  assert.equal(system.registry.counts().papersSearchable, 32);
+});
+
+test("TEST F: parse failures produce truthful 30/32 corpus coverage", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(
+      `literature/paper-${String(index).padStart(2, "0")}.pdf`,
+      `Finding from paper ${index}.`,
+      1000
+    );
+  }
+  const system = await makeSystem(workspace, {
+    async parsePaper(input) {
+      if (/paper-(07|18)\.pdf$/.test(input.source.path)) {
+        throw new Error("corrupted PDF fixture");
+      }
+      return {
+        text: `# Page 1\n${new TextDecoder().decode(input.bytes)}`,
+        pageCount: 1,
+        truncated: false,
+      };
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+
+  const result = await system.corpusWorkflows.run("Summarize all papers");
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(journal.coverage.papersIncludedInSnapshot, 32);
+  assert.equal(journal.coverage.papersSuccessfullyPrepared, 30);
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 30);
+  assert.equal(journal.coverage.papersFailed, 2);
+  assert.equal(journal.coverage.papersMissing, 0);
+  assert.equal(journal.coverage.failedPaperIds.length, 2);
+  assert.equal(journal.reduction.papersIncluded, 30);
+  assert.equal(journal.reduction.papersFailed, 2);
+});
+
+test("TEST H: a valid Paper Card may assist mapping while original evidence remains verifiable", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/card-ready.pdf", "Exact finding 12.4 with original evidence.", 1000);
+  let workerInput = null;
+  const system = await makeSystem(workspace, {
+    async generatePaperCard({ source, contentHash }) {
+      const path = `.biodesign/cards/${source.sourceId}.json`;
+      await workspace.writeJson(path, {
+        title: "Cached card title",
+        researchQuestion: "What is the exact finding?",
+        topics: ["enzyme kinetics"],
+        methods: ["kinetic assay"],
+      });
+      return { path, schemaVersion: 1, model: "card-model", promptVersion: 1, contentHash };
+    },
+    async mapWorker(input) {
+      workerInput = input;
+      return {
+        title: input.paperCard?.title,
+        relevance: "high",
+        themes: input.paperCard?.themes || [],
+        majorFindings: input.evidence.slice(0, 1).map((item) => ({
+          claim: item.claimCandidate,
+          evidenceRefs: [item.evidenceRef],
+        })),
+        methods: input.paperCard?.methods || [],
+        limitations: [],
+      };
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const sourceId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+  await system.preparation.ensureSourceReady([sourceId], "paper_card");
+
+  const result = await system.corpusWorkflows.run("Summarize all papers");
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(workerInput.paperCard.title, "Cached card title");
+  assert.equal(journal.maps[sourceId].usedPaperCard, true);
+  assert.equal(journal.verification[0].status, "original-evidence-located");
+  assert.deepEqual(journal.verification[0].supportingPaperIds, [sourceId]);
+});
+
+test("TEST I: a paper without a Paper Card still participates in corpus analysis", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/no-card.pdf", "Direct source finding without a card.", 1000);
+  let receivedCard = "unset";
+  const system = await makeSystem(workspace, {
+    async mapWorker(input) {
+      receivedCard = input.paperCard;
+      return {
+        relevance: "high",
+        themes: ["direct evidence"],
+        findings: input.evidence.slice(0, 1).map((item) => ({
+          claim: item.claimCandidate,
+          evidenceRefs: [item.evidenceRef],
+        })),
+        methods: [],
+        limitations: [],
+      };
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const sourceId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+
+  const result = await system.corpusWorkflows.run("Summarize all papers");
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(receivedCard, null);
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 1);
+  assert.equal(journal.maps[sourceId].usedPaperCard, false);
+  assert.equal(system.registry.get(sourceId).paperCardStatus, "absent");
+});
+
 test("corpus membership changes stale the old synthesis and reuse unchanged maps", async () => {
   const workspace = new MemoryWorkspace();
   workspace.setFile("literature/a.pdf", "EctD finding A.", 1000);
@@ -481,16 +795,19 @@ test("corpus membership changes stale the old synthesis and reuse unchanged maps
   assert.equal(system.parseCalls, parseCalls + 1);
 });
 
-test("an interrupted corpus map resumes without rerunning completed paper maps", async () => {
+test("TEST G: interrupting after 21 of 32 map jobs resumes only the remaining work", async () => {
   const workspace = new MemoryWorkspace();
-  workspace.setFile("literature/a.pdf", "EctD finding A.", 1000);
-  workspace.setFile("literature/b.pdf", "EctD finding B.", 1000);
-  let interruptPaperId = null;
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `EctD finding ${index}.`, 1000);
+  }
+  let interrupt = true;
+  let totalMapAttempts = 0;
   const mapCalls = new Map();
   const system = await makeSystem(workspace, {
     async mapWorker(input) {
       mapCalls.set(input.paperId, (mapCalls.get(input.paperId) || 0) + 1);
-      if (input.paperId === interruptPaperId) {
+      totalMapAttempts += 1;
+      if (interrupt && totalMapAttempts === 22) {
         const error = new Error("interrupted");
         error.code = "OPERATION_ABORTED";
         throw error;
@@ -509,20 +826,26 @@ test("an interrupted corpus map resumes without rerunning completed paper maps",
   });
   await system.registry.reconcile(treeFor(workspace));
   const paperIds = system.registry.list({ sourceKind: "paper" }).map((item) => item.sourceId);
-  interruptPaperId = paperIds[1];
   const question = "Summarize all EctD papers.";
 
   await assert.rejects(
     system.corpusWorkflows.run(question, { concurrency: 1 }),
     (error) => error.code === "OPERATION_ABORTED"
   );
-  interruptPaperId = null;
+  const pausedPath = `.biodesign/workflows/${system.corpusWorkflows.workflowId(question, paperIds)}.json`;
+  const paused = await workspace.readJson(pausedPath);
+  assert.equal(paused.status, "paused");
+  assert.equal(Object.keys(paused.maps).length, 21);
+
+  interrupt = false;
   const resumed = await system.corpusWorkflows.run(question, { concurrency: 1 });
   const journal = resumed.resultHandle
     ? await system.preparation.results.read(resumed.resultHandle)
     : resumed;
 
   assert.equal(journal.status, "completed");
-  assert.equal(mapCalls.get(paperIds[0]), 1);
-  assert.equal(mapCalls.get(paperIds[1]), 2);
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 32);
+  for (const paperId of paperIds.slice(0, 21)) assert.equal(mapCalls.get(paperId), 1);
+  assert.equal(mapCalls.get(paperIds[21]), 2);
+  for (const paperId of paperIds.slice(22)) assert.equal(mapCalls.get(paperId), 1);
 });

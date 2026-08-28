@@ -38,8 +38,12 @@
     /^\s*(?:what (?:does|is|are)|define|explain)\b[\s\S]{0,160}\b(?:mean|in general)?\s*[?.!]*\s*$|^\s*(?:什么是|解释一下|定义)\b/i;
   const BROAD_PAPER_QUESTION_PATTERN =
     /\b(summarize|summary|overview|overall argument|whole paper|entire paper|walk me through|experimental design)\b|总结|摘要|概述|整篇|整体论点|完整实验设计/i;
-  const ALL_PAPERS_PATTERN =
-    /\b(all papers|entire (?:paper|literature) (?:library|corpus)|whole (?:paper|literature) (?:library|corpus)|across (?:all )?papers)\b|所有论文|全部论文|整个文献库|全库/i;
+  const CORPUS_SYNTHESIS_ACTION_PATTERN =
+    /\b(?:summari[sz]e|synthesi[sz]e|review|survey|analy[sz]e|compare|write|draft|prepare)\b|\bliterature reviews?\b|\bmajor themes?\b|\boverall (?:findings?|conclusions?|evidence)\b|总结|综述|评述|综合|归纳|主题|主要发现|整体发现|比较|分析内容/i;
+  const CORPUS_SCOPE_PATTERN =
+    /\b(?:all|every|entire|whole|full)\s+(?:uploaded\s+)?(?:papers?|articles?|studies|literature|library|corpus|collection)\b|\b(?:my|our)\s+(?:uploaded\s+)?(?:papers|articles|studies|literature|library|corpus|collection)\b|\b(?:selected|these|those)\s+(?:papers|articles|studies)\b|\b(?:papers?|articles?|studies|literature)\s+(?:in|from|across|within|of|for|based on)\s+(?:this|the|my|our)?\s*(?:project|folder|workspace|library|corpus|collection)\b|\bacross\s+(?:all|the|my|our)\s+(?:papers?|literature)\b|\boverall (?:findings?|conclusions?|evidence)\s+of\s+(?:the|my|our)\s+literature\b|所有(?:论文|文献)|全部(?:论文|文献)|整个(?:文献库|论文库|文献集合)|全(?:部)?文献库|选中(?:的)?(?:论文|文献)|这些(?:论文|文献)|我.*(?:总共|共有|有多少).*文献/i;
+  const CORPUS_REVIEW_PATTERN =
+    /\b(?:write|draft|prepare|create|help(?:\s+me)?\s+write)\b[\s\S]{0,80}\bliterature reviews?\b|\bliterature reviews?\b[\s\S]{0,80}\b(?:my|our|all|every|entire|whole|selected|these|those|project|folder|workspace|library|corpus|collection|papers?)\b|(?:写|撰写|做|生成|完成).*综述|综述.*(?:所有|全部|整个|选中|这些|文献库)/i;
   const EXPERIMENT_QUESTION_PATTERN =
     /\b(experiment|experimental results?|workbook|spreadsheet|csv|xlsx|measurement|replicate|condition|metric|titer|yield|productivity|activity|assay|strain|internal data|our results?)\b|实验|结果|工作簿|表格|测量|重复|条件|滴度|产率|活性|菌株|内部数据/i;
   const EXPERIMENT_FOLLOW_UP_PATTERN =
@@ -89,6 +93,22 @@
 
   function isPlainObject(value) {
     return Boolean(value && typeof value === "object" && !Array.isArray(value));
+  }
+
+  function detectCorpusWideLiteratureIntent(value) {
+    const question = String(value || "").trim();
+    if (!question) return false;
+    const hasSynthesisAction = CORPUS_SYNTHESIS_ACTION_PATTERN.test(question);
+    const hasCorpusScope = CORPUS_SCOPE_PATTERN.test(question);
+    const selectedPluralScope = /\b(?:selected|these|those)\s+(?:papers|articles|studies)\b/i.test(question);
+    const selectedSynthesis = /\b(?:summari[sz]e|synthesi[sz]e|review|survey|write|draft|prepare)\b|总结|综述|综合|归纳/i.test(question);
+    if (selectedPluralScope && !selectedSynthesis && !CORPUS_REVIEW_PATTERN.test(question)) {
+      return false;
+    }
+    return Boolean(
+      CORPUS_REVIEW_PATTERN.test(question) ||
+      (hasSynthesisAction && hasCorpusScope)
+    );
   }
 
   function normalizePath(value) {
@@ -809,8 +829,11 @@
         (file) => !selectedPaperPaths.has(file.relativePath)
       );
       const question = String(options.question || "");
-      const paperQuestion = questionMayNeedLiterature(question);
-      const allPapersQuestion = paperQuestion && ALL_PAPERS_PATTERN.test(question);
+      const corpusWideLiteratureRequest = detectCorpusWideLiteratureIntent(question);
+      const paperQuestion = corpusWideLiteratureRequest || questionMayNeedLiterature(question);
+      const eligiblePaperIds = (this.literature?.documents || [])
+        .filter((document) => document.isLiteraturePaper)
+        .map((document) => document.id);
       const selectedExperimentIds = selectedPaths
         .map((path) => this.sourceRegistry?.getByPath(path))
         .filter((source) => source?.sourceKind === "experiment")
@@ -835,7 +858,7 @@
       );
       const memoryDescriptions = this.buildMemoryDescriptions();
       const shouldSearchLiterature = paperQuestion || followUpNeedsLiterature;
-      let matches = shouldSearchLiterature
+      let matches = shouldSearchLiterature && !corpusWideLiteratureRequest
         ? await this.matchPapers(question, {
             topK: Math.min(5, this.limits.maxEvidenceFiles),
             readyOnly: false,
@@ -849,27 +872,38 @@
         ...recentIds,
         ...matches.map((match) => match.paperId),
       ]);
-      const routing = await this.decideContextRouting(
-        {
-          question,
-          selectedPaperIds,
-          recentPaperIds: recentIds,
-          matches,
-          literatureIndex,
-          memoryDescriptions,
-        },
-        options
-      );
+      const routing = corpusWideLiteratureRequest
+        ? {
+            useLiterature: true,
+            paperIds: selectedPaperIds.length
+              ? [...selectedPaperIds]
+              : [...eligiblePaperIds],
+            useProjectMemory: false,
+            memoryIds: [],
+            reason: "Explicit corpus-wide literature synthesis request.",
+            mode: "corpus-intent",
+          }
+        : await this.decideContextRouting(
+            {
+              question,
+              selectedPaperIds,
+              recentPaperIds: recentIds,
+              matches,
+              literatureIndex,
+              memoryDescriptions,
+            },
+            options
+          );
 
       let relevantPaperIds = [];
       let discoveryMode = "not-needed";
-      if (routing.useLiterature) {
-        if (allPapersQuestion) {
-          relevantPaperIds = (this.literature?.documents || [])
-            .filter((document) => document.isLiteraturePaper)
-            .map((document) => document.id);
-          discoveryMode = "corpus";
-        } else if (selectedPaperIds.length) {
+      if (corpusWideLiteratureRequest) {
+        relevantPaperIds = selectedPaperIds.length
+          ? [...selectedPaperIds]
+          : [...eligiblePaperIds];
+        discoveryMode = "corpus";
+      } else if (routing.useLiterature) {
+        if (selectedPaperIds.length) {
           relevantPaperIds = [...selectedPaperIds];
           discoveryMode = "selected";
         } else {
@@ -915,6 +949,12 @@
         selectedPaperIds,
         relevantPaperIds,
         discoveryMode,
+        corpusWideRequest: corpusWideLiteratureRequest,
+        corpusScope: corpusWideLiteratureRequest
+          ? selectedPaperIds.length
+            ? "selected"
+            : "entire-project"
+          : null,
         retrievalRequired: relevantPaperIds.length > 0,
         coverage: {
           papersDiscovered: paperSources.length,
@@ -940,8 +980,21 @@
       };
 
       let paperEvidence = [];
-      if (allPapersQuestion && relevantPaperIds.length && this.corpusWorkflows) {
-        const workflow = await this.corpusWorkflows.run(question, options);
+      if (corpusWideLiteratureRequest && relevantPaperIds.length && this.corpusWorkflows) {
+        const workflow = await this.corpusWorkflows.run(question, {
+          ...options,
+          paperIds: relevantPaperIds,
+        });
+        const workflowValue = workflow.resultHandle
+          ? await this.sourceSystem.results.read(workflow.resultHandle)
+          : workflow;
+        if (workflowValue?.coverage) {
+          context.literature.coverage = {
+            ...context.literature.coverage,
+            ...workflowValue.coverage,
+            papersActuallyConsidered: [...relevantPaperIds],
+          };
+        }
         paperEvidence = [
           {
             name: "summarize-paper-corpus",
@@ -998,7 +1051,22 @@
           (source) => source.parseStatus === "failed" || source.indexStatus === "failed"
         )
         .map((source) => source.sourceId);
+      if (context.literature.corpusWideRequest) {
+        context.literature.coverage.papersExcludedOrFailed = [...new Set([
+          ...context.literature.coverage.papersExcludedOrFailed,
+          ...(context.literature.coverage.failedPaperIds || []),
+          ...(context.literature.coverage.missingPaperIds || []),
+        ])];
+      }
       context.sourceMap.sourceCounts = this.sourceRegistry?.counts?.() || sourceCounts;
+      context.inventory = this.buildInventory(options.workspaceTree);
+
+      if (context.literature.corpusWideRequest) {
+        const coverage = context.literature.coverage;
+        context.notices.push(
+          `Corpus literature workflow coverage: ${coverage.papersSuccessfullyAnalyzed || 0}/${coverage.papersIncludedInSnapshot || 0} included paper(s) were successfully analyzed; ${coverage.papersFailed || 0} failed and ${coverage.papersMissing || 0} were missing.`
+        );
+      }
 
       if (
         !selectedPaperIds.length &&
@@ -1297,7 +1365,9 @@
         (item) =>
           item.processor === "pdf" &&
           item.indexStatus !== "ready" &&
-          item.parseStatus !== "ready"
+          item.parseStatus !== "ready" &&
+          item.indexStatus !== "failed" &&
+          item.parseStatus !== "failed"
       );
       if (unprocessed.length) {
         context.notices.push(
@@ -1595,6 +1665,7 @@
     ProjectContextService,
     WorkspaceChatStore,
     boundedMessages,
+    detectCorpusWideLiteratureIntent,
     fileExtension,
     flattenWorkspaceTree,
     formatPaperSummary,
