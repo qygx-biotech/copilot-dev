@@ -487,9 +487,12 @@ test("corpus paper mapping uses a fresh bounded context and validates evidence r
   assert.equal(body.ok, true);
   assert.equal(body.mapResult.paperId, "paper-a");
   assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [allowedRef]);
+  assert.equal(body.mapperDiagnostics.schemaValidationDetails.length, 0);
   assert.equal(pdfGetCalls, pdfReadsBefore);
   const request = capturedLlmRequests.at(-1);
   assert.equal(request.messages.length, 2);
+  assert.equal(request.response_format.type, "json_schema");
+  assert.equal(request.response_format.json_schema.strict, true);
   assert.match(request.messages[0].content, /fresh-context corpus mapping worker/);
   assert.doesNotMatch(request.messages.at(-1).content, /conversation|chat history/i);
 });
@@ -1004,6 +1007,7 @@ test("Side Chat executes provider tool calls through the read-only loop", async 
       "read_paper_evidence",
       "list_experiment_sources",
       "query_experiment_results",
+      "get_corpus_workflow_status",
       "source_coverage"
     ]
   );

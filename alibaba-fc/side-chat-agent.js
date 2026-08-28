@@ -176,6 +176,21 @@ const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
   {
     type: "function",
     function: {
+      name: "get_corpus_workflow_status",
+      description:
+        "Inspect compact authoritative status and per-paper failure diagnostics for the relevant corpus literature workflow. Use this before explaining why papers failed or remained incomplete.",
+      parameters: {
+        type: "object",
+        properties: {
+          workflow_id: { type: "string" }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "source_coverage",
       description:
         "Report discovered, searchable, failed, selected, and actually considered source coverage for this request.",
@@ -545,7 +560,10 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
     notices: Array.isArray(local?.notices) ? local.notices.slice(0, 40) : [],
     sourceMap: isPlainObject(local?.sourceMap) ? local.sourceMap : {},
     literature: isPlainObject(local?.literature) ? local.literature : {},
-    experiments: isPlainObject(local?.experiments) ? local.experiments : {}
+    experiments: isPlainObject(local?.experiments) ? local.experiments : {},
+    corpusWorkflowStatus: isPlainObject(local?.corpusWorkflowStatus)
+      ? local.corpusWorkflowStatus
+      : null
   };
 }
 
@@ -909,6 +927,23 @@ function sourceCoverage(_args, knowledgeBase) {
   );
 }
 
+function getCorpusWorkflowStatus(args, knowledgeBase) {
+  const status = knowledgeBase.corpusWorkflowStatus;
+  if (!status) {
+    return JSON.stringify({
+      error: "No corpus workflow diagnostics were supplied for this request. Do not infer a failure cause from aggregate counts."
+    });
+  }
+  const requestedId = String(args.workflow_id || "").trim();
+  if (requestedId && requestedId !== status.workflowId) {
+    return JSON.stringify({
+      error: "The requested workflow is outside the current request scope.",
+      workflow_id: requestedId
+    });
+  }
+  return JSON.stringify(status, null, 2);
+}
+
 const SIDE_CHAT_TOOL_HANDLERS = Object.freeze({
   list_workspace_items: listWorkspaceItems,
   search_workspace_items: searchWorkspaceItems,
@@ -919,6 +954,7 @@ const SIDE_CHAT_TOOL_HANDLERS = Object.freeze({
   read_paper_evidence: readPaperEvidence,
   list_experiment_sources: listExperimentSources,
   query_experiment_results: queryExperimentResults,
+  get_corpus_workflow_status: getCorpusWorkflowStatus,
   source_coverage: sourceCoverage
 });
 

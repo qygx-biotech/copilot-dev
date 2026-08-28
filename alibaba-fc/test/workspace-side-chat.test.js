@@ -5,6 +5,8 @@ const test = require("node:test");
 
 const {
   buildLocalWorkspaceContext,
+  createSideChatKnowledgeBase,
+  executeSideChatTool,
   sanitizeLocalWorkspaceContext,
 } = require("../index.js")._test;
 
@@ -186,6 +188,66 @@ test("corpus coverage survives sanitization and is rendered explicitly", () => {
   assert.match(appSource, /Synthesizing themes/);
   assert.match(appSource, /Verifying claims/);
   assert.match(appSource, /appendCorpusCoverage/);
+});
+
+test("compact corpus workflow failures survive sanitization without exposing the journal", () => {
+  const sanitized = sanitizeLocalWorkspaceContext({
+    literature: {
+      relevantPaperIds: ["P1", "P2"],
+      discoveryMode: "corpus-status",
+      corpusWideRequest: true,
+      corpusWorkflowId: "workflow-32",
+      coverage: {
+        papersDiscovered: 32,
+        papersIncludedInSnapshot: 32,
+        papersSuccessfullyPrepared: 32,
+        papersSuccessfullyAnalyzed: 30,
+        papersFailed: 2,
+        failedPaperIds: ["P1", "P2"],
+      },
+    },
+    routing: { mode: "corpus-status", useLiterature: true },
+    corpusWorkflowStatus: {
+      workflowId: "workflow-32",
+      papersTotal: 32,
+      papersPrepared: 32,
+      papersAnalyzed: 30,
+      failures: [
+        {
+          paperId: "P1",
+          filename: "one.pdf",
+          stage: "map",
+          code: "InvalidLlmResponse",
+          message: "The corpus mapper did not return valid structured JSON.",
+          sourceReady: true,
+          retryable: true,
+        },
+      ],
+      maps: { P3: { private: "must-not-survive" } },
+      journal: "must-not-survive",
+    },
+  });
+  assert.equal(sanitized.corpusWorkflowStatus.failures[0].stage, "map");
+  assert.equal(sanitized.corpusWorkflowStatus.failures[0].sourceReady, true);
+  assert.equal(Object.hasOwn(sanitized.corpusWorkflowStatus, "maps"), false);
+  assert.equal(Object.hasOwn(sanitized.corpusWorkflowStatus, "journal"), false);
+  assert.doesNotMatch(buildLocalWorkspaceContext(sanitized), /InvalidLlmResponse/);
+
+  const knowledgeBase = createSideChatKnowledgeBase({
+    localWorkspaceContext: sanitized,
+  });
+  const output = JSON.parse(executeSideChatTool(
+    {
+      id: "status-1",
+      type: "function",
+      function: {
+        name: "get_corpus_workflow_status",
+        arguments: JSON.stringify({ workflow_id: "workflow-32" }),
+      },
+    },
+    knowledgeBase
+  ));
+  assert.equal(output.failures[0].code, "InvalidLlmResponse");
 });
 
 test("Side Chat remains isolated from Agent Work recommendation state", () => {

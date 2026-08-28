@@ -83,6 +83,7 @@ test("the backend Side Chat loop exposes only read-only tools", () => {
     "read_paper_evidence",
     "list_experiment_sources",
     "query_experiment_results",
+    "get_corpus_workflow_status",
     "source_coverage"
   ]);
   assert.ok(
@@ -232,6 +233,77 @@ test("source-specific tools enforce explicit paper and experiment scopes", () =>
     )
   );
   assert.equal(outsideExperiment.returned, 0);
+});
+
+test("corpus failure status reports map diagnostics without inventing a preparation cause", async () => {
+  const workspaceContext = {
+    localWorkspaceContext: {
+      corpusWorkflowStatus: {
+        workflowId: "workflow-32",
+        papersTotal: 32,
+        papersPrepared: 32,
+        papersAnalyzed: 30,
+        failures: [
+          {
+            paperId: "P31",
+            filename: "paper-31.pdf",
+            stage: "map",
+            code: "InvalidLlmResponse",
+            message: "The corpus mapper did not return valid structured JSON.",
+            sourceReady: true,
+            retryable: true
+          },
+          {
+            paperId: "P32",
+            filename: "paper-32.pdf",
+            stage: "map",
+            code: "InvalidLlmResponse",
+            message: "The corpus mapper did not return valid structured JSON.",
+            sourceReady: true,
+            retryable: true
+          }
+        ]
+      }
+    }
+  };
+  const knowledgeBase = createSideChatKnowledgeBase(workspaceContext);
+  const inspected = JSON.parse(
+    executeSideChatTool(
+      toolCall("get_corpus_workflow_status", { workflow_id: "workflow-32" }),
+      knowledgeBase
+    )
+  );
+  assert.equal(inspected.papersPrepared, 32);
+  assert.equal(inspected.papersAnalyzed, 30);
+  assert.ok(inspected.failures.every((failure) => failure.stage === "map"));
+  assert.ok(inspected.failures.every((failure) => failure.sourceReady === true));
+
+  const turns = [
+    {
+      ok: true,
+      message: {
+        content: null,
+        tool_calls: [toolCall("get_corpus_workflow_status", {})]
+      }
+    },
+    {
+      ok: true,
+      message: {
+        content:
+          "Both papers were prepared successfully. Their map-stage LLM outputs failed structured JSON validation; the sources remain ready and retryable."
+      }
+    }
+  ];
+  const result = await runSideChatAgent({
+    conversationMessages: [{ role: "user", content: "Why did two papers fail?" }],
+    workspaceContext,
+    systemPrompt:
+      "Use get_corpus_workflow_status before explaining corpus failures. Never infer a cause from counts.",
+    parseFinalAnswer: (content) => ({ reply: content }),
+    requestTurn: async () => turns.shift()
+  });
+  assert.match(result.data.reply, /map-stage LLM outputs failed structured JSON validation/i);
+  assert.doesNotMatch(result.data.reply, /OCR|scanned|parsing/i);
 });
 
 test("a large workspace keeps a compact catalog while tools retain the full index", () => {

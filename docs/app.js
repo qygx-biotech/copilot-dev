@@ -2315,6 +2315,13 @@ function renderSideChatContext() {
       : currentLanguage === "zh"
         ? `来源：论文 ${literature.relevantPaperIds?.length || 0} · 实验 ${experiments.relevantExperimentIds?.length || 0} · 可检索 ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`
         : `Sources: ${literature.relevantPaperIds?.length || 0} paper(s) · ${experiments.relevantExperimentIds?.length || 0} experiment(s) · searchable ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`;
+    if (literature.workflowFailures?.length) {
+      usage.title = literature.workflowFailures
+        .map((failure) =>
+          `${failure.filename || failure.paperId}: ${failure.stage} / ${failure.code}${failure.retryable ? " (retryable)" : ""}`
+        )
+        .join("\n");
+    }
     sideChatContextChips.appendChild(usage);
     if (literature.discoveryMode === "automatic" && literature.relevantPaperIds?.length) {
       const names = literature.relevantPaperIds
@@ -3976,6 +3983,8 @@ async function askSideChat(question) {
     userMessage.context.relevantExperimentIds = [
       ...(localWorkspaceContext.experiments?.relevantExperimentIds || []),
     ];
+    userMessage.context.corpusWorkflowId =
+      localWorkspaceContext.literature?.corpusWorkflowId || "";
     contextPrepared = true;
     applyLiteratureScan(literatureModule.documents);
     applyPreparedContextToDocuments(localWorkspaceContext);

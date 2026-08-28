@@ -119,6 +119,8 @@ async function makeSystem(workspace, options = {}) {
     literatureTools,
     results,
     mapWorker: options.mapWorker,
+    fallbackMapWorker: options.fallbackMapWorker,
+    mapAttempts: options.mapAttempts,
   });
   return {
     registry,
@@ -170,6 +172,31 @@ function makeLiteratureHarness(system) {
   };
 }
 
+function validMapFor(input, theme = "recovered theme") {
+  return {
+    relevance: "high",
+    themes: [theme],
+    findings: input.evidence.slice(0, 1).map((item) => ({
+      claim: item.claimCandidate,
+      evidenceRefs: [item.evidenceRef],
+    })),
+    methods: [],
+    organisms: [],
+    genes: [],
+    proteins: [],
+    pathways: [],
+    experimentalStrategies: [],
+    limitations: [],
+    connectionsToOtherTopics: [],
+  };
+}
+
+function invalidMapperError() {
+  const error = new Error("The corpus mapper did not return valid structured JSON.");
+  error.code = "InvalidLlmResponse";
+  return error;
+}
+
 test("folder reconciliation catalogs 150 papers without full hashes, parses, or LLM calls", async () => {
   const workspace = new MemoryWorkspace();
   for (let index = 0; index < 150; index += 1) {
@@ -212,7 +239,6 @@ test("TEST A: 32 discovered and 0 searchable starts full corpus preparation and 
       if (update.workflowId) progress.push(update);
     },
   });
-
   assert.equal(context.literature.corpusWideRequest, true);
   assert.equal(context.literature.discoveryMode, "corpus");
   assert.equal(context.literature.relevantPaperIds.length, 32);
@@ -848,4 +874,200 @@ test("TEST G: interrupting after 21 of 32 map jobs resumes only the remaining wo
   for (const paperId of paperIds.slice(0, 21)) assert.equal(mapCalls.get(paperId), 1);
   assert.equal(mapCalls.get(paperIds[21]), 2);
   for (const paperId of paperIds.slice(22)) assert.equal(mapCalls.get(paperId), 1);
+});
+
+test("CASE 1: map failures remain prepared and expose their actual structured-output diagnostics", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(
+      `literature/paper-${String(index).padStart(2, "0")}.pdf`,
+      `Finding from paper ${index}.`,
+      1000
+    );
+  }
+  let failedIds = new Set();
+  const system = await makeSystem(workspace, {
+    mapAttempts: 3,
+    async mapWorker(input) {
+      if (failedIds.has(input.paperId)) throw invalidMapperError();
+      return validMapFor(input);
+    },
+    async fallbackMapWorker(input) {
+      if (failedIds.has(input.paperId)) throw invalidMapperError();
+      return validMapFor(input, "fallback theme");
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperIds = system.registry.list({ sourceKind: "paper" }).map((item) => item.sourceId);
+  failedIds = new Set(paperIds.slice(-2));
+
+  const result = await system.corpusWorkflows.run("Summarize all papers");
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+  const status = await system.corpusWorkflows.getWorkflowStatus(journal.workflowId);
+  const statusContext = await new ProjectContextService({
+    workspace,
+    literature: makeLiteratureHarness(system),
+  }).buildContext({
+    question: "Why did two papers fail?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(workspace),
+    conversation: {
+      messages: [{
+        role: "user",
+        content: "Summarize all papers",
+        context: { corpusWorkflowId: journal.workflowId },
+      }],
+    },
+  });
+
+  assert.equal(status.papersTotal, 32);
+  assert.equal(status.papersPrepared, 32);
+  assert.equal(status.papersAnalyzed, 30);
+  assert.equal(status.failures.length, 2);
+  assert.ok(status.failures.every((failure) => failure.stage === "map"));
+  assert.ok(status.failures.every((failure) => failure.code === "InvalidLlmResponse"));
+  assert.ok(status.failures.every((failure) => failure.sourceReady === true));
+  assert.ok(status.failures.every((failure) => failure.retryable === true));
+  assert.ok(status.failures.every((failure) => failure.attempts === 3));
+  assert.ok(status.failures.every((failure) => failure.fallbackAttempted === true));
+  assert.ok(status.failures.every((failure) => !/ocr|scan|pars/i.test(failure.message)));
+  assert.equal(statusContext.literature.discoveryMode, "corpus-status");
+  assert.equal(statusContext.corpusWorkflowStatus.failures[0].stage, "map");
+  assert.equal(statusContext.files.length, 0);
+  for (const paperId of failedIds) {
+    assert.equal(system.registry.get(paperId).indexStatus, "ready");
+    const evidence = await system.literatureTools.readPaperEvidence(paperId, { limit: 1 });
+    assert.equal(Array.isArray(evidence), true);
+    assert.equal(evidence.length, 1);
+  }
+});
+
+test("CASES 2-3: include failed papers retries only two maps and incrementally updates 30/32 to 32/32", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(
+      `literature/paper-${String(index).padStart(2, "0")}.pdf`,
+      `Finding from paper ${index}.`,
+      1000
+    );
+  }
+  let recoveryEnabled = false;
+  let failedIds = new Set();
+  const mapCalls = new Map();
+  const system = await makeSystem(workspace, {
+    mapAttempts: 3,
+    async mapWorker(input) {
+      mapCalls.set(input.paperId, (mapCalls.get(input.paperId) || 0) + 1);
+      if (!recoveryEnabled && failedIds.has(input.paperId)) throw invalidMapperError();
+      return validMapFor(input, failedIds.has(input.paperId) ? "recovered" : "baseline");
+    },
+    async fallbackMapWorker(input) {
+      if (!recoveryEnabled && failedIds.has(input.paperId)) throw invalidMapperError();
+      return validMapFor(input, "fallback");
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperIds = system.registry.list({ sourceKind: "paper" }).map((item) => item.sourceId);
+  failedIds = new Set(paperIds.slice(-2));
+  const first = await system.corpusWorkflows.run("Summarize all papers");
+  const firstJournal = first.resultHandle ? await system.results.read(first.resultHandle) : first;
+  assert.equal(firstJournal.coverage.papersSuccessfullyPrepared, 32);
+  assert.equal(firstJournal.coverage.papersSuccessfullyAnalyzed, 30);
+  const callsBeforeRecovery = new Map(mapCalls);
+
+  recoveryEnabled = true;
+  const literature = makeLiteratureHarness(system);
+  const service = new ProjectContextService({ workspace, literature });
+  const context = await service.buildContext({
+    question:
+      "There are two papers that needed to reprocess. Can you help me include them in summary?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(workspace),
+    conversation: {
+      messages: [
+        {
+          role: "user",
+          content: "Summarize all papers",
+          context: {
+            relevantPaperIds: paperIds,
+            corpusWorkflowId: firstJournal.workflowId,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(context.literature.discoveryMode, "corpus-recovery");
+  assert.equal(context.literature.coverage.papersSuccessfullyPrepared, 32);
+  assert.equal(context.literature.coverage.papersSuccessfullyAnalyzed, 32);
+  assert.equal(context.literature.coverage.papersFailed, 0);
+  assert.equal(context.corpusWorkflowStatus.failures.length, 0);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.recoveredPaperIds.length, 2);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.reusedMapPaperIds.length, 30);
+  assert.ok(context.corpusWorkflowStatus.incrementalUpdate.affectedGroupKeys.length > 0);
+  assert.ok(context.corpusWorkflowStatus.incrementalUpdate.verificationClaimsRechecked > 0);
+  assert.equal(context.files[0].evidenceType, "corpus-workflow");
+  for (const paperId of paperIds.slice(0, 30)) {
+    assert.equal(mapCalls.get(paperId), callsBeforeRecovery.get(paperId));
+  }
+  for (const paperId of paperIds.slice(-2)) {
+    assert.equal(mapCalls.get(paperId), callsBeforeRecovery.get(paperId) + 1);
+  }
+});
+
+test("CASE 4: exhausted InvalidLlmResponse retries use source-evidence fallback without downgrading readiness", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/fallback.pdf", "Prepared source evidence remains readable.", 1000);
+  let mapperCalls = 0;
+  let fallbackCalls = 0;
+  const system = await makeSystem(workspace, {
+    mapAttempts: 3,
+    async mapWorker() {
+      mapperCalls += 1;
+      throw invalidMapperError();
+    },
+    async fallbackMapWorker(input) {
+      fallbackCalls += 1;
+      return validMapFor(input, "fallback recovery");
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const sourceId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+
+  const result = await system.corpusWorkflows.run("Summarize all papers");
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(mapperCalls, 3);
+  assert.equal(fallbackCalls, 1);
+  assert.equal(journal.maps[sourceId].generationMode, "source-evidence-fallback");
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 1);
+  assert.equal(system.registry.get(sourceId).indexStatus, "ready");
+  assert.equal(journal.mapFailures[sourceId], undefined);
+});
+
+test("CASE 5: an encrypted PDF is accurately retained as a preparation failure", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/encrypted.pdf", "encrypted fixture", 1000);
+  const system = await makeSystem(workspace, {
+    async parsePaper() {
+      const error = new Error("The PDF is encrypted and cannot be opened.");
+      error.code = "ENCRYPTED_PDF";
+      throw error;
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+
+  const result = await system.corpusWorkflows.run("Summarize all papers");
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+  const status = await system.corpusWorkflows.getWorkflowStatus(journal.workflowId);
+
+  assert.equal(status.papersPrepared, 0);
+  assert.equal(status.papersAnalyzed, 0);
+  assert.equal(status.failures[0].stage, "prepare");
+  assert.equal(status.failures[0].code, "ENCRYPTED_PDF");
+  assert.equal(status.failures[0].sourceReady, false);
+  assert.equal(status.failures[0].retryable, false);
+  assert.match(status.failures[0].message, /encrypted/i);
 });

@@ -325,6 +325,8 @@
           paperCard: payload.paperCard && typeof payload.paperCard === "object"
             ? payload.paperCard
             : null,
+          mapAttempt: Math.max(1, Number(payload.mapAttempt) || 1),
+          fallback: payload.fallback === true,
           language: payload.language === "zh" ? "zh" : "en",
         },
         signal
@@ -332,6 +334,7 @@
       return {
         ...data.mapResult,
         modelVersion: data.model || "unknown-model",
+        mapperDiagnostics: data.mapperDiagnostics || null,
       };
     }
 
@@ -445,6 +448,20 @@
                 this.api.mapCorpusPaper(
                   {
                     ...payload,
+                    mapAttempt: workerOptions?.attempt,
+                    language: this.getLanguage(),
+                  },
+                  workerOptions?.signal
+                )
+            : null,
+        fallbackMapWorker:
+          typeof this.api?.mapCorpusPaper === "function"
+            ? (payload, workerOptions) =>
+                this.api.mapCorpusPaper(
+                  {
+                    ...payload,
+                    mapAttempt: workerOptions?.attempt,
+                    fallback: true,
                     language: this.getLanguage(),
                   },
                   workerOptions?.signal

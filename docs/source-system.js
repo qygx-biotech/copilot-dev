@@ -14,6 +14,7 @@
   const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
   const DEFAULT_CORPUS_PREPARE_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_CONCURRENCY = 2;
+  const DEFAULT_CORPUS_MAP_ATTEMPTS = 3;
   const LARGE_RESULT_CHARACTERS = 24000;
   const SOURCE_PATH = ".biodesign/sources/registry.json";
   const JOB_PATH = ".biodesign/jobs/index.json";
@@ -240,6 +241,58 @@
       ),
       usedPaperCard: workerInput.paperCard ? true : false,
     };
+  }
+
+  function corpusMapValidationErrors(mapped) {
+    const errors = [];
+    if (!mapped || typeof mapped !== "object" || Array.isArray(mapped)) {
+      return ["Mapper output must be one JSON object."];
+    }
+    if (!["high", "medium", "low", "none"].includes(mapped.relevance)) {
+      errors.push("relevance must be high, medium, low, or none.");
+    }
+    const findings = Array.isArray(mapped.majorFindings)
+      ? mapped.majorFindings
+      : Array.isArray(mapped.major_findings)
+        ? mapped.major_findings
+        : Array.isArray(mapped.findings)
+          ? mapped.findings
+          : null;
+    if (!findings) {
+      errors.push("majorFindings/findings must be an array.");
+    } else {
+      findings.slice(0, 20).forEach((finding, index) => {
+        if (!finding || typeof finding !== "object" || Array.isArray(finding)) {
+          errors.push(`finding ${index + 1} must be an object.`);
+          return;
+        }
+        if (!String(finding.claim || "").trim()) {
+          errors.push(`finding ${index + 1} must contain a non-empty claim.`);
+        }
+        const refs = finding.evidenceRefs ?? finding.evidence_refs;
+        if (!Array.isArray(refs)) {
+          errors.push(`finding ${index + 1} evidenceRefs must be an array.`);
+        }
+      });
+    }
+    for (const key of [
+      "themes",
+      "methods",
+      "organisms",
+      "genes",
+      "proteins",
+      "pathways",
+      "limitations",
+    ]) {
+      if (mapped[key] !== undefined && !Array.isArray(mapped[key])) {
+        errors.push(`${key} must be an array when supplied.`);
+      }
+    }
+    return errors.slice(0, 30);
+  }
+
+  function isRetryableCorpusMapError(error) {
+    return ["InvalidLlmResponse", "EmptyLlmResponse"].includes(error?.code);
   }
 
   function sourceArtifactBase(sourceId, contentHash) {
@@ -707,8 +760,11 @@
                         .map(([sourceId, error]) => [
                           sourceId,
                           {
+                            stage: error?.stage === "map" ? "map" : "prepare",
                             code: String(error?.code || "FAILED").slice(0, 120),
                             message: String(error?.message || "Source failed.").slice(0, 300),
+                            sourceReady: error?.sourceReady === true,
+                            retryable: error?.retryable === true,
                           },
                         ])
                     )
@@ -722,6 +778,7 @@
                       findings: (value.reduction.findings || []).slice(0, 40),
                     }
                   : undefined,
+                incrementalUpdate: value.incrementalUpdate,
                 verification: (value.verification || []).slice(0, 20),
               }
             : value,
@@ -1879,6 +1936,300 @@
       this.results = options.results || this.preparation.results;
       this.now = options.now || (() => new Date());
       this.mapWorker = options.mapWorker || null;
+      this.fallbackMapWorker = options.fallbackMapWorker || null;
+      this.mapAttempts = Math.min(
+        5,
+        Math.max(1, Number(options.mapAttempts) || DEFAULT_CORPUS_MAP_ATTEMPTS)
+      );
+    }
+
+    workflowPath(workflowId) {
+      return `${WORKFLOW_DIRECTORY}/${String(workflowId || "").trim()}.json`;
+    }
+
+    async readWorkflowIndex() {
+      const path = `${WORKFLOW_DIRECTORY}/corpus-index.json`;
+      return (await this.workspace.fileExists(path))
+        ? await this.workspace.readJson(path)
+        : { schemaVersion: 2, byQuestion: {}, recentWorkflowIds: [] };
+    }
+
+    async resolveWorkflowId(workflowId = "") {
+      const requested = String(workflowId || "").trim();
+      if (requested) return requested;
+      const index = await this.readWorkflowIndex();
+      if (index.latestWorkflowId) return index.latestWorkflowId;
+      return [...new Set([
+        ...(Array.isArray(index.recentWorkflowIds) ? index.recentWorkflowIds : []),
+        ...Object.values(index.byQuestion || {}),
+      ])].filter(Boolean).at(-1) || "";
+    }
+
+    async readWorkflow(workflowId = "") {
+      const resolvedId = await this.resolveWorkflowId(workflowId);
+      if (!resolvedId || !(await this.workspace.fileExists(this.workflowPath(resolvedId)))) {
+        throw new SourceSystemError(
+          "CORPUS_WORKFLOW_NOT_FOUND",
+          "No matching corpus literature workflow was found."
+        );
+      }
+      return this.workspace.readJson(this.workflowPath(resolvedId));
+    }
+
+    sourceIsReady(sourceId, preparedRecord = null) {
+      const source = this.registry.get(sourceId, { includeMissing: true });
+      return Boolean(
+        source &&
+        source.catalogStatus !== "missing" &&
+        source.hashStatus === "ready" &&
+        source.parseStatus === "ready" &&
+        source.indexStatus === "ready" &&
+        (!preparedRecord?.contentHash || preparedRecord.contentHash === source.contentHash)
+      );
+    }
+
+    workflowStatusFromJournal(journal) {
+      this.updateCoverage(
+        journal,
+        this.registry.list({ sourceKind: "paper" }).length
+      );
+      const failures = Object.entries(journal.failures || {}).map(
+        ([paperId, failure]) => {
+          const source = this.registry.get(paperId, { includeMissing: true });
+          const stage = failure?.stage === "map" ? "map" : "prepare";
+          const sourceReady = this.sourceIsReady(
+            paperId,
+            journal.prepareCompleted?.[paperId]
+          );
+          return {
+            paperId,
+            filename: String(
+              source?.displayName ||
+              source?.path ||
+              journal.snapshot?.find((item) => item.sourceId === paperId)?.path ||
+              paperId
+            ).split("/").at(-1).slice(0, 500),
+            title: String(journal.maps?.[paperId]?.title || "").slice(0, 500),
+            stage,
+            code: String(failure?.code || "FAILED").slice(0, 120),
+            message: String(failure?.message || "Corpus analysis failed.").slice(0, 1000),
+            sourceReady,
+            retryable: stage === "map" && isRetryableCorpusMapError(failure),
+            attempts: Math.max(0, Number(failure?.attempts) || 0),
+            fallbackAttempted: failure?.fallbackAttempted === true,
+          };
+        }
+      );
+      return {
+        workflowId: journal.workflowId,
+        workflowType: journal.workflowType,
+        question: journal.question,
+        status: journal.status,
+        phase: journal.phase,
+        papersTotal: journal.coverage.papersIncludedInSnapshot,
+        papersPrepared: journal.coverage.papersSuccessfullyPrepared,
+        papersAnalyzed: journal.coverage.papersSuccessfullyAnalyzed,
+        corpusScope:
+          journal.coverage.papersIncludedInSnapshot < journal.coverage.papersDiscovered
+            ? "selected"
+            : "entire-project",
+        coverage: { ...journal.coverage },
+        failures,
+        retryablePaperIds: failures
+          .filter((failure) => failure.retryable)
+          .map((failure) => failure.paperId),
+        incrementalUpdate: journal.incrementalUpdate || null,
+        updatedAt: journal.updatedAt,
+      };
+    }
+
+    async getWorkflowStatus(workflowId = "") {
+      return this.workflowStatusFromJournal(
+        await this.readWorkflow(workflowId)
+      );
+    }
+
+    async getCorpusFailures(workflowId = "") {
+      const status = await this.getWorkflowStatus(workflowId);
+      return {
+        workflowId: status.workflowId,
+        papersTotal: status.papersTotal,
+        papersPrepared: status.papersPrepared,
+        papersAnalyzed: status.papersAnalyzed,
+        failures: status.failures,
+      };
+    }
+
+    async retryFailedMaps(workflowId = "", options = {}) {
+      const journal = await this.readWorkflow(workflowId);
+      const retryPaperIds = Object.entries(journal.mapFailures || {})
+        .filter(([, failure]) => isRetryableCorpusMapError(failure))
+        .map(([paperId]) => paperId);
+      if (!retryPaperIds.length) {
+        return {
+          workflow: await this.results.compact(journal, {
+            tool: "retry_corpus_map_failures",
+            workflowId: journal.workflowId,
+            journalPath: this.workflowPath(journal.workflowId),
+          }),
+          status: await this.getWorkflowStatus(journal.workflowId),
+          retriedPaperIds: [],
+        };
+      }
+      const paperIds = (journal.snapshot || []).map((item) => item.sourceId);
+      const workflow = await this.run(journal.question, {
+        ...options,
+        workflowId: journal.workflowId,
+        paperIds,
+        retryPaperIds,
+      });
+      const workflowValue = workflow?.resultHandle
+        ? await this.results.read(workflow.resultHandle)
+        : workflow;
+      const status = this.workflowStatusFromJournal(workflowValue);
+      console.info("corpus_map_recovery_completed", {
+        workflowId: journal.workflowId,
+        retriedPaperIds: retryPaperIds,
+        papersAnalyzed: status.papersAnalyzed,
+        failuresRemaining: status.failures.length,
+      });
+      return {
+        workflow,
+        status,
+        retriedPaperIds: retryPaperIds,
+      };
+    }
+
+    async executeMapWorker(workerInput, options = {}) {
+      if (!this.mapWorker) return null;
+      const diagnostics = [];
+      let lastError = null;
+      for (let attempt = 1; attempt <= this.mapAttempts; attempt += 1) {
+        try {
+          const mapped = await this.mapWorker(workerInput, {
+            signal: options.signal,
+            attempt,
+            fallback: false,
+          });
+          const schemaErrors = corpusMapValidationErrors(mapped);
+          if (schemaErrors.length) {
+            const validationError = new SourceSystemError(
+              "InvalidLlmResponse",
+              "The corpus mapper did not return valid structured JSON."
+            );
+            validationError.schemaValidationDetails = schemaErrors;
+            throw validationError;
+          }
+          const record = {
+            attempt,
+            mode: "structured-map",
+            status: "valid",
+            finishReason: String(mapped?.mapperDiagnostics?.finishReason || "").slice(0, 120),
+            outputLength: Math.max(0, Number(mapped?.mapperDiagnostics?.outputLength) || 0),
+            schemaValidationDetails: [],
+          };
+          diagnostics.push(record);
+          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          return { mapped, diagnostics, generationMode: "structured-map" };
+        } catch (error) {
+          if (error?.code === "OPERATION_ABORTED") throw error;
+          lastError = error;
+          const record = {
+            attempt,
+            mode: "structured-map",
+            status: "invalid",
+            code: String(error?.code || error?.name || "MAP_FAILED").slice(0, 120),
+            finishReason: String(error?.finishReason || "").slice(0, 120),
+            outputLength: Math.max(0, Number(error?.outputLength) || 0),
+            validationFailure: String(error?.message || "Mapper validation failed.").slice(0, 500),
+            schemaValidationDetails: uniqueStrings(
+              asList(error?.schemaValidationDetails),
+              30
+            ),
+          };
+          diagnostics.push(record);
+          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          if (!isRetryableCorpusMapError(error) || attempt >= this.mapAttempts) break;
+        }
+      }
+
+      try {
+        const mapped = this.fallbackMapWorker
+          ? await this.fallbackMapWorker(workerInput, {
+              signal: options.signal,
+              attempt: this.mapAttempts + 1,
+              fallback: true,
+            })
+          : {
+              paperId: workerInput.paperId,
+              contentHash: workerInput.contentHash,
+              title: workerInput.title,
+              relevance: workerInput.evidence.length ? "medium" : "none",
+              researchQuestion: "",
+              themes: tokenize(workerInput.question).slice(0, 8),
+              findings: workerInput.evidence.slice(0, 6).map((item) => ({
+                claim: item.claimCandidate.slice(0, 900),
+                evidenceRefs: [item.evidenceRef],
+              })),
+              methods: [],
+              organisms: [],
+              genes: [],
+              proteins: [],
+              pathways: [],
+              experimentalStrategies: [],
+              limitations: [
+                "Fallback evidence analysis was used after structured mapper validation failures.",
+              ],
+              connectionsToOtherTopics: [],
+              modelVersion: "host-evidence-fallback-v1",
+            };
+        const schemaErrors = corpusMapValidationErrors(mapped);
+        if (schemaErrors.length) {
+          const validationError = new SourceSystemError(
+            "InvalidLlmResponse",
+            "The fallback corpus analysis did not return valid structured JSON."
+          );
+          validationError.schemaValidationDetails = schemaErrors;
+          throw validationError;
+        }
+        const record = {
+          attempt: this.mapAttempts + 1,
+          mode: "source-evidence-fallback",
+          status: "valid",
+          finishReason: String(mapped?.mapperDiagnostics?.finishReason || "").slice(0, 120),
+          outputLength: Math.max(0, Number(mapped?.mapperDiagnostics?.outputLength) || 0),
+          schemaValidationDetails: [],
+        };
+        diagnostics.push(record);
+        console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+        return { mapped, diagnostics, generationMode: "source-evidence-fallback" };
+      } catch (fallbackError) {
+        if (fallbackError?.code === "OPERATION_ABORTED") throw fallbackError;
+        const record = {
+          attempt: this.mapAttempts + 1,
+          mode: "source-evidence-fallback",
+          status: "invalid",
+          code: String(fallbackError?.code || fallbackError?.name || "MAP_FAILED").slice(0, 120),
+          finishReason: String(fallbackError?.finishReason || "").slice(0, 120),
+          outputLength: Math.max(0, Number(fallbackError?.outputLength) || 0),
+          validationFailure: String(fallbackError?.message || "Fallback validation failed.").slice(0, 500),
+          schemaValidationDetails: uniqueStrings(
+            asList(fallbackError?.schemaValidationDetails),
+            30
+          ),
+        };
+        diagnostics.push(record);
+        console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+        const exhausted = new SourceSystemError(
+          String(lastError?.code || fallbackError?.code || "MAP_FAILED").slice(0, 120),
+          String(lastError?.message || fallbackError?.message || "Corpus mapping failed.").slice(0, 1000)
+        );
+        exhausted.attempts = this.mapAttempts;
+        exhausted.fallbackAttempted = true;
+        exhausted.retryable = isRetryableCorpusMapError(lastError || fallbackError);
+        exhausted.mapAttemptDiagnostics = diagnostics;
+        throw exhausted;
+      }
     }
 
     workflowId(question, sourceIds) {
@@ -1974,8 +2325,9 @@
             .filter((source) => source?.sourceKind === "paper")
         : discoveredSources;
       const sourceIds = sources.map((source) => source.sourceId);
-      const workflowId = this.workflowId(question, sourceIds);
-      const path = `${WORKFLOW_DIRECTORY}/${workflowId}.json`;
+      const workflowId = String(options.workflowId || "").trim() ||
+        this.workflowId(question, sourceIds);
+      const path = this.workflowPath(workflowId);
       const workflowIndexPath = `${WORKFLOW_DIRECTORY}/corpus-index.json`;
       const normalizedQuestion = normalizeSynthesisQuestion(question);
       const questionKey = stableStringHash(normalizedQuestion);
@@ -1987,9 +2339,7 @@
         8,
         Math.max(1, Number(options.mapConcurrency || options.concurrency) || DEFAULT_CORPUS_MAP_CONCURRENCY)
       );
-      const workflowIndex = await this.workspace.fileExists(workflowIndexPath)
-        ? await this.workspace.readJson(workflowIndexPath)
-        : { schemaVersion: 1, byQuestion: {} };
+      const workflowIndex = await this.readWorkflowIndex();
       const previousWorkflowId = workflowIndex.byQuestion?.[questionKey];
       if (previousWorkflowId && previousWorkflowId !== workflowId) {
         const previousPath = `${WORKFLOW_DIRECTORY}/${previousWorkflowId}.json`;
@@ -2005,6 +2355,12 @@
         ...(workflowIndex.byQuestion || {}),
         [questionKey]: workflowId,
       };
+      workflowIndex.schemaVersion = 2;
+      workflowIndex.latestWorkflowId = workflowId;
+      workflowIndex.recentWorkflowIds = uniqueStrings([
+        ...(workflowIndex.recentWorkflowIds || []),
+        workflowId,
+      ], 100).slice(-100);
       workflowIndex.updatedAt = nowIso(this.now);
       await this.workspace.writeJson(workflowIndexPath, workflowIndex);
       let journal = null;
@@ -2032,6 +2388,7 @@
           prepareFailures: {},
           maps: {},
           mapFailures: {},
+          mapAttemptDiagnostics: {},
           failures: {},
           groups: [],
           reduction: null,
@@ -2053,6 +2410,7 @@
       journal.prepareFailures ||= {};
       journal.maps ||= {};
       journal.mapFailures ||= {};
+      journal.mapAttemptDiagnostics ||= {};
       journal.verificationByClaim ||= {};
       journal.concurrency = {
         prepare: prepareConcurrency,
@@ -2085,6 +2443,7 @@
         journal.prepareFailures,
         journal.maps,
         journal.mapFailures,
+        journal.mapAttemptDiagnostics,
       ]) {
         for (const sourceId of Object.keys(state)) {
           if (!sourceIds.includes(sourceId)) delete state[sourceId];
@@ -2112,9 +2471,34 @@
       };
       await persist({ stage: "corpus-snapshot", completed: sourceIds.length, total: sourceIds.length });
 
+      const retryPaperIds = uniqueStrings(asList(options.retryPaperIds), 10000)
+        .filter((sourceId) => sourceIds.includes(sourceId));
+      const retryPaperIdSet = new Set(retryPaperIds);
+      const recoveryBaselineMapIds = retryPaperIds.length
+        ? Object.keys(journal.maps)
+        : [];
+      const previousGroupSyntheses = retryPaperIds.length
+        ? [...(journal.reduction?.groupSyntheses || [])]
+        : [];
+      const prepareSourceIds = retryPaperIds.length
+        ? sourceIds.filter((sourceId) => {
+            const source = this.registry.get(sourceId);
+            const mapped = journal.maps[sourceId];
+            return retryPaperIdSet.has(sourceId) ||
+              !this.sourceIsReady(sourceId, journal.prepareCompleted[sourceId]) ||
+              (mapped && (
+                mapped.contentHash !== source?.contentHash ||
+                mapped.statSignature !== source?.statSignature
+              ));
+          })
+        : sourceIds;
       journal.phase = "prepare";
-      await persist({ stage: "corpus-prepare", completed: 0, total: sourceIds.length });
-      await runBounded(sourceIds, prepareConcurrency, async (sourceId) => {
+      await persist({
+        stage: "corpus-prepare",
+        completed: Object.keys(journal.prepareCompleted).length,
+        total: sourceIds.length,
+      });
+      await runBounded(prepareSourceIds, prepareConcurrency, async (sourceId) => {
         try {
           const readiness = await this.preparation.ensureSourceReady(
             [sourceId],
@@ -2169,11 +2553,26 @@
       });
 
       journal.phase = "map";
-      await persist({ stage: "corpus-map", completed: 0, total: sourceIds.length });
+      await persist({
+        stage: "corpus-map",
+        completed: Object.keys(journal.maps).length +
+          Object.keys(journal.prepareFailures).length,
+        total: sourceIds.length,
+      });
       const readySourceIds = sourceIds.filter(
         (sourceId) => journal.prepareCompleted[sourceId]
       );
-      await runBounded(readySourceIds, mapConcurrency, async (sourceId) => {
+      const mapSourceIds = retryPaperIds.length
+        ? readySourceIds.filter((sourceId) => {
+            const source = this.registry.get(sourceId);
+            const mapped = journal.maps[sourceId];
+            return retryPaperIdSet.has(sourceId) ||
+              !mapped ||
+              mapped.contentHash !== source?.contentHash ||
+              mapped.statSignature !== source?.statSignature;
+          })
+        : readySourceIds;
+      await runBounded(mapSourceIds, mapConcurrency, async (sourceId) => {
         const readySource = this.registry.get(sourceId);
         const completed = journal.maps[sourceId];
         const mapCacheSignature = stableStringHash([
@@ -2243,9 +2642,10 @@
             };
             // Each mapper receives only this bounded object: no parent conversation or
             // accumulated tool history enters the worker context.
-            const mapped = this.mapWorker
-              ? await this.mapWorker(workerInput, { signal: options.signal })
-              : {
+            const mappedExecution = this.mapWorker
+              ? await this.executeMapWorker(workerInput, { signal: options.signal })
+              : null;
+            const mapped = mappedExecution?.mapped || {
                   paperId: readySource.sourceId,
                   contentHash: readySource.contentHash,
                   title: workerInput.title,
@@ -2269,7 +2669,10 @@
             journal.maps[sourceId] = {
               ...normalizedMap,
               statSignature: readySource.statSignature,
+              generationMode: mappedExecution?.generationMode || "host-default",
             };
+            journal.mapAttemptDiagnostics[sourceId] =
+              mappedExecution?.diagnostics || [];
             await this.workspace.writeJson(mapCachePath, {
               schemaVersion: 1,
               workflowVersion: CORPUS_WORKFLOW_VERSION,
@@ -2299,7 +2702,17 @@
           journal.mapFailures[sourceId] = {
             ...compactError(error),
             stage: "map",
+            sourceReady: this.sourceIsReady(
+              sourceId,
+              journal.prepareCompleted[sourceId]
+            ),
+            retryable: error?.retryable === true || isRetryableCorpusMapError(error),
+            attempts: Math.max(0, Number(error?.attempts) || 0),
+            fallbackAttempted: error?.fallbackAttempted === true,
           };
+          if (Array.isArray(error?.mapAttemptDiagnostics)) {
+            journal.mapAttemptDiagnostics[sourceId] = error.mapAttemptDiagnostics;
+          }
           delete journal.maps[sourceId];
         }
         await persist({
@@ -2343,6 +2756,9 @@
         (left, right) => left.category.localeCompare(right.category) ||
           left.label.localeCompare(right.label)
       );
+      const recoveredPaperIds = retryPaperIds.filter(
+        (paperId) => Boolean(journal.maps[paperId])
+      );
       await persist({
         stage: "corpus-group",
         completed: journal.groups.length,
@@ -2376,12 +2792,14 @@
           right.supportingPaperIds.length - left.supportingPaperIds.length ||
           left.claim.localeCompare(right.claim)
       );
+      let reusedGroupSynthesisCount = 0;
+      const affectedGroupKeys = [];
       const groupSyntheses = journal.groups.map((group) => {
         const paperIdSet = new Set(group.paperIds);
         const groupFindings = findings.filter((finding) =>
           finding.supportingPaperIds.some((paperId) => paperIdSet.has(paperId))
         );
-        return {
+        const candidate = {
           category: group.category,
           label: group.label,
           paperIds: group.paperIds,
@@ -2389,6 +2807,20 @@
           claimCount: groupFindings.length,
           claims: groupFindings,
         };
+        const previous = previousGroupSyntheses.find(
+          (item) => item.category === group.category &&
+            String(item.label).toLowerCase() === String(group.label).toLowerCase()
+        );
+        if (previous && JSON.stringify(previous) === JSON.stringify(candidate)) {
+          reusedGroupSynthesisCount += 1;
+          return previous;
+        }
+        if (retryPaperIds.length) {
+          affectedGroupKeys.push(
+            `${group.category}:${String(group.label).toLowerCase()}`
+          );
+        }
+        return candidate;
       });
       const themeSyntheses = groupSyntheses.filter(
         (group) => group.category === "theme"
@@ -2417,6 +2849,22 @@
           totalStructuredClaims: findings.length,
         },
       };
+      if (retryPaperIds.length) {
+        journal.incrementalUpdate = {
+          requestedRetryPaperIds: retryPaperIds,
+          recoveredPaperIds,
+          remainingFailedPaperIds: retryPaperIds.filter(
+            (paperId) => Boolean(journal.mapFailures[paperId])
+          ),
+          reusedMapPaperIds: recoveryBaselineMapIds.filter(
+            (paperId) => Boolean(journal.maps[paperId]) &&
+              !retryPaperIdSet.has(paperId)
+          ),
+          affectedGroupKeys: uniqueStrings(affectedGroupKeys, 10000),
+          reusedGroupSynthesisCount,
+          updatedAt: nowIso(this.now),
+        };
+      }
       await persist({
         stage: "corpus-reduce",
         completed: groupSyntheses.length,
@@ -2424,6 +2872,9 @@
       });
 
       journal.phase = "verify";
+      const verificationKeysBeforeUpdate = new Set(
+        Object.keys(journal.verificationByClaim)
+      );
       const verificationTargets = [...journal.reduction.findings]
         .sort((left, right) =>
           Number(/\d/.test(right.claim)) - Number(/\d/.test(left.claim)) ||
@@ -2503,6 +2954,13 @@
           ...(finding.evidenceRefs || []),
         ].join("|"))])
         .filter(Boolean);
+      if (journal.incrementalUpdate) {
+        const currentVerificationKeys = Object.keys(journal.verificationByClaim);
+        journal.incrementalUpdate.verificationClaimsReused = currentVerificationKeys
+          .filter((claimKey) => verificationKeysBeforeUpdate.has(claimKey)).length;
+        journal.incrementalUpdate.verificationClaimsRechecked = currentVerificationKeys
+          .filter((claimKey) => !verificationKeysBeforeUpdate.has(claimKey)).length;
+      }
       journal.phase = "answer";
       journal.status = "completed";
       journal.completedAt = nowIso(this.now);
