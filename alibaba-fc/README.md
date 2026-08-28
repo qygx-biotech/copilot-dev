@@ -87,20 +87,23 @@ No production dependency was added for the local-workspace routes. The existing 
 
 ## Local-Workspace Literature Endpoints
 
-Both new endpoints require the existing JWT bearer token and are stateless with respect to project storage:
+The source-worker endpoints require the existing JWT bearer token and are stateless with respect to project storage:
 
 - `POST /api/literature/summarize-chunk` accepts one extracted-text chunk, its bounded index/count, language, and filename.
 - `POST /api/literature/synthesize` accepts bounded chunk summaries plus minimal source metadata and returns the structured content used by a local Paper Card.
+- `POST /api/corpus/map-paper` accepts one bounded question plus up to eight evidence excerpts for one paper and returns a validated query-specific map note with only supplied evidence references.
 
-Neither route accepts a filesystem path, PDF bytes, an OSS key, or a project folder. Neither route reads or writes OSS.
+None of these routes accepts a local filesystem path, PDF bytes, an OSS key, or a project folder. None reads or writes OSS.
 
-The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its scope, structured selected/relevant paper IDs, project summaries, file inventory, processed evidence, and limitation notices before adding them to the Side Chat system context. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence so every answer and recommendation is framed by the long-term final goal. Inventory entries are explicitly metadata-only. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
+The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its compact source map, hard paper/experiment scopes, coverage, project summaries, metadata-only inventory, processed evidence, and limitation notices. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
 
 ### Local Paper Cards and routing
 
-Workspace open and Refresh only synchronize folder metadata and content hashes; they never call the Paper Card LLM flow. For a Side Chat paper question, missing Paper Cards are generated through the existing local extraction and bounded LLM map-reduce flow before card-based matching or context routing begins. Explicitly selected papers bound this write; without a selection, the literature library is prepared so semantic matching has complete cards. Cards are stored at `.biodesign/literature/summaries/<paper_id>.json` to preserve compatibility with existing workspaces. Existing cards with unchanged hashes are reused without a write; changed sources regenerate only when next needed; deleted sources remove their card and `.biodesign/literature/cache/<paper_id>.json` derived entry during a metadata scan.
+Workspace open and Refresh synchronize only cheap file metadata; they perform zero content hashes, PDF parses, workbook parses, or LLM calls. A selected or automatically matched paper is hashed and parsed lazily through the browser's shared source-readiness service. A Paper Card is optional and is generated only when a broad summary/comparison benefits from it or the card operation is explicitly requested. Cards remain at `.biodesign/literature/summaries/<source_id>.json` for compatibility and are keyed in the new source registry by content hash, schema, model, and prompt version. Changed and deleted sources immediately lose their ready association, while unchanged cards are reused.
 
-Workspace-tree PDF selections are mapped to stable paper IDs. Explicitly selected literature papers define the retrieval scope for literature-relevant questions. With no paper selection, Side Chat ranks the compact cards locally using titles, LLM-generated semantic fields, topics, keywords, and exact scientific identifiers, then retrieves detailed source excerpts only from the matched papers when the question requires them. Retrieved excerpts are request-scoped and are not written into conversation history.
+Workspace-tree selections map to stable paper and experiment source IDs. Explicit selections define hard tool scopes. With no paper selection, ready metadata and content indexes are searched first, cheap metadata identifies likely unprepared candidates, and only candidates are prepared. Precise answers use original page/chunk evidence; Paper Cards can aid broad interpretation but are never the sole evidence. Experiment CSV/XLS/XLSX/TSV/TXT files are normalized lazily into bounded structured records with raw values and file/sheet/range provenance. Retrieved evidence is request-scoped and is not copied into persistent conversation history.
+
+Side Chat and Agent Work both use the same bounded model-driven read-only tool loop in `side-chat-agent.js`; only their final response parsers differ. The server cannot open the browser's local folder, so source preparation happens before transport through the shared browser service and the server tools progressively inspect only the bounded evidence supplied for that request.
 
 Example smoke test after obtaining `TOKEN`:
 

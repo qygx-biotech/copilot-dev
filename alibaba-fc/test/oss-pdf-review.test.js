@@ -24,6 +24,7 @@ let llmFetchCalls = 0;
 const queuedChatCompletionTexts = [];
 const queuedChatCompletionMessages = [];
 const queuedRouterCompletionTexts = [];
+const queuedCorpusMapCompletionTexts = [];
 const queuedChatHttpStatuses = [];
 const capturedLlmRequests = [];
 
@@ -135,6 +136,16 @@ global.fetch = async (_url, options = {}) => {
           memory_ids: [],
           reason: "No local context is needed."
         });
+  } else if (systemMessage.includes("fresh-context corpus mapping worker")) {
+    content = queuedCorpusMapCompletionTexts.length
+      ? queuedCorpusMapCompletionTexts.shift()
+      : JSON.stringify({
+          relevance: "high",
+          themes: ["enzyme engineering"],
+          findings: [],
+          methods: [],
+          limitations: []
+        });
   } else if (systemMessage.includes("one excerpt of an academic paper")) {
     content = JSON.stringify({
       summary: "This excerpt describes a controlled paper review experiment.",
@@ -234,7 +245,7 @@ test("frontend upload does not automatically invoke PDF review", () => {
   assert.doesNotMatch(uploadFunction, /\/api\/documents\/review/);
   assert.match(frontendSource, /USE_OSS_WORKSPACE_STORAGE = false/);
   assert.match(frontendSource, /projectContextService\.buildContext/);
-  assert.match(contextSource, /this\.literature\.summarize/);
+  assert.match(contextSource, /ensureSourceReady/);
   assert.match(workspaceSource, /showDirectoryPicker/);
   assert.match(workspaceSource, /scanDirectoryTree/);
   assert.doesNotMatch(frontendSource, /await syncStoredPdfDocuments\(\)/);
@@ -314,6 +325,7 @@ test("document endpoints reject unauthenticated access", async () => {
     deleteResponse,
     localChunkResponse,
     localSynthesisResponse,
+    corpusMapResponse,
     contextRouterResponse
   ] = await Promise.all([
     handler(apiEvent("GET", "/api/documents", undefined, false), context),
@@ -365,6 +377,15 @@ test("document endpoints reject unauthenticated access", async () => {
     handler(
       apiEvent(
         "POST",
+        "/api/corpus/map-paper",
+        { paperId: "paper-a", contentHash: "sha256:test", question: "Q", evidence: [] },
+        false
+      ),
+      context
+    ),
+    handler(
+      apiEvent(
+        "POST",
         "/api/context/route",
         { userQuery: "Which paper?", literatureIndex: [] },
         false
@@ -379,6 +400,7 @@ test("document endpoints reject unauthenticated access", async () => {
   assert.equal(deleteResponse.statusCode, 401);
   assert.equal(localChunkResponse.statusCode, 401);
   assert.equal(localSynthesisResponse.statusCode, 401);
+  assert.equal(corpusMapResponse.statusCode, 401);
   assert.equal(contextRouterResponse.statusCode, 401);
 });
 
@@ -425,6 +447,51 @@ test("local literature endpoints are stateless and never read or write OSS", asy
   assert.match(userMessage, /local-paper\.pdf/);
   assert.doesNotMatch(userMessage, /Users\/example|private\//);
   assert.doesNotMatch(userMessage, /objectKey|OSS/);
+});
+
+test("corpus paper mapping uses a fresh bounded context and validates evidence refs", async () => {
+  const allowedRef = "paper-a:p8:paper-a-P8-C2";
+  queuedCorpusMapCompletionTexts.push(
+    JSON.stringify({
+      relevance: "high",
+      themes: ["EctD variants"],
+      findings: [
+        {
+          claim: "A163V improved the reported activity.",
+          evidence_refs: [allowedRef, "invented-reference"]
+        }
+      ],
+      methods: ["activity assay"],
+      limitations: ["single reported condition"]
+    })
+  );
+  const pdfReadsBefore = pdfGetCalls;
+  const response = await handler(
+    apiEvent("POST", "/api/corpus/map-paper", {
+      paperId: "paper-a",
+      contentHash: "sha256:abc123",
+      question: "Which EctD variants improved activity?",
+      evidence: [
+        {
+          evidenceRef: allowedRef,
+          text: "The A163V variant improved activity in the reported assay."
+        }
+      ],
+      language: "en"
+    }),
+    context
+  );
+  const body = parseResponse(response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.mapResult.paperId, "paper-a");
+  assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [allowedRef]);
+  assert.equal(pdfGetCalls, pdfReadsBefore);
+  const request = capturedLlmRequests.at(-1);
+  assert.equal(request.messages.length, 2);
+  assert.match(request.messages[0].content, /fresh-context corpus mapping worker/);
+  assert.doesNotMatch(request.messages.at(-1).content, /conversation|chat history/i);
 });
 
 test("context router uses only compact indexes and preserves explicit paper scope", async () => {
@@ -931,7 +998,13 @@ test("Side Chat executes provider tool calls through the read-only loop", async 
       "list_workspace_items",
       "search_workspace_items",
       "read_workspace_item",
-      "read_project_context"
+      "read_project_context",
+      "list_papers",
+      "search_papers",
+      "read_paper_evidence",
+      "list_experiment_sources",
+      "query_experiment_results",
+      "source_coverage"
     ]
   );
   const toolResult = capturedLlmRequests[1].messages.find(

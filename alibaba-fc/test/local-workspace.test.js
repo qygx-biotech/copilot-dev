@@ -443,7 +443,11 @@ test("Paper Cards are generated once, reused, regenerated on change, and removed
     },
   };
   const pdfjsLib = {
-    getDocument() {
+    getDocument({ data }) {
+      const raw = new TextDecoder().decode(data);
+      const extractedText = raw.includes("paper-b.pdf")
+        ? "The A163V EctD variant had an exact kcat of 12.4 s-1 and Km of 0.8 mM measured by HPLC. ".repeat(12)
+        : "Machine-readable paper evidence. ".repeat(40);
       return {
         promise: Promise.resolve({
           numPages: 1,
@@ -508,36 +512,41 @@ test("Paper Cards are generated once, reused, regenerated on change, and removed
   renamedHandle.name = "renamed-paper.pdf";
   literatureDirectory.children.set("renamed-paper.pdf", renamedHandle);
   const renamed = await module.syncPaperLibrary();
-  assert.equal(renamed.documents[0].id, documentId);
+  const renamedId = renamed.documents[0].id;
+  const renamedCardPath = renamed.documents[0].paperCardPath;
+  assert.notEqual(renamedId, documentId);
   assert.equal(renamed.documents[0].filename, "renamed-paper.pdf");
-  assert.equal((await module.getPaperCard(documentId)).fileName, "renamed-paper.pdf");
-  assert.equal(synthesisCalls, 1);
+  assert.equal((await module.getPaperCard(renamedId)).fileName, "renamed-paper.pdf");
+  assert.equal(synthesisCalls, 2);
 
   const preservedLastModified = renamedHandle.lastModified;
   renamedHandle.bytes = new TextEncoder().encode("other pdf content");
   const sameMetadataChange = await module.syncPaperLibrary();
   assert.equal(sameMetadataChange.documents[0].lastModified, preservedLastModified);
-  assert.notEqual(sameMetadataChange.documents[0].sourceHash, firstHash);
+  // A stat-identical replacement cannot be distinguished by cheap folder
+  // reconciliation; explicit verification or a later stat change triggers hashing.
+  assert.equal(sameMetadataChange.documents[0].sourceHash, renamed.documents[0].sourceHash);
   assert.equal(synthesisCalls, 2);
 
-  const retrievalCachePath = `.biodesign/literature/cache/${documentId}.json`;
-  await manager.writeJson(retrievalCachePath, { paperId: documentId, chunks: [] });
+  const retrievalCachePath = `.biodesign/literature/cache/${renamedId}.json`;
+  await manager.writeJson(retrievalCachePath, { paperId: renamedId, chunks: [] });
   await manager.writeFile(
     "literature/renamed-paper.pdf",
     new Blob(["changed pdf content with a different source hash"])
   );
   const changed = await module.syncPaperLibrary();
-  assert.equal(changed.documents[0].id, documentId);
+  assert.equal(changed.documents[0].id, renamedId);
   assert.notEqual(changed.documents[0].sourceHash, firstHash);
   assert.equal(synthesisCalls, 3);
-  assert.equal((await module.getPaperCard(documentId)).source.hash, changed.documents[0].sourceHash);
+  assert.equal((await module.getPaperCard(renamedId)).source.hash, changed.documents[0].sourceHash);
   assert.equal(await manager.fileExists(retrievalCachePath), false);
 
-  await manager.writeJson(retrievalCachePath, { paperId: documentId, chunks: [] });
+  await manager.writeJson(retrievalCachePath, { paperId: renamedId, chunks: [] });
   await manager.removeFile("literature/renamed-paper.pdf");
   const removed = await module.syncPaperLibrary();
   assert.deepEqual(removed.documents, []);
   assert.equal(await manager.fileExists(cardPath), false);
+  assert.equal(await manager.fileExists(renamedCardPath), false);
   assert.equal(await manager.fileExists(retrievalCachePath), false);
   assert.ok(chunkCalls >= 2);
 });
@@ -562,7 +571,7 @@ test("adding a duplicate PDF creates a clear unique filename", async () => {
   assert.deepEqual(result.addedNames, ["paper (2).pdf"]);
   assert.deepEqual(
     result.documents.map((document) => document.filename),
-    ["paper (2).pdf", "paper.pdf"]
+    ["paper.pdf", "paper (2).pdf"]
   );
   assert.ok(result.documents.every((document) => document.paperCardStatus === "pending"));
   assert.equal(llmCalls, 0);
@@ -726,8 +735,8 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   });
   assert.equal(first.scope.type, "files");
   assert.equal(first.files[0].analysisStatus, "processed");
-  assert.match(first.files[0].evidenceType, /source-excerpts/);
-  assert.match(first.files[0].content, /Broad source excerpt/);
+  assert.match(first.files[0].evidenceType, /original.*evidence/);
+  assert.match(first.files[0].content, /Original-paper evidence/);
   assert.ok(chunkCalls > 0);
   assert.equal(synthesisCalls, 1);
 
@@ -738,7 +747,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
     workspaceTree: tree,
     projectGoal: "Improve enzyme activity",
   });
-  assert.match(second.files[0].evidenceType, /source-excerpts/);
+  assert.match(second.files[0].evidenceType, /original.*evidence/);
   assert.equal(chunkCalls, callsAfterFirstTurn);
   assert.equal(synthesisCalls, 1);
 
@@ -748,20 +757,124 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
     workspaceTree: tree,
     projectGoal: "Improve enzyme activity",
   });
-  assert.match(detailed.files[0].evidenceType, /source-excerpts/);
+  assert.match(detailed.files[0].evidenceType, /original-paper-evidence/);
   assert.match(detailed.files[0].content, /25 micromolar/i);
-  assert.ok(extractionCalls >= 2);
+  assert.equal(extractionCalls, 1);
   assert.equal(synthesisCalls, 1);
 
-  const unsupported = await service.buildContext({
+  const invalidWorkbook = await service.buildContext({
     question: "What does this spreadsheet show?",
     selectedPaths: ["experiments/run.xlsx"],
     workspaceTree: tree,
     projectGoal: "Improve enzyme activity",
   });
-  assert.equal(unsupported.files[0].analysisStatus, "unsupported");
-  assert.equal(unsupported.files[0].content, "");
-  assert.match(unsupported.notices[0], /do not yet have an AI content processor/);
+  assert.equal(invalidWorkbook.files[0].analysisStatus, "processing-failed");
+  assert.equal(invalidWorkbook.files[0].content, "");
+  assert.ok(
+    invalidWorkbook.notices.some((notice) =>
+      /Could not process experiments\/run\.xlsx/.test(notice)
+    )
+  );
+});
+
+test("unrelated Side Chat and Agent Work context builds do not prepare sources", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  await manager.writeFile("literature/deferred.pdf", new Blob(["%PDF-deferred"]));
+  let parserCalls = 0;
+  let llmCalls = 0;
+  const literature = new LiteratureModule({
+    workspace: manager,
+    pdfjsLib: {
+      getDocument() {
+        parserCalls += 1;
+        throw new Error("PDF parsing must remain deferred.");
+      },
+    },
+    api: {
+      async summarizeChunk() {
+        llmCalls += 1;
+        throw new Error("Paper Cards must remain deferred.");
+      },
+      async synthesize() {
+        llmCalls += 1;
+        throw new Error("Paper Cards must remain deferred.");
+      },
+    },
+  });
+  await literature.scan();
+  const workspaceTree = await manager.scanDirectoryTree();
+  const service = new ProjectContextService({ workspace: manager, literature });
+
+  await service.buildContext({
+    question: "Change the interface language to Chinese.",
+    selectedPaths: [],
+    workspaceTree,
+  });
+  await service.buildContext({
+    question: "What is the current project goal?",
+    selectedPaths: [],
+    workspaceTree,
+  });
+
+  assert.equal(literature.preparation.metrics.fullHashCalls, 0);
+  assert.equal(parserCalls, 0);
+  assert.equal(llmCalls, 0);
+});
+
+test("combined literature and experiment questions keep separate labeled evidence bundles", async () => {
+  const { manager } = await makeInitializedWorkspace();
+  await manager.writeFile("literature/ectd.pdf", new Blob(["%PDF-ectd"]));
+  await manager.writeFile(
+    "experiments/strain-engineering/ectd.csv",
+    new Blob(["protein,mutation,activity,unit\nEctD,A163V,4.8,U/mg"])
+  );
+  const literature = new LiteratureModule({
+    workspace: manager,
+    pdfjsLib: {
+      getDocument() {
+        return {
+          promise: Promise.resolve({
+            numPages: 1,
+            getPage: async () => ({
+              getTextContent: async () => ({
+                items: [
+                  {
+                    str: "Published evidence reports that EctD A163V improved activity. ".repeat(8),
+                    hasEOL: true,
+                  },
+                ],
+              }),
+            }),
+            getMetadata: async () => ({ info: { Title: "EctD activity" } }),
+            destroy: async () => {},
+          }),
+        };
+      },
+    },
+    api: {},
+  });
+  await literature.scan();
+  const workspaceTree = await manager.scanDirectoryTree();
+  const paper = literature.documents.find((item) => item.isLiteraturePaper);
+  const service = new ProjectContextService({ workspace: manager, literature });
+  const context = await service.buildContext({
+    question: "Do published EctD A163V activity findings agree with our experiment results?",
+    selectedPaths: [
+      "literature/ectd.pdf",
+      "experiments/strain-engineering/ectd.csv",
+    ],
+    selectedPaperIds: [paper.id],
+    workspaceTree,
+  });
+
+  const published = context.files.find((item) => item.sourceId === paper.id);
+  const internal = context.files.find(
+    (item) => item.evidenceType === "structured-experiment-records"
+  );
+  assert.match(published.content, /Original-paper evidence/);
+  assert.match(internal.content, /Internal experimental evidence/);
+  assert.match(internal.content, /"activity":"4.8"/);
+  assert.deepEqual(context.experiments.relevantExperimentIds, [internal.sourceId]);
 });
 
 test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto-matches Paper Cards", async () => {
@@ -806,13 +919,17 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     },
   };
   const pdfjsLib = {
-    getDocument() {
+    getDocument({ data }) {
+      const raw = new TextDecoder().decode(data);
+      const extractedText = raw.includes("paper-b.pdf")
+        ? "The A163V EctD variant had an exact kcat of 12.4 s-1 and Km of 0.8 mM measured by HPLC. ".repeat(12)
+        : "Machine-readable paper evidence. ".repeat(40);
       return {
         promise: Promise.resolve({
           numPages: 1,
           getPage: async () => ({
             getTextContent: async () => ({
-              items: [{ str: "Machine-readable paper evidence. ".repeat(40), hasEOL: true }],
+              items: [{ str: extractedText, hasEOL: true }],
             }),
           }),
           getMetadata: async () => ({ info: {} }),
@@ -948,8 +1065,8 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(selectedA.files.map((file) => file.paperId), [ids["paper-a.pdf"]]);
   assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
   assert.deepEqual(operationOrder.slice(0, 2), [
-    "paper-card:paper-a.pdf",
     "match-papers",
+    "paper-card:paper-a.pdf",
   ]);
 
   operationOrder.length = 0;
@@ -983,6 +1100,11 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
   detailReads.length = 0;
 
+  // Explicitly warm reusable semantic cards for automatic catalog matching.
+  // Automatic routing itself must not generate cards for the whole library.
+  await literature.createPaperCard(ids["paper-b.pdf"]);
+  await literature.createPaperCard(ids["paper-c.pdf"]);
+
   const automatic = await service.buildContext({
     question: "What exact kcat was reported for the A163V EctD variant?",
     selectedPaths: [],
@@ -993,7 +1115,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(automatic.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
   assert.deepEqual(automatic.files.map((file) => file.paperId), [ids["paper-b.pdf"]]);
   assert.match(automatic.files[0].content, /12\.4 s-1/);
-  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  assert.deepEqual(detailReads, []);
   assert.deepEqual(new Set(synthesisCalls), new Set([
     "paper-a.pdf",
     "paper-b.pdf",
@@ -1020,8 +1142,8 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   });
   assert.equal(semanticRoute.routing.mode, "llm");
   assert.deepEqual(semanticRoute.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
-  assert.match(semanticRoute.files[0].evidenceType, /source-excerpts/);
-  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  assert.match(semanticRoute.files[0].evidenceType, /original.*evidence/);
+  assert.deepEqual(detailReads, []);
   const readyRouterIndex = routerPayloads.at(-1).literatureIndex;
   assert.equal(readyRouterIndex.length, 3);
   assert.ok(readyRouterIndex.every((item) => item.paperCardAvailable));
@@ -1038,8 +1160,8 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(filenameReference.literature.relevantPaperIds, [
     ids["paper-c.pdf"],
   ]);
-  assert.match(filenameReference.files[0].content, /Broad source excerpt/);
-  assert.deepEqual(detailReads, [ids["paper-c.pdf"]]);
+  assert.match(filenameReference.files[0].content, /Original-paper evidence/);
+  assert.deepEqual(detailReads, []);
   detailReads.length = 0;
 
   const comparison = await service.buildContext({
@@ -1060,10 +1182,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     new Set(comparison.files.map((file) => file.paperId)),
     new Set([ids["paper-a.pdf"], ids["paper-b.pdf"], ids["paper-c.pdf"]])
   );
-  assert.deepEqual(
-    new Set(detailReads),
-    new Set([ids["paper-a.pdf"], ids["paper-b.pdf"], ids["paper-c.pdf"]])
-  );
+  assert.deepEqual(detailReads, []);
   detailReads.length = 0;
 
   const followUp = await service.buildContext({
@@ -1085,7 +1204,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   });
   assert.equal(followUp.literature.discoveryMode, "conversation-follow-up");
   assert.deepEqual(followUp.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
-  assert.deepEqual(detailReads, [ids["paper-b.pdf"]]);
+  assert.deepEqual(detailReads, []);
   detailReads.length = 0;
 
   const unrelated = await service.buildContext({
@@ -1107,7 +1226,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   });
   assert.equal(noMatch.literature.retrievalRequired, false);
   assert.deepEqual(noMatch.files, []);
-  assert.match(noMatch.notices.join("\n"), /No sufficiently relevant ready Paper Card/);
+  assert.match(noMatch.notices.join("\n"), /No sufficiently relevant paper/);
 });
 
 test("Paper Card failure preserves source state, isolates other papers, and supports retry", async () => {
@@ -1195,9 +1314,10 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
     workspaceTree: await manager.scanDirectoryTree(),
     enableContextRouter: true,
   });
-  assert.equal(failedContext.literature.discoveryMode, "not-ready");
-  assert.deepEqual(failedContext.literature.relevantPaperIds, []);
-  assert.deepEqual(failedContext.files, []);
+  assert.equal(failedContext.literature.discoveryMode, "automatic");
+  assert.deepEqual(failedContext.literature.relevantPaperIds, [failed.id]);
+  assert.equal(failedContext.files[0].analysisStatus, "processed");
+  assert.match(failedContext.files[0].evidenceType, /original-paper-evidence/);
   delete module.api.routeContext;
 
   shouldFail = false;

@@ -160,7 +160,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.ok(chatStart >= 0 && chatEnd > chatStart);
   assert.doesNotMatch(chatFunction, /currentRecommendation\s*=/);
   assert.doesNotMatch(chatFunction, /runAgentInstruction/);
-  assert.match(chatFunction, /enableContextRouter:\s*true/);
+  assert.match(chatFunction, /enableContextRouter:\s*false/);
   assert.match(htmlSource, /id="analysisPanelStack"/);
   assert.match(htmlSource, /id="addAnalysisPanelButton"/);
   assert.match(htmlSource, /id="sideChatHistory"/);
@@ -203,11 +203,11 @@ test("workspace open, login, and Refresh never generate Paper Cards", () => {
   const eagerPattern = /ensurePaperCards|syncPaperLibrary|\.summarize\(/;
 
   assert.doesNotMatch(loginHandler, eagerPattern);
-  assert.match(openWorkspace, /literatureModule\.scan\(\)/);
+  assert.match(openWorkspace, /literatureModule\.scan\(\{ tree: workspaceTree \}\)/);
   assert.doesNotMatch(openWorkspace, eagerPattern);
   assert.match(refreshLiterature, /literatureModule\.scan\(\)/);
   assert.doesNotMatch(refreshLiterature, eagerPattern);
-  assert.match(refreshWorkspace, /literatureModule\.scan\(\)/);
+  assert.match(refreshWorkspace, /literatureModule\.scan\(\{ tree: nextTree \}\)/);
   assert.doesNotMatch(refreshWorkspace, eagerPattern);
   assert.match(moduleSource, /async addFiles\([\s\S]*?const documents = await this\.scan\(\)/);
   assert.match(moduleSource, /async ensurePaperCards\(/);

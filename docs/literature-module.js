@@ -5,6 +5,12 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function literatureFactory(root) {
   "use strict";
 
+  const sourceSystemApi = root?.createSourceSystem
+    ? root
+    : typeof require === "function"
+      ? require("./source-system.js")
+      : {};
+
   const LITERATURE_CONFIG = Object.freeze({
     chunkCharacters: 10000,
     chunkOverlap: 400,
@@ -126,7 +132,12 @@
       if (pdfjsLib.GlobalWorkerOptions && options.workerSrc) {
         pdfjsLib.GlobalWorkerOptions.workerSrc = options.workerSrc;
       }
-      const buffer = await file.arrayBuffer();
+      const buffer = options.preloadedBytes
+        ? options.preloadedBytes.buffer.slice(
+            options.preloadedBytes.byteOffset,
+            options.preloadedBytes.byteOffset + options.preloadedBytes.byteLength
+          )
+        : await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
       const pageTexts = [];
       let collectedCharacters = 0;
@@ -298,6 +309,29 @@
       return { ...data.summary, model: data.model || null };
     }
 
+    async mapCorpusPaper(payload, signal) {
+      const data = await this.request(
+        "/api/corpus/map-paper",
+        {
+          paperId: String(payload.paperId || "").slice(0, 160),
+          contentHash: String(payload.contentHash || "").slice(0, 160),
+          question: String(payload.question || "").slice(0, 4000),
+          evidence: (Array.isArray(payload.evidence) ? payload.evidence : [])
+            .slice(0, 8)
+            .map((item) => ({
+              evidenceRef: String(item.evidenceRef || "").slice(0, 300),
+              text: String(item.claimCandidate || "").slice(0, 1600),
+            })),
+          language: payload.language === "zh" ? "zh" : "en",
+        },
+        signal
+      );
+      return {
+        ...data.mapResult,
+        modelVersion: data.model || "unknown-model",
+      };
+    }
+
     async routeContext(payload, signal) {
       const data = await this.request(
         "/api/context/route",
@@ -389,6 +423,36 @@
       this.config = { ...LITERATURE_CONFIG, ...(options.config || {}) };
       this.index = null;
       this.documents = [];
+      this.sourceSystem = options.sourceSystem || sourceSystemApi.createSourceSystem?.({
+        workspace: this.workspace,
+        cryptoProvider: this.cryptoProvider,
+        spreadsheetProvider: options.spreadsheetProvider || root.XLSX,
+        now: this.now,
+        parsePaper: ({ file, bytes, signal }) =>
+          extractLocalPdf(file, this.pdfjsLib, {
+            ...this.config,
+            workerSrc: this.pdfWorkerSrc,
+            preloadedBytes: bytes,
+            signal,
+          }),
+        generatePaperCard: (payload) => this.generatePaperCardFromPrepared(payload),
+        mapWorker:
+          typeof this.api?.mapCorpusPaper === "function"
+            ? (payload, workerOptions) =>
+                this.api.mapCorpusPaper(
+                  {
+                    ...payload,
+                    language: this.getLanguage(),
+                  },
+                  workerOptions?.signal
+                )
+            : null,
+      });
+      this.sourceRegistry = this.sourceSystem?.registry || null;
+      this.preparation = this.sourceSystem?.preparation || null;
+      this.literatureTools = this.sourceSystem?.literatureTools || null;
+      this.experimentTools = this.sourceSystem?.experimentTools || null;
+      this.corpusWorkflows = this.sourceSystem?.corpusWorkflows || null;
     }
 
     serializeDocument(document) {
@@ -398,7 +462,13 @@
         filename: document.filename,
         size: Number(document.size),
         lastModified: Number(document.lastModified),
-        sourceHash: document.sourceHash,
+        ...(document.sourceHash ? { sourceHash: document.sourceHash } : {}),
+        ...(document.statSignature
+          ? { statSignature: document.statSignature }
+          : {}),
+        hashStatus: document.hashStatus || "absent",
+        parseStatus: document.parseStatus || "not_started",
+        indexStatus: document.indexStatus || "not_started",
         status: document.status,
         summaryPath: document.summaryPath,
         paperCardPath: document.paperCardPath || document.summaryPath,
@@ -437,157 +507,74 @@
       }
     }
 
-    async scan() {
+    async scan(options = {}) {
       const index = await this.workspace.readJson(".biodesign/literature/index.json");
-      const tree = await this.workspace.scanDirectoryTree();
-      const scanned = [];
-      const collectPdfs = (node) => {
-        if (node.type === "file" && node.name.toLowerCase().endsWith(".pdf")) {
-          scanned.push(node);
-          return;
-        }
-        (node.children || []).forEach(collectPdfs);
-      };
-      collectPdfs(tree);
+      const tree = options.tree || (await this.workspace.scanDirectoryTree());
       const previous = Array.isArray(index.documents) ? index.documents : [];
-      const previousByPath = new Map(previous.map((document) => [document.relativePath, document]));
-      const unmatched = new Set(previous);
-      const metadataGroups = new Map();
-      previous.forEach((document) => {
-        const key = `${Number(document.size)}:${Number(document.lastModified)}`;
-        const values = metadataGroups.get(key) || [];
-        values.push(document);
-        metadataGroups.set(key, values);
+      if (!this.sourceRegistry) {
+        throw new LiteratureError(
+          "SOURCE_REGISTRY_MISSING",
+          "The local source registry could not be initialized."
+        );
+      }
+      const reconciliation = await this.sourceRegistry.reconcile(tree, {
+        legacyDocuments: previous,
       });
+      const previousById = new Map(previous.map((document) => [document.id, document]));
+      const previousByPath = new Map(
+        previous.map((document) => [document.relativePath, document])
+      );
+      const activePdfSources = reconciliation.sources.filter(
+        (source) => source.extension === ".pdf"
+      );
+      const activeIds = new Set(activePdfSources.map((source) => source.sourceId));
+      for (const removedDocument of previous) {
+        if (!activeIds.has(removedDocument.id)) await this.removeDerivedRecord(removedDocument);
+      }
 
-      const documents = [];
-      for (const file of scanned) {
-        const isLiteraturePaper = file.relativePath.startsWith("literature/");
-        let old = previousByPath.get(file.relativePath) || null;
-        if (!old && !isLiteraturePaper) {
-          const key = `${Number(file.size)}:${Number(file.lastModified)}`;
-          const candidates = (metadataGroups.get(key) || []).filter((candidate) => unmatched.has(candidate));
-          if (candidates.length === 1) old = candidates[0];
-        }
-
-        let metadataChanged = Boolean(
-          old &&
-            (Number(old.size) !== Number(file.size) ||
-              Number(old.lastModified) !== Number(file.lastModified))
-        );
-        // Literature files are hashed on every sync. Size and mtime are useful
-        // shortcuts for other workspace PDFs, but they are not sufficient for
-        // the Paper Card lifecycle because a replacement can preserve both.
-        const sourceFile =
-          isLiteraturePaper || !old?.sourceHash || metadataChanged
-            ? await this.workspace.readFile(file.relativePath)
-            : null;
-        const sourceHash =
-          sourceFile === null
-            ? old.sourceHash
-            : await hashLiteratureFile(sourceFile, this.cryptoProvider);
-        if (!old && isLiteraturePaper) {
-          const candidates = previous.filter(
-            (candidate) =>
-              unmatched.has(candidate) && candidate.sourceHash === sourceHash
-          );
-          if (candidates.length === 1) {
-            old = candidates[0];
-            metadataChanged = Boolean(
-              Number(old.size) !== Number(file.size) ||
-                Number(old.lastModified) !== Number(file.lastModified)
-            );
-          }
-        }
-        if (old) unmatched.delete(old);
-        const sourceChanged = Boolean(
-          old && (!old.sourceHash || old.sourceHash !== sourceHash)
-        );
-        const id = old?.id || this.workspace.createId();
+      this.documents = activePdfSources.map((source) => {
+        const old = previousById.get(source.sourceId) || previousByPath.get(source.path) || {};
         const summaryPath =
-          old?.summaryPath || `.biodesign/literature/summaries/${id}.json`;
-        const paperCardPath = old?.paperCardPath || summaryPath;
-        const needsCardUpgrade = Boolean(
-          old && Number(old.paperCardVersion) !== PAPER_CARD_VERSION
-        );
-        if (sourceChanged || needsCardUpgrade) {
-          await this.removeDerivedRecord({ ...old, id, summaryPath, paperCardPath });
-        }
-
-        let paperCard = null;
-        let paperCardError = "";
-        if (await this.workspace.fileExists(paperCardPath)) {
-          try {
-            paperCard = await this.workspace.readJson(paperCardPath);
-            const cardMatchesSource =
-              paperCard.documentId === id &&
-              paperCard.paperId === id &&
-              Number(paperCard.paperCardVersion) === PAPER_CARD_VERSION &&
-              paperCard.source?.hash === sourceHash;
-            if (!cardMatchesSource) {
-              await this.removeDerivedRecord({ id, summaryPath, paperCardPath });
-              paperCard = null;
-            }
-          } catch (error) {
-            await this.removeDerivedRecord({ id, summaryPath, paperCardPath });
-            paperCardError = error.message || "The cached Paper Card was invalid.";
-          }
-        }
-
-        const cardReady = Boolean(paperCard);
-        const preserveFailure = Boolean(
-          old?.paperCardStatus === "failed" &&
-            !sourceChanged &&
-            !needsCardUpgrade &&
-            !cardReady
-        );
-        const document = {
-          id,
-          relativePath: file.relativePath,
-          filename: file.name,
-          size: Number(file.size),
-          lastModified: Number(file.lastModified),
-          sourceHash,
-          status: cardReady ? "ready" : preserveFailure ? "failed" : "pending",
+          source.artifacts?.paperCard?.path ||
+          source.legacy?.paperCardPath ||
+          old.paperCardPath ||
+          old.summaryPath ||
+          `.biodesign/literature/summaries/${source.sourceId}.json`;
+        const cardReady =
+          source.paperCardStatus === "ready" && Boolean(source.artifacts?.paperCard?.path);
+        const stale = source.catalogStatus === "dirty" || source.paperCardStatus === "stale";
+        const failed = source.paperCardStatus === "failed";
+        return {
+          id: source.sourceId,
+          sourceId: source.sourceId,
+          sourceKind: source.sourceKind,
+          relativePath: source.path,
+          filename: source.displayName,
+          size: Number(source.sizeBytes),
+          lastModified: Number(source.mtimeNs),
+          statSignature: source.statSignature,
+          sourceHash: source.contentHash,
+          hashStatus: source.hashStatus,
+          parseStatus: source.parseStatus,
+          indexStatus: source.indexStatus,
+          status: failed ? "failed" : stale ? "stale" : cardReady ? "ready" : "pending",
           summaryPath,
-          paperCardPath,
+          paperCardPath: summaryPath,
           paperCardVersion: cardReady ? PAPER_CARD_VERSION : 0,
-          paperCardStatus: cardReady ? "ready" : preserveFailure ? "failed" : "pending",
-          paperCardError:
-            paperCardError || (preserveFailure ? String(old.paperCardError || "") : ""),
+          paperCardStatus: failed ? "failed" : stale ? "stale" : cardReady ? "ready" : "pending",
+          paperCardError: source.error?.message || String(old.paperCardError || ""),
           summaryAvailable: cardReady,
-          summaryStale: false,
-          summaryUpdatedAt: cardReady ? paperCard.generatedAt : "",
-          isLiteraturePaper,
+          summaryStale: stale,
+          summaryUpdatedAt: old.summaryUpdatedAt || "",
+          isLiteraturePaper: source.sourceKind === "paper",
+          discovery: createPaperDiscoveryRecord(
+            source.legacy?.discovery || old.discovery,
+            source.displayName
+          ),
         };
-
-        if (
-          cardReady &&
-          (paperCard.fileName !== file.name ||
-            paperCard.source?.filename !== file.name ||
-            paperCard.source?.relativePath !== file.relativePath)
-        ) {
-          paperCard.fileName = file.name;
-          paperCard.source = {
-            ...paperCard.source,
-            filename: file.name,
-            relativePath: file.relativePath,
-            size: Number(file.size),
-            lastModified: Number(file.lastModified),
-          };
-          await this.workspace.writeJson(paperCardPath, paperCard);
-        }
-        document.discovery = createPaperDiscoveryRecord(paperCard, file.name);
-        documents.push(document);
-      }
-
-      for (const removedDocument of unmatched) {
-        await this.removeDerivedRecord(removedDocument);
-      }
-
-      this.documents = documents;
+      });
       await this.persistIndex();
-      return documents;
+      return this.documents;
     }
 
     async addFiles(files) {
@@ -650,6 +637,7 @@
 
     async getPaperCard(documentId) {
       const document = this.findDocument(documentId);
+      if (document.paperCardStatus !== "ready") return null;
       const path = document.paperCardPath || document.summaryPath;
       if (!(await this.workspace.fileExists(path))) return null;
       const card = await this.workspace.readJson(path);
@@ -674,6 +662,14 @@
     async deletePaperCard(documentId) {
       const document = this.findDocument(documentId);
       await this.removeDerivedRecord(document);
+      const source = this.sourceRegistry?.get(documentId, { includeMissing: true });
+      if (source) {
+        delete source.artifacts.paperCard;
+        source.paperCardStatus = "absent";
+        source.error = null;
+        source.legacy.discovery = null;
+        await this.sourceRegistry.persist();
+      }
       document.status = "pending";
       document.paperCardStatus = "pending";
       document.paperCardVersion = 0;
@@ -736,6 +732,18 @@
           document.summaryAvailable = false;
           document.summaryStale = false;
           await this.removeDerivedRecord(document);
+          const source = this.sourceRegistry?.get(document.id, {
+            includeMissing: true,
+          });
+          if (source) {
+            delete source.artifacts.paperCard;
+            source.paperCardStatus = "failed";
+            source.error = {
+              code: String(error.code || "PAPER_CARD_FAILED"),
+              message: document.paperCardError,
+            };
+            await this.sourceRegistry.persist();
+          }
           await this.persistIndex();
           failures.push({
             paperId: document.id,
@@ -778,47 +786,37 @@
     }
 
     async extractText(documentId, options = {}) {
-      const document = this.findDocument(documentId);
-      const signal = options.signal;
-      assertNotAborted(signal);
-      const file = await this.workspace.readFile(document.relativePath);
-      return extractLocalPdf(file, this.pdfjsLib, {
-        ...this.config,
-        workerSrc: this.pdfWorkerSrc,
-        signal,
-      });
+      this.findDocument(documentId);
+      assertNotAborted(options.signal);
+      await this.preparation.ensureSourceReady([documentId], "full_text", options);
+      const artifact = await this.preparation.readPaperArtifact(documentId);
+      return {
+        text: artifact.pages
+          .map((page) => `# Page ${page.page}\n${page.text}`)
+          .join("\n\n"),
+        pageCount: artifact.pageCount,
+        metadataTitle: artifact.metadataTitle,
+        truncated: artifact.truncated,
+      };
     }
 
-    async createPaperCard(documentId, options = {}) {
-      const document = this.findDocument(documentId);
-      let cached = null;
-      try {
-        cached = await this.getPaperCard(documentId);
-      } catch (error) {
-        if (!options.force) throw error;
-        await this.removeDerivedRecord(document);
-      }
-      if (!options.force && document.paperCardStatus === "ready" && cached) {
-        return { summary: cached, card: cached, cached: true };
-      }
-
-      const signal = options.signal;
+    async generatePaperCardFromPrepared({
+      source,
+      paperArtifact,
+      contentHash,
+      signal,
+      onProgress,
+    }) {
       assertNotAborted(signal);
-      options.onProgress?.({ stage: "extracting", completed: 0, total: 1 });
-      const file = await this.workspace.readFile(document.relativePath);
-      const originalMetadata = { size: file.size, lastModified: file.lastModified };
-      const extracted = await extractLocalPdf(file, this.pdfjsLib, {
-        ...this.config,
-        workerSrc: this.pdfWorkerSrc,
-        signal,
-      });
-      const chunkResult = chunkLiteratureText(extracted.text, this.config);
+      const sourceText = (paperArtifact.pages || [])
+        .map((page) => `# Page ${page.page}\n${page.text}`)
+        .join("\n\n");
+      const chunkResult = chunkLiteratureText(sourceText, this.config);
       if (!chunkResult.chunks.length) {
         throw new LiteratureError("NO_TEXT_CHUNKS", "No usable text chunks were produced from this PDF.");
       }
-
       const language = this.getLanguage() === "zh" ? "zh" : "en";
-      options.onProgress?.({
+      onProgress?.({
         stage: "summarizing",
         completed: 0,
         total: chunkResult.chunks.length,
@@ -830,7 +828,7 @@
         async (text, index) => {
           const result = await this.api.summarizeChunk(
             {
-              filename: document.filename,
+              filename: source.displayName,
               chunkIndex: index,
               totalChunks: chunkResult.chunks.length,
               text,
@@ -839,7 +837,7 @@
             signal
           );
           completed += 1;
-          options.onProgress?.({
+          onProgress?.({
             stage: "summarizing",
             completed,
             total: chunkResult.chunks.length,
@@ -849,33 +847,19 @@
       );
 
       assertNotAborted(signal);
-      options.onProgress?.({ stage: "synthesizing", completed: 0, total: 1 });
+      onProgress?.({ stage: "synthesizing", completed: 0, total: 1 });
       const synthesized = await this.api.synthesize(
         {
-          filename: document.filename,
-          size: document.size,
-          lastModified: document.lastModified,
-          pageCount: extracted.pageCount,
-          extractionTruncated: extracted.truncated || chunkResult.truncated,
+          filename: source.displayName,
+          size: source.sizeBytes,
+          lastModified: source.mtimeNs,
+          pageCount: paperArtifact.pageCount,
+          extractionTruncated: paperArtifact.truncated || chunkResult.truncated,
           chunkSummaries,
           language,
         },
         signal
       );
-
-      const latestFile = await this.workspace.readFile(document.relativePath);
-      const latestHash = await hashLiteratureFile(latestFile, this.cryptoProvider);
-      if (
-        latestFile.size !== originalMetadata.size ||
-        latestFile.lastModified !== originalMetadata.lastModified ||
-        latestHash !== document.sourceHash
-      ) {
-        throw new LiteratureError(
-          "SOURCE_CHANGED",
-          "The PDF changed while it was being summarized. Refresh Literature and try again."
-        );
-      }
-
       const generatedAt = this.now().toISOString();
       const methods = normalizeCardList(synthesized.methods);
       const methodsSummary =
@@ -898,23 +882,23 @@
       const card = {
         schemaVersion: 1,
         paperCardVersion: PAPER_CARD_VERSION,
-        paperId: document.id,
-        documentId: document.id,
-        fileName: document.filename,
+        paperId: source.sourceId,
+        documentId: source.sourceId,
+        fileName: source.displayName,
         generatedAt,
         source: {
-          filename: document.filename,
-          relativePath: document.relativePath,
-          size: document.size,
-          lastModified: document.lastModified,
-          hash: document.sourceHash,
-          pageCount: extracted.pageCount,
+          filename: source.displayName,
+          relativePath: source.path,
+          size: source.sizeBytes,
+          lastModified: source.mtimeNs,
+          hash: contentHash,
+          pageCount: paperArtifact.pageCount,
           processedCharacters: chunkResult.processedCharacters,
-          truncated: extracted.truncated || chunkResult.truncated,
+          truncated: paperArtifact.truncated || chunkResult.truncated,
         },
         model: synthesized.model || null,
         title:
-          extracted.metadataTitle || normalizeCardText(synthesized.title) || null,
+          paperArtifact.metadataTitle || normalizeCardText(synthesized.title) || null,
         authors: normalizeCardList(synthesized.authors),
         year:
           Number.isInteger(Number(synthesized.year)) &&
@@ -949,25 +933,58 @@
         ]),
         mainConclusion: normalizeCardText(synthesized.mainConclusion),
       };
-
       assertNotAborted(signal);
-      await this.workspace.writeJson(document.paperCardPath || document.summaryPath, card);
-      document.status = "ready";
-      document.paperCardStatus = "ready";
-      document.paperCardVersion = PAPER_CARD_VERSION;
-      document.paperCardError = "";
-      document.summaryAvailable = true;
-      document.summaryStale = false;
-      document.summaryUpdatedAt = generatedAt;
-      document.discovery = createPaperDiscoveryRecord(card, document.filename);
-      await this.persistIndex();
-      options.onProgress?.({ stage: "complete", completed: 1, total: 1 });
-      return {
-        summary: card,
-        card,
-        cached: false,
-        sourceText: options.includeSourceText ? extracted.text : "",
+      const path =
+        source.legacy?.paperCardPath ||
+        `.biodesign/literature/summaries/${source.sourceId}.json`;
+      await this.workspace.writeJson(path, card);
+      source.legacy = {
+        ...(source.legacy || {}),
+        summaryPath: path,
+        paperCardPath: path,
+        discovery: createPaperDiscoveryRecord(card, source.displayName),
       };
+      source.error = null;
+      onProgress?.({ stage: "complete", completed: 1, total: 1 });
+      return {
+        card,
+        path,
+        schemaVersion: PAPER_CARD_VERSION,
+        model: synthesized.model || null,
+        promptVersion: 1,
+      };
+    }
+
+    async createPaperCard(documentId, options = {}) {
+      const document = this.findDocument(documentId);
+      const existing = await this.getPaperCard(documentId).catch(() => null);
+      if (!options.force && existing) {
+        return {
+          summary: existing,
+          card: existing,
+          cached: true,
+          sourceText: "",
+        };
+      }
+      if (options.force) {
+        const source = this.sourceRegistry.get(documentId, { includeMissing: true });
+        if (source) {
+          delete source.artifacts.paperCard;
+          source.paperCardStatus = "absent";
+          await this.sourceRegistry.persist();
+        }
+        await this.removeDerivedRecord(document);
+      }
+      assertNotAborted(options.signal);
+      options.onProgress?.({ stage: "extracting", completed: 0, total: 1 });
+      await this.preparation.ensureSourceReady([documentId], "paper_card", options);
+      await this.scan();
+      const current = this.findDocument(documentId);
+      const card = await this.workspace.readJson(current.paperCardPath);
+      const sourceText = options.includeSourceText
+        ? (await this.extractText(documentId, options)).text
+        : "";
+      return { summary: card, card, cached: false, sourceText };
     }
 
     async summarize(documentId, options = {}) {

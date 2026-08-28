@@ -38,6 +38,14 @@
     /^\s*(?:what (?:does|is|are)|define|explain)\b[\s\S]{0,160}\b(?:mean|in general)?\s*[?.!]*\s*$|^\s*(?:什么是|解释一下|定义)\b/i;
   const BROAD_PAPER_QUESTION_PATTERN =
     /\b(summarize|summary|overview|overall argument|whole paper|entire paper|walk me through|experimental design)\b|总结|摘要|概述|整篇|整体论点|完整实验设计/i;
+  const ALL_PAPERS_PATTERN =
+    /\b(all papers|entire (?:paper|literature) (?:library|corpus)|whole (?:paper|literature) (?:library|corpus)|across (?:all )?papers)\b|所有论文|全部论文|整个文献库|全库/i;
+  const EXPERIMENT_QUESTION_PATTERN =
+    /\b(experiment|experimental results?|workbook|spreadsheet|csv|xlsx|measurement|replicate|condition|metric|titer|yield|productivity|activity|assay|strain|internal data|our results?)\b|实验|结果|工作簿|表格|测量|重复|条件|滴度|产率|活性|菌株|内部数据/i;
+  const EXPERIMENT_FOLLOW_UP_PATTERN =
+    /\b(our data|our results|same experiment|those results|these results|agree|disagree|compare with ours?)\b|我们的数据|我们的结果|这些结果|同一实验|一致|不一致/i;
+  const SOURCE_CATALOG_QUESTION_PATTERN =
+    /\b(?:list|show|which|what)\b[\s\S]{0,80}\b(?:papers?|experiment (?:files|sources)|workbooks?|source files)\b|列出.*(?:论文|实验文件|来源)|有哪些.*(?:论文|实验文件|来源)/i;
 
   const STOP_WORDS = new Set([
     "about",
@@ -382,6 +390,18 @@
                     : [])
                     .filter((paperId) => typeof paperId === "string" && paperId)
                 )].slice(0, limits.maxEvidenceFiles),
+                selectedExperimentIds: [...new Set(
+                  (Array.isArray(message.context.selectedExperimentIds)
+                    ? message.context.selectedExperimentIds
+                    : [])
+                    .filter((sourceId) => typeof sourceId === "string" && sourceId)
+                )].slice(0, limits.maxEvidenceFiles),
+                relevantExperimentIds: [...new Set(
+                  (Array.isArray(message.context.relevantExperimentIds)
+                    ? message.context.relevantExperimentIds
+                    : [])
+                    .filter((sourceId) => typeof sourceId === "string" && sourceId)
+                )].slice(0, limits.maxEvidenceFiles),
               },
             }
           : {}),
@@ -519,11 +539,17 @@
     constructor(options) {
       this.workspace = options.workspace;
       this.literature = options.literature;
+      this.sourceSystem = options.sourceSystem || options.literature?.sourceSystem || null;
+      this.sourceRegistry = this.sourceSystem?.registry || null;
+      this.literatureTools = this.sourceSystem?.literatureTools || null;
+      this.experimentTools = this.sourceSystem?.experimentTools || null;
+      this.corpusWorkflows = this.sourceSystem?.corpusWorkflows || null;
       this.limits = { ...CONTEXT_LIMITS, ...(options.limits || {}) };
     }
 
     buildConversationContext(conversation) {
       const recentlyDiscussedPaperIds = [];
+      const recentlyDiscussedExperimentIds = [];
       for (const message of [...(conversation?.messages || [])].reverse()) {
         const ids = [
           ...(message?.context?.relevantPaperIds || []),
@@ -539,6 +565,17 @@
           }
           if (recentlyDiscussedPaperIds.length >= this.limits.maxEvidenceFiles) break;
         }
+        for (const sourceId of [
+          ...(message?.context?.relevantExperimentIds || []),
+          ...(message?.context?.selectedExperimentIds || []),
+        ]) {
+          if (
+            typeof sourceId === "string" &&
+            sourceId &&
+            !recentlyDiscussedExperimentIds.includes(sourceId)
+          ) recentlyDiscussedExperimentIds.push(sourceId);
+          if (recentlyDiscussedExperimentIds.length >= this.limits.maxEvidenceFiles) break;
+        }
         if (recentlyDiscussedPaperIds.length >= this.limits.maxEvidenceFiles) break;
       }
       return {
@@ -547,6 +584,7 @@
         ).slice(0, this.limits.maxConversationSummaryCharacters),
         recentMessages: boundedMessages(conversation?.messages, this.limits),
         recentlyDiscussedPaperIds,
+        recentlyDiscussedExperimentIds,
       };
     }
 
@@ -562,18 +600,29 @@
         .slice(0, this.limits.maxInventoryFiles)
         .map((entry) => {
           const document = literatureByPath.get(entry.relativePath);
+          const source = this.sourceRegistry?.getByPath(entry.relativePath);
           const extension = fileExtension(entry.name);
           return {
             paperId: document?.id || null,
+            sourceId: source?.sourceId || document?.id || null,
+            sourceKind: source?.sourceKind || null,
             name: entry.name,
             relativePath: entry.relativePath,
             extension,
             size: Number(entry.size) || 0,
             lastModified: Number(entry.lastModified) || 0,
-            processor: extension === "pdf" ? "pdf" : null,
+            processor:
+              extension === "pdf"
+                ? "pdf"
+                : source?.sourceKind === "experiment"
+                  ? "experiment"
+                  : null,
             summaryAvailable: Boolean(document?.summaryAvailable),
             summaryStatus: document?.status || "unprocessed",
             paperCardStatus: document?.paperCardStatus || "unprocessed",
+            parseStatus: source?.parseStatus || "not_started",
+            indexStatus: source?.indexStatus || "not_started",
+            structuredDataStatus: source?.structuredDataStatus || "not_applicable",
           };
         });
     }
@@ -761,36 +810,40 @@
       );
       const question = String(options.question || "");
       const paperQuestion = questionMayNeedLiterature(question);
-
-      // Side Chat's one allowed project mutation happens before routing: create
-      // missing local Paper Cards for the explicit paper scope, or for the
-      // literature library when no paper is selected. Existing ready cards are
-      // reused, so matching always sees the best available compact index.
-      if (paperQuestion) {
-        await this.ensurePaperCards(
-          selectedPaperIds.length ? selectedPaperIds : null,
-          options
-        );
-      }
+      const allPapersQuestion = paperQuestion && ALL_PAPERS_PATTERN.test(question);
+      const selectedExperimentIds = selectedPaths
+        .map((path) => this.sourceRegistry?.getByPath(path))
+        .filter((source) => source?.sourceKind === "experiment")
+        .map((source) => source.sourceId);
 
       const conversationContext = this.buildConversationContext(options.conversation);
       const recentIds = conversationContext.recentlyDiscussedPaperIds.filter(
         (paperId) =>
           this.literature?.documents?.some(
-            (document) =>
-              document.id === paperId && document.paperCardStatus === "ready"
+            (document) => document.id === paperId
           )
       );
       const followUpNeedsLiterature = Boolean(
         recentIds.length && LITERATURE_FOLLOW_UP_PATTERN.test(question)
       );
+      const recentExperimentIds = conversationContext.recentlyDiscussedExperimentIds.filter(
+        (sourceId) => Boolean(this.sourceRegistry?.get(sourceId))
+      );
+      const experimentQuestion = EXPERIMENT_QUESTION_PATTERN.test(question);
+      const followUpNeedsExperiments = Boolean(
+        recentExperimentIds.length && EXPERIMENT_FOLLOW_UP_PATTERN.test(question)
+      );
       const memoryDescriptions = this.buildMemoryDescriptions();
-      let matches = await this.matchPapers(question, {
-        topK: Math.min(5, this.limits.maxEvidenceFiles),
-        ...(selectedPaperIds.length
-          ? { candidatePaperIds: selectedPaperIds }
-          : {}),
-      });
+      const shouldSearchLiterature = paperQuestion || followUpNeedsLiterature;
+      let matches = shouldSearchLiterature
+        ? await this.matchPapers(question, {
+            topK: Math.min(5, this.limits.maxEvidenceFiles),
+            readyOnly: false,
+            ...(selectedPaperIds.length
+              ? { candidatePaperIds: selectedPaperIds }
+              : {}),
+          })
+        : [];
       const literatureIndex = this.buildLiteratureIndex([
         ...selectedPaperIds,
         ...recentIds,
@@ -811,14 +864,14 @@
       let relevantPaperIds = [];
       let discoveryMode = "not-needed";
       if (routing.useLiterature) {
-        if (selectedPaperIds.length) {
-          relevantPaperIds = selectedPaperIds.filter((paperId) =>
-            this.literature.documents.some(
-              (document) =>
-                document.id === paperId && document.paperCardStatus === "ready"
-            )
-          );
-          discoveryMode = relevantPaperIds.length ? "selected" : "not-ready";
+        if (allPapersQuestion) {
+          relevantPaperIds = (this.literature?.documents || [])
+            .filter((document) => document.isLiteraturePaper)
+            .map((document) => document.id);
+          discoveryMode = "corpus";
+        } else if (selectedPaperIds.length) {
+          relevantPaperIds = [...selectedPaperIds];
+          discoveryMode = "selected";
         } else {
           let routedPaperIds = routing.paperIds;
           if (!routedPaperIds.length && followUpNeedsLiterature) {
@@ -827,12 +880,10 @@
           if (!routedPaperIds.length) {
             routedPaperIds = matches.map((match) => match.paperId);
           }
-          const readyIds = new Set(
-            this.literature.documents
-              .filter((document) => document.paperCardStatus === "ready")
-              .map((document) => document.id)
+          const activeIds = new Set(
+            this.literature.documents.map((document) => document.id)
           );
-          relevantPaperIds = routedPaperIds.filter((paperId) => readyIds.has(paperId));
+          relevantPaperIds = routedPaperIds.filter((paperId) => activeIds.has(paperId));
           if (!relevantPaperIds.length && !routedPaperIds.length) {
             matches = await this.matchPapers(question, {
               topK: Math.min(5, this.limits.maxEvidenceFiles),
@@ -840,7 +891,7 @@
             relevantPaperIds = matches.map((match) => match.paperId);
           }
           if (!relevantPaperIds.length && followUpNeedsLiterature) {
-            relevantPaperIds = recentIds.filter((paperId) => readyIds.has(paperId));
+            relevantPaperIds = recentIds.filter((paperId) => activeIds.has(paperId));
           }
           discoveryMode = relevantPaperIds.length
             ? followUpNeedsLiterature &&
@@ -858,26 +909,96 @@
         routing
       );
       context.routing = routing;
+      const sourceCounts = this.sourceRegistry?.counts?.() || {};
+      const paperSources = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
       context.literature = {
         selectedPaperIds,
         relevantPaperIds,
         discoveryMode,
         retrievalRequired: relevantPaperIds.length > 0,
+        coverage: {
+          papersDiscovered: paperSources.length,
+          papersSearchable: paperSources.filter((source) => source.indexStatus === "ready").length,
+          papersExcludedOrFailed: paperSources.filter(
+            (source) => source.parseStatus === "failed" || source.indexStatus === "failed"
+          ).map((source) => source.sourceId),
+          papersActuallyConsidered: [...relevantPaperIds],
+        },
+      };
+      context.experiments = {
+        selectedExperimentIds,
+        relevantExperimentIds: [],
+      };
+      context.sourceMap = {
+        projectGoalAvailable: Boolean(context.project.goal),
+        selectedPaperIds,
+        selectedExperimentIds,
+        activePaperIds: relevantPaperIds,
+        activeExperimentIds: [],
+        sourceCounts,
+        availableSourceTools: Boolean(this.sourceSystem),
       };
 
-      const paperEvidence = await this.retrievePaperEvidence(
-        options.question,
-        relevantPaperIds,
-        options
-      );
+      let paperEvidence = [];
+      if (allPapersQuestion && relevantPaperIds.length && this.corpusWorkflows) {
+        const workflow = await this.corpusWorkflows.run(question, options);
+        paperEvidence = [
+          {
+            name: "summarize-paper-corpus",
+            relativePath: workflow.resultPath || "",
+            extension: "json",
+            analysisStatus: "processed",
+            evidenceType: "corpus-workflow",
+            resultHandle: workflow.resultHandle || null,
+            content: JSON.stringify(workflow.preview || workflow).slice(
+              0,
+              this.limits.maxTotalEvidenceCharacters
+            ),
+          },
+        ];
+      } else {
+        paperEvidence = await this.retrievePaperEvidence(
+          options.question,
+          relevantPaperIds,
+          options
+        );
+      }
+      const experimentEvidence = [];
+      const relevantExperimentIds = await this.resolveExperimentSourceIds(question, {
+        selectedExperimentIds,
+        recentExperimentIds,
+        shouldUseExperiments: experimentQuestion || followUpNeedsExperiments,
+      });
+      if (experimentQuestion || followUpNeedsExperiments) {
+        for (const sourceId of relevantExperimentIds.slice(0, this.limits.maxEvidenceFiles)) {
+          experimentEvidence.push(await this.buildExperimentEvidence(sourceId, options));
+        }
+      }
+      context.experiments.relevantExperimentIds = experimentEvidence
+        .filter((item) => item.analysisStatus === "processed")
+        .map((item) => item.sourceId);
+      context.sourceMap.activeExperimentIds = [...context.experiments.relevantExperimentIds];
       const otherEvidence = [];
       for (const file of selectedNonPaperFiles.slice(0, this.limits.maxEvidenceFiles)) {
+        const source = this.sourceRegistry?.getByPath(file.relativePath);
+        if (source?.sourceKind === "experiment") continue;
         otherEvidence.push(await this.buildFileEvidence(file, options));
       }
-      context.files = [...paperEvidence, ...otherEvidence].slice(
+      context.files = [...paperEvidence, ...experimentEvidence, ...otherEvidence].slice(
         0,
         this.limits.maxEvidenceFiles
       );
+      const finalPaperSources = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
+      context.literature.coverage.papersDiscovered = finalPaperSources.length;
+      context.literature.coverage.papersSearchable = finalPaperSources.filter(
+        (source) => source.indexStatus === "ready"
+      ).length;
+      context.literature.coverage.papersExcludedOrFailed = finalPaperSources
+        .filter(
+          (source) => source.parseStatus === "failed" || source.indexStatus === "failed"
+        )
+        .map((source) => source.sourceId);
+      context.sourceMap.sourceCounts = this.sourceRegistry?.counts?.() || sourceCounts;
 
       if (
         !selectedPaperIds.length &&
@@ -885,12 +1006,76 @@
         LITERATURE_QUESTION_PATTERN.test(String(options.question || ""))
       ) {
         context.notices.push(
-          "No sufficiently relevant ready Paper Card was found, so no uploaded literature evidence was added."
+          "No sufficiently relevant paper was resolved from the source catalog, so no uploaded literature evidence was added."
         );
       }
       this.addLibraryNotices(context);
       this.addFileNotices(context);
+      this.applyProgressiveInventory(context, question);
       return context;
+    }
+
+    async resolveExperimentSourceIds(question, options = {}) {
+      if (!options.shouldUseExperiments) return [];
+      if (options.selectedExperimentIds?.length) {
+        return [...new Set(options.selectedExperimentIds)];
+      }
+      if (options.recentExperimentIds?.length) {
+        return [...new Set(options.recentExperimentIds)];
+      }
+      const matchedIds = [];
+      if (this.experimentTools) {
+        const result = await this.experimentTools.searchExperiments(question, {
+          readyOnly: true,
+          fallbackToAll: false,
+          limit: 100,
+        });
+        const records = result?.resultHandle
+          ? await this.sourceSystem.results.read(result.resultHandle)
+          : result;
+        for (const record of Array.isArray(records) ? records : []) {
+          if (record?.sourceId && !matchedIds.includes(record.sourceId)) {
+            matchedIds.push(record.sourceId);
+          }
+        }
+      }
+      const terms = tokenizeQuestion(question);
+      const metadataMatches = (this.sourceRegistry?.list({ sourceKind: "experiment" }) || [])
+        .map((source) => ({
+          sourceId: source.sourceId,
+          score: terms.reduce(
+            (score, term) =>
+              score +
+              (`${source.displayName} ${source.path}`.toLowerCase().includes(term) ? 1 : 0),
+            0
+          ),
+        }))
+        .filter((item) => item.score > 0)
+        .sort((left, right) => right.score - left.score)
+        .map((item) => item.sourceId);
+      return [...new Set([...matchedIds, ...metadataMatches])].slice(
+        0,
+        Math.min(5, this.limits.maxEvidenceFiles)
+      );
+    }
+
+    applyProgressiveInventory(context, question) {
+      if (
+        PROJECT_METADATA_QUESTION_PATTERN.test(String(question || "")) ||
+        SOURCE_CATALOG_QUESTION_PATTERN.test(String(question || ""))
+      ) return;
+      const activeSourceIds = new Set([
+        ...(context.sourceMap?.selectedPaperIds || []),
+        ...(context.sourceMap?.selectedExperimentIds || []),
+        ...(context.files || []).flatMap((file) => [file.paperId, file.sourceId]),
+      ]);
+      const selectedPaths = new Set(context.scope?.files || []);
+      context.inventory = context.inventory.filter(
+        (item) =>
+          !item.sourceKind ||
+          activeSourceIds.has(item.sourceId) ||
+          selectedPaths.has(item.relativePath)
+      );
     }
 
     async ensurePaperCards(paperIds, options = {}) {
@@ -962,7 +1147,53 @@
           },
         });
       }
-      return rankPaperCards(cards, query, options);
+      const rankedCards = rankPaperCards(cards, query, options);
+      if (!this.literatureTools) return rankedCards;
+      const lexicalQuery = tokenizeQuestion(query).join(" ") || query;
+      const searched = await this.literatureTools.searchPapers(lexicalQuery, {
+        topK: Math.min(20, Math.max(1, Number(options.topK) || 5)),
+        includeUnpreparedMetadata: options.readyOnly !== true,
+        ...(candidateIds ? { paperIds: [...candidateIds] } : {}),
+      });
+      const byPaperId = new Map(rankedCards.map((item) => [item.paperId, item]));
+      for (const result of searched.results || []) {
+        const document = this.literature.documents.find(
+          (candidate) => candidate.id === result.paperId
+        );
+        if (!document || (options.readyOnly === true && result.searchable !== true)) {
+          continue;
+        }
+        const existing = byPaperId.get(result.paperId);
+        if (existing) {
+          existing.score = Math.max(existing.score, Number(result.score) || 0);
+          continue;
+        }
+        byPaperId.set(result.paperId, {
+          paperId: result.paperId,
+          document,
+          card: {
+            fileName: result.fileName,
+            title: result.title,
+            authors: result.authors,
+            year: result.year,
+            topics: result.topics,
+            keywords: result.keywords,
+            genes: result.identifiers,
+            proteins: result.identifiers,
+            shortSummary: result.snippet,
+          },
+          score: Number(result.score) || 0,
+          matchedTerms: 0,
+        });
+      }
+      return [...byPaperId.values()]
+        .filter((item) => item.score > 0)
+        .sort(
+          (left, right) =>
+            right.score - left.score ||
+            String(left.document.filename).localeCompare(String(right.document.filename))
+        )
+        .slice(0, Math.max(1, Number(options.topK) || 5));
     }
 
     async retrievePaperEvidence(query, paperIds, options = {}) {
@@ -1063,17 +1294,29 @@
 
     addLibraryNotices(context) {
       const unprocessed = context.inventory.filter(
-        (item) => item.processor === "pdf" && !item.summaryAvailable
+        (item) =>
+          item.processor === "pdf" &&
+          item.indexStatus !== "ready" &&
+          item.parseStatus !== "ready"
       );
       if (unprocessed.length) {
         context.notices.push(
-          `${unprocessed.length} PDF file(s) are visible but have not been processed. Their filenames are inventory only, not evidence.`
+          `${unprocessed.length} paper source(s) are discovered but not content-searchable yet. Their filenames are inventory only until a source tool prepares them.`
         );
       }
       const unsupported = context.inventory.filter((item) => !item.processor);
       if (unsupported.length) {
         context.notices.push(
           `${unsupported.length} non-PDF file(s) are visible in the workspace but do not yet have an AI content processor.`
+        );
+      }
+      const experimentPending = context.inventory.filter(
+        (item) =>
+          item.processor === "experiment" && item.structuredDataStatus !== "ready"
+      );
+      if (experimentPending.length) {
+        context.notices.push(
+          `${experimentPending.length} experiment source(s) are discovered and will be normalized only when an experiment tool needs them.`
         );
       }
     }
@@ -1134,6 +1377,20 @@
     async buildFileEvidence(file, options) {
       const extension = fileExtension(file.name);
       if (extension !== "pdf") {
+        const source = this.sourceRegistry?.getByPath(file.relativePath);
+        if (source?.sourceKind === "experiment") {
+          return EXPERIMENT_QUESTION_PATTERN.test(String(options.question || ""))
+            ? this.buildExperimentEvidence(source.sourceId, options)
+            : {
+                name: file.name,
+                relativePath: file.relativePath,
+                extension,
+                sourceId: source.sourceId,
+                analysisStatus: "unprocessed",
+                evidenceType: "inventory-only",
+                content: "",
+              };
+        }
         return {
           name: file.name,
           relativePath: file.relativePath,
@@ -1151,21 +1408,8 @@
           document = this.literature.findDocumentByPath(file.relativePath);
         }
         if (!document) throw new Error("The selected PDF is no longer indexed.");
-        if (
-          document.isLiteraturePaper &&
-          document.paperCardStatus === "failed"
-        ) {
-          throw new Error(
-            document.paperCardError ||
-              "Paper Card generation failed and can be retried on the next request."
-          );
-        }
         const requiresFileEvidence = questionRequiresFileEvidence(options.question);
-        const includeSourceEvidence = Boolean(
-          options.includeSourceEvidence === true ||
-            questionNeedsSourceEvidence(options.question)
-        );
-        if (!document.summaryAvailable && !requiresFileEvidence) {
+        if (!requiresFileEvidence) {
           return {
             name: file.name,
             relativePath: file.relativePath,
@@ -1179,62 +1423,90 @@
           stage: "preparing-file",
           relativePath: file.relativePath,
         });
-        const cachedWithoutRefresh =
-          !requiresFileEvidence && document.summaryAvailable
-            ? await this.literature.loadSummary(document.id)
-            : null;
-        const result = cachedWithoutRefresh
-          ? { summary: cachedWithoutRefresh, cached: true }
-          : await this.literature.summarize(document.id, {
-              force: document.status === "stale",
-              includeSourceText: includeSourceEvidence,
+        const broad = BROAD_PAPER_QUESTION_PATTERN.test(String(options.question || ""));
+        let card = null;
+        if (broad) {
+          try {
+            const cardResult = await this.literature.createPaperCard(document.id, {
               signal: options.signal,
               onProgress: (progress) =>
                 options.onProgress?.({ ...progress, relativePath: file.relativePath }),
             });
-        let content = formatPaperSummary(result.summary, file.relativePath).slice(
-          0,
-          Number(options.maxSummaryCharacters) ||
-            this.limits.maxSummaryCharactersPerFile
-        );
-        let evidenceType = result.cached ? "cached-summary" : "generated-summary";
-        if (includeSourceEvidence) {
-          options.onProgress?.({
-            stage: "extracting-detail",
-            relativePath: file.relativePath,
-          });
-          const sourceText =
-            result.sourceText ||
-            (
-              await this.literature.extractText(document.id, {
-                signal: options.signal,
-              })
-            ).text;
-          const excerptOptions = {
-            maxCharacters:
-              Number(options.maxSourceCharacters) ||
-              this.limits.maxSourceCharactersPerFile,
-          };
-          const excerpts = BROAD_PAPER_QUESTION_PATTERN.test(
-            String(options.question || "")
-          )
-            ? selectBroadPaperCoverage(sourceText, excerptOptions)
-            : selectRelevantExcerpts(
-                sourceText,
-                options.question,
-                excerptOptions
-              );
-          if (excerpts) {
-            content = `${content}\n\nQuestion-specific source evidence:\n${excerpts}`;
-            evidenceType = `${evidenceType}+source-excerpts`;
+            card = cardResult.summary;
+          } catch (error) {
+            // A Paper Card is optional. Original-paper evidence remains usable if
+            // the model summary fails.
+            console.info("optional_paper_card_failed", {
+              paperId: document.id,
+              code: error.code || error.name || "PAPER_CARD_FAILED",
+              message: String(error.message || "Paper Card generation failed.").slice(0, 300),
+            });
+            options.onProgress?.({
+              stage: "paper-card-failed",
+              relativePath: file.relativePath,
+              error: error.message,
+            });
           }
         }
+        options.onProgress?.({
+          stage: "extracting-detail",
+          relativePath: file.relativePath,
+        });
+        await this.literature.preparation.ensureSourceReady(
+          [document.id],
+          "search",
+          options
+        );
+        const artifact = await this.literature.preparation.readPaperArtifact(document.id);
+        const maxSourceCharacters =
+          Number(options.maxSourceCharacters) || this.limits.maxSourceCharactersPerFile;
+        let evidenceChunks;
+        if (broad) {
+          const count = Math.min(6, artifact.chunks.length);
+          const indexes = [...new Set(
+            Array.from({ length: count }, (_, index) =>
+              Math.round((index * (artifact.chunks.length - 1)) / Math.max(1, count - 1))
+            )
+          )];
+          evidenceChunks = indexes.map((index) => artifact.chunks[index]).filter(Boolean);
+        } else {
+          evidenceChunks = artifact.chunks
+            .map((chunk) => ({ ...chunk, score: this.scorePaperChunk(chunk, options.question) }))
+            .sort((left, right) => right.score - left.score)
+            .slice(0, 5);
+        }
+        let remaining = maxSourceCharacters;
+        const evidenceText = evidenceChunks
+          .map((chunk) => {
+            const text = String(chunk.text || "").slice(0, remaining);
+            remaining -= text.length;
+            return text
+              ? `[${document.id}:p${chunk.page}:${chunk.chunkId}]\n${text}`
+              : "";
+          })
+          .filter(Boolean)
+          .join("\n\n");
+        const cardText = card
+          ? formatPaperSummary(card, file.relativePath).slice(
+              0,
+              Number(options.maxSummaryCharacters) ||
+                this.limits.maxSummaryCharactersPerFile
+            )
+          : "";
+        const content = [
+          cardText,
+          `Original-paper evidence for ${file.relativePath}:\n${evidenceText}`,
+        ].filter(Boolean).join("\n\n");
         return {
           name: file.name,
           relativePath: file.relativePath,
           extension,
+          sourceId: document.id,
+          paperId: document.id,
           analysisStatus: "processed",
-          evidenceType,
+          evidenceType: card
+            ? "optional-paper-card+original-evidence"
+            : "original-paper-evidence",
           content,
         };
       } catch (error) {
@@ -1246,6 +1518,72 @@
           evidenceType: "inventory-only",
           content: "",
           error: `Could not process ${file.relativePath}: ${error.message || "Unknown PDF error"}`,
+        };
+      }
+    }
+
+    scorePaperChunk(chunk, question) {
+      const tokens = tokenizeQuestion(question);
+      const text = String(chunk?.text || "").toLowerCase();
+      return tokens.reduce(
+        (score, token) => score + (text.includes(token) ? 1 : 0),
+        0
+      );
+    }
+
+    async buildExperimentEvidence(sourceId, options = {}) {
+      const source = this.sourceRegistry?.get(sourceId);
+      if (!source || source.sourceKind !== "experiment" || !this.experimentTools) {
+        return {
+          sourceId,
+          name: source?.displayName || "experiment",
+          relativePath: source?.path || "",
+          extension: fileExtension(source?.displayName || ""),
+          analysisStatus: "processing-failed",
+          evidenceType: "inventory-only",
+          content: "",
+          error: "The selected experiment source is unavailable.",
+        };
+      }
+      try {
+        options.onProgress?.({ stage: "preparing-experiment", relativePath: source.path });
+        const result = await this.experimentTools.searchExperiments(options.question, {
+          ...options,
+          experimentSourceIds: [sourceId],
+          limit: 120,
+        });
+        const records = result?.resultHandle
+          ? await this.sourceSystem.results.read(result.resultHandle)
+          : result;
+        const compactRecords = (Array.isArray(records) ? records : []).slice(0, 40).map((record) => ({
+          experimentId: record.experimentId,
+          values: record.raw,
+          entities: record.entities,
+          provenance: record.provenance,
+        }));
+        return {
+          sourceId,
+          name: source.displayName,
+          relativePath: source.path,
+          extension: fileExtension(source.displayName),
+          analysisStatus: "processed",
+          evidenceType: "structured-experiment-records",
+          resultHandle: result?.resultHandle || null,
+          content: [
+            `Internal experimental evidence from ${source.path}. Values are raw/normalized deterministically; provenance is retained.`,
+            JSON.stringify(compactRecords),
+          ].join("\n"),
+        };
+      } catch (error) {
+        return {
+          sourceId,
+          name: source.displayName,
+          relativePath: source.path,
+          extension: fileExtension(source.displayName),
+          analysisStatus: "processing-failed",
+          evidenceType: "inventory-only",
+          content: "",
+          error: `Could not process ${source.path}: ${error.message || "Unknown experiment error"}`,
         };
       }
     }

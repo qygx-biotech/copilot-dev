@@ -1,8 +1,9 @@
 "use strict";
 
-// Side Chat is an answer-only agent. Its tools inspect the bounded context that
-// the browser already supplied; they cannot reach the server filesystem, run a
-// command, mutate a project, start Agent Work, or delegate to another agent.
+// The shared workspace agent loop is answer-only for Side Chat and emits the
+// existing structured response for Agent Work. Its tools inspect only the
+// bounded context supplied by the browser; they cannot reach the server
+// filesystem, mutate a project, run a command, or delegate to another agent.
 
 const MAX_AGENT_STEPS = 8;
 const MAX_TOTAL_TOOL_CALLS = 24;
@@ -93,6 +94,92 @@ const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
         required: ["context_id"],
         additionalProperties: false
       }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_papers",
+      description:
+        "List paper sources and readiness metadata in the current hard scope. This does not read paper content.",
+      parameters: {
+        type: "object",
+        properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIST_RESULTS } },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_papers",
+      description:
+        "Search prepared paper evidence and paper metadata in the current scope. Returns compact evidence previews and stable item IDs.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", minLength: 1 },
+          limit: { type: "integer", minimum: 1, maximum: MAX_SEARCH_RESULTS }
+        },
+        required: ["query"],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_paper_evidence",
+      description:
+        "Read bounded original-paper evidence for one exact paper ID or catalog item ID. Paper Cards are routing aids and are not treated as the sole evidence for precise claims.",
+      parameters: {
+        type: "object",
+        properties: {
+          paper_id: { type: "string" },
+          item_id: { type: "string" },
+          offset: { type: "integer", minimum: 0 },
+          max_characters: { type: "integer", minimum: 200, maximum: MAX_READ_CHARACTERS }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_experiment_sources",
+      description:
+        "List internal experiment sources and their readiness in the current scope. This returns metadata only.",
+      parameters: {
+        type: "object",
+        properties: { limit: { type: "integer", minimum: 1, maximum: MAX_LIST_RESULTS } },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "query_experiment_results",
+      description:
+        "Search deterministic structured internal experiment records and provenance supplied for this request.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          limit: { type: "integer", minimum: 1, maximum: MAX_SEARCH_RESULTS }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "source_coverage",
+      description:
+        "Report discovered, searchable, failed, selected, and actually considered source coverage for this request.",
+      parameters: { type: "object", properties: {}, additionalProperties: false }
     }
   }
 ]);
@@ -256,7 +343,12 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
           extension: file.extension || "",
           size: Number(file.size) || 0,
           paperId: file.paperId || null,
-          processor: file.processor || null
+          sourceId: file.sourceId || file.paperId || null,
+          sourceKind: file.sourceKind || null,
+          processor: file.processor || null,
+          parseStatus: file.parseStatus || "not_started",
+          indexStatus: file.indexStatus || "not_started",
+          structuredDataStatus: file.structuredDataStatus || "not_applicable"
         }
       });
       if (path) localItemsByPath.set(path, item);
@@ -289,7 +381,8 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
           content: file.content,
           metadata: {
             extension: file.extension || "",
-            paperId: file.paperId || null
+            paperId: file.paperId || null,
+            sourceId: file.sourceId || file.paperId || null
           }
         });
         if (path) localItemsByPath.set(path, item);
@@ -449,7 +542,10 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
     itemsById,
     projectContext,
     scope: local?.scope || null,
-    notices: Array.isArray(local?.notices) ? local.notices.slice(0, 40) : []
+    notices: Array.isArray(local?.notices) ? local.notices.slice(0, 40) : [],
+    sourceMap: isPlainObject(local?.sourceMap) ? local.sourceMap : {},
+    literature: isPlainObject(local?.literature) ? local.literature : {},
+    experiments: isPlainObject(local?.experiments) ? local.experiments : {}
   };
 }
 
@@ -507,7 +603,7 @@ function buildSideChatCatalog(knowledgeBase) {
     : "- none";
 
   return [
-    "Read-only Side Chat workspace catalog.",
+    "Read-only workspace catalog of sources.",
     `Scope: ${scope}`,
     "The catalog is metadata, not evidence. Load only the records needed for the current question.",
     "Workspace items:",
@@ -674,11 +770,156 @@ function readProjectContext(args, knowledgeBase) {
   );
 }
 
+function sourceScopedItems(knowledgeBase, category, selectionKey) {
+  const selected = new Set(
+    Array.isArray(knowledgeBase.sourceMap?.[selectionKey])
+      ? knowledgeBase.sourceMap[selectionKey]
+      : []
+  );
+  return knowledgeBase.items.filter(
+    (item) =>
+      item.category === category &&
+      (!selected.size ||
+        selected.has(item.metadata?.paperId) ||
+        selected.has(item.metadata?.sourceId))
+  );
+}
+
+function listPapers(args, knowledgeBase) {
+  return listWorkspaceItems(
+    { category: "reference", limit: args.limit || MAX_LIST_RESULTS },
+    {
+      ...knowledgeBase,
+      items: sourceScopedItems(
+        knowledgeBase,
+        "reference",
+        "selectedPaperIds"
+      )
+    }
+  );
+}
+
+function searchPapers(args, knowledgeBase) {
+  return searchWorkspaceItems(
+    { query: args.query, category: "reference", limit: args.limit || 8 },
+    {
+      ...knowledgeBase,
+      items: sourceScopedItems(
+        knowledgeBase,
+        "reference",
+        "selectedPaperIds"
+      )
+    }
+  );
+}
+
+function readPaperEvidence(args, knowledgeBase) {
+  const itemId = String(args.item_id || "").trim();
+  const paperId = String(args.paper_id || "").trim();
+  let item = itemId ? knowledgeBase.itemsById.get(itemId) : null;
+  if (!item && paperId) {
+    item = knowledgeBase.items.find(
+      (candidate) =>
+        candidate.category === "reference" &&
+        (candidate.metadata?.paperId === paperId ||
+          candidate.metadata?.sourceId === paperId)
+    );
+  }
+  const selectedPaperIds = new Set(
+    Array.isArray(knowledgeBase.sourceMap?.selectedPaperIds)
+      ? knowledgeBase.sourceMap.selectedPaperIds
+      : []
+  );
+  if (
+    item &&
+    selectedPaperIds.size &&
+    !selectedPaperIds.has(item.metadata?.paperId) &&
+    !selectedPaperIds.has(item.metadata?.sourceId)
+  ) {
+    item = null;
+  }
+  if (!item) {
+    return JSON.stringify({
+      error: "Unknown paper or catalog item ID in the current request scope.",
+      paper_id: paperId || null,
+      item_id: itemId || null
+    });
+  }
+  return readWorkspaceItem(
+    {
+      item_id: item.id,
+      offset: args.offset,
+      max_characters: args.max_characters
+    },
+    knowledgeBase
+  );
+}
+
+function listExperimentSources(args, knowledgeBase) {
+  return listWorkspaceItems(
+    { category: "experiment", limit: args.limit || MAX_LIST_RESULTS },
+    {
+      ...knowledgeBase,
+      items: sourceScopedItems(
+        knowledgeBase,
+        "experiment",
+        "selectedExperimentIds"
+      )
+    }
+  );
+}
+
+function queryExperimentResults(args, knowledgeBase) {
+  const query = String(args.query || "").trim();
+  const scopedKnowledgeBase = {
+    ...knowledgeBase,
+    items: sourceScopedItems(
+      knowledgeBase,
+      "experiment",
+      "selectedExperimentIds"
+    )
+  };
+  if (query) {
+    return searchWorkspaceItems(
+      { query, category: "experiment", limit: args.limit || 8 },
+      scopedKnowledgeBase
+    );
+  }
+  const candidate = scopedKnowledgeBase.items.find(
+    (item) => item.category === "experiment" && item.content
+  );
+  return candidate
+    ? readWorkspaceItem(
+        { item_id: candidate.id, max_characters: MAX_READ_CHARACTERS },
+        knowledgeBase
+      )
+    : JSON.stringify({ results: [], notice: "No prepared experiment records were supplied." });
+}
+
+function sourceCoverage(_args, knowledgeBase) {
+  return JSON.stringify(
+    {
+      source_map: knowledgeBase.sourceMap,
+      literature: knowledgeBase.literature,
+      experiments: knowledgeBase.experiments,
+      notices: knowledgeBase.notices
+    },
+    null,
+    2
+  );
+}
+
 const SIDE_CHAT_TOOL_HANDLERS = Object.freeze({
   list_workspace_items: listWorkspaceItems,
   search_workspace_items: searchWorkspaceItems,
   read_workspace_item: readWorkspaceItem,
-  read_project_context: readProjectContext
+  read_project_context: readProjectContext,
+  list_papers: listPapers,
+  search_papers: searchPapers,
+  read_paper_evidence: readPaperEvidence,
+  list_experiment_sources: listExperimentSources,
+  query_experiment_results: queryExperimentResults,
+  source_coverage: sourceCoverage
 });
 
 // Hooks keep policy and result budgeting outside the stable agent loop.

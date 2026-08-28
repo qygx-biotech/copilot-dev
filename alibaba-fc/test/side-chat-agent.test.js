@@ -77,7 +77,13 @@ test("the backend Side Chat loop exposes only read-only tools", () => {
     "list_workspace_items",
     "search_workspace_items",
     "read_workspace_item",
-    "read_project_context"
+    "read_project_context",
+    "list_papers",
+    "search_papers",
+    "read_paper_evidence",
+    "list_experiment_sources",
+    "query_experiment_results",
+    "source_coverage"
   ]);
   assert.ok(
     names.every(
@@ -130,6 +136,102 @@ test("catalog is progressive and file content loads only through an exact item i
     )
   );
   assert.match(unsupported.error, /catalog entry proves only that it exists/i);
+});
+
+test("source-specific tools enforce explicit paper and experiment scopes", () => {
+  const localWorkspaceContext = {
+    sourceMap: {
+      selectedPaperIds: ["paper-a"],
+      selectedExperimentIds: ["experiment-a"]
+    },
+    inventory: [
+      {
+        paperId: "paper-a",
+        sourceId: "paper-a",
+        name: "a.pdf",
+        relativePath: "literature/a.pdf",
+        processor: "pdf"
+      },
+      {
+        paperId: "paper-b",
+        sourceId: "paper-b",
+        name: "b.pdf",
+        relativePath: "literature/b.pdf",
+        processor: "pdf"
+      },
+      {
+        sourceId: "experiment-a",
+        sourceKind: "experiment",
+        name: "a.csv",
+        relativePath: "experiments/a.csv",
+        processor: "experiment"
+      },
+      {
+        sourceId: "experiment-b",
+        sourceKind: "experiment",
+        name: "b.csv",
+        relativePath: "experiments/b.csv",
+        processor: "experiment"
+      }
+    ],
+    files: [
+      {
+        paperId: "paper-a",
+        sourceId: "paper-a",
+        name: "a.pdf",
+        relativePath: "literature/a.pdf",
+        analysisStatus: "processed",
+        content: "selected paper evidence"
+      },
+      {
+        paperId: "paper-b",
+        sourceId: "paper-b",
+        name: "b.pdf",
+        relativePath: "literature/b.pdf",
+        analysisStatus: "processed",
+        content: "outside-only-marker evidence"
+      },
+      {
+        sourceId: "experiment-a",
+        name: "a.csv",
+        relativePath: "experiments/a.csv",
+        analysisStatus: "processed",
+        content: "selected experiment value 4.8"
+      },
+      {
+        sourceId: "experiment-b",
+        name: "b.csv",
+        relativePath: "experiments/b.csv",
+        analysisStatus: "processed",
+        content: "unselected experiment value 9.9"
+      }
+    ]
+  };
+  const knowledgeBase = createSideChatKnowledgeBase({ localWorkspaceContext });
+
+  const papers = JSON.parse(
+    executeSideChatTool(toolCall("list_papers", {}), knowledgeBase)
+  );
+  assert.deepEqual(papers.items.map((item) => item.path), ["literature/a.pdf"]);
+  const outsidePaper = JSON.parse(
+    executeSideChatTool(
+      toolCall("search_papers", { query: "outside-only-marker" }),
+      knowledgeBase
+    )
+  );
+  assert.equal(outsidePaper.returned, 0);
+
+  const experiments = JSON.parse(
+    executeSideChatTool(toolCall("list_experiment_sources", {}), knowledgeBase)
+  );
+  assert.deepEqual(experiments.items.map((item) => item.path), ["experiments/a.csv"]);
+  const outsideExperiment = JSON.parse(
+    executeSideChatTool(
+      toolCall("query_experiment_results", { query: "9.9" }),
+      knowledgeBase
+    )
+  );
+  assert.equal(outsideExperiment.returned, 0);
 });
 
 test("a large workspace keeps a compact catalog while tools retain the full index", () => {

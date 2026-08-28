@@ -15,6 +15,10 @@
     ".biodesign/literature/summaries",
     ".biodesign/literature/cache",
     ".biodesign/experiments",
+    ".biodesign/sources/artifacts",
+    ".biodesign/jobs",
+    ".biodesign/results",
+    ".biodesign/workflows",
     ".biodesign/chat",
     ".biodesign/chat/conversations",
     ".biodesign/cache",
@@ -144,7 +148,7 @@
         (document.sourceHash !== undefined &&
           (typeof document.sourceHash !== "string" || !document.sourceHash)) ||
         (document.paperCardStatus !== undefined &&
-          !["pending", "ready", "failed"].includes(document.paperCardStatus)) ||
+          !["absent", "pending", "ready", "stale", "failed"].includes(document.paperCardStatus)) ||
         (document.paperCardError !== undefined &&
           typeof document.paperCardError !== "string") ||
         (document.paperCardVersion !== undefined &&
@@ -154,6 +158,14 @@
             !document.paperCardPath.startsWith(".biodesign/literature/summaries/"))) ||
         (document.isLiteraturePaper !== undefined &&
           typeof document.isLiteraturePaper !== "boolean") ||
+        (document.statSignature !== undefined &&
+          typeof document.statSignature !== "string") ||
+        (document.hashStatus !== undefined &&
+          !["absent", "ready", "dirty", "stale", "failed"].includes(document.hashStatus)) ||
+        (document.parseStatus !== undefined &&
+          !["not_started", "ready", "stale", "failed"].includes(document.parseStatus)) ||
+        (document.indexStatus !== undefined &&
+          !["not_started", "ready", "stale", "failed"].includes(document.indexStatus)) ||
         !validDiscovery
       ) {
         throw new WorkspaceError(
@@ -290,7 +302,9 @@
           Array.isArray(message.context.files) &&
           message.context.files.every((path) => typeof path === "string") &&
           validPaperIds(message.context.selectedPaperIds) &&
-          validPaperIds(message.context.relevantPaperIds));
+          validPaperIds(message.context.relevantPaperIds) &&
+          validPaperIds(message.context.selectedExperimentIds) &&
+          validPaperIds(message.context.relevantExperimentIds));
       if (
         !isPlainObject(message) ||
         typeof message.id !== "string" ||
@@ -310,6 +324,64 @@
     return value;
   }
 
+  function assertSourceRegistry(value) {
+    const allowedKinds = new Set(["paper", "experiment", "protocol", "other"]);
+    const allowedCatalog = new Set(["discovered", "dirty", "missing"]);
+    const allowedHash = new Set(["absent", "ready", "dirty", "stale", "failed"]);
+    const allowedDerived = new Set([
+      "not_started",
+      "not_applicable",
+      "absent",
+      "ready",
+      "stale",
+      "failed",
+    ]);
+    if (
+      !isPlainObject(value) ||
+      value.schemaVersion !== 2 ||
+      !Array.isArray(value.sources) ||
+      !isPlainObject(value.aliases) ||
+      !isPlainObject(value.settings) ||
+      containsForbiddenSecretKey(value)
+    ) {
+      throw new WorkspaceError(
+        "INVALID_SOURCE_REGISTRY",
+        "The source registry does not match the supported schema."
+      );
+    }
+    for (const source of value.sources) {
+      if (
+        !isPlainObject(source) ||
+        typeof source.sourceId !== "string" ||
+        !source.sourceId ||
+        !allowedKinds.has(source.sourceKind) ||
+        typeof source.path !== "string" ||
+        !source.path ||
+        source.path.startsWith(".biodesign/") ||
+        typeof source.displayName !== "string" ||
+        typeof source.extension !== "string" ||
+        !Number.isFinite(Number(source.sizeBytes)) ||
+        !Number.isFinite(Number(source.mtimeNs)) ||
+        typeof source.statSignature !== "string" ||
+        (source.contentHash !== null && typeof source.contentHash !== "string") ||
+        !allowedHash.has(source.hashStatus) ||
+        !allowedCatalog.has(source.catalogStatus) ||
+        !allowedDerived.has(source.parseStatus) ||
+        !allowedDerived.has(source.indexStatus) ||
+        !allowedDerived.has(source.paperCardStatus) ||
+        !allowedDerived.has(source.structuredDataStatus) ||
+        !isPlainObject(source.artifacts) ||
+        !isPlainObject(source.legacy)
+      ) {
+        throw new WorkspaceError(
+          "INVALID_SOURCE_REGISTRY",
+          "The source registry contains an invalid source record."
+        );
+      }
+    }
+    return value;
+  }
+
   function validateKnownJson(path, value) {
     if (path === ".biodesign/workspace.json") return assertWorkspaceMetadata(value);
     if (path === ".biodesign/state.json") return assertWorkspaceState(value);
@@ -320,6 +392,9 @@
     if (path === ".biodesign/chat/index.json") return assertChatIndex(value);
     if (/^\.biodesign\/chat\/conversations\/[^/]+\.json$/.test(path)) {
       return assertChatConversation(value);
+    }
+    if (path === ".biodesign/sources/registry.json") {
+      return assertSourceRegistry(value);
     }
     if (!isPlainObject(value) && !Array.isArray(value)) {
       throw new WorkspaceError("INVALID_JSON_DATA", "Workspace JSON must be an object or array.");

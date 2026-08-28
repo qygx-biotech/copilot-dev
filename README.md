@@ -19,11 +19,12 @@ Original PDFs, workspace metadata, project state, literature indexes, and genera
 - `docs/index.html` - login, workspace selection, and workbench structure.
 - `docs/styles.css` - responsive visual design.
 - `docs/workspace-manager.js` - generic File System Access abstraction, schema validation, initialization, safe JSON writes, and directory lifecycle.
-- `docs/literature-module.js` - local PDF discovery, stable indexing, PDF.js extraction, bounded map/reduce summarization, and local summary caching.
-- `docs/project-context-service.js` - bounded project/file context construction plus workspace-backed Side Chat persistence.
+- `docs/source-system.js` - persistent paper/experiment registry, lazy readiness service, preparation locks/jobs, source tools, external result storage, and resumable corpus workflows.
+- `docs/literature-module.js` - compatibility adapter for PDF.js extraction and the existing Paper Card generator/cache.
+- `docs/project-context-service.js` - bounded progressive source-context construction plus workspace-backed Side Chat persistence.
 - `docs/app.js` - UI integration, authentication, Workspace explorer, Side Chat, and workspace lifecycle.
 - `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`).
-- `alibaba-fc/side-chat-agent.js` - bounded answer-only Side Chat loop with read-only workspace inspection tools.
+- `alibaba-fc/side-chat-agent.js` - the bounded read-only tool loop shared by Side Chat and Agent Work.
 - `worker/` - retained alternate Cloudflare Worker backend.
 
 ## Workspace structure
@@ -46,6 +47,13 @@ Initialization occurs only after confirmation and creates:
     │   ├── summaries/
     │   └── cache/
     ├── experiments/
+    ├── sources/
+    │   ├── registry.json
+    │   └── artifacts/
+    ├── jobs/
+    │   └── index.json
+    ├── results/
+    ├── workflows/
     ├── chat/
     │   ├── index.json
     │   └── conversations/
@@ -54,22 +62,36 @@ Initialization occurs only after confirmation and creates:
 
 Unrelated files in the selected folder are not changed. The visible Workspace explorer recursively reflects the actual folder, not a hardcoded module list, and hides `.biodesign`. **Refresh** re-enumerates metadata so changes made in Finder or Explorer appear. Malformed managed JSON is preserved and reported rather than replaced with empty state.
 
-## Literature flow
+## Unified source lifecycle
 
-PDFs anywhere in the visible workspace are discovered from lightweight file metadata when the workspace opens or **Refresh** is selected. Merely opening the workspace, expanding a folder, or selecting a PDF never reads or summarizes its contents.
+Papers under `literature/` and experiment files under `experiments/` share `.biodesign/sources/registry.json`. Each record has a stable source ID, cheap stat signature, content-hash state, explicit parse/index/card/structured-data readiness, versioned artifact associations, last-use timestamps, and a persisted error. The registry schema is version 2.
 
-When a Side Chat question requires an unprocessed selected PDF:
+Workspace open and **Refresh** only enumerate paths and read size, modification time, and a filesystem file ID when the platform exposes one. Reconciliation does not read file bodies, hash, parse, normalize, create Paper Cards, or call an LLM. Deleted sources leave active search and selection immediately. A metadata change marks only that source dirty; a rename retains its ID only when a safe filesystem file ID proves identity.
 
-1. PDF.js extracts embedded text in the browser.
-2. The text is split at paragraph or sentence boundaries into bounded chunks.
-3. At most two chunk requests run concurrently through authenticated Function Compute.
-4. Function Compute calls the configured Requesty model but persists no project data.
-5. A final structured review is written to `.biodesign/literature/summaries/<document-id>.json`.
-6. An unchanged PDF reuses that local cache. A modified PDF is marked stale and regenerated when a later question requires its contents.
+All source-dependent operations pass through one `ensureSourceReady(sourceIds, capability)` service. Supported capabilities are `catalog`, `stable_snapshot`, `full_text`, `search`, `paper_card`, and `experiment_data`. Per-source jobs are persisted in `.biodesign/jobs/index.json`; concurrent requests share one preparation lock. Jobs left running across an application restart become `stale` and can be retried.
 
-Detailed questions can re-extract the selected local PDF and send bounded question-relevant excerpts together with the cached summary. Multiple selected PDFs are summarized independently and then synthesized by the existing `/chat` request; entire PDFs are never concatenated into one request.
+When a paper is materially used for the first time:
 
-Encrypted, malformed, empty, and image-only/scanned PDFs fail with controlled messages. OCR, embeddings, RAG, PostgreSQL, cloud sync, and automatic directory-handle restoration are intentionally out of scope.
+1. The service records size and modification time and reads the source once.
+2. SHA-256 hashing and PDF.js extraction share those bytes.
+3. Size and modification time are checked again before any artifact association is accepted.
+4. Pages and bounded chunks are stored under `.biodesign/sources/artifacts/<source-id>/<content-hash>/`.
+5. Lexical search returns stable source/page/chunk evidence handles.
+6. Unchanged follow-ups reuse the known hash and parsed artifact.
+
+A full hash runs only for an unhashed source, a dirty stat signature, explicit stable-snapshot/verification work, or cache validation. If a timestamp changes but the content hash does not, existing artifacts are revalidated and reused. If content changes, only that source gets a new content version and only the requested capability is rebuilt. If the file changes during processing, the hash/artifact association is rejected.
+
+Paper Cards remain at `.biodesign/literature/summaries/<source-id>.json` for compatibility, but are optional high-level routing notes. They are generated only for an explicit broad summary/comparison or `ensure_paper_card` operation, never on folder open. Precise answers retrieve original parsed evidence even when a card exists. Legacy cards without a content hash are migrated with `validationStatus: "unknown"` and validated lazily rather than regenerated in bulk.
+
+CSV, TSV, TXT, XLS, and XLSX experiment sources are also lazy. Their sheets/rows are normalized into records with raw values, detected biological entities, content version, and source-file/sheet/cell-range provenance. Filtering, group aggregation, and numeric comparison are deterministic; the LLM receives bounded structured records and does not perform hidden numeric transformations.
+
+Encrypted, malformed, empty, and image-only/scanned PDFs, malformed workbooks, locked files, and parser failures produce persisted per-source failures without blocking unrelated files. OCR, embeddings, vector search, unit conversion, structured PDF table/figure extraction, cloud sync, and automatic directory-handle restoration remain out of scope. Table/figure search currently searches their extracted text mentions.
+
+## Corpus workflow and result storage
+
+“All papers” synthesis uses the saved `summarize-paper-corpus` workflow: snapshot, bounded preparation, per-paper query-specific map, theme grouping, hierarchical reduction, original-evidence verification, and persistence. Each mapper receives a fresh bounded object containing only its paper ID, content hash, question, and evidence handles—never the parent conversation. Journals checkpoint after each paper/batch in `.biodesign/workflows/`; interruption resumes unchanged maps, corpus membership changes stale the previous synthesis, and unchanged per-paper maps remain reusable.
+
+Large search results, experiment tables, and workflow outputs are saved under `.biodesign/results/`. Tools return a compact preview and result handle. The backend loop retains recent tool results, compacts older consumed results to reopenable instructions, and bounds conversation history while persisted active paper/experiment IDs survive in chat state.
 
 ## OSS status
 
@@ -110,6 +132,7 @@ The new stateless routes are:
 
 - `POST /api/literature/summarize-chunk`
 - `POST /api/literature/synthesize`
+- `POST /api/corpus/map-paper`
 
 Both require the existing JWT bearer token. Deployment instructions and legacy OSS endpoint details are in `alibaba-fc/README.md`.
 
@@ -117,8 +140,8 @@ Both require the existing JWT bearer token. Deployment instructions and legacy O
 
 The left column has one generic Workspace explorer beneath Project Context. Checkboxes provide multi-file selection, the current context is shown as removable chips above Side Chat, and no selection means **Entire Project**. Project scope uses the saved goal/state, processed paper summaries, and file inventory without pretending that unprocessed files were read.
 
-Side Chat sends bounded recent conversation history, the current question, and the context prepared for that turn to the existing authenticated `/chat` endpoint. The complete Project context / goal is promoted to a dedicated durable system message for every Side Chat answer and Agent Work recommendation, so follow-ups remain framed by the final goal across long-running projects and experiments. For a paper question, local preparation first creates any missing Paper Cards in the selected paper scope, or across the literature library when no paper is selected; ready cards are reused without a write. Card-based matching and routing run only after that step. This Paper Card cache update is Side Chat's only allowed project mutation. The backend then exposes a compact workspace catalog and runs a bounded answer-only loop whose tools can list, search, and read only the supplied context or recall already-saved project context. It has no command, general write/edit/delete, task, Agent Work, or recommendation tool. Internal inspection turns are compacted in memory and only the final answer returns to the browser. Each user message stores its own project/file context snapshot. The active conversation is restored from `.biodesign/chat/` when the same workspace is reopened; **Clear chat** deletes only that conversation.
+Side Chat sends bounded recent conversation history, the current question, a compact source map, and only the evidence prepared for that request to the existing authenticated `/chat` endpoint. The full registry, all Paper Cards, parsed PDFs, and experiment tables are never injected. Explicit paper and experiment IDs are hard scopes. With no selection, already-ready metadata/indexes are searched first and only likely candidates are prepared. Coverage records discovered, searchable, failed/excluded, and actually considered papers; the UI shows a compact sources-used chip.
 
-PDF is the only robust content processor in this milestone. Files such as `.xlsx`, `.csv`, `.fasta`, and `.txt` remain first-class visible workspace files, but Side Chat reports them as unsupported rather than inferring their contents. Embeddings, vector search, full RAG, Excel analysis, OCR, cloud sync, and automatic directory-handle restoration remain out of scope.
+Both Side Chat and the existing **Agent instruction → Analyze & Recommend** surface call the same `ProjectContextService`, registry, readiness service, and source tools, then use the same bounded model-driven tool loop. Side Chat keeps its plain answer parser; Agent Work keeps its existing structured recommendation parser. The optional context-router LLM is disabled by default, so unrelated messages make no preparatory source call. The backend tools are read-only over the bounded browser-supplied evidence because Function Compute cannot access the user's local directory.
 
-Side Chat never calls the Agent Work run action and never mutates the current recommendation, agent instruction, or analysis panels. The existing center-column workflow remains the deliberate **Agent instruction → Analyze & Recommend → recommendation** path.
+The complete Project context / goal remains a dedicated durable system message. Internal tool inspection is not copied to persistent chat. Each user message stores a compact source-context snapshot, and the active conversation is restored from `.biodesign/chat/`; **Clear chat** deletes only that conversation. Side Chat still never invokes the Agent Work button or mutates its recommendation panels.

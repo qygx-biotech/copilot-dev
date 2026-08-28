@@ -809,6 +809,7 @@ let selectedWorkspacePaths = new Set();
 let expandedWorkspacePaths = new Set([""]);
 let projectContextService = null;
 let workspaceChatStore = null;
+let lastSourceUsage = null;
 
 class AuthRequiredError extends Error {
   constructor(message) {
@@ -1263,11 +1264,12 @@ async function openSelectedWorkspace(initialize) {
     pdfWorkerSrc: PDF_JS_WORKER_URL,
     getLanguage: () => currentLanguage,
   });
-  const documents = await literatureModule.scan();
   workspaceTree = await workspaceManager.scanDirectoryTree();
+  const documents = await literatureModule.scan({ tree: workspaceTree });
   projectContextService = new ProjectContextService({
     workspace: workspaceManager,
     literature: literatureModule,
+    sourceSystem: literatureModule.sourceSystem,
   });
   workspaceChatStore = new WorkspaceChatStore({ workspace: workspaceManager });
   sideChatConversation = await workspaceChatStore.loadActiveConversation();
@@ -1314,11 +1316,14 @@ function applyPreparedContextToDocuments(localWorkspaceContext) {
   referenceDocuments = referenceDocuments.map((documentItem) => {
     const evidence = evidenceByPath.get(documentItem.relativePath);
     if (!evidence) return documentItem;
+    const includesPaperCard = String(evidence.evidenceType || "").includes(
+      "paper-card"
+    );
     return {
       ...documentItem,
       text: evidence.content,
-      summaryAvailable: true,
-      status: "ready",
+      summaryAvailable: documentItem.summaryAvailable || includesPaperCard,
+      status: includesPaperCard ? "ready" : documentItem.status,
       reviewError: "",
     };
   });
@@ -1339,8 +1344,8 @@ async function refreshWorkspaceExplorer(showMessage = false) {
   if (!literatureModule || !workspaceManager.workspace) return;
   refreshWorkspaceButton.disabled = true;
   try {
-    const documents = await literatureModule.scan();
     const nextTree = await workspaceManager.scanDirectoryTree();
+    const documents = await literatureModule.scan({ tree: nextTree });
     workspaceTree = nextTree;
     applyLiteratureScan(documents);
     const availablePaths = new Set(
@@ -1417,6 +1422,7 @@ function closeWorkspaceInMemory() {
   workspaceAbortController = null;
   literatureModule = null;
   projectContextService = null;
+  lastSourceUsage = null;
   workspaceChatStore = null;
   sideChatConversation = null;
   workspaceManager.closeWorkspace();
@@ -2205,6 +2211,9 @@ function renderWorkspaceTreeNode(node, isRoot = false) {
     literatureDocument?.isLiteraturePaper &&
     literatureDocument.paperCardStatus === "failed";
   label.classList.toggle("has-paper-card-error", Boolean(paperCardFailed));
+  const registeredSource = literatureModule?.sourceRegistry?.getByPath(
+    node.relativePath
+  );
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
@@ -2222,7 +2231,9 @@ function renderWorkspaceTreeNode(node, isRoot = false) {
   meta.className = "workspace-tree-meta";
   meta.textContent = paperCardFailed
     ? t("paperCardRetryMeta")
-    : formatFileSize(node.size);
+    : registeredSource
+      ? sourceStatusLabel(registeredSource)
+      : formatFileSize(node.size);
   if (paperCardFailed) {
     meta.title = t("paperCardRetryTooltip", {
       message: literatureDocument.paperCardError || t("loginFailed"),
@@ -2242,9 +2253,54 @@ function getWorkspaceFileIcon(filename) {
   return "•";
 }
 
+function sourceStatusLabel(source) {
+  const zh = currentLanguage === "zh";
+  if (source.catalogStatus === "missing") return zh ? "缺失" : "Missing";
+  if (
+    source.catalogStatus === "dirty" ||
+    source.hashStatus === "dirty" ||
+    [source.parseStatus, source.indexStatus, source.paperCardStatus, source.structuredDataStatus]
+      .includes("stale")
+  ) return zh ? "已过期" : "Stale";
+  if (source.error) return zh ? "失败" : "Failed";
+  if (source.sourceKind === "experiment" && source.structuredDataStatus === "ready") {
+    return zh ? "实验数据就绪" : "Experiment data ready";
+  }
+  if (source.sourceKind === "paper" && source.paperCardStatus === "ready") {
+    return zh ? "可检索 · 卡片可用" : "Searchable · Card available";
+  }
+  if (source.sourceKind === "paper" && source.indexStatus === "ready") {
+    return zh ? "可检索" : "Searchable";
+  }
+  return zh ? "已发现" : "Discovered";
+}
+
 function renderSideChatContext() {
   if (!sideChatContextChips) return;
   sideChatContextChips.innerHTML = "";
+  if (lastSourceUsage) {
+    const usage = document.createElement("span");
+    usage.className = "context-chip source-coverage-chip";
+    const literature = lastSourceUsage.literature || {};
+    const experiments = lastSourceUsage.experiments || {};
+    const coverage = literature.coverage || {};
+    usage.textContent = currentLanguage === "zh"
+      ? `来源：论文 ${literature.relevantPaperIds?.length || 0} · 实验 ${experiments.relevantExperimentIds?.length || 0} · 可检索 ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`
+      : `Sources: ${literature.relevantPaperIds?.length || 0} paper(s) · ${experiments.relevantExperimentIds?.length || 0} experiment(s) · searchable ${coverage.papersSearchable || 0}/${coverage.papersDiscovered || 0}`;
+    sideChatContextChips.appendChild(usage);
+    if (literature.discoveryMode === "automatic" && literature.relevantPaperIds?.length) {
+      const names = literature.relevantPaperIds
+        .map((paperId) => literatureModule?.documents?.find((item) => item.id === paperId)?.filename)
+        .filter(Boolean);
+      const matched = document.createElement("span");
+      matched.className = "context-chip";
+      matched.title = names.join(", ");
+      matched.textContent = currentLanguage === "zh"
+        ? `自动匹配：${names.slice(0, 3).join("、")}${names.length > 3 ? "…" : ""}`
+        : `Auto-matched: ${names.slice(0, 3).join(", ")}${names.length > 3 ? "…" : ""}`;
+      sideChatContextChips.appendChild(matched);
+    }
+  }
   if (!selectedWorkspacePaths.size) {
     const chip = document.createElement("span");
     chip.className = "context-chip";
@@ -2950,6 +3006,11 @@ async function runAgentInstruction(panelId) {
           projectGoal: getProjectContext(),
           signal: workspaceAbortController?.signal,
         });
+        lastSourceUsage = {
+          literature: localWorkspaceContext.literature,
+          experiments: localWorkspaceContext.experiments,
+        };
+        renderSideChatContext();
         applyLiteratureScan(literatureModule.documents);
         applyPreparedContextToDocuments(localWorkspaceContext);
         renderWorkspaceExplorer();
@@ -3134,11 +3195,17 @@ function recordSideChatExchange(question, reply) {
 function getCurrentChatContextSnapshot() {
   const files = [...selectedWorkspacePaths].sort();
   const selectedPaperIds = getSelectedPaperIds();
+  const selectedExperimentIds = files
+    .map((path) => literatureModule?.sourceRegistry?.getByPath(path))
+    .filter((source) => source?.sourceKind === "experiment")
+    .map((source) => source.sourceId);
   return {
     type: files.length ? "files" : "project",
     files,
     selectedPaperIds,
     relevantPaperIds: selectedPaperIds,
+    selectedExperimentIds,
+    relevantExperimentIds: selectedExperimentIds,
   };
 }
 
@@ -3856,14 +3923,24 @@ async function askSideChat(question) {
       workspaceTree,
       projectGoal: getProjectContext(),
       conversation: sideChatConversation,
-      enableContextRouter: true,
+      // The primary model can route through the compact source catalog and its
+      // tools; avoid a mandatory extra routing-model call on every chat turn.
+      enableContextRouter: false,
       signal: workspaceAbortController?.signal,
       onProgress(progress) {
         updateSideChatThinking(thinkingMessage, progress);
       },
     });
+    lastSourceUsage = {
+      literature: localWorkspaceContext.literature,
+      experiments: localWorkspaceContext.experiments,
+    };
+    renderSideChatContext();
     userMessage.context.relevantPaperIds = [
       ...(localWorkspaceContext.literature?.relevantPaperIds || []),
+    ];
+    userMessage.context.relevantExperimentIds = [
+      ...(localWorkspaceContext.experiments?.relevantExperimentIds || []),
     ];
     contextPrepared = true;
     applyLiteratureScan(literatureModule.documents);
@@ -3944,6 +4021,14 @@ function updateSideChatThinking(message, progress) {
     text.textContent = t("sideChatPreparingPdf", {
       name: progress.relativePath?.split("/").pop() || "PDF",
     });
+  } else if (["verifying", "hashing", "parsing", "normalizing", "paper-card"].includes(progress.stage)) {
+    text.textContent = currentLanguage === "zh"
+      ? `正在准备来源（${progress.stage}）...`
+      : `Preparing source (${progress.stage})...`;
+  } else if (progress.phase) {
+    text.textContent = currentLanguage === "zh"
+      ? `语料库工作流：${progress.phase}（${progress.completed || 0}/${progress.total || 0}）`
+      : `Corpus workflow: ${progress.phase} (${progress.completed || 0}/${progress.total || 0})`;
   }
 }
 
