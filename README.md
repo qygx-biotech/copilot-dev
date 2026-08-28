@@ -9,10 +9,10 @@ The static frontend is served from `docs/` by GitHub Pages. After the existing l
 Alibaba Function Compute remains the authenticated, secret-bearing AI gateway:
 
 ```text
-GitHub Pages -> user-selected local workspace -> extracted text only -> Function Compute -> Requesty
+GitHub Pages -> user-selected local workspace -> bounded evidence or on-demand private PDF -> Function Compute -> Requesty
 ```
 
-Original PDFs, workspace metadata, project state, literature indexes, and generated summaries remain local. Function Compute receives only bounded extracted or derived text, the AI task, and minimal metadata such as workspace-relative filenames, size, modification time, and page count. It never receives an absolute local path, directory handle, or the selected project folder itself.
+Workspace metadata, project state, literature indexes, and generated summaries remain local. Local retrieval sends only bounded extracted or derived text. For an explicit high-fidelity whole-paper, table/figure, or recovery operation, one selected private PDF may instead be sent through the authenticated gateway as base64 Requesty `input_file` content; no public URL or absolute local path is created. Function Compute never receives a directory handle or the selected project folder itself.
 
 ## Main files
 
@@ -24,7 +24,7 @@ Original PDFs, workspace metadata, project state, literature indexes, and genera
 - `docs/project-context-service.js` - bounded progressive source-context construction plus workspace-backed Side Chat persistence.
 - `docs/app.js` - UI integration, authentication, Workspace explorer, Side Chat, and workspace lifecycle.
 - `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`).
-- `alibaba-fc/side-chat-agent.js` - the bounded read-only tool loop shared by Side Chat and Agent Work.
+- `alibaba-fc/side-chat-agent.js` - the bounded effect-authorized tool loop shared by Side Chat and Agent Work.
 - `worker/` - retained alternate Cloudflare Worker backend.
 
 ## Workspace structure
@@ -93,6 +93,8 @@ Explicit whole-library synthesis intent (including English and Chinese “all/my
 
 Large search results, experiment tables, and workflow outputs are saved under `.biodesign/results/`. Tools return a compact preview and result handle. The backend loop retains recent tool results, compacts older consumed results to reopenable instructions, and bounds conversation history while persisted active paper/experiment IDs survive in chat state.
 
+Native-PDF analyses are also derived, content-hash-addressed artifacts. They are cached by paper hash, normalized task, response schema, prompt version, and model signature; they do not require a Paper Card. Corpus mapping defaults to `balanced`: parsed text first, with native PDF used for a failed structured map or a request that explicitly needs whole-document/layout fidelity. Native results keep stable paper/evidence references and stay out of persistent chat history except for compact handles and previews.
+
 ## OSS status
 
 The tested OSS implementation and its legacy endpoints remain in `alibaba-fc/index.js`. `USE_OSS_WORKSPACE_STORAGE` is `false`, no workspace-opening code calls the OSS listing route, and local literature uploads and summaries do not call the OSS upload/review/delete routes. OSS is not required for the local literature flow.
@@ -133,8 +135,9 @@ The new stateless routes are:
 - `POST /api/literature/summarize-chunk`
 - `POST /api/literature/synthesize`
 - `POST /api/corpus/map-paper`
+- `POST /api/literature/analyze-pdf-native`
 
-Both require the existing JWT bearer token. Deployment instructions and legacy OSS endpoint details are in `alibaba-fc/README.md`.
+All require the existing JWT bearer token. Deployment instructions and legacy OSS endpoint details are in `alibaba-fc/README.md`.
 
 ## Workspace Side Chat
 
@@ -142,6 +145,6 @@ The left column has one generic Workspace explorer beneath Project Context. Chec
 
 Side Chat sends bounded recent conversation history, the current question, a compact source map, and only the evidence prepared for that request to the existing authenticated `/chat` endpoint. The full registry, all Paper Cards, parsed PDFs, and experiment tables are never injected. Explicit paper and experiment IDs are hard scopes. With no selection, ordinary questions search already-ready metadata/indexes first and prepare only likely candidates; explicit corpus synthesis prepares the frozen full scope. Coverage records discovered, snapshot-included, prepared, analyzed, failed, and missing papers. The existing Context area shows prepare/map/synthesis/verification progress and the final answer is prefixed with exact analyzed coverage.
 
-Both Side Chat and the existing **Agent instruction → Analyze & Recommend** surface call the same `ProjectContextService`, registry, readiness service, and source tools, then use the same bounded model-driven tool loop. Side Chat keeps its plain answer parser; Agent Work keeps its existing structured recommendation parser. The optional context-router LLM is disabled by default, so unrelated messages make no preparatory source call. The backend tools are read-only over the bounded browser-supplied evidence because Function Compute cannot access the user's local directory.
+Both Side Chat and the existing **Agent instruction → Analyze & Recommend** surface call the same `ProjectContextService`, registry, readiness service, and source tools, then use the same bounded model-driven tool loop. Each tool has an effect: informational/internal-state tools are allowed from both surfaces, while official result-producing tools are reserved for Agent Command and destructive/external effects remain denied. Side Chat may therefore prepare sources, update deterministic metadata and compact typed memory, retry workflows, and recover the allowlisted browser analysis coordinator without changing the Current Recommendation. The optional context-router LLM is disabled by default, so unrelated messages make no preparatory source call.
 
-The complete Project context / goal remains a dedicated durable system message. Internal tool inspection is not copied to persistent chat. Each user message stores a compact source-context snapshot, and the active conversation is restored from `.biodesign/chat/`; **Clear chat** deletes only that conversation. Side Chat still never invokes the Agent Work button or mutates its recommendation panels.
+The complete Project context / goal remains a dedicated durable system message. Internal tool inspection is not copied to persistent chat. Typed memory records store compact reusable conclusions and source IDs—not paper text or experiment tables—and are retrieved on demand. Each user message stores a compact source-context snapshot, and the active conversation is restored from `.biodesign/chat/`; **Clear chat** deletes only that conversation. Side Chat still never invokes the Agent Work button or mutates its recommendation panels.

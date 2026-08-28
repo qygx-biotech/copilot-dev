@@ -16,6 +16,7 @@ process.env.OSS_INTERNAL_ENDPOINT =
 process.env.OSS_PUBLIC_ENDPOINT = "https://oss-cn-beijing.aliyuncs.com";
 process.env.REQUESTY_API_KEY = "requesty-test-key";
 process.env.REQUESTY_MODEL = "requesty-test-model";
+process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
 
 const objectStore = new Map();
 let deleteCalls = 0;
@@ -140,11 +141,20 @@ global.fetch = async (_url, options = {}) => {
     content = queuedCorpusMapCompletionTexts.length
       ? queuedCorpusMapCompletionTexts.shift()
       : JSON.stringify({
+          title: "Mapped paper",
           relevance: "high",
+          research_question: null,
           themes: ["enzyme engineering"],
-          findings: [],
           methods: [],
-          limitations: []
+          organisms: [],
+          genes: [],
+          proteins: [],
+          pathways: [],
+          experimental_strategies: [],
+          major_findings: [],
+          limitations: [],
+          connections_to_other_topics: [],
+          notes: null
         });
   } else if (systemMessage.includes("one excerpt of an academic paper")) {
     content = JSON.stringify({
@@ -219,6 +229,48 @@ function apiEvent(method, path, body, authenticated = true) {
 
 function parseResponse(response) {
   return response.body ? JSON.parse(response.body) : null;
+}
+
+function validNativePaperAnalysis() {
+  return {
+    summary: "The paper reports an evidence-backed whole-document analysis.",
+    research_question: null,
+    themes: ["enzyme engineering"],
+    methods: ["activity assay"],
+    key_findings: [
+      {
+        claim: "The tested variant improved activity.",
+        evidence_refs: ["paper-native:p4"]
+      }
+    ],
+    limitations: ["One assay condition was reported."],
+    evidence_refs: ["paper-native:p4"],
+    notes: null
+  };
+}
+
+function validCorpusMapJson(evidenceRef = "paper-a:p8:paper-a-P8-C2") {
+  return {
+    title: "Selected EctD study",
+    relevance: "high",
+    research_question: null,
+    themes: ["EctD variants"],
+    methods: ["activity assay"],
+    organisms: [],
+    genes: ["ectD"],
+    proteins: ["EctD"],
+    pathways: [],
+    experimental_strategies: ["variant comparison"],
+    major_findings: [
+      {
+        claim: "A163V improved the reported activity.",
+        evidence_refs: [evidenceRef]
+      }
+    ],
+    limitations: ["single reported condition"],
+    connections_to_other_topics: [],
+    notes: null
+  };
 }
 
 test("frontend upload does not automatically invoke PDF review", () => {
@@ -326,6 +378,7 @@ test("document endpoints reject unauthenticated access", async () => {
     localChunkResponse,
     localSynthesisResponse,
     corpusMapResponse,
+    nativePdfResponse,
     contextRouterResponse
   ] = await Promise.all([
     handler(apiEvent("GET", "/api/documents", undefined, false), context),
@@ -386,6 +439,20 @@ test("document endpoints reject unauthenticated access", async () => {
     handler(
       apiEvent(
         "POST",
+        "/api/literature/analyze-pdf-native",
+        {
+          paperId: "paper-a",
+          contentHash: "sha256:test",
+          task: "Summarize the paper.",
+          fileData: "data:application/pdf;base64,JVBERi0xLjQ="
+        },
+        false
+      ),
+      context
+    ),
+    handler(
+      apiEvent(
+        "POST",
         "/api/context/route",
         { userQuery: "Which paper?", literatureIndex: [] },
         false
@@ -401,6 +468,7 @@ test("document endpoints reject unauthenticated access", async () => {
   assert.equal(localChunkResponse.statusCode, 401);
   assert.equal(localSynthesisResponse.statusCode, 401);
   assert.equal(corpusMapResponse.statusCode, 401);
+  assert.equal(nativePdfResponse.statusCode, 401);
   assert.equal(contextRouterResponse.statusCode, 401);
 });
 
@@ -453,16 +521,25 @@ test("corpus paper mapping uses a fresh bounded context and validates evidence r
   const allowedRef = "paper-a:p8:paper-a-P8-C2";
   queuedCorpusMapCompletionTexts.push(
     JSON.stringify({
+      title: "Selected EctD study",
       relevance: "high",
+      research_question: "Which EctD variants improved activity?",
       themes: ["EctD variants"],
-      findings: [
+      methods: ["activity assay"],
+      organisms: [],
+      genes: ["ectD"],
+      proteins: ["EctD"],
+      pathways: [],
+      experimental_strategies: ["variant comparison"],
+      major_findings: [
         {
           claim: "A163V improved the reported activity.",
           evidence_refs: [allowedRef, "invented-reference"]
         }
       ],
-      methods: ["activity assay"],
-      limitations: ["single reported condition"]
+      limitations: ["single reported condition"],
+      connections_to_other_topics: [],
+      notes: null
     })
   );
   const pdfReadsBefore = pdfGetCalls;
@@ -495,6 +572,197 @@ test("corpus paper mapping uses a fresh bounded context and validates evidence r
   assert.equal(request.response_format.json_schema.strict, true);
   assert.match(request.messages[0].content, /fresh-context corpus mapping worker/);
   assert.doesNotMatch(request.messages.at(-1).content, /conversation|chat history/i);
+});
+
+test("Requesty native PDF uses private base64 input and strict schema when the model supports the combination", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    pdf: process.env.REQUESTY_PDF_ENABLED,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "openai/gpt-4.1";
+  process.env.REQUESTY_PDF_ENABLED = "true";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "true";
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(JSON.stringify(validNativePaperAnalysis()));
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-native",
+        filename: "/private/research/paper-native.pdf",
+        contentHash: "sha256:native",
+        task: "Summarize the whole paper, including its figures.",
+        purpose: "whole-paper-summary",
+        responseSchema: "paper_analysis",
+        evidenceRefs: ["paper-native:p4"],
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nprivate-scientific-content").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    const requests = capturedLlmRequests.slice(requestStart);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.analysis.summary.includes("whole-document"), true);
+    assert.equal(body.model, "openai-responses/gpt-4.1");
+    assert.equal(body.diagnostics.structuredOutputMode, "native-pdf+json_schema");
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].response_format.type, "json_schema");
+    assert.equal(requests[0].response_format.json_schema.strict, true);
+    const filePart = requests[0].messages[1].content.find(
+      (part) => part.type === "input_file"
+    );
+    assert.ok(filePart.file_data.startsWith("data:application/pdf;base64,"));
+    assert.equal(Object.hasOwn(filePart, "file_url"), false);
+    assert.equal(JSON.stringify(requests[0]).includes("/private/research"), false);
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_PDF_ENABLED: previous.pdf,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+test("native PDF falls back to two-step strict extraction when PDF plus json_schema is unsupported", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "anthropic/claude-sonnet-4";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "false";
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(
+    "The private PDF reports a controlled activity assay.",
+    JSON.stringify(validNativePaperAnalysis())
+  );
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-native",
+        filename: "paper-native.pdf",
+        contentHash: "sha256:native",
+        task: "Recover a structured whole-paper analysis.",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\ntwo-step-private-content").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    const requests = capturedLlmRequests.slice(requestStart);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.diagnostics.structuredOutputMode, "two-step-json_schema");
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].response_format, undefined);
+    assert.ok(requests[0].messages[1].content.some((part) => part.type === "input_file"));
+    assert.equal(requests[1].response_format.type, "json_schema");
+    assert.equal(
+      requests[1].messages.some((message) =>
+        Array.isArray(message.content) &&
+        message.content.some((part) => part.type === "input_file")
+      ),
+      false
+    );
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+test("invalid native structured output is repaired with bounded schema-constrained retry", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "anthropic/claude-sonnet-4";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "true";
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(
+    "This response is useful analysis but not valid structured JSON.",
+    JSON.stringify(validNativePaperAnalysis())
+  );
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-native-repair",
+        filename: "paper-native-repair.pdf",
+        contentHash: "sha256:native-repair",
+        task: "Summarize this whole paper.",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nprivate-repair-content").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    const requests = capturedLlmRequests.slice(requestStart);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.diagnostics.structuredOutputMode, "structured-repair-json_schema");
+    assert.equal(body.diagnostics.fallbackPath, "native-pdf-structured-repair");
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].response_format.json_schema.strict, true);
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+test("corpus mapping uses json_object fallback with host validation when json_schema is unavailable", async () => {
+  const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
+  const requestStart = capturedLlmRequests.length;
+  const evidenceRef = "paper-fallback:p2:chunk-1";
+  queuedCorpusMapCompletionTexts.push(
+    JSON.stringify(validCorpusMapJson(evidenceRef))
+  );
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/corpus/map-paper", {
+        paperId: "paper-fallback",
+        contentHash: "sha256:fallback",
+        question: "What did the paper find?",
+        evidence: [
+          {
+            evidenceRef,
+            text: "A163V improved activity in the reported assay."
+          }
+        ]
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    const requests = capturedLlmRequests.slice(requestStart);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.mapResult.paperId, "paper-fallback");
+    assert.equal(requests.length, 1);
+    assert.deepEqual(requests[0].response_format, { type: "json_object" });
+    assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [evidenceRef]);
+  } finally {
+    if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+    else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = previous;
+  }
 });
 
 test("context router uses only compact indexes and preserves explicit paper scope", async () => {
@@ -928,7 +1196,7 @@ test("the long-term project goal is a system message for answers and recommendat
   assert.match(agentWorkGoalMessage.content, new RegExp(projectGoal));
 });
 
-test("Side Chat executes provider tool calls through the read-only loop", async () => {
+test("Side Chat executes provider tool calls through the effect-authorized loop", async () => {
   capturedLlmRequests.length = 0;
   queuedChatCompletionMessages.push(
     {
@@ -1008,7 +1276,11 @@ test("Side Chat executes provider tool calls through the read-only loop", async 
       "list_experiment_sources",
       "query_experiment_results",
       "get_corpus_workflow_status",
-      "source_coverage"
+      "source_coverage",
+      "update_project_memory",
+      "get_local_worker_status",
+      "restart_local_worker",
+      "update_recommendation"
     ]
   );
   const toolResult = capturedLlmRequests[1].messages.find(

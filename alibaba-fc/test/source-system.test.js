@@ -11,6 +11,12 @@ const {
   LiteratureTools,
   ExperimentTools,
   CorpusWorkflowService,
+  ManagedLocalWorker,
+  ProjectStateService,
+  RequestyPdfAnalyzer,
+  TOOL_EFFECTS,
+  ToolEffect,
+  authorizeTool,
 } = require("../../docs/source-system.js");
 const {
   ProjectContextService,
@@ -110,7 +116,12 @@ async function makeSystem(workspace, options = {}) {
     },
     generatePaperCard: options.generatePaperCard,
   });
-  const literatureTools = new LiteratureTools({ registry, preparation, results });
+  const literatureTools = new LiteratureTools({
+    registry,
+    preparation,
+    results,
+    nativePdfAnalyzer: options.nativePdfAnalyzer,
+  });
   const experimentTools = new ExperimentTools({ registry, preparation, results });
   const corpusWorkflows = new CorpusWorkflowService({
     workspace,
@@ -120,6 +131,7 @@ async function makeSystem(workspace, options = {}) {
     results,
     mapWorker: options.mapWorker,
     fallbackMapWorker: options.fallbackMapWorker,
+    nativePdfAnalyzer: options.nativePdfAnalyzer,
     mapAttempts: options.mapAttempts,
   });
   return {
@@ -130,6 +142,7 @@ async function makeSystem(workspace, options = {}) {
     literatureTools,
     experimentTools,
     corpusWorkflows,
+    nativePdfAnalyzer: options.nativePdfAnalyzer || null,
     get parseCalls() {
       return parseCalls;
     },
@@ -154,6 +167,9 @@ function makeLiteratureHarness(system) {
     literatureTools: system.literatureTools,
     experimentTools: system.experimentTools,
     corpusWorkflows: system.corpusWorkflows,
+    nativePdfAnalyzer: system.nativePdfAnalyzer,
+    projectState: system.projectState,
+    managedWorker: system.managedWorker,
     results: system.results,
   };
   return {
@@ -524,6 +540,13 @@ test("parser failures persist on the source and retry without an unnecessary reh
 
 test("experiment CSV values are normalized lazily with provenance and replaced on change", async () => {
   const workspace = new MemoryWorkspace();
+  workspace.state = {
+    schemaVersion: 1,
+    project: { goal: "Compare EctD assay results." },
+    ui: {},
+    agent: { currentRecommendation: { id: "R1" } },
+    memory: {},
+  };
   workspace.setFile(
     "experiments/strain-engineering/run.csv",
     "protein,mutation,activity,unit\nEctD,A163V,4.8,U/mg\nEctD,WT,3.1,U/mg",
@@ -570,6 +593,27 @@ test("experiment CSV values are normalized lazily with provenance and replaced o
   assert.equal(second.length, 1);
   assert.equal(second[0].raw.activity, "5.2");
   assert.equal(system.preparation.metrics.experimentParseCalls, 2);
+  const projectState = new ProjectStateService({
+    workspace,
+    registry: system.registry,
+    jobs: system.jobs,
+    corpusWorkflows: system.corpusWorkflows,
+  });
+  const memory = await projectState.updateMemory(
+    {
+      kind: "experiment_note",
+      text: "A163V exceeded WT in the recorded activity assay.",
+      experimentIds: [source.sourceId],
+    },
+    { surface: "side_chat" }
+  );
+  const metadata = await projectState.refreshMetadata({ surface: "side_chat" });
+  const rawFile = await workspace.readFile(source.path);
+  const rawText = new TextDecoder().decode(await rawFile.arrayBuffer());
+  assert.equal(memory.experimentIds[0], source.sourceId);
+  assert.equal(metadata.experimentsReady, 1);
+  assert.equal(rawText, "protein,mutation,activity,unit\nEctD,A163V,5.2,U/mg");
+  assert.deepEqual(workspace.state.agent.currentRecommendation, { id: "R1" });
 });
 
 test("paper tools preserve explicit scope and exact biological identifiers", async () => {
@@ -977,7 +1021,20 @@ test("CASES 2-3: include failed papers retries only two maps and incrementally u
   const callsBeforeRecovery = new Map(mapCalls);
 
   recoveryEnabled = true;
+  workspace.state = {
+    schemaVersion: 1,
+    project: { goal: "Review the EctD corpus." },
+    ui: {},
+    agent: { currentRecommendation: { id: "R1", text: "Keep the baseline." } },
+    memory: { project: [], literature: [], experimental: [] },
+  };
   const literature = makeLiteratureHarness(system);
+  literature.sourceSystem.projectState = new ProjectStateService({
+    workspace,
+    registry: system.registry,
+    jobs: system.jobs,
+    corpusWorkflows: system.corpusWorkflows,
+  });
   const service = new ProjectContextService({ workspace, literature });
   const context = await service.buildContext({
     question:
@@ -1009,6 +1066,15 @@ test("CASES 2-3: include failed papers retries only two maps and incrementally u
   assert.ok(context.corpusWorkflowStatus.incrementalUpdate.affectedGroupKeys.length > 0);
   assert.ok(context.corpusWorkflowStatus.incrementalUpdate.verificationClaimsRechecked > 0);
   assert.equal(context.files[0].evidenceType, "corpus-workflow");
+  assert.equal(workspace.state.projectMetadata.corpusMapFailures, 0);
+  assert.equal(
+    workspace.state.projectMetadata.corpusCoverage.papersSuccessfullyAnalyzed,
+    32
+  );
+  assert.deepEqual(workspace.state.agent.currentRecommendation, {
+    id: "R1",
+    text: "Keep the baseline.",
+  });
   for (const paperId of paperIds.slice(0, 30)) {
     assert.equal(mapCalls.get(paperId), callsBeforeRecovery.get(paperId));
   }
@@ -1070,4 +1136,325 @@ test("CASE 5: an encrypted PDF is accurately retained as a preparation failure",
   assert.equal(status.failures[0].sourceReady, false);
   assert.equal(status.failures[0].retryable, false);
   assert.match(status.failures[0].message, /encrypted/i);
+});
+
+test("Side Chat authorization allows internal state but denies official, destructive, and external effects", () => {
+  assert.equal(TOOL_EFFECTS.ensure_source_ready, ToolEffect.INTERNAL_STATE);
+  assert.equal(TOOL_EFFECTS.update_project_memory, ToolEffect.INTERNAL_STATE);
+  assert.equal(TOOL_EFFECTS.restart_local_worker, ToolEffect.INTERNAL_STATE);
+  assert.equal(TOOL_EFFECTS.update_recommendation, ToolEffect.RESULT_PRODUCING);
+
+  assert.equal(authorizeTool("side_chat", "ensure_source_ready").allowed, true);
+  assert.equal(authorizeTool("side_chat", "update_project_memory").allowed, true);
+  assert.equal(authorizeTool("side_chat", "restart_local_worker").allowed, true);
+  assert.equal(authorizeTool("side_chat", "update_recommendation").allowed, false);
+  assert.equal(authorizeTool("side_chat", ToolEffect.DESTRUCTIVE_SOURCE).allowed, false);
+  assert.equal(authorizeTool("side_chat", ToolEffect.EXTERNAL_SIDE_EFFECT).allowed, false);
+  assert.equal(authorizeTool("agent_command", "update_recommendation").allowed, true);
+  assert.equal(Object.hasOwn(TOOL_EFFECTS, "kill_process"), false);
+  assert.equal(Object.hasOwn(TOOL_EFFECTS, "terminate_pid"), false);
+});
+
+test("native PDF analysis hashes private bytes at source use, skips Paper Cards, and caches the derived artifact", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile(
+    "literature/private-paper.pdf",
+    "%PDF-1.4\nA private whole-paper scientific report.",
+    1000
+  );
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const paper = system.registry.list({ sourceKind: "paper" })[0];
+  const workerInputs = [];
+  const analyzer = new RequestyPdfAnalyzer({
+    workspace,
+    registry: system.registry,
+    preparation: system.preparation,
+    results: system.results,
+    async nativePdfWorker(input) {
+      workerInputs.push(input);
+      return {
+        model: "openai-responses/gpt-4.1",
+        analysis: {
+          summary: "The whole paper was analyzed directly.",
+          researchQuestion: null,
+          themes: ["whole-paper review"],
+          methods: [],
+          keyFindings: [],
+          limitations: [],
+          evidenceRefs: [paper.sourceId + ":p1"],
+          notes: null,
+        },
+        diagnostics: { structuredOutputMode: "native-pdf+json_schema" },
+      };
+    },
+  });
+
+  const first = await analyzer.analyze(paper.sourceId, "Summarize the whole paper.", {
+    surface: "side_chat",
+  });
+  const second = await analyzer.analyze(paper.sourceId, "Summarize the whole paper.", {
+    surface: "side_chat",
+  });
+  workspace.setFile(
+    "literature/private-paper.pdf",
+    "%PDF-1.4\nThe private paper was materially revised.",
+    2000
+  );
+  const third = await analyzer.analyze(paper.sourceId, "Summarize the whole paper.", {
+    surface: "side_chat",
+  });
+
+  assert.equal(workerInputs.length, 2);
+  assert.ok(workerInputs[0].bytes instanceof Uint8Array);
+  assert.equal(Object.hasOwn(workerInputs[0], "fileUrl"), false);
+  assert.equal(system.preparation.metrics.fullHashCalls, 2);
+  assert.equal(system.parseCalls, 0);
+  assert.equal(system.registry.get(paper.sourceId).hashStatus, "ready");
+  assert.equal(system.registry.get(paper.sourceId).parseStatus, "not_started");
+  assert.equal(system.registry.get(paper.sourceId).paperCardStatus, "absent");
+  assert.equal(first.cached, false);
+  assert.equal(second.cached, true);
+  assert.equal(third.cached, false);
+});
+
+test("whole-paper Side Chat can select native PDF while an exact-text question stays on local retrieval", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile(
+    "literature/selected.pdf",
+    "%PDF-1.4\nThe reported concentration was 25 mM.",
+    1000
+  );
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const paper = system.registry.list({ sourceKind: "paper" })[0];
+  let nativeCalls = 0;
+  const nativePdfAnalyzer = {
+    async analyze(paperId) {
+      nativeCalls += 1;
+      return {
+        paperId,
+        contentHash: "sha256:native",
+        analysis: { summary: "Native whole-paper summary." },
+        evidenceRefs: [`${paperId}:p1`],
+        artifactPath: ".biodesign/native.json",
+      };
+    },
+  };
+  system.nativePdfAnalyzer = nativePdfAnalyzer;
+  const literature = makeLiteratureHarness(system);
+  literature.sourceSystem.nativePdfAnalyzer = nativePdfAnalyzer;
+  const service = new ProjectContextService({ workspace, literature });
+  const selectedPaths = [paper.path];
+
+  const wholePaper = await service.buildContext({
+    question: "Give me an overview of this selected study.",
+    selectedPaths,
+    selectedPaperIds: [paper.sourceId],
+    workspaceTree: treeFor(workspace),
+    surface: "side_chat",
+  });
+  const exactText = await service.buildContext({
+    question: "What exact concentration does this paper report?",
+    selectedPaths,
+    selectedPaperIds: [paper.sourceId],
+    workspaceTree: treeFor(workspace),
+    surface: "side_chat",
+  });
+
+  assert.equal(wholePaper.files[0].evidenceType, "requesty-native-pdf-analysis");
+  assert.equal(nativeCalls, 1);
+  assert.equal(exactText.files[0].evidenceType, "original-paper-evidence");
+  assert.match(exactText.files[0].content, /25 mM/);
+  assert.equal(system.parseCalls, 1);
+});
+
+test("exhausted local mapper retries can recover through native PDF without downgrading source readiness", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile(
+    "literature/native-fallback.pdf",
+    "%PDF-1.4\nThe source contains usable paper evidence.",
+    1000
+  );
+  let nativeCalls = 0;
+  let localFallbackCalls = 0;
+  const system = await makeSystem(workspace, {
+    mapAttempts: 2,
+    async mapWorker() {
+      throw invalidMapperError();
+    },
+    async fallbackMapWorker(input) {
+      localFallbackCalls += 1;
+      return validMapFor(input, "local fallback");
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const analyzer = new RequestyPdfAnalyzer({
+    workspace,
+    registry: system.registry,
+    preparation: system.preparation,
+    results: system.results,
+    async nativePdfWorker(input) {
+      nativeCalls += 1;
+      return {
+        model: "requesty/pdf-model",
+        analysis: {
+          title: input.filename,
+          relevance: "high",
+          researchQuestion: null,
+          themes: ["native recovery"],
+          methods: [],
+          organisms: [],
+          genes: [],
+          proteins: [],
+          pathways: [],
+          experimentalStrategies: [],
+          majorFindings: [
+            {
+              claim: "The native PDF fallback recovered the paper analysis.",
+              evidenceRefs: input.evidenceRefs.slice(0, 1),
+            },
+          ],
+          limitations: [],
+          connectionsToOtherTopics: [],
+          notes: null,
+        },
+      };
+    },
+  });
+  system.corpusWorkflows.nativePdfAnalyzer = analyzer;
+
+  const result = await system.corpusWorkflows.run("Summarize all papers", {
+    surface: "side_chat",
+    qualityMode: "balanced",
+  });
+  const journal = result.resultHandle
+    ? await system.results.read(result.resultHandle)
+    : result;
+  const paperId = journal.snapshot[0].sourceId;
+
+  assert.equal(nativeCalls, 1);
+  assert.equal(localFallbackCalls, 0);
+  assert.equal(journal.maps[paperId].generationMode, "native-pdf-fallback");
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 1);
+  assert.equal(system.registry.get(paperId).parseStatus, "ready");
+  assert.equal(system.registry.get(paperId).indexStatus, "ready");
+});
+
+test("explicit Side Chat memory and automatic metadata updates preserve the current recommendation", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.state = {
+    schemaVersion: 1,
+    project: { goal: "Improve hydroxyectoine production." },
+    ui: {},
+    agent: { currentRecommendation: { id: "R1", text: "Retain the control strain." } },
+    memory: { project: [], literature: [], experimental: [] },
+  };
+  const system = await makeSystem(workspace);
+  await system.registry.reconcile(treeFor(workspace));
+  const literature = makeLiteratureHarness(system);
+  literature.sourceSystem.projectState = new ProjectStateService({
+    workspace,
+    registry: system.registry,
+    jobs: system.jobs,
+    corpusWorkflows: system.corpusWorkflows,
+  });
+  const service = new ProjectContextService({ workspace, literature });
+
+  const context = await service.buildContext({
+    question: "Remember that our primary assay metric is hydroxyectoine titer.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(workspace),
+    surface: "side_chat",
+  });
+
+  assert.equal(workspace.state.memory.records.length, 1);
+  assert.equal(workspace.state.memory.records[0].kind, "metric");
+  assert.match(workspace.state.memory.records[0].text, /hydroxyectoine titer/i);
+  assert.ok(context.internalStateUpdates.some((item) => item.startsWith("memory:")));
+  assert.ok(workspace.state.projectMetadata);
+  assert.deepEqual(workspace.state.agent.currentRecommendation, {
+    id: "R1",
+    text: "Retain the control strain.",
+  });
+});
+
+test("managed worker recovery is allowlisted, preserves journals, and resumes incomplete workflows", async () => {
+  let resumeCalls = 0;
+  let preparationResumeCalls = 0;
+  const staleJob = {
+    jobId: "job-1",
+    jobType: "prepare:search",
+    sourceIds: ["paper-1"],
+    status: "stale",
+  };
+  const jobs = {
+    inFlight: new Map(),
+    async load() {},
+    async persist() {},
+    list({ status }) {
+      return staleJob.status === status ? [staleJob] : [];
+    },
+  };
+  const worker = new ManagedLocalWorker({
+    workspace: {},
+    jobs,
+    preparation: {
+      async ensureSourceReady(sourceIds, capability, options) {
+        preparationResumeCalls += 1;
+        assert.deepEqual(sourceIds, ["paper-1"]);
+        assert.equal(capability, "search");
+        assert.equal(options.surface, "side_chat");
+        return { failures: [] };
+      },
+    },
+    corpusWorkflows: {
+      async resumeIncompleteWorkflows(options) {
+        resumeCalls += 1;
+        assert.equal(options.surface, "side_chat");
+        return [
+          {
+            workflowId: "workflow-1",
+            status: "completed",
+            coverage: { papersSuccessfullyAnalyzed: 32 },
+          },
+        ];
+      },
+    },
+  });
+  worker.markUnhealthyForRecovery();
+  const contextWorkspace = new MemoryWorkspace();
+  contextWorkspace.state = {
+    schemaVersion: 1,
+    project: { goal: "Resume internal analysis." },
+    ui: {},
+    agent: {},
+    memory: {},
+  };
+  const contextSystem = await makeSystem(contextWorkspace);
+  await contextSystem.registry.reconcile(treeFor(contextWorkspace));
+  const literature = makeLiteratureHarness(contextSystem);
+  literature.sourceSystem.managedWorker = worker;
+  const before = await worker.getStatus({ surface: "side_chat" });
+  const contextResult = await new ProjectContextService({
+    workspace: contextWorkspace,
+    literature,
+  }).buildContext({
+    question: "Please recover the stuck analysis worker and resume the workflow.",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(contextWorkspace),
+    surface: "side_chat",
+  });
+  const after = await worker.getStatus({ surface: "side_chat" });
+
+  assert.equal(before.health, "unhealthy");
+  assert.equal(after.health, "healthy");
+  assert.equal(after.arbitraryProcessControl, false);
+  assert.equal(contextResult.managedWorker.restarted, true);
+  assert.equal(contextResult.managedWorker.resumedJobCount, 1);
+  assert.deepEqual(contextResult.managedWorker.resumedWorkflowIds, ["workflow-1"]);
+  assert.equal(preparationResumeCalls, 1);
+  assert.equal(resumeCalls, 1);
 });

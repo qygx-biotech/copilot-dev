@@ -2,7 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  AGENT_TOOL_EFFECTS,
   SIDE_CHAT_TOOL_DEFINITIONS,
+  ToolEffect,
+  authorizeTool,
   buildDurableProjectSystemMessage,
   buildSideChatCatalog,
   compactSideChatAgentMessages,
@@ -71,7 +74,7 @@ function makeWorkspaceContext() {
   };
 }
 
-test("the backend Side Chat loop exposes only read-only tools", () => {
+test("the backend loop exposes internal-state tools with centralized effects", () => {
   const names = SIDE_CHAT_TOOL_DEFINITIONS.map((tool) => tool.function.name);
   assert.deepEqual(names, [
     "list_workspace_items",
@@ -84,16 +87,18 @@ test("the backend Side Chat loop exposes only read-only tools", () => {
     "list_experiment_sources",
     "query_experiment_results",
     "get_corpus_workflow_status",
-    "source_coverage"
+    "source_coverage",
+    "update_project_memory",
+    "get_local_worker_status",
+    "restart_local_worker",
+    "update_recommendation"
   ]);
-  assert.ok(
-    names.every(
-      (name) =>
-        !/(write|edit|delete|remove|bash|shell|execute|task|agent|recommend)/i.test(
-          name
-        )
-    )
-  );
+  assert.equal(AGENT_TOOL_EFFECTS.update_project_memory, ToolEffect.INTERNAL_STATE);
+  assert.equal(AGENT_TOOL_EFFECTS.restart_local_worker, ToolEffect.INTERNAL_STATE);
+  assert.equal(AGENT_TOOL_EFFECTS.update_recommendation, ToolEffect.RESULT_PRODUCING);
+  assert.equal(authorizeTool("side_chat", "update_project_memory").allowed, true);
+  assert.equal(authorizeTool("side_chat", "update_recommendation").allowed, false);
+  assert.equal(authorizeTool("agent_command", "update_recommendation").allowed, true);
 });
 
 test("durable project context becomes system guidance without duplicating the goal", () => {
@@ -346,8 +351,101 @@ test("the pre-tool hook blocks action tools even when the model invents one", ()
     }),
     knowledgeBase
   );
-  assert.match(result, /^Blocked:/);
-  assert.match(result, /not a Side Chat read-only tool/);
+  const blocked = JSON.parse(result);
+  assert.equal(blocked.allowed, false);
+  assert.match(blocked.reason, /not registered/i);
+
+  const recommendation = JSON.parse(
+    executeSideChatTool(
+      toolCall("update_recommendation", { proposed_change: "R2" }),
+      knowledgeBase
+    )
+  );
+  assert.equal(recommendation.allowed, false);
+  assert.equal(recommendation.effect, "result_producing");
+  assert.equal(recommendation.required_surface, "agent_command");
+});
+
+test("Side Chat can discuss a recommendation change but receives a structured commit denial", async () => {
+  const requests = [];
+  const turns = [
+    {
+      ok: true,
+      message: {
+        content: null,
+        tool_calls: [
+          toolCall("update_recommendation", { proposed_change: "Use candidate R2." })
+        ]
+      }
+    },
+    {
+      ok: true,
+      message: {
+        content:
+          "I can explain the proposed change, but Side Chat did not commit it. Use Agent Command to update the Current Recommendation."
+      }
+    }
+  ];
+  const result = await runSideChatAgent({
+    surface: "side_chat",
+    conversationMessages: [
+      { role: "user", content: "Based on this, update our current recommendation." }
+    ],
+    workspaceContext: makeWorkspaceContext(),
+    systemPrompt: "Discuss proposed changes, but obey tool authorization.",
+    parseFinalAnswer: (content) => ({ reply: content }),
+    requestTurn: async (request) => {
+      requests.push(request);
+      return turns.shift();
+    }
+  });
+
+  const denial = JSON.parse(
+    requests[1].messages.find((message) => message.role === "tool").content
+  );
+  assert.equal(denial.allowed, false);
+  assert.equal(denial.effect, "result_producing");
+  assert.equal(denial.required_surface, "agent_command");
+  assert.match(result.data.reply, /did not commit/i);
+});
+
+test("Agent Command retains authorization for its existing recommendation commit path", async () => {
+  const requests = [];
+  const turns = [
+    {
+      ok: true,
+      message: {
+        content: null,
+        tool_calls: [
+          toolCall("update_recommendation", { proposed_change: "Use candidate R2." })
+        ]
+      }
+    },
+    {
+      ok: true,
+      message: { content: "Structured Agent Command recommendation response." }
+    }
+  ];
+  await runSideChatAgent({
+    surface: "agent_command",
+    conversationMessages: [
+      { role: "user", content: "Commit the reviewed recommendation." }
+    ],
+    workspaceContext: makeWorkspaceContext(),
+    systemPrompt: "Return the existing Agent Command response.",
+    parseFinalAnswer: (content) => ({ reply: content }),
+    requestTurn: async (request) => {
+      requests.push(request);
+      return turns.shift();
+    }
+  });
+
+  const outcome = JSON.parse(
+    requests[1].messages.find((message) => message.role === "tool").content
+  );
+  assert.equal(outcome.allowed, true);
+  assert.equal(outcome.effect, "result_producing");
+  assert.equal(outcome.disposition, "host_managed");
 });
 
 test("the agent loop keeps inspection private and returns only the final answer", async () => {

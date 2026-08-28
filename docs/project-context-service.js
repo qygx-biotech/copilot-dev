@@ -54,6 +54,14 @@
     /\b(our data|our results|same experiment|those results|these results|agree|disagree|compare with ours?)\b|我们的数据|我们的结果|这些结果|同一实验|一致|不一致/i;
   const SOURCE_CATALOG_QUESTION_PATTERN =
     /\b(?:list|show|which|what)\b[\s\S]{0,80}\b(?:papers?|experiment (?:files|sources)|workbooks?|source files)\b|列出.*(?:论文|实验文件|来源)|有哪些.*(?:论文|实验文件|来源)/i;
+  const EXPLICIT_MEMORY_PATTERN =
+    /\b(?:remember|save|record|note)\s+(?:that\s+)?(.{3,2000})$/i;
+  const EXPLICIT_MEMORY_ZH_PATTERN =
+    /(?:请)?(?:记住|记录|记一下)[：:\s]*(.{2,2000})$/i;
+  const MANAGED_WORKER_RECOVERY_PATTERN =
+    /\b(?:restart|recover|resume|unstick|stuck|unhealthy)\b[\s\S]{0,100}\b(?:analysis|processing|worker|job|workflow)\b|(?:重启|恢复|继续).{0,30}(?:分析|处理|任务|工作流)/i;
+  const NATIVE_PDF_QUESTION_PATTERN =
+    /\b(?:whole paper|entire paper|full paper|figure\s*\d+|table\s*\d+|layout|lost the table|parser.*(?:lost|missed)|high[- ]fidelity)\b|整篇|全文总结|图\s*\d+|表\s*\d+|版式|解析.*(?:丢失|遗漏)/i;
 
   const STOP_WORDS = new Set([
     "about",
@@ -124,6 +132,25 @@
     return CORPUS_RECOVERY_ACTION_PATTERN.test(question) &&
       (CORPUS_FAILURE_FOLLOW_UP_PATTERN.test(question) ||
         /\b(?:those|them|the two)\b|把.*(?:两篇|它们)/i.test(question));
+  }
+
+  function extractExplicitMemory(value) {
+    const question = String(value || "").trim();
+    const match = question.match(EXPLICIT_MEMORY_PATTERN) ||
+      question.match(EXPLICIT_MEMORY_ZH_PATTERN);
+    if (!match?.[1]) return null;
+    const text = match[1].replace(/\s+/g, " ").trim().slice(0, 2000);
+    if (!text) return null;
+    return {
+      kind: /metric|assay|titer|yield|productivity|指标|滴度|产率/i.test(text)
+        ? "metric"
+        : /hypothesis|we think|可能|假设/i.test(text)
+          ? "hypothesis"
+          : /constraint|must|cannot|限制|必须|不能/i.test(text)
+            ? "constraint"
+            : "observation",
+      text,
+    };
   }
 
   function normalizePath(value) {
@@ -583,6 +610,9 @@
       this.literatureTools = this.sourceSystem?.literatureTools || null;
       this.experimentTools = this.sourceSystem?.experimentTools || null;
       this.corpusWorkflows = this.sourceSystem?.corpusWorkflows || null;
+      this.projectState = this.sourceSystem?.projectState || null;
+      this.managedWorker = this.sourceSystem?.managedWorker || null;
+      this.nativePdfAnalyzer = this.sourceSystem?.nativePdfAnalyzer || null;
       this.limits = { ...CONTEXT_LIMITS, ...(options.limits || {}) };
     }
 
@@ -721,12 +751,22 @@
         ["literature_summary", "Saved literature summary", memory.literatureSummary],
         ["experimental_summary", "Saved experimental summary", memory.experimentalSummary],
       ];
-      return entries
+      const legacy = entries
         .filter(([, , value]) => typeof value === "string" && value.trim())
         .map(([id, label, value]) => ({
           id,
           description: `${label}: ${value.trim().slice(0, 320)}`,
         }));
+      const records = (Array.isArray(memory.records) ? memory.records : [])
+        .filter((record) => record?.status === "active" && record.text)
+        .slice(-100)
+        .map((record) => ({
+          id: String(record.memoryId || ""),
+          description: `${String(record.kind || "observation")}: ${String(
+            record.text
+          ).slice(0, 320)}`,
+        }));
+      return [...legacy, ...records].slice(-112);
     }
 
     localRoutingDecision({
@@ -854,6 +894,22 @@
         (file) => !selectedPaperPaths.has(file.relativePath)
       );
       const question = String(options.question || "");
+      const surface = options.surface === "agent_command" ? "agent_command" : "side_chat";
+      options = { ...options, surface };
+      const internalStateUpdates = [];
+      let managedWorkerRecovery = null;
+      if (this.managedWorker && MANAGED_WORKER_RECOVERY_PATTERN.test(question)) {
+        const workerStatus = await this.managedWorker.getStatus({ surface });
+        if (workerStatus.health === "unhealthy") {
+          options.onProgress?.({ stage: "recovering-worker", completed: 0, total: 1 });
+          managedWorkerRecovery = await this.managedWorker.restart({
+            ...options,
+            surface,
+          });
+          internalStateUpdates.push("managed-worker-restarted");
+          options.onProgress?.({ stage: "recovering-worker", completed: 1, total: 1 });
+        }
+      }
       const corpusWideLiteratureRequest = detectCorpusWideLiteratureIntent(question);
       const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
       const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
@@ -1228,6 +1284,57 @@
           "No sufficiently relevant paper was resolved from the source catalog, so no uploaded literature evidence was added."
         );
       }
+      const explicitMemory = extractExplicitMemory(question);
+      if (explicitMemory && this.projectState && this.workspace.state) {
+        const record = await this.projectState.updateMemory(
+          {
+            ...explicitMemory,
+            sourceIds: relevantPaperIds,
+            experimentIds: context.experiments.relevantExperimentIds,
+          },
+          { surface }
+        );
+        internalStateUpdates.push(`memory:${record.memoryId}`);
+        context.notices.push(
+          `Saved one compact project-memory record (${record.kind}); source evidence remains in its source store.`
+        );
+      }
+      if (managedWorkerRecovery) {
+        context.managedWorker = {
+          restarted: managedWorkerRecovery.restarted,
+          resumedJobCount: (managedWorkerRecovery.resumedJobs || []).length,
+          resumedWorkflowIds: (managedWorkerRecovery.resumedWorkflows || []).map(
+            (item) => item.workflowId
+          ),
+          workerType: managedWorkerRecovery.after?.workerType ||
+            managedWorkerRecovery.before?.workerType ||
+            "browser-analysis-job-coordinator",
+        };
+      }
+      const shouldPersistActiveState = Boolean(
+        internalStateUpdates.length ||
+        paperEvidence.some((item) => item.analysisStatus === "processed") ||
+        experimentEvidence.some((item) => item.analysisStatus === "processed") ||
+        corpusWorkflowStatus
+      );
+      if (this.projectState && this.workspace.state && shouldPersistActiveState) {
+        context.projectMetadata = await this.projectState.refreshMetadata({
+          surface,
+          workflowId: context.literature.corpusWorkflowId || "",
+        });
+        internalStateUpdates.push("project-metadata-refreshed");
+        await this.projectState.updateActiveState(
+          {
+            activePaperIds: relevantPaperIds,
+            activeExperimentIds: context.experiments.relevantExperimentIds,
+            activeWorkflowId: context.literature.corpusWorkflowId,
+            currentTopic: question,
+            recentInternalUpdates: internalStateUpdates,
+          },
+          { surface }
+        );
+      }
+      context.internalStateUpdates = internalStateUpdates.slice(-30);
       this.addLibraryNotices(context);
       this.addFileNotices(context);
       this.applyProgressiveInventory(context, question);
@@ -1474,6 +1581,21 @@
         !selectedMemoryIds || selectedMemoryIds.has(memoryId)
           ? String(value || "").slice(0, 8000)
           : "";
+      const memoryRecords = (Array.isArray(memory.records) ? memory.records : [])
+        .filter(
+          (record) =>
+            record?.status === "active" &&
+            (!selectedMemoryIds || selectedMemoryIds.has(record.memoryId))
+        )
+        .slice(-50)
+        .map((record) => ({
+          memoryId: String(record.memoryId || "").slice(0, 200),
+          kind: String(record.kind || "observation").slice(0, 80),
+          text: String(record.text || "").slice(0, 2000),
+          sourceIds: (record.sourceIds || []).slice(0, 100),
+          experimentIds: (record.experimentIds || []).slice(0, 100),
+          updatedAt: record.updatedAt || record.createdAt || "",
+        }));
       return {
         schemaVersion: 1,
         scope: {
@@ -1492,6 +1614,7 @@
             "experimental_summary",
             memory.experimentalSummary
           ),
+          memoryRecords,
         },
         inventory: this.buildInventory(options.workspaceTree),
         files: [],
@@ -1645,6 +1768,61 @@
           relativePath: file.relativePath,
         });
         const broad = BROAD_PAPER_QUESTION_PATTERN.test(String(options.question || ""));
+        const useNativePdf = Boolean(
+          this.nativePdfAnalyzer &&
+          (NATIVE_PDF_QUESTION_PATTERN.test(String(options.question || "")) ||
+            (broad && (options.qualityMode || "balanced") !== "fast"))
+        );
+        if (useNativePdf) {
+          try {
+            options.onProgress?.({
+              stage: "analyzing-native-pdf",
+              relativePath: file.relativePath,
+            });
+            const nativeResult = await this.nativePdfAnalyzer.analyze(
+              document.id,
+              options.question,
+              {
+                ...options,
+                purpose: broad ? "whole_paper_summary" : "layout_dependent_evidence",
+                responseSchema: "paper_analysis",
+                language: options.language,
+              }
+            );
+            const resolved = nativeResult?.resultHandle
+              ? await this.sourceSystem.results.read(nativeResult.resultHandle)
+              : nativeResult;
+            return {
+              name: file.name,
+              relativePath: file.relativePath,
+              extension,
+              sourceId: document.id,
+              paperId: document.id,
+              analysisStatus: "processed",
+              evidenceType: "requesty-native-pdf-analysis",
+              resultHandle: nativeResult?.resultHandle || null,
+              content: JSON.stringify({
+                paperId: document.id,
+                contentHash: resolved.contentHash,
+                analysis: resolved.analysis,
+                evidenceRefs: resolved.evidenceRefs,
+                artifactPath: resolved.artifactPath,
+              }).slice(0, this.limits.maxSourceCharactersPerFile * 2),
+            };
+          } catch (error) {
+            if (error?.code === "OPERATION_ABORTED") throw error;
+            console.info("native_pdf_analysis_fallback", {
+              paperId: document.id,
+              code: error?.code || error?.name || "NATIVE_PDF_FAILED",
+              message: String(error?.message || error).slice(0, 300),
+              fallback: "local-parsed-evidence",
+            });
+            options.onProgress?.({
+              stage: "native-pdf-fallback",
+              relativePath: file.relativePath,
+            });
+          }
+        }
         let card = null;
         if (broad) {
           try {

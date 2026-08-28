@@ -3034,11 +3034,13 @@ async function runAgentInstruction(panelId) {
       activeLiteratureOperations += 1;
       try {
         localWorkspaceContext = await projectContextService.buildContext({
+          surface: "agent_command",
           question: instruction,
           selectedPaths: [...selectedWorkspacePaths],
           selectedPaperIds: getSelectedPaperIds(),
           workspaceTree,
           projectGoal: getProjectContext(),
+          language: currentLanguage,
           signal: workspaceAbortController?.signal,
         });
         lastSourceUsage = {
@@ -3099,7 +3101,8 @@ function setAgentBusy(isBusy, panelId = "") {
 
 // agent_instruction mode is the single official analysis action. It can update
 // the Current Recommendation panel.
-// side_chat mode is for questions only and must not mutate the recommendation.
+// side_chat mode may update derived internal knowledge/metadata through the
+// shared source system, but it must never mutate the Current Recommendation.
 async function sendWorkbenchRequest({ mode, messages, localWorkspaceContext = null }) {
   const isSideChat = mode === "side_chat";
   const includeLegacyExperimentEvidence = experimentModuleCards.length > 0;
@@ -3953,11 +3956,13 @@ async function askSideChat(question) {
   try {
     activeLiteratureOperations += 1;
     const localWorkspaceContext = await projectContextService.buildContext({
+      surface: "side_chat",
       question,
       selectedPaths: contextSnapshot.files,
       selectedPaperIds: contextSnapshot.selectedPaperIds,
       workspaceTree,
       projectGoal: getProjectContext(),
+      language: currentLanguage,
       conversation: sideChatConversation,
       // The primary model can route through the compact source catalog and its
       // tools; avoid a mandatory extra routing-model call on every chat turn.
@@ -4102,6 +4107,18 @@ function updateSideChatThinking(message, progress) {
     text.textContent = t("sideChatReadingDetail", {
       name: progress.relativePath?.split("/").pop() || "PDF",
     });
+  } else if (progress.stage === "analyzing-native-pdf") {
+    text.textContent = currentLanguage === "zh"
+      ? "正在进行高保真 PDF 分析..."
+      : "Analyzing the PDF at high fidelity...";
+  } else if (progress.stage === "native-pdf-fallback") {
+    text.textContent = currentLanguage === "zh"
+      ? "原生 PDF 分析不可用，正在使用本地解析内容..."
+      : "Native PDF analysis was unavailable; using local parsed evidence...";
+  } else if (progress.stage === "recovering-worker") {
+    text.textContent = currentLanguage === "zh"
+      ? "正在恢复分析任务..."
+      : "Recovering analysis jobs...";
   } else if (progress.stage === "preparing-file" || progress.stage === "extracting") {
     text.textContent = t("sideChatPreparingPdf", {
       name: progress.relativePath?.split("/").pop() || "PDF",

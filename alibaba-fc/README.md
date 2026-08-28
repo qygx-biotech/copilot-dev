@@ -12,6 +12,8 @@ It keeps the same `/chat` response shape as the Cloudflare Worker so the existin
 
 - `REQUESTY_API_KEY` - Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code.
 - `REQUESTY_MODEL` - Requesty model name.
+- `REQUESTY_PDF_MODEL` - optional PDF-capable Requesty model. Configuring it enables PDF capability unless `REQUESTY_PDF_ENABLED=false`. OpenAI PDF models are routed through the required `openai-responses/` prefix without changing the general text model.
+- `REQUESTY_PDF_ENABLED`, `REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA`, and `REQUESTY_PDF_SUPPORTS_JSON_SCHEMA` - explicit capability declarations; unsupported or undeclared combinations take the conservative fallback. Per-model overrides may be supplied with `REQUESTY_MODEL_CAPABILITIES_JSON`.
 - `ADMIN_ACCOUNT` - Existing stable login account used in the authenticated OSS ownership prefix.
 - `ADMIN_PASSWORD_HASH` - Existing bcrypt password hash.
 - `JWT_SECRET` - Existing JWT signing secret.
@@ -91,9 +93,10 @@ The source-worker endpoints require the existing JWT bearer token and are statel
 
 - `POST /api/literature/summarize-chunk` accepts one extracted-text chunk, its bounded index/count, language, and filename.
 - `POST /api/literature/synthesize` accepts bounded chunk summaries plus minimal source metadata and returns the structured content used by a local Paper Card.
-- `POST /api/corpus/map-paper` accepts one bounded question plus up to eight evidence excerpts for one paper and returns a validated query-specific map note with only supplied evidence references.
+- `POST /api/corpus/map-paper` accepts one bounded question plus up to eight evidence excerpts for one paper and returns a host-validated, query-specific map note with only supplied evidence references. It requests strict Requesty `json_schema` output when advertised and falls back to `json_object` plus the same host validation.
+- `POST /api/literature/analyze-pdf-native` accepts one bounded task and one private base64 PDF (20 MB maximum), sends Requesty Chat Completions an `input_file` block, and returns a validated derived paper analysis or corpus map. It never accepts or creates a public URL.
 
-None of these routes accepts a local filesystem path, PDF bytes, an OSS key, or a project folder. None reads or writes OSS.
+None of these routes accepts an OSS key, a directory handle, or a project folder, and none reads or writes OSS. The native-PDF route accepts PDF bytes only as an authenticated, request-scoped base64 data URI; filenames are reduced to their basename and raw PDF content is not logged.
 
 The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its compact source map, hard paper/experiment scopes, coverage, project summaries, metadata-only inventory, processed evidence, and limitation notices. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
 
@@ -103,7 +106,9 @@ Workspace open and Refresh synchronize only cheap file metadata; they perform ze
 
 Workspace-tree selections map to stable paper and experiment source IDs. Explicit selections define hard tool scopes. With no paper selection, ready metadata and content indexes are searched first, cheap metadata identifies likely unprepared candidates, and only candidates are prepared. Precise answers use original page/chunk evidence; Paper Cards can aid broad interpretation but are never the sole evidence. Experiment CSV/XLS/XLSX/TSV/TXT files are normalized lazily into bounded structured records with raw values and file/sheet/range provenance. Retrieved evidence is request-scoped and is not copied into persistent conversation history.
 
-Side Chat and Agent Work both use the same bounded model-driven read-only tool loop in `side-chat-agent.js`; only their final response parsers differ. The server cannot open the browser's local folder, so source preparation happens before transport through the shared browser service and the server tools progressively inspect only the bounded evidence supplied for that request.
+Side Chat and Agent Work both use the same bounded model-driven tool loop in `side-chat-agent.js`; only authorization and final response parsing differ. Informational and internal-state effects are shared. Side Chat receives a structured denial for official result-producing actions such as `update_recommendation`; Agent Command retains its existing recommendation commit path. The server cannot open the browser's local folder, so source preparation and state persistence remain in the shared browser service and server tools inspect only request-scoped evidence.
+
+When a PDF-capable model also supports schema output on the same request, native PDF analysis uses strict `json_schema` directly. Otherwise it performs native PDF analysis first and a second schema-constrained extraction call (or `json_object` with host validation when schema output itself is unavailable). The default literature path remains local parsed retrieval; native PDF is selected only for whole-paper/layout-sensitive work or bounded recovery.
 
 Example smoke test after obtaining `TOKEN`:
 

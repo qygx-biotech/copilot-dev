@@ -1,9 +1,9 @@
 "use strict";
 
 // The shared workspace agent loop is answer-only for Side Chat and emits the
-// existing structured response for Agent Work. Its tools inspect only the
-// bounded context supplied by the browser; they cannot reach the server
-// filesystem, mutate a project, run a command, or delegate to another agent.
+// existing structured response for Agent Work. Local internal-state work is
+// performed by the trusted browser host before transport; this backend can
+// inspect only the bounded outcomes supplied for the request.
 
 const MAX_AGENT_STEPS = 8;
 const MAX_TOTAL_TOOL_CALLS = 24;
@@ -15,6 +15,13 @@ const MAX_CATALOG_CHARACTERS = 60000;
 const MAX_DURABLE_PROJECT_CONTEXT_CHARACTERS = 24000;
 const AGENT_CONTEXT_CHARACTER_LIMIT = 220000;
 const KEEP_RECENT_TOOL_RESULTS = 3;
+const ToolEffect = Object.freeze({
+  INFORMATIONAL: "informational",
+  INTERNAL_STATE: "internal_state",
+  RESULT_PRODUCING: "result_producing",
+  DESTRUCTIVE_SOURCE: "destructive_source",
+  EXTERNAL_SIDE_EFFECT: "external_side_effect"
+});
 
 const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
   {
@@ -196,12 +203,98 @@ const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
         "Report discovered, searchable, failed, selected, and actually considered source coverage for this request.",
       parameters: { type: "object", properties: {}, additionalProperties: false }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_project_memory",
+      description:
+        "Inspect the outcome of an explicit compact project-memory update already authorized and committed by the trusted local host for this turn.",
+      parameters: { type: "object", properties: {}, additionalProperties: false }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_local_worker_status",
+      description:
+        "Inspect compact status for the application-owned browser analysis job coordinator. This never exposes a PID or arbitrary process control.",
+      parameters: { type: "object", properties: {}, additionalProperties: false }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "restart_local_worker",
+      description:
+        "Inspect the result of a bounded managed analysis-coordinator recovery already performed by the trusted local host when needed. It cannot terminate arbitrary processes.",
+      parameters: { type: "object", properties: {}, additionalProperties: false }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_recommendation",
+      description:
+        "Commit a new official Current Recommendation. This result-producing action is reserved for Agent Command; Side Chat receives a structured authorization denial.",
+      parameters: {
+        type: "object",
+        properties: {
+          proposed_change: { type: "string" }
+        },
+        required: ["proposed_change"],
+        additionalProperties: false
+      }
+    }
   }
 ]);
 
-const SIDE_CHAT_TOOL_NAMES = new Set(
-  SIDE_CHAT_TOOL_DEFINITIONS.map((tool) => tool.function.name)
-);
+const AGENT_TOOL_EFFECTS = Object.freeze({
+  list_workspace_items: ToolEffect.INFORMATIONAL,
+  search_workspace_items: ToolEffect.INFORMATIONAL,
+  read_workspace_item: ToolEffect.INFORMATIONAL,
+  read_project_context: ToolEffect.INFORMATIONAL,
+  list_papers: ToolEffect.INFORMATIONAL,
+  search_papers: ToolEffect.INTERNAL_STATE,
+  read_paper_evidence: ToolEffect.INTERNAL_STATE,
+  list_experiment_sources: ToolEffect.INFORMATIONAL,
+  query_experiment_results: ToolEffect.INTERNAL_STATE,
+  get_corpus_workflow_status: ToolEffect.INFORMATIONAL,
+  source_coverage: ToolEffect.INFORMATIONAL,
+  update_project_memory: ToolEffect.INTERNAL_STATE,
+  get_local_worker_status: ToolEffect.INFORMATIONAL,
+  restart_local_worker: ToolEffect.INTERNAL_STATE,
+  update_recommendation: ToolEffect.RESULT_PRODUCING
+});
+
+function authorizeTool(surface, toolName) {
+  const effect = AGENT_TOOL_EFFECTS[toolName] || null;
+  const normalizedSurface = surface === "agent_command" ? "agent_command" : "side_chat";
+  const allowed = Boolean(effect) && (
+    normalizedSurface === "side_chat"
+      ? [ToolEffect.INFORMATIONAL, ToolEffect.INTERNAL_STATE].includes(effect)
+      : [
+          ToolEffect.INFORMATIONAL,
+          ToolEffect.INTERNAL_STATE,
+          ToolEffect.RESULT_PRODUCING
+        ].includes(effect)
+  );
+  return {
+    allowed,
+    effect,
+    reason: allowed
+      ? "The tool effect is allowed on this surface."
+      : !effect
+        ? "The requested tool is not registered."
+        : effect === ToolEffect.RESULT_PRODUCING
+          ? "Side Chat may update internal project state but may not change the current recommendation."
+          : effect === ToolEffect.DESTRUCTIVE_SOURCE
+            ? "Destructive source operations require an explicit protected workflow."
+            : "External side effects require an explicit protected workflow.",
+    required_surface:
+      !allowed && effect === ToolEffect.RESULT_PRODUCING ? "agent_command" : null
+  };
+}
 
 function isPlainObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -418,6 +511,15 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
       "Saved experimental summary",
       project.experimentalSummary
     );
+    for (const record of Array.isArray(project.memoryRecords)
+      ? project.memoryRecords
+      : []) {
+      addMemory(
+        String(record.memoryId || "typed_memory").slice(0, 200),
+        `Saved ${String(record.kind || "observation").slice(0, 80)}`,
+        record.text
+      );
+    }
   }
 
   addMemory("legacy_project_context", "Project context", context.projectContext);
@@ -563,6 +665,12 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
     experiments: isPlainObject(local?.experiments) ? local.experiments : {},
     corpusWorkflowStatus: isPlainObject(local?.corpusWorkflowStatus)
       ? local.corpusWorkflowStatus
+      : null,
+    internalStateUpdates: Array.isArray(local?.internalStateUpdates)
+      ? local.internalStateUpdates.slice(-30)
+      : [],
+    managedWorker: isPlainObject(local?.managedWorker)
+      ? local.managedWorker
       : null
   };
 }
@@ -927,6 +1035,42 @@ function sourceCoverage(_args, knowledgeBase) {
   );
 }
 
+function updateProjectMemoryStatus(_args, knowledgeBase) {
+  const memoryUpdates = knowledgeBase.internalStateUpdates.filter((update) =>
+    String(update).startsWith("memory:")
+  );
+  return JSON.stringify({
+    allowed: true,
+    effect: ToolEffect.INTERNAL_STATE,
+    committedByTrustedHost: memoryUpdates.length > 0,
+    memoryUpdateIds: memoryUpdates.map((update) => String(update).slice(7))
+  }, null, 2);
+}
+
+function getLocalWorkerStatus(_args, knowledgeBase) {
+  return JSON.stringify(
+    knowledgeBase.managedWorker || {
+      workerType: "browser-analysis-job-coordinator",
+      status: "No recovery was required or supplied for this turn.",
+      arbitraryProcessControl: false
+    },
+    null,
+    2
+  );
+}
+
+function restartLocalWorkerStatus(_args, knowledgeBase) {
+  return JSON.stringify({
+    allowed: true,
+    effect: ToolEffect.INTERNAL_STATE,
+    arbitraryProcessControl: false,
+    ...(knowledgeBase.managedWorker || {
+      restarted: false,
+      reason: "The trusted local host did not identify an unhealthy managed coordinator."
+    })
+  }, null, 2);
+}
+
 function getCorpusWorkflowStatus(args, knowledgeBase) {
   const status = knowledgeBase.corpusWorkflowStatus;
   if (!status) {
@@ -955,18 +1099,21 @@ const SIDE_CHAT_TOOL_HANDLERS = Object.freeze({
   list_experiment_sources: listExperimentSources,
   query_experiment_results: queryExperimentResults,
   get_corpus_workflow_status: getCorpusWorkflowStatus,
-  source_coverage: sourceCoverage
+  source_coverage: sourceCoverage,
+  update_project_memory: updateProjectMemoryStatus,
+  get_local_worker_status: getLocalWorkerStatus,
+  restart_local_worker: restartLocalWorkerStatus
 });
 
 // Hooks keep policy and result budgeting outside the stable agent loop.
 const SIDE_CHAT_HOOKS = Object.freeze({
   PreToolUse: Object.freeze([
-    (toolCall) => {
+    (toolCall, surface = "side_chat") => {
       const name = toolCall?.function?.name;
-      if (!SIDE_CHAT_TOOL_NAMES.has(name)) {
-        return `Blocked: '${String(name || "unknown")}' is not a Side Chat read-only tool.`;
-      }
-      return null;
+      const authorization = authorizeTool(surface, name);
+      return authorization.allowed
+        ? null
+        : JSON.stringify(authorization);
     }
   ]),
   PostToolUse: Object.freeze([
@@ -1000,12 +1147,21 @@ function parseToolArguments(toolCall) {
   }
 }
 
-function executeSideChatTool(toolCall, knowledgeBase) {
-  const blocked = triggerSideChatHooks("PreToolUse", toolCall);
+function executeSideChatTool(toolCall, knowledgeBase, surface = "side_chat") {
+  const blocked = triggerSideChatHooks("PreToolUse", toolCall, surface);
   if (blocked) return String(blocked);
   const args = parseToolArguments(toolCall);
   if (!args) return "Error: tool arguments must be one valid JSON object.";
   const handler = SIDE_CHAT_TOOL_HANDLERS[toolCall.function.name];
+  if (!handler) {
+    return JSON.stringify({
+      allowed: true,
+      effect: AGENT_TOOL_EFFECTS[toolCall.function.name],
+      disposition: "host_managed",
+      message:
+        "This allowed action is committed by the trusted host workflow, not by the stateless backend tool loop."
+    });
+  }
   let output;
   try {
     output = handler(args, knowledgeBase);
@@ -1160,7 +1316,8 @@ async function runSideChatAgent({
   workspaceContext,
   systemPrompt,
   requestTurn,
-  parseFinalAnswer
+  parseFinalAnswer,
+  surface = "side_chat"
 }) {
   const knowledgeBase = createSideChatKnowledgeBase(workspaceContext);
   const activeRequest = latestUserRequest(conversationMessages);
@@ -1231,8 +1388,8 @@ async function runSideChatAgent({
       totalToolCalls += 1;
       const output =
         totalToolCalls <= MAX_TOTAL_TOOL_CALLS
-          ? executeSideChatTool(toolCall, knowledgeBase)
-          : "Blocked: Side Chat reached its bounded read-only tool-call budget. Answer from the evidence already loaded.";
+          ? executeSideChatTool(toolCall, knowledgeBase, surface)
+          : "Blocked: the agent reached its bounded tool-call budget. Answer from the evidence already loaded.";
       agentMessages.push({
         role: "tool",
         tool_call_id: toolCall.id,
@@ -1269,7 +1426,10 @@ async function runSideChatAgent({
 }
 
 module.exports = {
+  AGENT_TOOL_EFFECTS,
   SIDE_CHAT_TOOL_DEFINITIONS,
+  ToolEffect,
+  authorizeTool,
   buildDurableProjectSystemMessage,
   buildSideChatCatalog,
   compactSideChatAgentMessages,

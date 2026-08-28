@@ -12,6 +12,7 @@
   const CORPUS_WORKFLOW_VERSION = 2;
   const CORPUS_MAP_SCHEMA_VERSION = 2;
   const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
+  const NATIVE_PDF_PROMPT_VERSION = "requesty-native-pdf-v1";
   const DEFAULT_CORPUS_PREPARE_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_ATTEMPTS = 3;
@@ -41,6 +42,36 @@
     yield: ["yield"],
     productivity: ["productivity"],
   });
+  const ToolEffect = Object.freeze({
+    INFORMATIONAL: "informational",
+    INTERNAL_STATE: "internal_state",
+    RESULT_PRODUCING: "result_producing",
+    DESTRUCTIVE_SOURCE: "destructive_source",
+    EXTERNAL_SIDE_EFFECT: "external_side_effect",
+  });
+  const TOOL_EFFECTS = Object.freeze({
+    list_papers: ToolEffect.INFORMATIONAL,
+    search_papers: ToolEffect.INFORMATIONAL,
+    search_paper_content: ToolEffect.INTERNAL_STATE,
+    read_paper_evidence: ToolEffect.INTERNAL_STATE,
+    read_paper_pages: ToolEffect.INTERNAL_STATE,
+    ensure_source_ready: ToolEffect.INTERNAL_STATE,
+    ensure_paper_card: ToolEffect.INTERNAL_STATE,
+    analyze_pdf_native: ToolEffect.INTERNAL_STATE,
+    list_experiment_sources: ToolEffect.INFORMATIONAL,
+    query_experiment_results: ToolEffect.INTERNAL_STATE,
+    read_experiment_source: ToolEffect.INTERNAL_STATE,
+    refresh_project_metadata: ToolEffect.INTERNAL_STATE,
+    update_project_memory: ToolEffect.INTERNAL_STATE,
+    update_active_state: ToolEffect.INTERNAL_STATE,
+    get_corpus_workflow_status: ToolEffect.INFORMATIONAL,
+    retry_corpus_map_failures: ToolEffect.INTERNAL_STATE,
+    resume_corpus_workflow: ToolEffect.INTERNAL_STATE,
+    get_local_worker_status: ToolEffect.INTERNAL_STATE,
+    restart_local_worker: ToolEffect.INTERNAL_STATE,
+    create_corpus_synthesis_artifact: ToolEffect.INTERNAL_STATE,
+    update_recommendation: ToolEffect.RESULT_PRODUCING,
+  });
 
   class SourceSystemError extends Error {
     constructor(code, message, cause = null) {
@@ -49,6 +80,51 @@
       this.code = code;
       if (cause && !this.cause) this.cause = cause;
     }
+  }
+
+  function authorizeTool(surface, toolNameOrEffect) {
+    const normalizedSurface = surface === "agent_command" ? "agent_command" : "side_chat";
+    const effect = Object.values(ToolEffect).includes(toolNameOrEffect)
+      ? toolNameOrEffect
+      : TOOL_EFFECTS[toolNameOrEffect];
+    if (!effect) {
+      return {
+        allowed: false,
+        effect: null,
+        reason: "The requested tool is not registered.",
+        requiredSurface: null,
+      };
+    }
+    const allowed = normalizedSurface === "side_chat"
+      ? [ToolEffect.INFORMATIONAL, ToolEffect.INTERNAL_STATE].includes(effect)
+      : [
+          ToolEffect.INFORMATIONAL,
+          ToolEffect.INTERNAL_STATE,
+          ToolEffect.RESULT_PRODUCING,
+        ].includes(effect);
+    return {
+      allowed,
+      effect,
+      reason: allowed
+        ? "The tool effect is allowed on this surface."
+        : effect === ToolEffect.RESULT_PRODUCING
+          ? "Side Chat may update internal project state but may not change the current recommendation."
+          : effect === ToolEffect.DESTRUCTIVE_SOURCE
+            ? "Destructive source operations require an explicit protected workflow."
+            : "External side effects require an explicit protected workflow.",
+      requiredSurface:
+        !allowed && effect === ToolEffect.RESULT_PRODUCING ? "agent_command" : null,
+    };
+  }
+
+  function requireAuthorizedTool(surface, toolName) {
+    const authorization = authorizeTool(surface, toolName);
+    if (!authorization.allowed) {
+      const error = new SourceSystemError("TOOL_NOT_AUTHORIZED", authorization.reason);
+      error.authorization = authorization;
+      throw error;
+    }
+    return authorization;
   }
 
   function nowIso(now) {
@@ -239,6 +315,10 @@
         asList(mapped?.connectionsToOtherTopics || mapped?.connections_to_other_topics),
         30
       ),
+      notes:
+        mapped?.notes === null
+          ? null
+          : String(mapped?.notes || "").trim().slice(0, 2000) || null,
       usedPaperCard: workerInput.paperCard ? true : false,
     };
   }
@@ -1134,6 +1214,7 @@
     }
 
     async ensureSourceReady(sourceIds, capability, requestContext = {}) {
+      requireAuthorizedTool(requestContext.surface || "side_chat", "ensure_source_ready");
       if (!(capability in READINESS_CAPABILITIES)) {
         throw new SourceSystemError("UNKNOWN_CAPABILITY", `Unknown source capability: ${capability}`);
       }
@@ -1280,6 +1361,102 @@
         throw new SourceSystemError("SOURCE_MISSING", `Source file is unavailable: ${source.path}`, error);
       }
       return file;
+    }
+
+    async readSourceBytesForUse(sourceId, requestContext = {}) {
+      const source = this.registry.get(sourceId);
+      if (!source) {
+        throw new SourceSystemError(
+          "SOURCE_NOT_FOUND",
+          "The source is missing or no longer active."
+        );
+      }
+      if (requestContext.signal?.aborted) {
+        throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
+      }
+      const file = await this.readCurrentFile(source);
+      const observedSignature = statSignatureFor({
+        relativePath: source.path,
+        size: file.size,
+        lastModified: file.lastModified,
+        filesystemFileId: source.filesystemFileId,
+      });
+      if (
+        Number(file.lastModified) > 0 &&
+        Date.now() - Number(file.lastModified) < this.debounceMilliseconds
+      ) {
+        throw new SourceSystemError(
+          "SOURCE_STILL_CHANGING",
+          "The source was modified very recently and may still be copying. Retry shortly."
+        );
+      }
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const needsHash =
+        source.hashStatus !== "ready" ||
+        !source.contentHash ||
+        source.statSignature !== observedSignature;
+      let contentHash = source.contentHash;
+      if (needsHash) {
+        const hashStarted = Date.now();
+        contentHash = await hashBytes(bytes, this.cryptoProvider);
+        this.metrics.fullHashCalls += 1;
+        this.metrics.fullHashBytes += bytes.byteLength;
+        this.metrics.hashDurationMs += Date.now() - hashStarted;
+      }
+      const contentChanged = Boolean(
+        source.contentHash && source.contentHash !== contentHash
+      );
+      if (contentChanged) {
+        source.artifacts = {};
+        source.parseStatus = "not_started";
+        source.indexStatus = "not_started";
+        source.paperCardStatus = source.sourceKind === "paper" ? "absent" : "not_applicable";
+        source.structuredDataStatus =
+          source.sourceKind === "experiment" ? "not_started" : "not_applicable";
+      }
+      source.contentHash = contentHash;
+      source.contentVersion = contentHash;
+      source.hashAlgorithm = String(contentHash || "").split(":")[0] || null;
+      source.hashStatus = "ready";
+      source.catalogStatus = "discovered";
+      source.sizeBytes = Number(file.size) || 0;
+      source.mtimeNs = Number(file.lastModified) || 0;
+      source.statSignature = observedSignature;
+      source.lastUsedAt = nowIso(this.now);
+      source.error = null;
+      if (!contentChanged) {
+        for (const artifact of Object.values(source.artifacts || {})) {
+          if (artifact && !artifact.contentHash) artifact.contentHash = contentHash;
+          if (artifact) artifact.validationStatus = "validated";
+        }
+      }
+      const finalFile = await this.readCurrentFile(source);
+      if (
+        Number(finalFile.size) !== Number(file.size) ||
+        Number(finalFile.lastModified) !== Number(file.lastModified)
+      ) {
+        source.catalogStatus = "dirty";
+        source.hashStatus = source.contentHash ? "dirty" : "absent";
+        source.error = {
+          code: "SOURCE_CHANGED_DURING_PREPARATION",
+          message: "The source changed while it was being read; the result was rejected.",
+        };
+        await this.registry.persist();
+        throw new SourceSystemError(
+          "SOURCE_CHANGED_DURING_PREPARATION",
+          "The source changed while it was being read. Retry after the copy or edit finishes."
+        );
+      }
+      await this.registry.persist();
+      return {
+        source,
+        file,
+        bytes,
+        contentHash,
+        statSignature: observedSignature,
+        hashPerformed: needsHash,
+        contentChanged,
+      };
     }
 
     async prepareOne(sourceId, capability, requestContext, report) {
@@ -1554,11 +1731,191 @@
     }
   }
 
+  class RequestyPdfAnalyzer {
+    constructor(options) {
+      this.workspace = options.workspace;
+      this.registry = options.registry;
+      this.preparation = options.preparation;
+      this.results = options.results || this.preparation.results;
+      this.nativePdfWorker = options.nativePdfWorker || null;
+      this.now = options.now || (() => new Date());
+    }
+
+    validateAnalysis(analysis, responseSchema) {
+      if (responseSchema === "corpus_map") {
+        return corpusMapValidationErrors(analysis);
+      }
+      if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) {
+        return ["Native PDF analysis must be one structured object."];
+      }
+      const errors = [];
+      if (!String(analysis.summary || "").trim()) {
+        errors.push("summary must be a non-empty string.");
+      }
+      for (const key of ["themes", "methods", "keyFindings", "limitations", "evidenceRefs"]) {
+        if (analysis[key] !== undefined && !Array.isArray(analysis[key])) {
+          errors.push(`${key} must be an array when supplied.`);
+        }
+      }
+      return errors;
+    }
+
+    async analyze(paperId, task, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "analyze_pdf_native");
+      if (typeof this.nativePdfWorker !== "function") {
+        throw new SourceSystemError(
+          "NATIVE_PDF_UNAVAILABLE",
+          "Requesty native PDF analysis is not configured."
+        );
+      }
+      const source = this.registry.get(paperId);
+      if (!source || source.sourceKind !== "paper" || extensionName(source.path) !== "pdf") {
+        throw new SourceSystemError(
+          "NATIVE_PDF_SOURCE_INVALID",
+          "Native PDF analysis requires one registered local PDF paper."
+        );
+      }
+      const normalizedTask = normalizeSynthesisQuestion(task);
+      if (!normalizedTask) {
+        throw new SourceSystemError(
+          "NATIVE_PDF_TASK_REQUIRED",
+          "Native PDF analysis requires a bounded analysis task."
+        );
+      }
+      const responseSchema = options.responseSchema === "corpus_map"
+        ? "corpus_map"
+        : "paper_analysis";
+      const modelVersion = String(options.modelVersion || "requesty-configured-model").slice(0, 200);
+      const taskSignature = stableStringHash([
+        normalizedTask,
+        responseSchema,
+        NATIVE_PDF_PROMPT_VERSION,
+        modelVersion,
+      ].join("|"));
+      const current = this.registry.get(paperId);
+      const currentFile = await this.preparation.readCurrentFile(current);
+      const observedSignature = statSignatureFor({
+        relativePath: current.path,
+        size: currentFile.size,
+        lastModified: currentFile.lastModified,
+        filesystemFileId: current.filesystemFileId,
+      });
+      const existingPath = current?.contentHash
+        ? `${sourceArtifactBase(paperId, current.contentHash)}/native-pdf/${taskSignature}.json`
+        : "";
+      if (
+        existingPath &&
+        current.statSignature === observedSignature &&
+        await this.workspace.fileExists(existingPath)
+      ) {
+        const cached = await this.workspace.readJson(existingPath);
+        if (
+          cached.contentHash === current.contentHash &&
+          cached.taskSignature === taskSignature &&
+          cached.promptVersion === NATIVE_PDF_PROMPT_VERSION
+        ) {
+          current.lastUsedAt = nowIso(this.now);
+          await this.registry.persist();
+          return this.results.compact({ ...cached.result, cached: true }, {
+            tool: "analyze_pdf_native",
+            paperId,
+            artifactPath: existingPath,
+          });
+        }
+      }
+
+      const started = Date.now();
+      const sourceBytes = await this.preparation.readSourceBytesForUse(paperId, options);
+      const artifactPath = `${sourceArtifactBase(
+        paperId,
+        sourceBytes.contentHash
+      )}/native-pdf/${taskSignature}.json`;
+      const workerResult = await this.nativePdfWorker({
+        paperId,
+        filename: source.displayName,
+        contentHash: sourceBytes.contentHash,
+        bytes: sourceBytes.bytes,
+        task: String(task).slice(0, 8000),
+        purpose: String(options.purpose || "paper_analysis").slice(0, 120),
+        responseSchema,
+        evidenceRefs: uniqueStrings(options.evidenceRefs, 100),
+        language: options.language === "zh" ? "zh" : "en",
+      }, options);
+      const analysis = workerResult?.analysis || workerResult;
+      const validationErrors = this.validateAnalysis(analysis, responseSchema);
+      if (validationErrors.length) {
+        const error = new SourceSystemError(
+          "InvalidLlmResponse",
+          "Native PDF analysis did not return the validated structured schema."
+        );
+        error.schemaValidationDetails = validationErrors;
+        throw error;
+      }
+      const result = {
+        paperId,
+        contentHash: sourceBytes.contentHash,
+        taskSignature,
+        responseSchema,
+        promptVersion: NATIVE_PDF_PROMPT_VERSION,
+        modelVersion: String(workerResult?.model || modelVersion).slice(0, 200),
+        analysis,
+        evidenceRefs: uniqueStrings(
+          options.evidenceRefs || analysis.evidenceRefs || analysis.evidence_refs,
+          100
+        ),
+        artifactPath,
+        cached: false,
+        diagnostics: {
+          ...(workerResult?.diagnostics || {}),
+          nativePdfPathUsed: true,
+          pdfBytes: sourceBytes.bytes.byteLength,
+          durationMs: Date.now() - started,
+          hashPerformed: sourceBytes.hashPerformed,
+        },
+      };
+      await this.workspace.writeJson(artifactPath, {
+        schemaVersion: 1,
+        sourceId: paperId,
+        contentHash: sourceBytes.contentHash,
+        taskSignature,
+        responseSchema,
+        promptVersion: NATIVE_PDF_PROMPT_VERSION,
+        modelVersion: result.modelVersion,
+        createdAt: nowIso(this.now),
+        result,
+      });
+      source.artifacts ||= {};
+      source.artifacts.nativePdf = {
+        path: artifactPath,
+        contentHash: sourceBytes.contentHash,
+        taskSignature,
+        promptVersion: NATIVE_PDF_PROMPT_VERSION,
+        modelVersion: result.modelVersion,
+        validationStatus: "validated",
+      };
+      await this.registry.persist();
+      console.info("native_pdf_analysis_completed", {
+        paperId,
+        model: result.modelVersion,
+        pdfBytes: sourceBytes.bytes.byteLength,
+        durationMs: result.diagnostics.durationMs,
+        structuredOutputMode: result.diagnostics.structuredOutputMode || "unknown",
+        fallbackPath: result.diagnostics.fallbackPath || "none",
+      });
+      return this.results.compact(result, {
+        tool: "analyze_pdf_native",
+        paperId,
+        artifactPath,
+      });
+    }
+  }
+
   class LiteratureTools {
     constructor(options) {
       this.registry = options.registry;
       this.preparation = options.preparation;
       this.results = options.results || this.preparation.results;
+      this.nativePdfAnalyzer = options.nativePdfAnalyzer || null;
     }
 
     paperMetadata(source) {
@@ -1693,6 +2050,7 @@
     }
 
     async searchPaperContent(paperId, query, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "search_paper_content");
       query = expandAliases(query, this.registry.aliases);
       await this.preparation.ensureSourceReady([paperId], "search", options);
       const source = this.registry.get(paperId);
@@ -1719,6 +2077,7 @@
     }
 
     async readPaperEvidence(paperId, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "read_paper_evidence");
       await this.preparation.ensureSourceReady([paperId], "full_text", options);
       const artifact = await this.preparation.readPaperArtifact(paperId);
       const chunkIds = new Set(options.chunkIds || []);
@@ -1749,7 +2108,18 @@
     }
 
     async ensurePaperCard(paperId, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "ensure_paper_card");
       return this.preparation.ensureSourceReady([paperId], "paper_card", options);
+    }
+
+    async analyzePdfNative(paperId, task, options = {}) {
+      if (!this.nativePdfAnalyzer) {
+        throw new SourceSystemError(
+          "NATIVE_PDF_UNAVAILABLE",
+          "Requesty native PDF analysis is not configured."
+        );
+      }
+      return this.nativePdfAnalyzer.analyze(paperId, task, options);
     }
   }
 
@@ -1812,6 +2182,7 @@
     }
 
     async queryExperimentResults(options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "query_experiment_results");
       const ids = Array.isArray(options.experimentSourceIds) && options.experimentSourceIds.length
         ? uniqueStrings(options.experimentSourceIds)
         : this.registry
@@ -1902,6 +2273,7 @@
     }
 
     async readExperimentSource(sourceId, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "read_experiment_source");
       await this.preparation.ensureSourceReady([sourceId], "experiment_data", options);
       const artifact = await this.preparation.readExperimentArtifact(sourceId);
       let selected = options.sheet
@@ -1937,6 +2309,7 @@
       this.now = options.now || (() => new Date());
       this.mapWorker = options.mapWorker || null;
       this.fallbackMapWorker = options.fallbackMapWorker || null;
+      this.nativePdfAnalyzer = options.nativePdfAnalyzer || null;
       this.mapAttempts = Math.min(
         5,
         Math.max(1, Number(options.mapAttempts) || DEFAULT_CORPUS_MAP_ATTEMPTS)
@@ -2061,6 +2434,7 @@
     }
 
     async retryFailedMaps(workflowId = "", options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "retry_corpus_map_failures");
       const journal = await this.readWorkflow(workflowId);
       const retryPaperIds = Object.entries(journal.mapFailures || {})
         .filter(([, failure]) => isRetryableCorpusMapError(failure))
@@ -2098,6 +2472,40 @@
         status,
         retriedPaperIds: retryPaperIds,
       };
+    }
+
+    async resumeIncompleteWorkflows(options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "resume_corpus_workflow");
+      const index = await this.readWorkflowIndex();
+      const workflowIds = [...new Set([
+        index.latestWorkflowId,
+        ...(Array.isArray(index.recentWorkflowIds) ? index.recentWorkflowIds : []),
+        ...Object.values(index.byQuestion || {}),
+      ])].filter(Boolean).reverse();
+      const resumed = [];
+      const limit = Math.min(5, Math.max(1, Number(options.limit) || 3));
+      for (const workflowId of workflowIds) {
+        if (resumed.length >= limit) break;
+        const path = this.workflowPath(workflowId);
+        if (!(await this.workspace.fileExists(path))) continue;
+        const journal = await this.workspace.readJson(path);
+        if (!["running", "paused"].includes(journal.status)) continue;
+        const paperIds = (journal.snapshot || []).map((entry) => entry.sourceId);
+        const workflow = await this.run(journal.question, {
+          ...options,
+          workflowId,
+          paperIds,
+        });
+        const value = workflow?.resultHandle
+          ? await this.results.read(workflow.resultHandle)
+          : workflow;
+        resumed.push({
+          workflowId,
+          status: value.status,
+          coverage: value.coverage,
+        });
+      }
+      return resumed;
     }
 
     async executeMapWorker(workerInput, options = {}) {
@@ -2150,6 +2558,64 @@
           diagnostics.push(record);
           console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
           if (!isRetryableCorpusMapError(error) || attempt >= this.mapAttempts) break;
+        }
+      }
+
+      if (this.nativePdfAnalyzer && options.qualityMode !== "fast") {
+        try {
+          const nativeResult = await this.nativePdfAnalyzer.analyze(
+            workerInput.paperId,
+            `Create a query-specific corpus map for this paper. Synthesis question: ${workerInput.question}`,
+            {
+              signal: options.signal,
+              surface: options.surface || "side_chat",
+              purpose: "corpus_map_fallback",
+              responseSchema: "corpus_map",
+              evidenceRefs: workerInput.evidence.map((item) => item.evidenceRef),
+              language: options.language,
+            }
+          );
+          const resolved = nativeResult?.resultHandle
+            ? await this.results.read(nativeResult.resultHandle)
+            : nativeResult;
+          const mapped = resolved?.analysis || resolved;
+          const schemaErrors = corpusMapValidationErrors(mapped);
+          if (schemaErrors.length) {
+            const validationError = new SourceSystemError(
+              "InvalidLlmResponse",
+              "The native PDF corpus fallback did not return valid structured JSON."
+            );
+            validationError.schemaValidationDetails = schemaErrors;
+            throw validationError;
+          }
+          const record = {
+            attempt: this.mapAttempts + 1,
+            mode: "native-pdf-fallback",
+            status: "valid",
+            finishReason: String(resolved?.diagnostics?.finishReason || "").slice(0, 120),
+            outputLength: Math.max(0, Number(resolved?.diagnostics?.outputLength) || 0),
+            schemaValidationDetails: [],
+          };
+          diagnostics.push(record);
+          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          return { mapped, diagnostics, generationMode: "native-pdf-fallback" };
+        } catch (nativeError) {
+          if (nativeError?.code === "OPERATION_ABORTED") throw nativeError;
+          const record = {
+            attempt: this.mapAttempts + 1,
+            mode: "native-pdf-fallback",
+            status: "invalid",
+            code: String(nativeError?.code || nativeError?.name || "NATIVE_PDF_FAILED").slice(0, 120),
+            finishReason: String(nativeError?.finishReason || "").slice(0, 120),
+            outputLength: Math.max(0, Number(nativeError?.outputLength) || 0),
+            validationFailure: String(nativeError?.message || "Native PDF fallback failed.").slice(0, 500),
+            schemaValidationDetails: uniqueStrings(
+              asList(nativeError?.schemaValidationDetails),
+              30
+            ),
+          };
+          diagnostics.push(record);
+          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
         }
       }
 
@@ -2316,6 +2782,10 @@
     }
 
     async run(question, options = {}) {
+      requireAuthorizedTool(
+        options.surface || "side_chat",
+        "create_corpus_synthesis_artifact"
+      );
       const discoveredSources = this.registry.list({ sourceKind: "paper" });
       const requestedIds = uniqueStrings(asList(options.paperIds), 10000);
       const requestedSet = requestedIds.length ? new Set(requestedIds) : null;
@@ -2643,7 +3113,16 @@
             // Each mapper receives only this bounded object: no parent conversation or
             // accumulated tool history enters the worker context.
             const mappedExecution = this.mapWorker
-              ? await this.executeMapWorker(workerInput, { signal: options.signal })
+              ? await this.executeMapWorker(workerInput, {
+                  signal: options.signal,
+                  surface: options.surface,
+                  language: options.language,
+                  qualityMode: ["fast", "balanced", "high_fidelity"].includes(
+                    options.qualityMode
+                  )
+                    ? options.qualityMode
+                    : "balanced",
+                })
               : null;
             const mapped = mappedExecution?.mapped || {
                   paperId: readySource.sourceId,
@@ -2999,6 +3478,315 @@
     }
   }
 
+  class ProjectStateService {
+    constructor(options) {
+      this.workspace = options.workspace;
+      this.registry = options.registry;
+      this.jobs = options.jobs;
+      this.corpusWorkflows = options.corpusWorkflows;
+      this.now = options.now || (() => new Date());
+    }
+
+    async saveState(nextState) {
+      if (typeof this.workspace.saveState === "function") {
+        return this.workspace.saveState(nextState);
+      }
+      const state = {
+        ...nextState,
+        schemaVersion: Number(nextState?.schemaVersion) || 1,
+        updatedAt: nowIso(this.now),
+      };
+      await this.workspace.writeJson(".biodesign/state.json", state);
+      this.workspace.state = state;
+      return state;
+    }
+
+    async refreshMetadata(options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "refresh_project_metadata");
+      const state = this.workspace.state || {
+        schemaVersion: 1,
+        project: { goal: "" },
+        ui: {},
+        agent: {},
+        memory: {},
+      };
+      const sources = this.registry.list();
+      const papers = sources.filter((source) => source.sourceKind === "paper");
+      const experiments = sources.filter((source) => source.sourceKind === "experiment");
+      let workflowStatus = null;
+      try {
+        workflowStatus = this.corpusWorkflows
+          ? await this.corpusWorkflows.getWorkflowStatus(options.workflowId || "")
+          : null;
+      } catch (error) {
+        if (error?.code !== "CORPUS_WORKFLOW_NOT_FOUND") throw error;
+      }
+      const metadata = {
+        schemaVersion: 1,
+        sourceCounts: this.registry.counts(),
+        preparationFailures: sources.filter((source) =>
+          source.hashStatus === "failed" ||
+          source.parseStatus === "failed" ||
+          source.indexStatus === "failed" ||
+          source.structuredDataStatus === "failed"
+        ).length,
+        paperCardFailures: papers.filter(
+          (source) => source.paperCardStatus === "failed"
+        ).length,
+        corpusMapFailures: (workflowStatus?.failures || []).filter(
+          (failure) => failure.stage === "map"
+        ).length,
+        experimentsReady: experiments.filter(
+          (source) => source.structuredDataStatus === "ready"
+        ).length,
+        corpusVersion:
+          workflowStatus?.workflowId &&
+          Array.isArray(workflowStatus.coverage?.includedPaperIds) &&
+          workflowStatus.coverage.includedPaperIds.length
+            ? stableStringHash(workflowStatus.coverage.includedPaperIds.join("|"))
+            : null,
+        activeWorkflowId: workflowStatus?.workflowId || null,
+        corpusCoverage: workflowStatus?.coverage || null,
+        lastProcessingAt: nowIso(this.now),
+      };
+      const previous = state.projectMetadata || null;
+      if (JSON.stringify(previous) !== JSON.stringify(metadata)) {
+        await this.saveState({ ...state, projectMetadata: metadata });
+      }
+      return metadata;
+    }
+
+    async updateMemory(input = {}, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "update_project_memory");
+      const text = String(input.text || "").replace(/\s+/g, " ").trim().slice(0, 4000);
+      if (!text) {
+        throw new SourceSystemError(
+          "MEMORY_TEXT_REQUIRED",
+          "A compact memory statement is required."
+        );
+      }
+      const allowedKinds = new Set([
+        "goal",
+        "focus",
+        "term",
+        "decision",
+        "hypothesis",
+        "constraint",
+        "metric",
+        "observation",
+        "experiment_note",
+        "question",
+        "relationship",
+      ]);
+      const kind = allowedKinds.has(input.kind) ? input.kind : "observation";
+      const allowedStatuses = new Set(["active", "superseded", "retracted"]);
+      const status = allowedStatuses.has(input.status) ? input.status : "active";
+      const state = this.workspace.state || {
+        schemaVersion: 1,
+        project: { goal: "" },
+        ui: {},
+        agent: {},
+        memory: {},
+      };
+      const records = Array.isArray(state.memory?.records)
+        ? [...state.memory.records]
+        : [];
+      const normalizedRefs = {
+        sourceIds: uniqueStrings(input.sourceIds, 100),
+        experimentIds: uniqueStrings(input.experimentIds, 100),
+      };
+      const duplicate = records.find(
+        (record) =>
+          record.status === "active" &&
+          record.kind === kind &&
+          normalizeSynthesisQuestion(record.text) === normalizeSynthesisQuestion(text)
+      );
+      if (duplicate) return duplicate;
+      const timestamp = nowIso(this.now);
+      const record = {
+        memoryId: this.workspace.createId(),
+        kind,
+        text,
+        sourceIds: normalizedRefs.sourceIds,
+        experimentIds: normalizedRefs.experimentIds,
+        status,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      records.push(record);
+      await this.saveState({
+        ...state,
+        memory: {
+          ...(state.memory || {}),
+          records: records.slice(-500),
+        },
+      });
+      return record;
+    }
+
+    async updateActiveState(input = {}, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "update_active_state");
+      const state = this.workspace.state || {
+        schemaVersion: 1,
+        project: { goal: "" },
+        ui: {},
+        agent: {},
+        memory: {},
+      };
+      const activeState = {
+        activePaperIds: uniqueStrings(input.activePaperIds, 150),
+        activeExperimentIds: uniqueStrings(input.activeExperimentIds, 150),
+        activeWorkflowId: String(input.activeWorkflowId || "").slice(0, 200) || null,
+        currentTopic: String(input.currentTopic || "").replace(/\s+/g, " ").trim().slice(0, 500),
+        currentHypotheses: uniqueStrings(input.currentHypotheses, 30),
+        recentInternalUpdates: uniqueStrings(input.recentInternalUpdates, 30),
+        updatedAt: nowIso(this.now),
+      };
+      await this.saveState({
+        ...state,
+        agent: {
+          ...(state.agent || {}),
+          sideChat: activeState,
+        },
+      });
+      return activeState;
+    }
+  }
+
+  class ManagedLocalWorker {
+    constructor(options) {
+      this.workspace = options.workspace;
+      this.jobs = options.jobs;
+      this.preparation = options.preparation;
+      this.corpusWorkflows = options.corpusWorkflows;
+      this.now = options.now || (() => new Date());
+      this.health = "healthy";
+      this.generation = 1;
+    }
+
+    async getStatus(options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "get_local_worker_status");
+      await this.jobs.load();
+      const running = this.jobs.list({ status: "running" });
+      const queued = this.jobs.list({ status: "queued" });
+      const stale = this.jobs.list({ status: "stale" });
+      return {
+        workerType: "browser-analysis-job-coordinator",
+        health:
+          this.health === "unhealthy" || stale.length
+            ? "unhealthy"
+            : this.health,
+        generation: this.generation,
+        runningJobs: running.length,
+        queuedJobs: queued.length,
+        resumableStaleJobs: stale.length,
+        arbitraryProcessControl: false,
+      };
+    }
+
+    markUnhealthyForRecovery() {
+      this.health = "unhealthy";
+    }
+
+    async resumeStaleJobs(options = {}) {
+      await this.jobs.load();
+      const limit = Math.min(50, Math.max(1, Number(options.jobLimit) || 20));
+      const staleJobs = this.jobs.list({ status: "stale" }).slice(-limit);
+      const resumed = [];
+      const seen = new Set();
+      for (const job of staleJobs) {
+        const capability = String(job.jobType || "").startsWith("prepare:")
+          ? String(job.jobType).slice("prepare:".length)
+          : "";
+        const sourceIds = uniqueStrings(job.sourceIds);
+        const recoveryKey = `${capability}:${sourceIds.slice().sort().join("|")}`;
+        if (
+          !(capability in READINESS_CAPABILITIES) ||
+          !sourceIds.length ||
+          seen.has(recoveryKey)
+        ) continue;
+        seen.add(recoveryKey);
+        try {
+          const result = await this.preparation.ensureSourceReady(
+            sourceIds,
+            capability,
+            {
+              ...options,
+              surface: options.surface || "side_chat",
+            }
+          );
+          resumed.push({
+            staleJobId: job.jobId,
+            capability,
+            sourceIds,
+            status: result.failures?.length ? "partially_failed" : "completed",
+            failureCount: result.failures?.length || 0,
+          });
+          job.status = result.failures?.length ? "failed" : "recovered";
+          job.completedAt = nowIso(this.now);
+          job.error = result.failures?.length
+            ? {
+                code: "RECOVERY_PARTIALLY_FAILED",
+                message: `${result.failures.length} source preparation task(s) still failed.`,
+              }
+            : null;
+        } catch (error) {
+          if (error?.code === "OPERATION_ABORTED") throw error;
+          resumed.push({
+            staleJobId: job.jobId,
+            capability,
+            sourceIds,
+            status: "failed",
+            error: compactError(error),
+          });
+          job.status = "failed";
+          job.completedAt = nowIso(this.now);
+          job.error = compactError(error);
+        }
+      }
+      if (resumed.length) await this.jobs.persist();
+      return resumed;
+    }
+
+    async restart(options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "restart_local_worker");
+      const before = await this.getStatus(options);
+      if (this.jobs.inFlight.size) {
+        return {
+          restarted: false,
+          reason: "The managed coordinator still has active in-process work; no duplicate jobs were started.",
+          before,
+          after: before,
+          resumedWorkflows: [],
+        };
+      }
+      this.generation += 1;
+      this.health = "healthy";
+      const resumedJobs = await this.resumeStaleJobs(options);
+      const resumedWorkflows = this.corpusWorkflows
+        ? await this.corpusWorkflows.resumeIncompleteWorkflows({
+            ...options,
+            surface: options.surface || "side_chat",
+            limit: options.limit || 3,
+          })
+        : [];
+      const after = await this.getStatus(options);
+      console.info("managed_local_worker_restarted", {
+        workerType: after.workerType,
+        generation: after.generation,
+        resumedJobCount: resumedJobs.length,
+        resumedWorkflowCount: resumedWorkflows.length,
+      });
+      return {
+        restarted: true,
+        before,
+        after,
+        resumedJobs,
+        resumedWorkflows,
+      };
+    }
+  }
+
   function createSourceSystem(options) {
     const registry = options.registry || new SourceRegistry(options);
     const jobs = options.jobs || new SourceJobManager(options);
@@ -3009,7 +3797,21 @@
       jobs,
       results,
     });
-    const literatureTools = new LiteratureTools({ registry, preparation, results });
+    const nativePdfAnalyzer = options.nativePdfAnalyzer ||
+      (typeof options.nativePdfWorker === "function"
+        ? new RequestyPdfAnalyzer({
+            ...options,
+            registry,
+            preparation,
+            results,
+          })
+        : null);
+    const literatureTools = new LiteratureTools({
+      registry,
+      preparation,
+      results,
+      nativePdfAnalyzer,
+    });
     const experimentTools = new ExperimentTools({ registry, preparation, results });
     const corpusWorkflows = new CorpusWorkflowService({
       ...options,
@@ -3017,8 +3819,32 @@
       preparation,
       results,
       literatureTools,
+      nativePdfAnalyzer,
     });
-    return { registry, jobs, results, preparation, literatureTools, experimentTools, corpusWorkflows };
+    const projectState = options.projectState || new ProjectStateService({
+      ...options,
+      registry,
+      jobs,
+      corpusWorkflows,
+    });
+    const managedWorker = options.managedWorker || new ManagedLocalWorker({
+      ...options,
+      jobs,
+      preparation,
+      corpusWorkflows,
+    });
+    return {
+      registry,
+      jobs,
+      results,
+      preparation,
+      nativePdfAnalyzer,
+      literatureTools,
+      experimentTools,
+      corpusWorkflows,
+      projectState,
+      managedWorker,
+    };
   }
 
   return {
@@ -3031,7 +3857,11 @@
     JOB_PATH,
     LARGE_RESULT_CHARACTERS,
     LiteratureTools,
+    ManagedLocalWorker,
+    NATIVE_PDF_PROMPT_VERSION,
+    ProjectStateService,
     READINESS_CAPABILITIES,
+    RequestyPdfAnalyzer,
     RESULT_DIRECTORY,
     SOURCE_ARTIFACT_SCHEMA_VERSION,
     SOURCE_EXTRACTOR_VERSION,
@@ -3042,6 +3872,9 @@
     SourceRegistry,
     SourceResultStore,
     SourceSystemError,
+    TOOL_EFFECTS,
+    ToolEffect,
+    authorizeTool,
     createSourceSystem,
     extensionFor,
     expandAliases,
@@ -3052,6 +3885,7 @@
     parseDelimited,
     parseExperimentBytes,
     runBounded,
+    requireAuthorizedTool,
     scoreText,
     sourceKindFor,
     statSignatureFor,

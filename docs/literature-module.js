@@ -201,6 +201,17 @@
     return String(value || "paper.pdf").split(/[\\/]/).pop().slice(0, 240) || "paper.pdf";
   }
 
+  function bytesToBase64(bytes) {
+    const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+    if (typeof Buffer !== "undefined") return Buffer.from(view).toString("base64");
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < view.length; offset += chunkSize) {
+      binary += String.fromCharCode(...view.subarray(offset, offset + chunkSize));
+    }
+    return root.btoa(binary);
+  }
+
   function normalizeCardText(value) {
     const text = typeof value === "string" ? value.trim() : "";
     return text || null;
@@ -338,6 +349,35 @@
       };
     }
 
+    async analyzePdfNative(payload, signal) {
+      const fileData = `data:application/pdf;base64,${bytesToBase64(payload.bytes)}`;
+      const data = await this.request(
+        "/api/literature/analyze-pdf-native",
+        {
+          paperId: String(payload.paperId || "").slice(0, 160),
+          filename: safeFilename(payload.filename),
+          contentHash: String(payload.contentHash || "").slice(0, 160),
+          task: String(payload.task || "").slice(0, 8000),
+          purpose: String(payload.purpose || "paper_analysis").slice(0, 120),
+          responseSchema:
+            payload.responseSchema === "corpus_map"
+              ? "corpus_map"
+              : "paper_analysis",
+          evidenceRefs: (Array.isArray(payload.evidenceRefs)
+            ? payload.evidenceRefs
+            : []).slice(0, 100),
+          fileData,
+          language: payload.language === "zh" ? "zh" : "en",
+        },
+        signal
+      );
+      return {
+        analysis: data.analysis,
+        model: data.model || null,
+        diagnostics: data.diagnostics || null,
+      };
+    }
+
     async routeContext(payload, signal) {
       const data = await this.request(
         "/api/context/route",
@@ -467,12 +507,18 @@
                   workerOptions?.signal
                 )
             : null,
+        nativePdfWorker:
+          typeof this.api?.analyzePdfNative === "function"
+            ? (payload, workerOptions) =>
+                this.api.analyzePdfNative(payload, workerOptions?.signal)
+            : null,
       });
       this.sourceRegistry = this.sourceSystem?.registry || null;
       this.preparation = this.sourceSystem?.preparation || null;
       this.literatureTools = this.sourceSystem?.literatureTools || null;
       this.experimentTools = this.sourceSystem?.experimentTools || null;
       this.corpusWorkflows = this.sourceSystem?.corpusWorkflows || null;
+      this.nativePdfAnalyzer = this.sourceSystem?.nativePdfAnalyzer || null;
     }
 
     serializeDocument(document) {
