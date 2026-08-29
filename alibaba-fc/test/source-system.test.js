@@ -230,7 +230,7 @@ test("folder reconciliation catalogs 150 papers without full hashes, parses, or 
   assert.equal(workspace.readFileCalls, 0);
 });
 
-test("TEST A: 32 discovered and 0 searchable starts full corpus preparation and analysis", async () => {
+test("TEST A: 32 discovered papers produce exactly 32 successful mapper calls", async () => {
   const workspace = new MemoryWorkspace();
   for (let index = 1; index <= 32; index += 1) {
     workspace.setFile(
@@ -1183,7 +1183,7 @@ test("CASES 2-3: include failed papers retries only two maps and incrementally u
   }
 });
 
-test("CASE 4: exhausted InvalidLlmResponse retries use source-evidence fallback without downgrading readiness", async () => {
+test("CASE 4: InvalidLlmResponse skips repeated full maps and uses source-evidence fallback", async () => {
   const workspace = new MemoryWorkspace();
   workspace.setFile("literature/fallback.pdf", "Prepared source evidence remains readable.", 1000);
   let mapperCalls = 0;
@@ -1205,7 +1205,7 @@ test("CASE 4: exhausted InvalidLlmResponse retries use source-evidence fallback 
   const result = await system.corpusWorkflows.run("Summarize all papers");
   const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
 
-  assert.equal(mapperCalls, 3);
+  assert.equal(mapperCalls, 1);
   assert.equal(fallbackCalls, 1);
   assert.equal(journal.maps[sourceId].generationMode, "source-evidence-fallback");
   assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 1);

@@ -2557,6 +2557,7 @@
           };
           diagnostics.push(record);
           console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          if (error?.code === "InvalidLlmResponse") break;
           if (!isRetryableCorpusMapError(error) || attempt >= this.mapAttempts) break;
         }
       }

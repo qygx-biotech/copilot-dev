@@ -137,7 +137,10 @@ global.fetch = async (_url, options = {}) => {
           memory_ids: [],
           reason: "No local context is needed."
         });
-  } else if (systemMessage.includes("fresh-context corpus mapping worker")) {
+  } else if (
+    systemMessage.includes("fresh-context corpus mapping worker") ||
+    systemMessage.includes("corpus-map JSON repair worker")
+  ) {
     content = queuedCorpusMapCompletionTexts.length
       ? queuedCorpusMapCompletionTexts.shift()
       : JSON.stringify({
@@ -519,6 +522,7 @@ test("local literature endpoints are stateless and never read or write OSS", asy
 
 test("corpus paper mapping uses a fresh bounded context and validates evidence refs", async () => {
   const allowedRef = "paper-a:p8:paper-a-P8-C2";
+  const requestStart = capturedLlmRequests.length;
   queuedCorpusMapCompletionTexts.push(
     JSON.stringify({
       title: "Selected EctD study",
@@ -534,7 +538,7 @@ test("corpus paper mapping uses a fresh bounded context and validates evidence r
       major_findings: [
         {
           claim: "A163V improved the reported activity.",
-          evidence_refs: [allowedRef, "invented-reference"]
+          evidence_refs: [allowedRef]
         }
       ],
       limitations: ["single reported condition"],
@@ -565,8 +569,11 @@ test("corpus paper mapping uses a fresh bounded context and validates evidence r
   assert.equal(body.mapResult.paperId, "paper-a");
   assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [allowedRef]);
   assert.equal(body.mapperDiagnostics.schemaValidationDetails.length, 0);
+  assert.equal(body.mapperDiagnostics.repairAttempted, false);
   assert.equal(pdfGetCalls, pdfReadsBefore);
-  const request = capturedLlmRequests.at(-1);
+  const requests = capturedLlmRequests.slice(requestStart);
+  assert.equal(requests.length, 1);
+  const request = requests[0];
   assert.equal(request.messages.length, 2);
   assert.equal(request.response_format.type, "json_schema");
   assert.equal(request.response_format.json_schema.strict, true);
@@ -728,7 +735,7 @@ test("invalid native structured output is repaired with bounded schema-constrain
   }
 });
 
-test("corpus mapping uses json_object fallback with host validation when json_schema is unavailable", async () => {
+test("json_schema-unsupported corpus mapping sends the complete schema in one json_object call", async () => {
   const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
   process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
   const requestStart = capturedLlmRequests.length;
@@ -758,11 +765,130 @@ test("corpus mapping uses json_object fallback with host validation when json_sc
     assert.equal(body.mapResult.paperId, "paper-fallback");
     assert.equal(requests.length, 1);
     assert.deepEqual(requests[0].response_format, { type: "json_object" });
+    const fallbackPrompt = requests[0].messages[0].content;
+    assert.ok(fallbackPrompt.includes(JSON.stringify(_test.CORPUS_MAP_SCHEMA)));
+    const expectedTypes = {
+      title: "string",
+      relevance: "string",
+      research_question: "string or null",
+      themes: "array of strings",
+      methods: "array of strings",
+      organisms: "array of strings",
+      genes: "array of strings",
+      proteins: "array of strings",
+      pathways: "array of strings",
+      experimental_strategies: "array of strings",
+      major_findings: "array of objects",
+      limitations: "array of strings",
+      connections_to_other_topics: "array of strings",
+      notes: "string or null"
+    };
+    for (const [key, type] of Object.entries(expectedTypes)) {
+      assert.ok(fallbackPrompt.includes(`- "${key}": ${type}`));
+    }
+    assert.match(fallbackPrompt, /No additional top-level keys/);
+    assert.match(fallbackPrompt, /"major_findings": array of objects/);
+    assert.match(fallbackPrompt, /"claim" \(string\)/);
+    assert.match(fallbackPrompt, /"evidence_refs" \(array of strings\)/);
+    assert.match(fallbackPrompt, new RegExp(evidenceRef.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [evidenceRef]);
+    assert.equal(body.mapperDiagnostics.structuredOutputMode, "json_object");
+    assert.equal(body.mapperDiagnostics.repairAttempted, false);
+  } finally {
+    if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+    else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = previous;
+  }
+});
+
+test("schema-invalid corpus JSON receives one bounded repair without paper reanalysis", async () => {
+  const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  const requestStart = capturedLlmRequests.length;
+  const evidenceRef = "paper-repair:p7:chunk-2";
+  const guessedResponse = {
+    summary: "The variant improved activity.",
+    key_findings: ["The variant improved activity."],
+    methodology: "Activity assay",
+    conclusion: "The variant was beneficial."
+  };
+  queuedCorpusMapCompletionTexts.push(
+    JSON.stringify(guessedResponse),
+    JSON.stringify(validCorpusMapJson(evidenceRef))
+  );
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/corpus/map-paper", {
+        paperId: "paper-repair",
+        contentHash: "sha256:repair",
+        question: "Which variant improved activity?",
+        evidence: [
+          {
+            evidenceRef,
+            text: "The A163V variant improved activity in the reported assay."
+          }
+        ]
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    const requests = capturedLlmRequests.slice(requestStart);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].response_format.type, "json_schema");
+    assert.equal(requests[1].response_format.type, "json_schema");
+    assert.match(requests[1].messages[0].content, /Correct the previous JSON only/);
+    assert.ok(
+      requests[1].messages[0].content.includes(JSON.stringify(_test.CORPUS_MAP_SCHEMA))
+    );
+    assert.match(requests[1].messages[1].content, /title is required\./);
+    assert.match(requests[1].messages[1].content, /summary is not allowed\./);
+    assert.match(requests[1].messages[1].content, /Previous JSON response:/);
+    assert.ok(requests[1].messages[1].content.includes(JSON.stringify(guessedResponse)));
+    assert.doesNotMatch(
+      requests[1].messages.map((message) => message.content).join("\n"),
+      /Which variant improved activity\?|A163V variant improved activity in the reported assay/
+    );
+    assert.equal(body.mapperDiagnostics.repairAttempted, true);
     assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [evidenceRef]);
   } finally {
     if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
     else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = previous;
   }
+});
+
+test("corpus schema validation reports exact missing and unexpected keys", () => {
+  const guessedResponse = {
+    summary: "Summary",
+    key_findings: [],
+    methodology: "Assay",
+    conclusion: "Conclusion"
+  };
+  const errors = _test.validateNativeCorpusMap(guessedResponse);
+
+  assert.deepEqual(
+    errors.filter((error) => error.endsWith(" is required.")),
+    _test.CORPUS_MAP_SCHEMA.required.map((key) => `${key} is required.`)
+  );
+  assert.deepEqual(
+    errors.filter((error) => error.endsWith(" is not allowed.")),
+    [
+      "summary is not allowed.",
+      "key_findings is not allowed.",
+      "methodology is not allowed.",
+      "conclusion is not allowed."
+    ]
+  );
+});
+
+test("corpus schema validation rejects evidence references outside the supplied set", () => {
+  const mapped = validCorpusMapJson("invented-reference");
+  assert.deepEqual(
+    _test.validateNativeCorpusMap(mapped, new Set(["paper-a:p8:paper-a-P8-C2"])),
+    [
+      "major_findings[0].evidence_refs[0] must exactly match a supplied evidence reference."
+    ]
+  );
 });
 
 test("context router uses only compact indexes and preserves explicit paper scope", async () => {
