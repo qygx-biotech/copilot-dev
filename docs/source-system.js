@@ -67,6 +67,8 @@
     get_corpus_workflow_status: ToolEffect.INFORMATIONAL,
     retry_corpus_map_failures: ToolEffect.INTERNAL_STATE,
     resume_corpus_workflow: ToolEffect.INTERNAL_STATE,
+    update_corpus_synthesis: ToolEffect.INTERNAL_STATE,
+    reconcile_sources: ToolEffect.INTERNAL_STATE,
     get_local_worker_status: ToolEffect.INTERNAL_STATE,
     restart_local_worker: ToolEffect.INTERNAL_STATE,
     create_corpus_synthesis_artifact: ToolEffect.INTERNAL_STATE,
@@ -149,6 +151,20 @@
     return extensionFor(value).replace(/^\./, "");
   }
 
+  function isIgnoredFilesystemArtifact(value) {
+    const basename = normalizePath(value).split("/").at(-1) || "";
+    const lowered = basename.toLowerCase();
+    return (
+      [".ds_store", "thumbs.db", "desktop.ini"].includes(lowered) ||
+      basename.startsWith("._") ||
+      basename.startsWith("~$") ||
+      lowered.endsWith(".tmp") ||
+      lowered.endsWith(".temp") ||
+      lowered.endsWith(".lock") ||
+      basename.endsWith("~")
+    );
+  }
+
   function flattenTree(tree) {
     const entries = [];
     const visit = (node) => {
@@ -162,6 +178,7 @@
 
   function sourceKindFor(path) {
     const normalized = normalizePath(path);
+    if (isIgnoredFilesystemArtifact(normalized)) return null;
     const extension = extensionName(normalized);
     if (normalized.startsWith("experiments/") && EXPERIMENT_EXTENSIONS.has(extension)) {
       return "experiment";
@@ -258,6 +275,52 @@
       .replace(/[\s\u00a0]+/g, " ")
       .replace(/[.!?。！？]+$/g, "")
       .trim();
+  }
+
+  function corpusSnapshotVersion(entries) {
+    return stableStringHash(
+      (Array.isArray(entries) ? entries : [])
+        .map((entry) => `${entry.sourceId}:${entry.statSignature || entry.observedStatSignature || ""}`)
+        .sort()
+        .join("|")
+    );
+  }
+
+  function diffCorpusSnapshot(previousSnapshot, currentSources) {
+    const previousById = new Map(
+      (Array.isArray(previousSnapshot) ? previousSnapshot : [])
+        .filter((entry) => entry?.sourceId)
+        .map((entry) => [entry.sourceId, entry])
+    );
+    const currentById = new Map(
+      (Array.isArray(currentSources) ? currentSources : [])
+        .filter((source) => source?.sourceId)
+        .map((source) => [source.sourceId, source])
+    );
+    const addedPaperIds = [];
+    const removedPaperIds = [];
+    const modifiedPaperIds = [];
+    const unchangedPaperIds = [];
+    for (const [sourceId, source] of currentById) {
+      const previous = previousById.get(sourceId);
+      if (!previous) {
+        addedPaperIds.push(sourceId);
+        continue;
+      }
+      const previousSignature =
+        previous.preparedStatSignature || previous.observedStatSignature || "";
+      if (previousSignature !== source.statSignature) modifiedPaperIds.push(sourceId);
+      else unchangedPaperIds.push(sourceId);
+    }
+    for (const sourceId of previousById.keys()) {
+      if (!currentById.has(sourceId)) removedPaperIds.push(sourceId);
+    }
+    return {
+      addedPaperIds,
+      removedPaperIds,
+      modifiedPaperIds,
+      unchangedPaperIds,
+    };
   }
 
   function normalizeCorpusMapResult(mapped, workerInput) {
@@ -2349,6 +2412,45 @@
       return this.workspace.readJson(this.workflowPath(resolvedId));
     }
 
+    async resolveUpdateBaseWorkflow(workflowId = "", options = {}) {
+      const requested = String(workflowId || "").trim();
+      const index = await this.readWorkflowIndex();
+      const candidates = requested
+        ? [requested]
+        : [...new Set([
+            index.latestWorkflowId,
+            ...(Array.isArray(index.recentWorkflowIds)
+              ? [...index.recentWorkflowIds].reverse()
+              : []),
+            ...Object.values(index.byQuestion || {}).reverse(),
+          ])].filter(Boolean);
+      const requestedScope = options.corpusScope === "selected"
+        ? "selected"
+        : "entire-project";
+      for (const candidateId of candidates) {
+        const path = this.workflowPath(candidateId);
+        if (!(await this.workspace.fileExists(path))) continue;
+        const journal = await this.workspace.readJson(path);
+        if (journal.workflowType !== "corpus_literature_synthesis") continue;
+        if (!["completed", "stale"].includes(journal.status)) continue;
+        const persistedDiscovered = Math.max(
+          0,
+          Number(journal.coverage?.papersDiscovered) || 0
+        );
+        const inferredScope = journal.corpusScope || (
+          (journal.snapshot || []).length >= persistedDiscovered
+            ? "entire-project"
+            : "selected"
+        );
+        if (!requested && inferredScope !== requestedScope) continue;
+        return journal;
+      }
+      throw new SourceSystemError(
+        "CORPUS_WORKFLOW_NOT_FOUND",
+        "No compatible completed corpus literature workflow was found to update."
+      );
+    }
+
     sourceIsReady(sourceId, preparedRecord = null) {
       const source = this.registry.get(sourceId, { includeMissing: true });
       return Boolean(
@@ -2362,6 +2464,10 @@
     }
 
     workflowStatusFromJournal(journal) {
+      const persistedDiscovered = Math.max(
+        0,
+        Number(journal.coverage?.papersDiscovered) || 0
+      );
       this.updateCoverage(
         journal,
         this.registry.list({ sourceKind: "paper" }).length
@@ -2399,13 +2505,18 @@
         question: journal.question,
         status: journal.status,
         phase: journal.phase,
+        corpusVersion: journal.corpusVersion || null,
+        parentWorkflowId: journal.parentWorkflowId || null,
+        normalizedSynthesisSignature:
+          journal.normalizedSynthesisSignature || journal.normalizedQuestion || null,
         papersTotal: journal.coverage.papersIncludedInSnapshot,
         papersPrepared: journal.coverage.papersSuccessfullyPrepared,
         papersAnalyzed: journal.coverage.papersSuccessfullyAnalyzed,
-        corpusScope:
-          journal.coverage.papersIncludedInSnapshot < journal.coverage.papersDiscovered
+        corpusScope: journal.corpusScope || (
+          journal.coverage.papersIncludedInSnapshot < persistedDiscovered
             ? "selected"
-            : "entire-project",
+            : "entire-project"
+        ),
         coverage: { ...journal.coverage },
         failures,
         retryablePaperIds: failures
@@ -2430,6 +2541,117 @@
         papersPrepared: status.papersPrepared,
         papersAnalyzed: status.papersAnalyzed,
         failures: status.failures,
+      };
+    }
+
+    async updateCorpusSynthesis(workflowId = "", options = {}) {
+      requireAuthorizedTool(
+        options.surface || "side_chat",
+        "update_corpus_synthesis"
+      );
+      const corpusScope = options.corpusScope === "selected"
+        ? "selected"
+        : "entire-project";
+      const parent = await this.resolveUpdateBaseWorkflow(workflowId, {
+        corpusScope,
+      });
+      const requestedIds = uniqueStrings(asList(options.paperIds), 10000);
+      const currentSources = requestedIds.length
+        ? requestedIds
+            .map((sourceId) => this.registry.get(sourceId))
+            .filter((source) => source?.sourceKind === "paper")
+        : this.registry.list({ sourceKind: "paper" });
+      const diff = diffCorpusSnapshot(parent.snapshot, currentSources);
+      const currentVersion = corpusSnapshotVersion(
+        currentSources.map((source) => ({
+          sourceId: source.sourceId,
+          statSignature: source.statSignature,
+        }))
+      );
+      console.info("corpus_workflow_update_diff", {
+        previousWorkflowId: parent.workflowId,
+        previousSnapshot: (parent.snapshot || []).length,
+        currentPapers: currentSources.length,
+        added: diff.addedPaperIds.length,
+        removed: diff.removedPaperIds.length,
+        modified: diff.modifiedPaperIds.length,
+        unchanged: diff.unchangedPaperIds.length,
+        searchableBefore: this.registry.counts().papersSearchable,
+      });
+      if (
+        !diff.addedPaperIds.length &&
+        !diff.removedPaperIds.length &&
+        !diff.modifiedPaperIds.length
+      ) {
+        const status = this.workflowStatusFromJournal(parent);
+        console.info("corpus_workflow_update_reused", {
+          previousWorkflowId: parent.workflowId,
+          currentPapers: currentSources.length,
+          reusedMaps: Object.keys(parent.maps || {}).length,
+          newMaps: 0,
+          mapsFailed: Object.keys(parent.mapFailures || {}).length,
+          searchableAfter: this.registry.counts().papersSearchable,
+        });
+        return {
+          workflow: await this.results.compact(parent, {
+            tool: "update_corpus_synthesis",
+            workflowId: parent.workflowId,
+            journalPath: this.workflowPath(parent.workflowId),
+          }),
+          status,
+          parentWorkflowId: parent.workflowId,
+          diff,
+          reusedExistingSynthesis: true,
+        };
+      }
+      const synthesisQuestion = String(
+        parent.question || "Summarize the paper corpus."
+      );
+      const normalizedSynthesisSignature = String(
+        parent.normalizedSynthesisSignature ||
+        parent.normalizedQuestion ||
+        normalizeSynthesisQuestion(synthesisQuestion)
+      );
+      const nextWorkflowId = this.workflowId(
+        normalizedSynthesisSignature,
+        currentSources.map((source) => source.sourceId),
+        currentVersion
+      );
+      const workflow = await this.run(synthesisQuestion, {
+        ...options,
+        workflowId: nextWorkflowId,
+        paperIds: currentSources.map((source) => source.sourceId),
+        corpusScope,
+        parentWorkflowId: parent.workflowId,
+        seedJournal: parent,
+        incrementalDiff: diff,
+        normalizedSynthesisSignature,
+        updateRequest: String(options.updateRequest || "").slice(0, 4000),
+      });
+      const value = workflow?.resultHandle
+        ? await this.results.read(workflow.resultHandle)
+        : workflow;
+      const status = this.workflowStatusFromJournal(value);
+      console.info("corpus_workflow_update_completed", {
+        previousWorkflowId: parent.workflowId,
+        workflowId: value.workflowId,
+        previousSnapshot: (parent.snapshot || []).length,
+        currentPapers: currentSources.length,
+        added: diff.addedPaperIds.length,
+        removed: diff.removedPaperIds.length,
+        modified: diff.modifiedPaperIds.length,
+        unchanged: diff.unchangedPaperIds.length,
+        reusedMaps: value.incrementalUpdate?.reusedMapPaperIds?.length || 0,
+        newMaps: value.incrementalUpdate?.newlyMappedPaperIds?.length || 0,
+        mapsFailed: value.incrementalUpdate?.failedChangedPaperIds?.length || 0,
+        searchableAfter: this.registry.counts().papersSearchable,
+      });
+      return {
+        workflow,
+        status,
+        parentWorkflowId: parent.workflowId,
+        diff,
+        reusedExistingSynthesis: false,
       };
     }
 
@@ -2699,11 +2921,12 @@
       }
     }
 
-    workflowId(question, sourceIds) {
+    workflowId(question, sourceIds, corpusVersion = "") {
       return `summarize-paper-corpus-${stableStringHash([
         CORPUS_WORKFLOW_VERSION,
         normalizeSynthesisQuestion(question),
         [...sourceIds].sort().join(","),
+        corpusVersion,
       ].join("|"))}`;
     }
 
@@ -2800,7 +3023,9 @@
         this.workflowId(question, sourceIds);
       const path = this.workflowPath(workflowId);
       const workflowIndexPath = `${WORKFLOW_DIRECTORY}/corpus-index.json`;
-      const normalizedQuestion = normalizeSynthesisQuestion(question);
+      const normalizedQuestion = String(
+        options.normalizedSynthesisSignature || normalizeSynthesisQuestion(question)
+      );
       const questionKey = stableStringHash(normalizedQuestion);
       const prepareConcurrency = Math.min(
         8,
@@ -2837,6 +3062,41 @@
       let journal = null;
       if (await this.workspace.fileExists(path)) journal = await this.workspace.readJson(path);
       if (!journal) {
+        const seedJournal = options.seedJournal && typeof options.seedJournal === "object"
+          ? options.seedJournal
+          : null;
+        const reusableIds = new Set(
+          uniqueStrings(options.incrementalDiff?.unchangedPaperIds, 10000)
+        );
+        const adoptedMaps = {};
+        const adoptedPrepareCompleted = {};
+        const adoptedMapAttemptDiagnostics = {};
+        for (const source of sources) {
+          if (!seedJournal || !reusableIds.has(source.sourceId)) continue;
+          const previousMap = seedJournal.maps?.[source.sourceId];
+          const previousPrepared = seedJournal.prepareCompleted?.[source.sourceId];
+          const previousSnapshot = (seedJournal.snapshot || []).find(
+            (entry) => entry.sourceId === source.sourceId
+          );
+          const previousSignature =
+            previousSnapshot?.preparedStatSignature ||
+            previousSnapshot?.observedStatSignature ||
+            "";
+          if (
+            previousMap?.contentHash &&
+            previousMap.contentHash === source.contentHash &&
+            previousSignature === source.statSignature
+          ) {
+            adoptedMaps[source.sourceId] = previousMap;
+            if (previousPrepared) {
+              adoptedPrepareCompleted[source.sourceId] = previousPrepared;
+            }
+            if (seedJournal.mapAttemptDiagnostics?.[source.sourceId]) {
+              adoptedMapAttemptDiagnostics[source.sourceId] =
+                seedJournal.mapAttemptDiagnostics[source.sourceId];
+            }
+          }
+        }
         journal = {
           schemaVersion: 2,
           workflowVersion: CORPUS_WORKFLOW_VERSION,
@@ -2844,6 +3104,13 @@
           workflowType: "corpus_literature_synthesis",
           question: String(question || "Summarize the paper corpus."),
           normalizedQuestion,
+          normalizedSynthesisSignature: normalizedQuestion,
+          originalQuestion: String(seedJournal?.originalQuestion || seedJournal?.question || question || "").slice(0, 4000),
+          updateRequest: String(options.updateRequest || "").slice(0, 4000) || null,
+          parentWorkflowId: String(options.parentWorkflowId || "") || null,
+          corpusScope: options.corpusScope === "selected"
+            ? "selected"
+            : "entire-project",
           status: "running",
           phase: "snapshot",
           snapshot: sources.map((source) => ({
@@ -2852,19 +3119,37 @@
             observedStatSignature: source.statSignature,
             observedContentHash: source.contentHash,
           })),
-          corpusVersion: stableStringHash(
-            sources.map((source) => `${source.sourceId}:${source.statSignature}`).sort().join("|")
+          corpusVersion: corpusSnapshotVersion(
+            sources.map((source) => ({
+              sourceId: source.sourceId,
+              statSignature: source.statSignature,
+            }))
           ),
-          prepareCompleted: {},
+          prepareCompleted: adoptedPrepareCompleted,
           prepareFailures: {},
-          maps: {},
+          maps: adoptedMaps,
           mapFailures: {},
-          mapAttemptDiagnostics: {},
+          mapAttemptDiagnostics: adoptedMapAttemptDiagnostics,
           failures: {},
-          groups: [],
-          reduction: null,
-          verification: [],
-          verificationByClaim: {},
+          groups: seedJournal ? [...(seedJournal.groups || [])] : [],
+          reduction: seedJournal?.reduction || null,
+          verification: seedJournal ? [...(seedJournal.verification || [])] : [],
+          verificationByClaim: seedJournal
+            ? { ...(seedJournal.verificationByClaim || {}) }
+            : {},
+          incrementalUpdate: options.incrementalDiff
+            ? {
+                parentWorkflowId: String(options.parentWorkflowId || "") || null,
+                addedPaperIds: [...(options.incrementalDiff.addedPaperIds || [])],
+                removedPaperIds: [...(options.incrementalDiff.removedPaperIds || [])],
+                modifiedPaperIds: [...(options.incrementalDiff.modifiedPaperIds || [])],
+                unchangedPaperIds: [...(options.incrementalDiff.unchangedPaperIds || [])],
+                reusedMapPaperIds: Object.keys(adoptedMaps),
+                newlyMappedPaperIds: [],
+                failedChangedPaperIds: [],
+                createdAt: nowIso(this.now),
+              }
+            : null,
           concurrency: {
             prepare: prepareConcurrency,
             map: mapConcurrency,
@@ -2877,6 +3162,10 @@
       journal.status = "running";
       journal.completedAt = null;
       journal.normalizedQuestion = normalizedQuestion;
+      journal.normalizedSynthesisSignature ||= normalizedQuestion;
+      journal.corpusScope ||= options.corpusScope === "selected"
+        ? "selected"
+        : "entire-project";
       journal.prepareCompleted ||= {};
       journal.prepareFailures ||= {};
       journal.maps ||= {};
@@ -2888,8 +3177,11 @@
         map: mapConcurrency,
         verify: mapConcurrency,
       };
-      journal.corpusVersion = stableStringHash(
-        sources.map((source) => `${source.sourceId}:${source.statSignature}`).sort().join("|")
+      journal.corpusVersion = corpusSnapshotVersion(
+        sources.map((source) => ({
+          sourceId: source.sourceId,
+          statSignature: source.statSignature,
+        }))
       );
       journal.snapshot = sources.map((source) => {
         const previous = (journal.snapshot || []).find(
@@ -2941,14 +3233,33 @@
         });
       };
       await persist({ stage: "corpus-snapshot", completed: sourceIds.length, total: sourceIds.length });
+      if (options.incrementalDiff) {
+        await persist({
+          stage: "corpus-diff",
+          completed:
+            (options.incrementalDiff.addedPaperIds || []).length +
+            (options.incrementalDiff.removedPaperIds || []).length +
+            (options.incrementalDiff.modifiedPaperIds || []).length,
+          total: sourceIds.length,
+          incremental: true,
+          previousWorkflowId: options.parentWorkflowId || null,
+        });
+      }
 
       const retryPaperIds = uniqueStrings(asList(options.retryPaperIds), 10000)
         .filter((sourceId) => sourceIds.includes(sourceId));
       const retryPaperIdSet = new Set(retryPaperIds);
-      const recoveryBaselineMapIds = retryPaperIds.length
+      const incrementalDiff = options.incrementalDiff || null;
+      const incrementalPaperIds = uniqueStrings([
+        ...(incrementalDiff?.addedPaperIds || []),
+        ...(incrementalDiff?.modifiedPaperIds || []),
+      ], 10000).filter((sourceId) => sourceIds.includes(sourceId));
+      const incrementalPaperIdSet = new Set(incrementalPaperIds);
+      const incrementalMode = Boolean(incrementalDiff);
+      const recoveryBaselineMapIds = retryPaperIds.length || incrementalMode
         ? Object.keys(journal.maps)
         : [];
-      const previousGroupSyntheses = retryPaperIds.length
+      const previousGroupSyntheses = retryPaperIds.length || incrementalMode
         ? [...(journal.reduction?.groupSyntheses || [])]
         : [];
       const prepareSourceIds = retryPaperIds.length
@@ -2962,12 +3273,20 @@
                 mapped.statSignature !== source?.statSignature
               ));
           })
-        : sourceIds;
+        : incrementalMode
+          ? sourceIds.filter((sourceId) =>
+              incrementalPaperIdSet.has(sourceId) ||
+              !this.sourceIsReady(sourceId, journal.prepareCompleted[sourceId]) ||
+              !journal.maps[sourceId]
+            )
+          : sourceIds;
+      const prepareProgressPaperIds = new Set();
       journal.phase = "prepare";
       await persist({
         stage: "corpus-prepare",
-        completed: Object.keys(journal.prepareCompleted).length,
-        total: sourceIds.length,
+        completed: incrementalMode ? 0 : Object.keys(journal.prepareCompleted).length,
+        total: incrementalMode ? prepareSourceIds.length : sourceIds.length,
+        incremental: incrementalMode,
       });
       await runBounded(prepareSourceIds, prepareConcurrency, async (sourceId) => {
         try {
@@ -3001,9 +3320,12 @@
             journal.status = "paused";
             await persist({
               stage: "corpus-prepare",
-              completed: Object.keys(journal.prepareCompleted).length +
-                Object.keys(journal.prepareFailures).length,
-              total: sourceIds.length,
+              completed: incrementalMode
+                ? prepareProgressPaperIds.size
+                : Object.keys(journal.prepareCompleted).length +
+                  Object.keys(journal.prepareFailures).length,
+              total: incrementalMode ? prepareSourceIds.length : sourceIds.length,
+              incremental: incrementalMode,
             });
             throw error;
           }
@@ -3015,11 +3337,15 @@
           delete journal.maps[sourceId];
           delete journal.mapFailures[sourceId];
         }
+        prepareProgressPaperIds.add(sourceId);
         await persist({
           stage: "corpus-prepare",
-          completed: Object.keys(journal.prepareCompleted).length +
-            Object.keys(journal.prepareFailures).length,
-          total: sourceIds.length,
+          completed: incrementalMode
+            ? prepareProgressPaperIds.size
+            : Object.keys(journal.prepareCompleted).length +
+              Object.keys(journal.prepareFailures).length,
+          total: incrementalMode ? prepareSourceIds.length : sourceIds.length,
+          incremental: incrementalMode,
         });
       });
 
@@ -3048,10 +3374,12 @@
           );
         })
       );
+      const incrementalMapProgressPaperIds = new Set();
       await persist({
         stage: "corpus-map",
-        completed: mapProgressPaperIds.size,
-        total: sourceIds.length,
+        completed: incrementalMode ? 0 : mapProgressPaperIds.size,
+        total: incrementalMode ? mapSourceIds.length : sourceIds.length,
+        incremental: incrementalMode,
       });
       await runBounded(mapSourceIds, mapConcurrency, async (sourceId) => {
         const readySource = this.registry.get(sourceId);
@@ -3182,8 +3510,11 @@
             journal.status = "paused";
             await persist({
               stage: "corpus-map",
-              completed: mapProgressPaperIds.size,
-              total: sourceIds.length,
+              completed: incrementalMode
+                ? incrementalMapProgressPaperIds.size
+                : mapProgressPaperIds.size,
+              total: incrementalMode ? mapSourceIds.length : sourceIds.length,
+              incremental: incrementalMode,
             });
             throw error;
           }
@@ -3204,12 +3535,16 @@
           delete journal.maps[sourceId];
         }
         mapProgressPaperIds.add(sourceId);
+        incrementalMapProgressPaperIds.add(sourceId);
         await persist({
           stage: "corpus-map",
-          completed: mapProgressPaperIds.size,
-          total: sourceIds.length,
+          completed: incrementalMode
+            ? incrementalMapProgressPaperIds.size
+            : mapProgressPaperIds.size,
+          total: incrementalMode ? mapSourceIds.length : sourceIds.length,
           paperId: sourceId,
           outcome: journal.maps[sourceId] ? "analyzed" : "failed",
+          incremental: incrementalMode,
         });
       });
 
@@ -3252,6 +3587,7 @@
         stage: "corpus-group",
         completed: journal.groups.length,
         total: journal.groups.length,
+        incremental: incrementalMode,
       });
 
       journal.phase = "reduce";
@@ -3304,7 +3640,7 @@
           reusedGroupSynthesisCount += 1;
           return previous;
         }
-        if (retryPaperIds.length) {
+        if (retryPaperIds.length || incrementalMode) {
           affectedGroupKeys.push(
             `${group.category}:${String(group.label).toLowerCase()}`
           );
@@ -3353,11 +3689,35 @@
           reusedGroupSynthesisCount,
           updatedAt: nowIso(this.now),
         };
+      } else if (incrementalMode) {
+        journal.incrementalUpdate = {
+          ...(journal.incrementalUpdate || {}),
+          parentWorkflowId: String(options.parentWorkflowId || "") || null,
+          addedPaperIds: [...(incrementalDiff.addedPaperIds || [])],
+          removedPaperIds: [...(incrementalDiff.removedPaperIds || [])],
+          modifiedPaperIds: [...(incrementalDiff.modifiedPaperIds || [])],
+          unchangedPaperIds: [...(incrementalDiff.unchangedPaperIds || [])],
+          reusedMapPaperIds: recoveryBaselineMapIds.filter(
+            (paperId) => Boolean(journal.maps[paperId]) &&
+              !incrementalPaperIdSet.has(paperId)
+          ),
+          newlyMappedPaperIds: incrementalPaperIds.filter(
+            (paperId) => Boolean(journal.maps[paperId])
+          ),
+          failedChangedPaperIds: incrementalPaperIds.filter(
+            (paperId) => Boolean(journal.prepareFailures[paperId]) ||
+              Boolean(journal.mapFailures[paperId])
+          ),
+          affectedGroupKeys: uniqueStrings(affectedGroupKeys, 10000),
+          reusedGroupSynthesisCount,
+          updatedAt: nowIso(this.now),
+        };
       }
       await persist({
         stage: "corpus-reduce",
         completed: groupSyntheses.length,
         total: groupSyntheses.length,
+        incremental: incrementalMode,
       });
 
       journal.phase = "verify";
@@ -3385,6 +3745,7 @@
         stage: "corpus-verify",
         completed: Object.keys(journal.verificationByClaim).length,
         total: verificationTargets.length,
+        incremental: incrementalMode,
       });
       await runBounded(
         verificationTargets,
@@ -3434,6 +3795,7 @@
             stage: "corpus-verify",
             completed: Object.keys(journal.verificationByClaim).length,
             total: verificationTargets.length,
+            incremental: incrementalMode,
           });
         }
       );
@@ -3471,6 +3833,7 @@
         stage: "corpus-answer",
         completed: journal.coverage.papersSuccessfullyAnalyzed,
         total: journal.coverage.papersIncludedInSnapshot,
+        incremental: incrementalMode,
       });
       console.info("corpus_workflow_completed", {
         workflowId,
@@ -3549,12 +3912,8 @@
         experimentsReady: experiments.filter(
           (source) => source.structuredDataStatus === "ready"
         ).length,
-        corpusVersion:
-          workflowStatus?.workflowId &&
-          Array.isArray(workflowStatus.coverage?.includedPaperIds) &&
-          workflowStatus.coverage.includedPaperIds.length
-            ? stableStringHash(workflowStatus.coverage.includedPaperIds.join("|"))
-            : null,
+        corpusVersion: workflowStatus?.corpusVersion || null,
+        parentWorkflowId: workflowStatus?.parentWorkflowId || null,
         activeWorkflowId: workflowStatus?.workflowId || null,
         corpusCoverage: workflowStatus?.coverage || null,
         lastProcessingAt: nowIso(this.now),
@@ -3886,10 +4245,12 @@
     ToolEffect,
     authorizeTool,
     createSourceSystem,
+    diffCorpusSnapshot,
     extensionFor,
     expandAliases,
     flattenTree,
     hashBytes,
+    isIgnoredFilesystemArtifact,
     normalizePath,
     paperArtifactFromExtraction,
     parseDelimited,

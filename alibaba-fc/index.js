@@ -241,6 +241,8 @@ Before this loop, the trusted local tool host lazily performs only the internal-
 
 For a corpus-wide literature request, the local host prepares every source in the frozen requested scope before this loop and supplies a corpus-workflow evidence item. A discovered paper that was initially unsearchable was pending lazy preparation, not unusable. Never refuse a corpus synthesis merely because the pre-workflow searchable count was zero. State the exact included/analyzed/failed/missing coverage, and never claim full-corpus coverage when successfully analyzed is smaller than included.
 
+When the user asks to incorporate newly added papers or update an existing review, the trusted local host resolves the previous compatible corpus workflow and deterministically diffs its stable source snapshot against the current source registry before this loop. It prepares and maps only added or modified papers, excludes removed papers, and reuses unchanged maps. Do not use semantic searches to decide which files are new, and do not claim that newly discovered papers are unusable merely because they were initially unsearchable. Use the supplied incremental workflow status and corpus evidence to explain what changed.
+
 If the user asks why corpus papers failed, remained incomplete, or needed reprocessing, you MUST call get_corpus_workflow_status before explaining the cause. Never infer parsing, OCR, scanning, corruption, permissions, or any other cause from an aggregate failed count. Report the recorded stage, code, message, and sourceReady state. A map-stage failure does not make a prepared source unreadable or unsearchable. If the user requested recovery, the trusted local host performs eligible retries before this loop; use the returned workflow status and revised corpus evidence to report what was retried and updated instead of merely offering to retry.
 
 When evidence is sufficient, stop using tools and give the final answer. Return concise Markdown; use headings, lists, links, tables, or code only when they improve readability. Do not expose the internal tool trace, wrap the whole answer in a Markdown code fence, or return structured JSON unless the user explicitly asks for JSON.`.trim();
@@ -4229,6 +4231,7 @@ function sanitizeLocalWorkspaceContext(value) {
       "corpus",
       "corpus-status",
       "corpus-recovery",
+      "corpus-update",
       "not-ready",
       "not-needed"
     ].includes(rawLiterature.discoveryMode)
@@ -4244,6 +4247,7 @@ function sanitizeLocalWorkspaceContext(value) {
         : null,
     corpusFollowUp: rawLiterature.corpusFollowUp === true,
     corpusRecoveryRequested: rawLiterature.corpusRecoveryRequested === true,
+    corpusUpdateRequested: rawLiterature.corpusUpdateRequested === true,
     retrievalRequired: rawLiterature.retrievalRequired === true,
     coverage: isPlainObject(rawLiterature.coverage)
       ? {
@@ -4283,6 +4287,25 @@ function sanitizeLocalWorkspaceContext(value) {
             .map(([key, count]) => [String(key).slice(0, 80), Math.max(0, Number(count))])
         )
       : {},
+    paperSources: (Array.isArray(rawSourceMap.paperSources)
+      ? rawSourceMap.paperSources
+      : [])
+      .filter((source) => isPlainObject(source) && source.sourceKind === "paper")
+      .slice(0, MAX_LOCAL_WORKSPACE_INVENTORY_FILES)
+      .map((source) => ({
+        sourceId: String(source.sourceId || "").slice(0, 120),
+        sourceKind: "paper",
+        path: String(source.path || "").slice(0, 500),
+        displayName: String(source.displayName || "").slice(0, 180),
+        extension: String(source.extension || "").toLowerCase().slice(0, 20),
+        sizeBytes: Math.max(0, Number(source.sizeBytes) || 0),
+        mtimeNs: Math.max(0, Number(source.mtimeNs) || 0),
+        contentHash: String(source.contentHash || "").slice(0, 200) || null,
+        catalogStatus: String(source.catalogStatus || "discovered").slice(0, 40),
+        parseStatus: String(source.parseStatus || "not_started").slice(0, 40),
+        indexStatus: String(source.indexStatus || "not_started").slice(0, 40),
+        paperCardStatus: String(source.paperCardStatus || "absent").slice(0, 40)
+      })),
     availableSourceTools: rawSourceMap.availableSourceTools === true
   };
   const routing = {
@@ -4301,7 +4324,8 @@ function sanitizeLocalWorkspaceContext(value) {
       "local-fallback",
       "corpus-intent",
       "corpus-status",
-      "corpus-recovery"
+      "corpus-recovery",
+      "corpus-update"
     ].includes(rawRouting.mode)
       ? rawRouting.mode
       : "local"
@@ -4433,13 +4457,35 @@ function sanitizeLocalWorkspaceContext(value) {
         question: String(rawCorpusWorkflowStatus.question || "").slice(0, 4000),
         status: String(rawCorpusWorkflowStatus.status || "").slice(0, 80),
         phase: String(rawCorpusWorkflowStatus.phase || "").slice(0, 80),
+        corpusVersion: String(rawCorpusWorkflowStatus.corpusVersion || "").slice(0, 200) || null,
+        parentWorkflowId: String(rawCorpusWorkflowStatus.parentWorkflowId || "").slice(0, 200) || null,
+        normalizedSynthesisSignature: String(
+          rawCorpusWorkflowStatus.normalizedSynthesisSignature || ""
+        ).slice(0, 4000) || null,
         papersTotal: Math.max(0, Number(rawCorpusWorkflowStatus.papersTotal) || 0),
         papersPrepared: Math.max(0, Number(rawCorpusWorkflowStatus.papersPrepared) || 0),
         papersAnalyzed: Math.max(0, Number(rawCorpusWorkflowStatus.papersAnalyzed) || 0),
         corpusScope: ["selected", "entire-project"].includes(
           rawCorpusWorkflowStatus.corpusScope
         ) ? rawCorpusWorkflowStatus.corpusScope : null,
-        coverage: literature.coverage,
+        coverage: isPlainObject(rawCorpusWorkflowStatus.coverage)
+          ? {
+              papersDiscovered: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersDiscovered) || 0),
+              papersSearchable: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersSearchable) || 0),
+              papersIncludedInSnapshot: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersIncludedInSnapshot) || 0),
+              papersSuccessfullyPrepared: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersSuccessfullyPrepared) || 0),
+              papersPreparationCacheHits: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersPreparationCacheHits) || 0),
+              papersSuccessfullyAnalyzed: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersSuccessfullyAnalyzed) || 0),
+              papersFailed: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersFailed) || 0),
+              papersMissing: Math.max(0, Number(rawCorpusWorkflowStatus.coverage.papersMissing) || 0),
+              includedPaperIds: normalizePaperIds(rawCorpusWorkflowStatus.coverage.includedPaperIds),
+              preparedPaperIds: normalizePaperIds(rawCorpusWorkflowStatus.coverage.preparedPaperIds),
+              analyzedPaperIds: normalizePaperIds(rawCorpusWorkflowStatus.coverage.analyzedPaperIds),
+              failedPaperIds: normalizePaperIds(rawCorpusWorkflowStatus.coverage.failedPaperIds),
+              missingPaperIds: normalizePaperIds(rawCorpusWorkflowStatus.coverage.missingPaperIds),
+              changedPaperIds: normalizePaperIds(rawCorpusWorkflowStatus.coverage.changedPaperIds)
+            }
+          : {},
         failures: (Array.isArray(rawCorpusWorkflowStatus.failures)
           ? rawCorpusWorkflowStatus.failures
           : [])
@@ -4491,6 +4537,27 @@ function sanitizeLocalWorkspaceContext(value) {
               verificationClaimsRechecked: Math.max(
                 0,
                 Number(rawCorpusWorkflowStatus.incrementalUpdate.verificationClaimsRechecked) || 0
+              ),
+              parentWorkflowId: String(
+                rawCorpusWorkflowStatus.incrementalUpdate.parentWorkflowId || ""
+              ).slice(0, 200) || null,
+              addedPaperIds: normalizePaperIds(
+                rawCorpusWorkflowStatus.incrementalUpdate.addedPaperIds
+              ),
+              removedPaperIds: normalizePaperIds(
+                rawCorpusWorkflowStatus.incrementalUpdate.removedPaperIds
+              ),
+              modifiedPaperIds: normalizePaperIds(
+                rawCorpusWorkflowStatus.incrementalUpdate.modifiedPaperIds
+              ),
+              unchangedPaperIds: normalizePaperIds(
+                rawCorpusWorkflowStatus.incrementalUpdate.unchangedPaperIds
+              ),
+              newlyMappedPaperIds: normalizePaperIds(
+                rawCorpusWorkflowStatus.incrementalUpdate.newlyMappedPaperIds
+              ),
+              failedChangedPaperIds: normalizePaperIds(
+                rawCorpusWorkflowStatus.incrementalUpdate.failedChangedPaperIds
               )
             }
           : null,
@@ -4539,6 +4606,9 @@ function sanitizeLocalWorkspaceContext(value) {
           ),
           activeWorkflowId: String(
             value.projectMetadata.activeWorkflowId || ""
+          ).slice(0, 200) || null,
+          parentWorkflowId: String(
+            value.projectMetadata.parentWorkflowId || ""
           ).slice(0, 200) || null,
           lastProcessingAt: String(
             value.projectMetadata.lastProcessingAt || ""

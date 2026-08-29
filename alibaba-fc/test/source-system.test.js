@@ -21,6 +21,7 @@ const {
 const {
   ProjectContextService,
   detectCorpusWideLiteratureIntent,
+  detectCorpusUpdateIntent,
 } = require("../../docs/project-context-service.js");
 
 function clone(value) {
@@ -211,6 +212,12 @@ function invalidMapperError() {
   const error = new Error("The corpus mapper did not return valid structured JSON.");
   error.code = "InvalidLlmResponse";
   return error;
+}
+
+async function resolveWorkflowResult(system, result) {
+  return result?.resultHandle
+    ? system.results.read(result.resultHandle)
+    : result;
 }
 
 test("folder reconciliation catalogs 150 papers without full hashes, parses, or LLM calls", async () => {
@@ -965,6 +972,241 @@ test("corpus membership changes stale the old synthesis and reuse unchanged maps
   assert.equal(system.parseCalls, parseCalls + 1);
 });
 
+test("incremental Side Chat update deterministically reuses 32 maps and maps only four new papers", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.state = {
+    schemaVersion: 1,
+    project: { goal: "Maintain the literature review." },
+    ui: {},
+    agent: { currentRecommendation: { id: "R1", text: "Keep the existing plan." } },
+    memory: {},
+  };
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(
+      `literature/paper-${String(index).padStart(2, "0")}.pdf`,
+      `Initial paper ${index} finding.`,
+      1000
+    );
+  }
+  let mapCalls = 0;
+  const system = await makeSystem(workspace, {
+    async mapWorker(input) {
+      mapCalls += 1;
+      return validMapFor(input, `theme-${Number(input.title.match(/\d+/)?.[0] || 0) % 4}`);
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const firstResult = await system.corpusWorkflows.run(
+    "Summarize all papers and write a review.",
+    { corpusScope: "entire-project", surface: "side_chat" }
+  );
+  const firstJournal = await resolveWorkflowResult(system, firstResult);
+  assert.equal(firstJournal.snapshot.length, 32);
+  assert.equal(Object.keys(firstJournal.maps).length, 32);
+  assert.equal(mapCalls, 32);
+
+  // Simulate a completed pre-update journal. The update path adopts its stable
+  // snapshot/maps without requiring a destructive migration or 32 remaps.
+  const legacyFirstJournal = await workspace.readJson(
+    `.biodesign/workflows/${firstJournal.workflowId}.json`
+  );
+  delete legacyFirstJournal.corpusScope;
+  delete legacyFirstJournal.normalizedSynthesisSignature;
+  delete legacyFirstJournal.originalQuestion;
+  await workspace.writeJson(
+    `.biodesign/workflows/${firstJournal.workflowId}.json`,
+    legacyFirstJournal
+  );
+
+  for (let index = 33; index <= 36; index += 1) {
+    workspace.setFile(
+      `literature/imported/paper-${index}.pdf`,
+      `New paper ${index} finding.`,
+      2000
+    );
+  }
+  workspace.setFile("literature/.DS_Store", "Finder metadata", 2000);
+  await system.registry.reconcile(treeFor(workspace));
+  assert.equal(system.registry.counts().papersDiscovered, 36);
+  assert.equal(system.registry.counts().papersSearchable, 32);
+  assert.equal(system.registry.getByPath("literature/.DS_Store"), null);
+
+  system.projectState = new ProjectStateService({
+    workspace,
+    registry: system.registry,
+    jobs: system.jobs,
+    corpusWorkflows: system.corpusWorkflows,
+  });
+  const literature = makeLiteratureHarness(system);
+  let semanticPaperSearchCalls = 0;
+  const originalSearchPapers = system.literatureTools.searchPapers.bind(
+    system.literatureTools
+  );
+  system.literatureTools.searchPapers = async (...args) => {
+    semanticPaperSearchCalls += 1;
+    return originalSearchPapers(...args);
+  };
+  const service = new ProjectContextService({ workspace, literature });
+  const progress = [];
+  const context = await service.buildContext({
+    question: "我先加了几篇文献，帮我纳入考量，更新一下综述。",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree: treeFor(workspace),
+    surface: "side_chat",
+    onProgress(update) {
+      progress.push(update);
+    },
+  });
+
+  assert.equal(detectCorpusUpdateIntent("Include the newly added papers and update the review."), true);
+  assert.equal(context.routing.mode, "corpus-update");
+  assert.equal(context.literature.discoveryMode, "corpus-update");
+  assert.equal(semanticPaperSearchCalls, 0);
+  assert.equal(mapCalls, 36);
+  assert.equal(system.parseCalls, 36);
+  assert.equal(system.preparation.metrics.fullHashCalls, 36);
+  assert.equal(system.registry.counts().papersSearchable, 36);
+  assert.equal(context.literature.coverage.papersSuccessfullyAnalyzed, 36);
+  assert.equal(context.corpusWorkflowStatus.parentWorkflowId, firstJournal.workflowId);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.addedPaperIds.length, 4);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.removedPaperIds.length, 0);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.modifiedPaperIds.length, 0);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.reusedMapPaperIds.length, 32);
+  assert.equal(context.corpusWorkflowStatus.incrementalUpdate.newlyMappedPaperIds.length, 4);
+  assert.deepEqual(workspace.state.agent.currentRecommendation, {
+    id: "R1",
+    text: "Keep the existing plan.",
+  });
+
+  const mapProgress = progress.filter(
+    (update) => update.stage === "corpus-map" && update.paperId
+  );
+  assert.deepEqual(mapProgress.map((update) => update.completed), [1, 2, 3, 4]);
+  assert.ok(mapProgress.every((update) => update.total === 4));
+  assert.ok(mapProgress.every((update) => update.incremental === true));
+  const prepareProgress = progress.filter(
+    (update) => update.stage === "corpus-prepare" && update.completed > 0
+  );
+  assert.equal(prepareProgress.at(-1).completed, 4);
+  assert.equal(prepareProgress.at(-1).total, 4);
+
+  const secondJournal = await system.corpusWorkflows.readWorkflow(
+    context.corpusWorkflowStatus.workflowId
+  );
+  const preservedFirstJournal = await system.corpusWorkflows.readWorkflow(
+    firstJournal.workflowId
+  );
+  assert.equal(secondJournal.parentWorkflowId, firstJournal.workflowId);
+  assert.equal(secondJournal.snapshot.length, 36);
+  assert.equal(Object.keys(secondJournal.maps).length, 36);
+  assert.equal(preservedFirstJournal.snapshot.length, 32);
+  assert.equal(Object.keys(preservedFirstJournal.maps).length, 32);
+});
+
+test("incremental corpus diff remaps modified sources, removes deleted sources, and does no work when unchanged", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/a.pdf", "Finding A.", 1000);
+  workspace.setFile("literature/b.pdf", "Finding B.", 1000);
+  workspace.setFile("literature/c.pdf", "Finding C.", 1000);
+  let mapCalls = 0;
+  const system = await makeSystem(workspace, {
+    async mapWorker(input) {
+      mapCalls += 1;
+      return validMapFor(input, input.title);
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const first = await resolveWorkflowResult(
+    system,
+    await system.corpusWorkflows.run("Review all papers.", {
+      corpusScope: "entire-project",
+    })
+  );
+  assert.equal(mapCalls, 3);
+
+  workspace.setFile("literature/b.pdf", "Materially revised finding B.", 2000);
+  await system.registry.reconcile(treeFor(workspace));
+  const modified = await system.corpusWorkflows.updateCorpusSynthesis(
+    first.workflowId,
+    { surface: "side_chat" }
+  );
+  assert.deepEqual(modified.diff.addedPaperIds, []);
+  assert.equal(modified.diff.modifiedPaperIds.length, 1);
+  assert.equal(modified.diff.unchangedPaperIds.length, 2);
+  assert.equal(modified.status.incrementalUpdate.newlyMappedPaperIds.length, 1);
+  assert.equal(modified.status.incrementalUpdate.reusedMapPaperIds.length, 2);
+  assert.equal(mapCalls, 4);
+
+  workspace.deleteFile("literature/c.pdf");
+  await system.registry.reconcile(treeFor(workspace));
+  const removed = await system.corpusWorkflows.updateCorpusSynthesis(
+    modified.status.workflowId,
+    { surface: "side_chat" }
+  );
+  assert.equal(removed.diff.removedPaperIds.length, 1);
+  assert.equal(removed.diff.addedPaperIds.length, 0);
+  assert.equal(removed.diff.modifiedPaperIds.length, 0);
+  assert.equal(removed.status.coverage.papersIncludedInSnapshot, 2);
+  assert.equal(removed.status.incrementalUpdate.reusedMapPaperIds.length, 2);
+  assert.equal(mapCalls, 4);
+
+  const unchanged = await system.corpusWorkflows.updateCorpusSynthesis(
+    removed.status.workflowId,
+    { surface: "side_chat" }
+  );
+  assert.equal(unchanged.reusedExistingSynthesis, true);
+  assert.deepEqual(unchanged.diff, {
+    addedPaperIds: [],
+    removedPaperIds: [],
+    modifiedPaperIds: [],
+    unchangedPaperIds: removed.status.coverage.includedPaperIds,
+  });
+  assert.equal(mapCalls, 4);
+});
+
+test("a failed new map preserves all previous maps and reports 35 of 36 analyzed", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 1; index <= 32; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `Initial ${index}.`, 1000);
+  }
+  const system = await makeSystem(workspace, {
+    async mapWorker(input) {
+      if (input.title === "paper-36.pdf") throw invalidMapperError();
+      return validMapFor(input, "shared theme");
+    },
+    async fallbackMapWorker(input) {
+      if (input.title === "paper-36.pdf") throw invalidMapperError();
+      return validMapFor(input, "fallback theme");
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const first = await resolveWorkflowResult(
+    system,
+    await system.corpusWorkflows.run("Summarize all papers.", {
+      corpusScope: "entire-project",
+    })
+  );
+  for (let index = 33; index <= 36; index += 1) {
+    workspace.setFile(`literature/paper-${index}.pdf`, `New ${index}.`, 2000);
+  }
+  await system.registry.reconcile(treeFor(workspace));
+  const updated = await system.corpusWorkflows.updateCorpusSynthesis(
+    first.workflowId,
+    { surface: "side_chat" }
+  );
+
+  assert.equal(updated.status.coverage.papersIncludedInSnapshot, 36);
+  assert.equal(updated.status.coverage.papersSuccessfullyPrepared, 36);
+  assert.equal(updated.status.coverage.papersSuccessfullyAnalyzed, 35);
+  assert.equal(updated.status.coverage.papersFailed, 1);
+  assert.equal(updated.status.incrementalUpdate.reusedMapPaperIds.length, 32);
+  assert.equal(updated.status.incrementalUpdate.newlyMappedPaperIds.length, 3);
+  assert.equal(updated.status.incrementalUpdate.failedChangedPaperIds.length, 1);
+  assert.equal(updated.status.failures[0].stage, "map");
+  assert.equal(updated.status.failures[0].sourceReady, true);
+});
+
 test("TEST G: interrupting after 21 of 32 map jobs resumes only the remaining work", async () => {
   const workspace = new MemoryWorkspace();
   for (let index = 1; index <= 32; index += 1) {
@@ -1240,11 +1482,15 @@ test("CASE 5: an encrypted PDF is accurately retained as a preparation failure",
 
 test("Side Chat authorization allows internal state but denies official, destructive, and external effects", () => {
   assert.equal(TOOL_EFFECTS.ensure_source_ready, ToolEffect.INTERNAL_STATE);
+  assert.equal(TOOL_EFFECTS.reconcile_sources, ToolEffect.INTERNAL_STATE);
+  assert.equal(TOOL_EFFECTS.update_corpus_synthesis, ToolEffect.INTERNAL_STATE);
   assert.equal(TOOL_EFFECTS.update_project_memory, ToolEffect.INTERNAL_STATE);
   assert.equal(TOOL_EFFECTS.restart_local_worker, ToolEffect.INTERNAL_STATE);
   assert.equal(TOOL_EFFECTS.update_recommendation, ToolEffect.RESULT_PRODUCING);
 
   assert.equal(authorizeTool("side_chat", "ensure_source_ready").allowed, true);
+  assert.equal(authorizeTool("side_chat", "reconcile_sources").allowed, true);
+  assert.equal(authorizeTool("side_chat", "update_corpus_synthesis").allowed, true);
   assert.equal(authorizeTool("side_chat", "update_project_memory").allowed, true);
   assert.equal(authorizeTool("side_chat", "restart_local_worker").allowed, true);
   assert.equal(authorizeTool("side_chat", "update_recommendation").allowed, false);

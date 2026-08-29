@@ -2287,20 +2287,23 @@ function renderSideChatContext() {
   if (activeCorpusProgress) {
     const progress = document.createElement("span");
     progress.className = "context-chip source-coverage-chip";
+    const incremental = activeCorpusProgress.incremental === true;
     const phaseLabels = currentLanguage === "zh"
       ? {
-          prepare: "正在准备论文",
-          map: "正在分析论文",
+          snapshot: incremental ? "正在比对文献库" : "正在确定论文范围",
+          prepare: incremental ? "正在准备新增/变更论文" : "正在准备论文",
+          map: incremental ? "正在分析新增/变更论文" : "正在分析论文",
           group: "正在归纳主题",
-          reduce: "正在综合主题",
+          reduce: incremental ? "正在更新综述" : "正在综合主题",
           verify: "正在核验论断",
           answer: "正在生成回答",
         }
       : {
-          prepare: "Preparing papers",
-          map: "Analyzing papers",
+          snapshot: incremental ? "Comparing corpus versions" : "Selecting paper scope",
+          prepare: incremental ? "Preparing new/changed papers" : "Preparing papers",
+          map: incremental ? "Analyzing new/changed papers" : "Analyzing papers",
           group: "Grouping themes",
-          reduce: "Synthesizing themes",
+          reduce: incremental ? "Updating review" : "Synthesizing themes",
           verify: "Verifying claims",
           answer: "Preparing answer",
         };
@@ -4084,22 +4087,25 @@ function updateSideChatThinking(message, progress) {
   const text = message.querySelector(".thinking-content > span:first-child");
   if (!text) return;
   if (progress.stage?.startsWith("corpus-")) {
+    const incremental = progress.incremental === true;
     const labels = currentLanguage === "zh"
       ? {
           "corpus-snapshot": "正在确定论文范围",
-          "corpus-prepare": "正在准备论文",
-          "corpus-map": "正在分析论文",
+          "corpus-diff": "正在比对前后文献库",
+          "corpus-prepare": incremental ? "正在准备新增/变更论文" : "正在准备论文",
+          "corpus-map": incremental ? "正在分析新增/变更论文" : "正在分析论文",
           "corpus-group": "正在归纳主题",
-          "corpus-reduce": "正在综合主题",
+          "corpus-reduce": incremental ? "正在更新综述" : "正在综合主题",
           "corpus-verify": "正在核验论断",
           "corpus-answer": "正在生成回答",
         }
       : {
           "corpus-snapshot": "Selecting paper scope",
-          "corpus-prepare": "Preparing papers",
-          "corpus-map": "Analyzing papers",
+          "corpus-diff": "Comparing corpus versions",
+          "corpus-prepare": incremental ? "Preparing new/changed papers" : "Preparing papers",
+          "corpus-map": incremental ? "Analyzing new/changed papers" : "Analyzing papers",
           "corpus-group": "Grouping themes",
-          "corpus-reduce": "Synthesizing themes",
+          "corpus-reduce": incremental ? "Updating review" : "Synthesizing themes",
           "corpus-verify": "Verifying claims",
           "corpus-answer": "Preparing answer",
         };

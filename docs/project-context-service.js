@@ -48,6 +48,8 @@
     /\b(?:fail(?:ed|ure)?|incomplete|remaining|missing|left(?:over)?|not analyzed|needed? to (?:reprocess|retry)|reprocess(?:ed|ing)?)\b[\s\S]{0,100}\b(?:papers?|articles?|sources?|maps?|analysis|review|summary)?\b|\b(?:papers?|articles?|sources?|maps?)\b[\s\S]{0,100}\b(?:fail(?:ed|ure)?|incomplete|remaining|missing|not analyzed|reprocess|retry)\b|失败(?:的)?(?:论文|文献|文章)|剩下.{0,12}(?:论文|文献|文章|篇)|未分析(?:的)?(?:论文|文献|文章)|重新处理(?:的)?(?:论文|文献|文章)/i;
   const CORPUS_RECOVERY_ACTION_PATTERN =
     /\b(?:retry|reprocess|reanaly[sz]e|analy[sz]e the remaining|include|add)\b[\s\S]{0,140}\b(?:failed|remaining|missing|left(?:over)?|those|them|two|papers?|articles?|review|summary)\b|\b(?:failed|remaining|missing|left(?:over)?|those|them|two|papers?|articles?)\b[\s\S]{0,140}\b(?:retry|reprocess|reanaly[sz]e|include|add)\b|把.*(?:剩下|失败|未分析).*(?:分析|处理|加入|纳入)|把失败的文章重新处理|重新(?:分析|处理).*(?:论文|文献|文章)/i;
+  const CORPUS_UPDATE_PATTERN =
+    /\b(?:update|refresh|revise|regenerate)\b[\s\S]{0,120}\b(?:literature|corpus|review|summary|synthesis)\b|\b(?:include|incorporate|consider|take into account|add)\b[\s\S]{0,120}\b(?:new|newly added|recently added|additional|uploaded)\b[\s\S]{0,80}\b(?:papers?|articles?|literature)\b|\b(?:added|uploaded)\b[\s\S]{0,80}\b(?:new|additional|more|several|some)?\s*(?:papers?|articles?)\b[\s\S]{0,120}\b(?:update|include|incorporate|consider|review|summary)\b|(?:新加|新增|又加|刚加|上传).{0,30}(?:论文|文献|文章).{0,50}(?:纳入|加入|考虑|更新|综述|总结)|(?:更新|刷新|修订).{0,20}(?:文献综述|综述|文献总结)|把新(?:加|增|上传).{0,20}(?:论文|文献|文章).{0,30}(?:纳入|加入|考虑)/i;
   const EXPERIMENT_QUESTION_PATTERN =
     /\b(experiment|experimental results?|workbook|spreadsheet|csv|xlsx|measurement|replicate|condition|metric|titer|yield|productivity|activity|assay|strain|internal data|our results?)\b|实验|结果|工作簿|表格|测量|重复|条件|滴度|产率|活性|菌株|内部数据/i;
   const EXPERIMENT_FOLLOW_UP_PATTERN =
@@ -132,6 +134,12 @@
     return CORPUS_RECOVERY_ACTION_PATTERN.test(question) &&
       (CORPUS_FAILURE_FOLLOW_UP_PATTERN.test(question) ||
         /\b(?:those|them|the two)\b|把.*(?:两篇|它们)/i.test(question));
+  }
+
+  function detectCorpusUpdateIntent(value) {
+    const question = String(value || "");
+    return CORPUS_UPDATE_PATTERN.test(question) &&
+      !detectCorpusFailureFollowUpIntent(question);
   }
 
   function extractExplicitMemory(value) {
@@ -913,8 +921,10 @@
       const corpusWideLiteratureRequest = detectCorpusWideLiteratureIntent(question);
       const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
       const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
+      const corpusUpdateRequest = detectCorpusUpdateIntent(question);
       const paperQuestion = corpusWideLiteratureRequest ||
         corpusFailureFollowUpRequest ||
+        corpusUpdateRequest ||
         questionMayNeedLiterature(question);
       const eligiblePaperIds = (this.literature?.documents || [])
         .filter((document) => document.isLiteraturePaper)
@@ -927,14 +937,32 @@
       const conversationContext = this.buildConversationContext(options.conversation);
       let corpusWorkflowStatus = null;
       let corpusRecoveryResult = null;
+      let corpusUpdateResult = null;
+      let latestCorpusWorkflowStatus = null;
       let corpusWorkflowLookupError = null;
-      if (corpusFailureFollowUpRequest && this.corpusWorkflows) {
+      if ((corpusFailureFollowUpRequest || corpusUpdateRequest) && this.corpusWorkflows) {
         try {
           const referencedWorkflowId = conversationContext.recentCorpusWorkflowIds[0] || "";
           corpusWorkflowStatus = await this.corpusWorkflows.getWorkflowStatus(
             referencedWorkflowId
           );
-          if (corpusRecoveryRequest && corpusWorkflowStatus.retryablePaperIds.length) {
+          if (corpusUpdateRequest) {
+            corpusUpdateResult = await this.corpusWorkflows.updateCorpusSynthesis(
+              corpusWorkflowStatus.workflowId,
+              {
+                ...options,
+                corpusScope: selectedPaperIds.length ? "selected" : "entire-project",
+                ...(selectedPaperIds.length ? { paperIds: selectedPaperIds } : {}),
+                updateRequest: question,
+              }
+            );
+            corpusWorkflowStatus = corpusUpdateResult.status;
+            internalStateUpdates.push(
+              corpusUpdateResult.reusedExistingSynthesis
+                ? "corpus-synthesis-reused"
+                : `corpus-synthesis-updated:${corpusWorkflowStatus.workflowId}`
+            );
+          } else if (corpusRecoveryRequest && corpusWorkflowStatus.retryablePaperIds.length) {
             corpusRecoveryResult = await this.corpusWorkflows.retryFailedMaps(
               corpusWorkflowStatus.workflowId,
               options
@@ -952,7 +980,19 @@
           }
         }
       }
-      const corpusWorkflowFollowUp = Boolean(corpusWorkflowStatus);
+      if (!corpusWorkflowStatus && this.corpusWorkflows) {
+        try {
+          latestCorpusWorkflowStatus = await this.corpusWorkflows.getWorkflowStatus("");
+        } catch (error) {
+          if (error?.code !== "CORPUS_WORKFLOW_NOT_FOUND") throw error;
+        }
+      } else {
+        latestCorpusWorkflowStatus = corpusWorkflowStatus;
+      }
+      const corpusWorkflowFollowUp = Boolean(
+        corpusWorkflowStatus &&
+        (corpusFailureFollowUpRequest || corpusUpdateRequest)
+      );
       const recentIds = conversationContext.recentlyDiscussedPaperIds.filter(
         (paperId) =>
           this.literature?.documents?.some(
@@ -973,6 +1013,7 @@
       const shouldSearchLiterature = paperQuestion || followUpNeedsLiterature;
       let matches = shouldSearchLiterature &&
         !corpusWideLiteratureRequest &&
+        !corpusUpdateRequest &&
         !corpusWorkflowFollowUp
         ? await this.matchPapers(question, {
             topK: Math.min(5, this.limits.maxEvidenceFiles),
@@ -993,12 +1034,18 @@
             paperIds: [...(corpusWorkflowStatus.coverage?.includedPaperIds || [])],
             useProjectMemory: false,
             memoryIds: [],
-            reason: corpusRecoveryRequest
-              ? "Retry failed maps in the referenced corpus workflow and revise its synthesis."
-              : "Inspect exact failure diagnostics for the referenced corpus workflow.",
-            mode: corpusRecoveryRequest ? "corpus-recovery" : "corpus-status",
+            reason: corpusUpdateRequest
+              ? "Deterministically diff the previous corpus snapshot against the current source registry and update the synthesis."
+              : corpusRecoveryRequest
+                ? "Retry failed maps in the referenced corpus workflow and revise its synthesis."
+                : "Inspect exact failure diagnostics for the referenced corpus workflow.",
+            mode: corpusUpdateRequest
+              ? "corpus-update"
+              : corpusRecoveryRequest
+                ? "corpus-recovery"
+                : "corpus-status",
           }
-        : corpusWideLiteratureRequest
+        : corpusWideLiteratureRequest || corpusUpdateRequest
         ? {
             useLiterature: true,
             paperIds: selectedPaperIds.length
@@ -1006,7 +1053,9 @@
               : [...eligiblePaperIds],
             useProjectMemory: false,
             memoryIds: [],
-            reason: "Explicit corpus-wide literature synthesis request.",
+            reason: corpusUpdateRequest
+              ? "No compatible prior workflow was available; use the current registry as corpus scope without semantic source discovery."
+              : "Explicit corpus-wide literature synthesis request.",
             mode: "corpus-intent",
           }
         : await this.decideContextRouting(
@@ -1025,8 +1074,12 @@
       let discoveryMode = "not-needed";
       if (corpusWorkflowFollowUp) {
         relevantPaperIds = [...(corpusWorkflowStatus.coverage?.includedPaperIds || [])];
-        discoveryMode = corpusRecoveryRequest ? "corpus-recovery" : "corpus-status";
-      } else if (corpusWideLiteratureRequest) {
+        discoveryMode = corpusUpdateRequest
+          ? "corpus-update"
+          : corpusRecoveryRequest
+            ? "corpus-recovery"
+            : "corpus-status";
+      } else if (corpusWideLiteratureRequest || corpusUpdateRequest) {
         relevantPaperIds = selectedPaperIds.length
           ? [...selectedPaperIds]
           : [...eligiblePaperIds];
@@ -1078,16 +1131,18 @@
         selectedPaperIds,
         relevantPaperIds,
         discoveryMode,
-        corpusWideRequest: corpusWideLiteratureRequest || corpusWorkflowFollowUp,
+        corpusWideRequest:
+          corpusWideLiteratureRequest || corpusUpdateRequest || corpusWorkflowFollowUp,
         corpusScope: corpusWorkflowFollowUp
           ? corpusWorkflowStatus.corpusScope || "entire-project"
-          : corpusWideLiteratureRequest
+          : corpusWideLiteratureRequest || corpusUpdateRequest
           ? selectedPaperIds.length
             ? "selected"
             : "entire-project"
           : null,
         corpusWorkflowId: corpusWorkflowStatus?.workflowId || null,
         corpusFollowUp: corpusWorkflowFollowUp,
+        corpusUpdateRequested: corpusUpdateRequest && corpusWorkflowFollowUp,
         corpusRecoveryRequested: corpusRecoveryRequest && corpusWorkflowFollowUp,
         workflowFailures: (corpusWorkflowStatus?.failures || []).map((failure) => ({
           paperId: failure.paperId,
@@ -1109,8 +1164,8 @@
           papersActuallyConsidered: [...relevantPaperIds],
         },
       };
-      if (corpusWorkflowStatus) {
-        context.corpusWorkflowStatus = corpusWorkflowStatus;
+      if (latestCorpusWorkflowStatus) {
+        context.corpusWorkflowStatus = latestCorpusWorkflowStatus;
       }
       context.experiments = {
         selectedExperimentIds,
@@ -1123,12 +1178,26 @@
         activePaperIds: relevantPaperIds,
         activeExperimentIds: [],
         sourceCounts,
+        paperSources: paperSources.map((source) => ({
+          sourceId: source.sourceId,
+          sourceKind: "paper",
+          path: source.path,
+          displayName: source.displayName,
+          extension: source.extension,
+          sizeBytes: Number(source.sizeBytes) || 0,
+          mtimeNs: Number(source.mtimeNs) || 0,
+          contentHash: source.contentHash || null,
+          catalogStatus: source.catalogStatus,
+          parseStatus: source.parseStatus,
+          indexStatus: source.indexStatus,
+          paperCardStatus: source.paperCardStatus,
+        })),
         availableSourceTools: Boolean(this.sourceSystem),
       };
 
       let paperEvidence = [];
-      if (corpusRecoveryResult?.workflow) {
-        const workflow = corpusRecoveryResult.workflow;
+      if (corpusUpdateResult?.workflow || corpusRecoveryResult?.workflow) {
+        const workflow = corpusUpdateResult?.workflow || corpusRecoveryResult.workflow;
         const workflowValue = workflow.resultHandle
           ? await this.sourceSystem.results.read(workflow.resultHandle)
           : workflow;
@@ -1153,11 +1222,17 @@
             ),
           },
         ];
-      } else if (corpusWideLiteratureRequest && relevantPaperIds.length && this.corpusWorkflows) {
-        const workflow = await this.corpusWorkflows.run(question, {
+      } else if ((corpusWideLiteratureRequest || corpusUpdateRequest) && relevantPaperIds.length && this.corpusWorkflows) {
+        const workflow = await this.corpusWorkflows.run(
+          corpusUpdateRequest && !corpusWorkflowStatus
+            ? "Summarize all papers and update the literature review."
+            : question,
+          {
           ...options,
           paperIds: relevantPaperIds,
-        });
+          corpusScope: selectedPaperIds.length ? "selected" : "entire-project",
+          }
+        );
         const workflowValue = workflow.resultHandle
           ? await this.sourceSystem.results.read(workflow.resultHandle)
           : workflow;
@@ -1258,7 +1333,7 @@
           `Corpus literature workflow coverage: ${coverage.papersSuccessfullyAnalyzed || 0}/${coverage.papersIncludedInSnapshot || 0} included paper(s) were successfully analyzed; ${coverage.papersFailed || 0} failed and ${coverage.papersMissing || 0} were missing.`
         );
       }
-      if (corpusWorkflowFollowUp) {
+      if (corpusFailureFollowUpRequest && corpusWorkflowFollowUp) {
         context.notices.push(
           "Exact corpus failure causes are available through get_corpus_workflow_status; do not infer a cause from aggregate coverage."
         );
@@ -1267,6 +1342,15 @@
         const update = corpusWorkflowStatus?.incrementalUpdate || {};
         context.notices.push(
           `Corpus recovery retried ${corpusRecoveryResult.retriedPaperIds.length} failed map task(s), recovered ${(update.recoveredPaperIds || []).length}, reused ${(update.reusedMapPaperIds || []).length} unchanged map(s), and incrementally updated grouping, global reduction, and verification.`
+        );
+      }
+      if (corpusUpdateResult) {
+        const diff = corpusUpdateResult.diff || {};
+        const update = corpusWorkflowStatus?.incrementalUpdate || {};
+        context.notices.push(
+          corpusUpdateResult.reusedExistingSynthesis
+            ? `The current registry matches workflow ${corpusUpdateResult.parentWorkflowId}; reused the existing synthesis and ${(corpusWorkflowStatus?.coverage?.analyzedPaperIds || []).length} unchanged map(s).`
+            : `Updated corpus workflow ${corpusWorkflowStatus?.workflowId} from parent ${corpusUpdateResult.parentWorkflowId}: added ${(diff.addedPaperIds || []).length}, removed ${(diff.removedPaperIds || []).length}, modified ${(diff.modifiedPaperIds || []).length}, reused ${(update.reusedMapPaperIds || []).length} existing map(s), and mapped ${(update.newlyMappedPaperIds || []).length} added/modified paper(s).`
         );
       }
       if (corpusFailureFollowUpRequest && corpusWorkflowLookupError) {
@@ -1278,6 +1362,7 @@
       if (
         !selectedPaperIds.length &&
         !relevantPaperIds.length &&
+        !corpusUpdateRequest &&
         LITERATURE_QUESTION_PATTERN.test(String(options.question || ""))
       ) {
         context.notices.push(
@@ -1999,6 +2084,7 @@
     detectCorpusWideLiteratureIntent,
     detectCorpusFailureFollowUpIntent,
     detectCorpusRecoveryIntent,
+    detectCorpusUpdateIntent,
     fileExtension,
     flattenWorkspaceTree,
     formatPaperSummary,

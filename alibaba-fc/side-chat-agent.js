@@ -743,7 +743,7 @@ function buildSideChatCatalog(knowledgeBase) {
     : "Current authoritative source registry: no discovered paper count was supplied for this turn.";
 
   return [
-    "Read-only workspace catalog of sources.",
+    "Workspace catalog of sources (metadata view; internal source-maintenance actions are authorized separately).",
     `Scope: ${scope}`,
     registryState,
     "The catalog is metadata, not evidence. Load only the records needed for the current question.",
@@ -926,16 +926,65 @@ function sourceScopedItems(knowledgeBase, category, selectionKey) {
   );
 }
 
+function registeredPaperItems(knowledgeBase) {
+  const registryPapers = Array.isArray(knowledgeBase.sourceMap?.paperSources)
+    ? knowledgeBase.sourceMap.paperSources
+    : [];
+  const bySourceId = new Map(
+    knowledgeBase.items
+      .filter((item) => item.metadata?.sourceId || item.metadata?.paperId)
+      .map((item) => [item.metadata?.sourceId || item.metadata?.paperId, item])
+  );
+  const papers = registryPapers.length
+    ? registryPapers.map((source) => {
+        const existing = bySourceId.get(source.sourceId);
+        if (existing) {
+          return {
+            ...existing,
+            metadata: { ...existing.metadata, ...source }
+          };
+        }
+        return {
+          id: `paper:${String(source.sourceId || "").slice(0, 120)}`,
+          name: String(source.displayName || source.path || "paper").slice(0, 180),
+          path: normalizePath(source.path),
+          category: "reference",
+          source: "source-registry",
+          status: String(source.indexStatus || source.catalogStatus || "discovered").slice(0, 80),
+          evidenceType: "inventory-only",
+          content: "",
+          metadata: { ...source, paperId: source.sourceId }
+        };
+      })
+    : knowledgeBase.items.filter((item) => {
+        const metadata = item.metadata || {};
+        const extension = String(metadata.extension || item.path.split(".").at(-1) || "")
+          .replace(/^\./, "")
+          .toLowerCase();
+        return item.category === "reference" && (
+          metadata.sourceKind === "paper" ||
+          (Boolean(metadata.paperId || metadata.sourceId) &&
+            (metadata.processor === "pdf" || extension === "pdf"))
+        );
+      });
+  const selected = new Set(
+    Array.isArray(knowledgeBase.sourceMap?.selectedPaperIds)
+      ? knowledgeBase.sourceMap.selectedPaperIds
+      : []
+  );
+  return papers.filter((item) =>
+    !selected.size ||
+    selected.has(item.metadata?.paperId) ||
+    selected.has(item.metadata?.sourceId)
+  );
+}
+
 function listPapers(args, knowledgeBase) {
   return listWorkspaceItems(
     { category: "reference", limit: args.limit || MAX_LIST_RESULTS },
     {
       ...knowledgeBase,
-      items: sourceScopedItems(
-        knowledgeBase,
-        "reference",
-        "selectedPaperIds"
-      )
+      items: registeredPaperItems(knowledgeBase)
     }
   );
 }
@@ -945,11 +994,7 @@ function searchPapers(args, knowledgeBase) {
     { query: args.query, category: "reference", limit: args.limit || 8 },
     {
       ...knowledgeBase,
-      items: sourceScopedItems(
-        knowledgeBase,
-        "reference",
-        "selectedPaperIds"
-      )
+      items: registeredPaperItems(knowledgeBase)
     }
   );
 }
@@ -1038,8 +1083,34 @@ function queryExperimentResults(args, knowledgeBase) {
 }
 
 function sourceCoverage(_args, knowledgeBase) {
+  const workflow = knowledgeBase.corpusWorkflowStatus;
   return JSON.stringify(
     {
+      source_registry: {
+        ...(knowledgeBase.sourceMap?.sourceCounts || {}),
+        authoritative: true
+      },
+      latest_corpus_workflow: workflow
+        ? {
+            workflowId: workflow.workflowId,
+            parentWorkflowId: workflow.parentWorkflowId || null,
+            corpusVersion: workflow.corpusVersion || null,
+            status: workflow.status,
+            papersInSnapshot: workflow.papersTotal,
+            papersSuccessfullyPrepared: workflow.papersPrepared,
+            papersSuccessfullyAnalyzed: workflow.papersAnalyzed,
+            papersFailed: workflow.failures?.length || 0,
+            coverage: workflow.coverage,
+            incrementalUpdate: workflow.incrementalUpdate || null
+          }
+        : null,
+      current_request: {
+        scope: knowledgeBase.scope,
+        literature: knowledgeBase.literature,
+        experiments: knowledgeBase.experiments
+      },
+      // Backward-compatible compact aliases for older callers. Workflow-derived
+      // analysis coverage remains authoritative only in latest_corpus_workflow.
       source_map: knowledgeBase.sourceMap,
       literature: knowledgeBase.literature,
       experiments: knowledgeBase.experiments,
@@ -1135,7 +1206,7 @@ const SIDE_CHAT_HOOKS = Object.freeze({
     (_toolCall, output) => {
       const value = String(output || "");
       if (value.length <= MAX_TOOL_RESULT_CHARACTERS) return value;
-      return `${value.slice(0, MAX_TOOL_RESULT_CHARACTERS)}\n[Result truncated; call the same read-only tool with a narrower query or later offset.]`;
+      return `${value.slice(0, MAX_TOOL_RESULT_CHARACTERS)}\n[Result truncated; call the same bounded tool with a narrower query or later offset.]`;
     }
   ]),
   Stop: Object.freeze([])
@@ -1219,7 +1290,7 @@ function compactSideChatAgentMessages(
   for (const index of toolIndexes.slice(0, -KEEP_RECENT_TOOL_RESULTS)) {
     const content = String(compacted[index].content || "");
     if (content.length <= 1200) continue;
-    compacted[index].content = `${content.slice(0, 700)}\n[Earlier read result compacted. Call the same read-only tool again to recover detail.]`;
+    compacted[index].content = `${content.slice(0, 700)}\n[Earlier tool result compacted. Call the same bounded tool again to recover detail.]`;
   }
 
   if (estimateMessageCharacters(compacted) <= characterLimit) return compacted;

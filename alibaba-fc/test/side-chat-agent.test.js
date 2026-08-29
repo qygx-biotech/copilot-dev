@@ -410,6 +410,83 @@ test("the current source registry overrides stale chat claims about missing nest
   );
 });
 
+test("list_papers and source_coverage use the authoritative registry and prior workflow independently", () => {
+  const paperSources = Array.from({ length: 36 }, (_, index) => ({
+    sourceId: `P${index + 1}`,
+    sourceKind: "paper",
+    path: `literature/imported/paper-${index + 1}.pdf`,
+    displayName: `paper-${index + 1}.pdf`,
+    extension: "pdf",
+    sizeBytes: 1000 + index,
+    mtimeNs: 2000,
+    catalogStatus: "present",
+    parseStatus: index < 32 ? "ready" : "not_started",
+    indexStatus: index < 32 ? "ready" : "not_started",
+    paperCardStatus: "absent",
+  }));
+  const inventory = [
+    ...paperSources.map((source) => ({
+      paperId: source.sourceId,
+      sourceId: source.sourceId,
+      sourceKind: "paper",
+      name: source.displayName,
+      relativePath: source.path,
+      extension: "pdf",
+      processor: "pdf",
+    })),
+    {
+      sourceId: "filesystem-artifact",
+      name: ".DS_Store",
+      relativePath: "literature/.DS_Store",
+      extension: "",
+      processor: null,
+    },
+  ];
+  const knowledgeBase = createSideChatKnowledgeBase({
+    localWorkspaceContext: {
+      sourceMap: {
+        sourceCounts: {
+          papersDiscovered: 36,
+          papersSearchable: 32,
+          papersWithCards: 0,
+        },
+        paperSources,
+      },
+      inventory,
+      corpusWorkflowStatus: {
+        workflowId: "W1",
+        status: "completed",
+        papersTotal: 32,
+        papersPrepared: 32,
+        papersAnalyzed: 32,
+        coverage: {
+          papersIncludedInSnapshot: 32,
+          papersSuccessfullyPrepared: 32,
+          papersSuccessfullyAnalyzed: 32,
+          papersFailed: 0,
+        },
+        failures: [],
+      },
+    },
+  });
+
+  const papers = JSON.parse(
+    executeSideChatTool(toolCall("list_papers", { limit: 50 }), knowledgeBase)
+  );
+  assert.equal(papers.total_matches, 36);
+  assert.ok(papers.items.every((item) => item.name !== ".DS_Store"));
+
+  const coverage = JSON.parse(
+    executeSideChatTool(toolCall("source_coverage", {}), knowledgeBase)
+  );
+  assert.equal(coverage.source_registry.papersDiscovered, 36);
+  assert.equal(coverage.source_registry.papersSearchable, 32);
+  assert.equal(coverage.latest_corpus_workflow.workflowId, "W1");
+  assert.equal(coverage.latest_corpus_workflow.papersInSnapshot, 32);
+  assert.equal(coverage.latest_corpus_workflow.papersSuccessfullyAnalyzed, 32);
+  assert.notEqual(coverage.latest_corpus_workflow.papersSuccessfullyAnalyzed, 0);
+});
+
 test("the pre-tool hook blocks action tools even when the model invents one", () => {
   const knowledgeBase = createSideChatKnowledgeBase(makeWorkspaceContext());
   const result = executeSideChatTool(

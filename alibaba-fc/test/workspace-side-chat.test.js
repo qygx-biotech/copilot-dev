@@ -190,6 +190,23 @@ test("corpus coverage survives sanitization and is rendered explicitly", () => {
   assert.match(appSource, /appendCorpusCoverage/);
 });
 
+test("Side Chat prompt permits internal maintenance without granting recommendation updates", () => {
+  const backendSource = fs.readFileSync(
+    path.join(__dirname, "../index.js"),
+    "utf8"
+  );
+  const agentSource = fs.readFileSync(
+    path.join(__dirname, "../side-chat-agent.js"),
+    "utf8"
+  );
+
+  assert.doesNotMatch(backendSource, /Read-only workspace/i);
+  assert.doesNotMatch(agentSource, /Read-only workspace/i);
+  assert.match(backendSource, /authorized to update internal knowledge state/i);
+  assert.match(backendSource, /must not commit, replace, publish, or export the Current Recommendation/i);
+  assert.match(backendSource, /deterministically diffs its stable source snapshot/i);
+});
+
 test("compact corpus workflow failures survive sanitization without exposing the journal", () => {
   const sanitized = sanitizeLocalWorkspaceContext({
     literature: {
