@@ -378,7 +378,7 @@ Validation results:
 - Packaged and relocated-ZIP smokes: Electron `44.0.0`, bundled Node `24.18.1`, packaged mode true, Fast marker matched, native diagnostics empty, and zero files resembling local model weights in a newly empty cache.
 - Package audit: 6,138 ASAR entries, 41 packaged native binaries, raw sqlite-vec library unpacked, compatibility dependencies/server trees excluded, zero direct Requesty paths, and zero packaged model-weight files. Native dependencies with published platform/architecture prebuilds are consumed directly instead of being recompiled against host Xcode or Visual Studio. Production dependency audits for desktop, Alibaba FC, and local backend each reported zero vulnerabilities.
 
-Final macOS ARM64 outputs:
+Latest locally validated macOS ARM64 outputs:
 
 - `out/make/BioDesign-0.1.4-arm64.dmg` — 217,597,485 bytes; SHA-256 `6bc36fad064b60fb992ef83e9e4d644433d4cd6e0017ca476fd6dfa164535095`.
 - `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.4.zip` — 217,997,353 bytes; SHA-256 `1130ec862a1ac729329345eb85a88c4a02aa3a9ed661853fc92666a5fb89d24c`.

@@ -1,6 +1,6 @@
 {
   "name": "biodesign-copilot-desktop",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Packaged Electron desktop runtime for BioDesign Copilot.",
   "author": "qygx-biotech",

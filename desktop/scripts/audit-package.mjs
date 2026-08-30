@@ -1,7 +1,10 @@
 import { access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
-import { normalizeArchiveEntry } from "./archive-paths.mjs";
+import {
+  archiveEntryForExtraction,
+  normalizeArchiveEntry,
+} from "./archive-paths.mjs";
 
 const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
@@ -39,7 +42,14 @@ if (!entries.includes("/local-backend/package.json")) {
   throw new Error("The reusable ESM QMD manager package boundary is missing.");
 }
 
-const sqliteVecLoader = asar.extractFile(archivePath, "node_modules/sqlite-vec/index.mjs").toString("utf8");
+const sqliteVecLoaderEntry = archiveEntries.find(
+  ({ normalized }) => normalized === "/node_modules/sqlite-vec/index.mjs"
+);
+if (!sqliteVecLoaderEntry) throw new Error("The packaged sqlite-vec loader is missing.");
+const sqliteVecLoader = asar.extractFile(
+  archivePath,
+  archiveEntryForExtraction(sqliteVecLoaderEntry.raw)
+).toString("utf8");
 if (!sqliteVecLoader.includes("app.asar.unpacked")) {
   throw new Error("The packaged sqlite-vec loader does not translate the ASAR native-library path.");
 }
@@ -55,7 +65,7 @@ const textExtensions = new Set([".cjs", ".html", ".js", ".json", ".mjs"]);
 const suspicious = [];
 for (const { raw, normalized: entry } of archiveEntries) {
   if (!textExtensions.has(path.extname(entry))) continue;
-  const bytes = asar.extractFile(archivePath, raw.replace(/^[/\\]+/, ""));
+  const bytes = asar.extractFile(archivePath, archiveEntryForExtraction(raw));
   if (bytes.byteLength > 10 * 1024 * 1024) continue;
   const text = bytes.toString("utf8");
   if (/https?:\/\/[^\s"']*requesty\.ai/i.test(text) || /REQUESTY_API_KEY\s*[:=]/.test(text)) {

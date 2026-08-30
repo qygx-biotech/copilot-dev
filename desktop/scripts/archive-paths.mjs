@@ -4,3 +4,7 @@ export function normalizeArchiveEntry(value) {
     .replace(/^\/+/, "");
   return `/${relative}`;
 }
+
+export function archiveEntryForExtraction(value) {
+  return String(value || "").replace(/^[/\\]+/, "");
+}
