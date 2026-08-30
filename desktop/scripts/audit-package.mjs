@@ -1,6 +1,7 @@
 import { access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { normalizeArchiveEntry } from "./archive-paths.mjs";
 
 const require = createRequire(import.meta.url);
 const asar = require("@electron/asar");
@@ -11,7 +12,11 @@ const resourcesRoot = process.platform === "darwin"
 const archivePath = path.join(resourcesRoot, "app.asar");
 await access(archivePath);
 
-const entries = asar.listPackage(archivePath);
+const archiveEntries = asar.listPackage(archivePath).map((raw) => ({
+  raw,
+  normalized: normalizeArchiveEntry(raw),
+}));
+const entries = archiveEntries.map(({ normalized }) => normalized);
 const localModelWeights = entries.filter((entry) => /\.(?:gguf|safetensors)$/i.test(entry));
 if (localModelWeights.length) {
   throw new Error(`Local model weights were packaged: ${localModelWeights.join(", ")}`);
@@ -48,9 +53,9 @@ await access(sqliteVecLibrary);
 
 const textExtensions = new Set([".cjs", ".html", ".js", ".json", ".mjs"]);
 const suspicious = [];
-for (const entry of entries) {
+for (const { raw, normalized: entry } of archiveEntries) {
   if (!textExtensions.has(path.extname(entry))) continue;
-  const bytes = asar.extractFile(archivePath, entry.replace(/^\//, ""));
+  const bytes = asar.extractFile(archivePath, raw.replace(/^[/\\]+/, ""));
   if (bytes.byteLength > 10 * 1024 * 1024) continue;
   const text = bytes.toString("utf8");
   if (/https?:\/\/[^\s"']*requesty\.ai/i.test(text) || /REQUESTY_API_KEY\s*[:=]/.test(text)) {

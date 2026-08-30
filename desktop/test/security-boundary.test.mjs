@@ -3,8 +3,20 @@ import { test } from "node:test";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeArchiveEntry } from "../scripts/archive-paths.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+test("package audit normalizes ASAR entry separators before policy checks", () => {
+  assert.equal(
+    normalizeArchiveEntry("\\local-backend\\package.json"),
+    "/local-backend/package.json"
+  );
+  assert.equal(
+    normalizeArchiveEntry("/local-backend/package.json"),
+    "/local-backend/package.json"
+  );
+});
 
 async function source(relativePath) {
   return readFile(path.join(repositoryRoot, relativePath), "utf8");
