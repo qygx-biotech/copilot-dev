@@ -46,6 +46,10 @@ function pathInside(root, candidate) {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+function portableProjectPath(root, candidate) {
+  return path.relative(root, candidate).split(path.sep).join(path.posix.sep);
+}
+
 function frontmatterValue(text, key) {
   const match = String(text || "").match(
     new RegExp(`^${key.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}:\\s*[\"']?([^\\n\"']+)`, "m")
@@ -249,7 +253,7 @@ export class ProjectQmdManager {
       qmdPackageVersion: QMD_PACKAGE_VERSION,
       embeddingModelId: this.embedModel,
       embeddingModelVersion: this.embedModel.split("/").at(-1),
-      dbPath: path.relative(this.projectRoot, this.dbPath),
+      dbPath: portableProjectPath(this.projectRoot, this.dbPath),
       collections: Object.keys(KNOWLEDGE_COLLECTIONS),
       ...patch,
       updatedAt: this.now().toISOString(),

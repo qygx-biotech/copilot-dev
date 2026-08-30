@@ -380,8 +380,8 @@ Validation results:
 
 Final macOS ARM64 outputs:
 
-- `out/make/BioDesign-0.1.1-arm64.dmg` — 217,597,313 bytes; SHA-256 `e8a290da91722732b03149a93b7bfb69891f6fcd15faa05b3c1f69aaf4aac179`.
-- `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.1.zip` — 217,998,051 bytes; SHA-256 `77d24f89c2ba2bf747789fa7264677306b7f5c8eb13816ee96bcd9882b12a005`.
+- `out/make/BioDesign-0.1.2-arm64.dmg` — 217,597,476 bytes; SHA-256 `1436ef7cf0a5bea5293a15fe5a981c5d25c356fc71bd2c265f222dbce5872f9d`.
+- `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.2.zip` — 217,997,839 bytes; SHA-256 `5f7c1276a6ab6f6cf1cd4297aebdf3492ea105aa27b6b3a8c8d9d071b5d84ebc`.
 
 This local build is ad-hoc/unsigned and not notarized. Public macOS distribution requires an Apple Developer identity/notarization, and Windows code signing requires separate signing credentials. The tag-triggered GitHub workflow performs Windows x64 packaging and execution validation on `windows-latest` before it creates a draft prerelease. Live production login/Requesty calls were not made without deployment/account credentials; authenticated FC, Requesty-only, failure, cache, and native-PDF contracts were exercised with repository mocks. Therefore checklist item 39 remains externally blocked and this document does not claim live-cloud completion.
 

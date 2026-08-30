@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -51,5 +51,9 @@ test("real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper m
   assert.match(search.results[0].matchedSections[0].qmdDoc, /qmd:\/\/literature-evidence/);
   const status = await manager.status();
   assert.equal(status.qmdStatus.totalDocuments, 1);
-  assert.match(status.dbPath, /\.biodesign\/knowledge\/qmd\/index\.sqlite$/);
+  const canonicalRoot = await realpath(projectRoot);
+  assert.equal(
+    path.relative(canonicalRoot, status.dbPath),
+    path.join(".biodesign", "knowledge", "qmd", "index.sqlite")
+  );
 });
