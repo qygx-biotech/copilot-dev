@@ -22,6 +22,15 @@
     maxRouterQueryCharacters: 24000,
   });
   const PAPER_CARD_VERSION = 1;
+  const PAPER_CARD_PROMPT_VERSION = 1;
+  const makePaperCardCacheKey = sourceSystemApi.paperCardCacheKey || ((input = {}) =>
+    JSON.stringify({
+      version: 1,
+      contentHash: String(input.contentHash || ""),
+      schemaVersion: Number(input.schemaVersion) || 0,
+      model: String(input.model || "unspecified"),
+      promptVersion: String(input.promptVersion || "unspecified"),
+    }));
 
   class LiteratureError extends Error {
     constructor(code, message, cause = null) {
@@ -411,15 +420,45 @@
       return data.routing;
     }
 
-    async request(path, body, signal) {
+    async getKnowledgeRetrievalConfig(signal) {
+      return this.request("/api/knowledge/config", undefined, signal, "GET");
+    }
+
+    async planKnowledgeSearch(payload, signal) {
+      return this.request(
+        "/api/knowledge/plan-search",
+        {
+          query: payload.query,
+          intent: payload.intent,
+        },
+        signal
+      );
+    }
+
+    async rerankKnowledgeCandidates(payload, signal) {
+      return this.request(
+        "/api/knowledge/rerank",
+        {
+          query: payload.query,
+          intent: payload.intent,
+          candidates: payload.candidates,
+        },
+        signal
+      );
+    }
+
+    async request(path, body, signal, method = "POST") {
       let lastError;
       for (let attempt = 0; attempt < 2; attempt += 1) {
         assertNotAborted(signal);
         try {
           const response = await this.fetch(`${this.baseUrl}${path}`, {
-            method: "POST",
-            headers: { ...this.getHeaders(), "Content-Type": "application/json" },
-            body: JSON.stringify(body),
+            method,
+            headers: {
+              ...this.getHeaders(),
+              ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+            },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             signal,
           });
           if (response.status === 401) {
@@ -471,6 +510,7 @@
       this.documents = [];
       this.sourceSystem = options.sourceSystem || sourceSystemApi.createSourceSystem?.({
         workspace: this.workspace,
+        knowledgeService: options.knowledgeService || null,
         cryptoProvider: this.cryptoProvider,
         spreadsheetProvider: options.spreadsheetProvider || root.XLSX,
         now: this.now,
@@ -535,6 +575,8 @@
         hashStatus: document.hashStatus || "absent",
         parseStatus: document.parseStatus || "not_started",
         indexStatus: document.indexStatus || "not_started",
+        qmdLexStatus: document.qmdLexStatus || "not_started",
+        qmdVectorStatus: document.qmdVectorStatus || "not_started",
         status: document.status,
         summaryPath: document.summaryPath,
         paperCardPath: document.paperCardPath || document.summaryPath,
@@ -586,6 +628,17 @@
       const reconciliation = await this.sourceRegistry.reconcile(tree, {
         legacyDocuments: previous,
       });
+      try {
+        await this.sourceSystem?.knowledgeLifecycle?.reconcile(
+          reconciliation.changes
+        );
+      } catch (error) {
+        console.warn("knowledge_reconciliation_failed", {
+          code: error?.code || error?.name || "KNOWLEDGE_RECONCILIATION_FAILED",
+          message: String(error?.message || error).slice(0, 300),
+          fallback: "source-registry-and-legacy-retrieval",
+        });
+      }
       const previousById = new Map(previous.map((document) => [document.id, document]));
       const previousByPath = new Map(
         previous.map((document) => [document.relativePath, document])
@@ -623,6 +676,8 @@
           hashStatus: source.hashStatus,
           parseStatus: source.parseStatus,
           indexStatus: source.indexStatus,
+          qmdLexStatus: source.qmdLexStatus || "not_started",
+          qmdVectorStatus: source.qmdVectorStatus || "not_started",
           status: failed ? "failed" : stale ? "stale" : cardReady ? "ready" : "pending",
           summaryPath,
           paperCardPath: summaryPath,
@@ -736,6 +791,15 @@
         source.legacy.discovery = null;
         await this.sourceRegistry.persist();
       }
+      await this.sourceSystem?.knowledgeLifecycle?.removePaperCardArtifact(
+        documentId
+      ).catch((error) => {
+        console.warn("paper_card_knowledge_removal_failed", {
+          paperId: documentId,
+          code: error?.code || error?.name || "QMD_UPDATE_FAILED",
+          message: String(error?.message || error).slice(0, 300),
+        });
+      });
       document.status = "pending";
       document.paperCardStatus = "pending";
       document.paperCardVersion = 0;
@@ -963,6 +1027,13 @@
           truncated: paperArtifact.truncated || chunkResult.truncated,
         },
         model: synthesized.model || null,
+        promptVersion: PAPER_CARD_PROMPT_VERSION,
+        cacheKey: makePaperCardCacheKey({
+          contentHash,
+          schemaVersion: PAPER_CARD_VERSION,
+          model: synthesized.model || null,
+          promptVersion: PAPER_CARD_PROMPT_VERSION,
+        }),
         title:
           paperArtifact.metadataTitle || normalizeCardText(synthesized.title) || null,
         authors: normalizeCardList(synthesized.authors),
@@ -1017,7 +1088,8 @@
         path,
         schemaVersion: PAPER_CARD_VERSION,
         model: synthesized.model || null,
-        promptVersion: 1,
+        promptVersion: PAPER_CARD_PROMPT_VERSION,
+        cacheKey: card.cacheKey,
       };
     }
 

@@ -1,5 +1,10 @@
 node_modules/
+out/
+docs/vendor/
+cache/electron-gyp/
 alibaba-fc/node_modules/
+alibaba-fc/shared/
+alibaba-fc/Archive*.zip
 worker/node_modules/
 .wrangler/
 worker/.wrangler/

@@ -6,8 +6,12 @@
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
+    "sync:shared": "node scripts/sync-shared.mjs",
+    "prestart": "npm run sync:shared",
     "start": "node src/index.js",
-    "check": "node --check index.js && node --check side-chat-agent.js && node --check src/index.js && node --check ../docs/workspace-manager.js && node --check ../docs/source-system.js && node --check ../docs/literature-module.js && node --check ../docs/project-context-service.js && node --check ../docs/app.js",
+    "precheck": "npm run sync:shared",
+    "check": "node --check index.js && node --check side-chat-agent.js && node --check src/index.js && node --check ../docs/workspace-manager.js && node --check ../docs/knowledge-service.js && node --check ../docs/source-system.js && node --check ../docs/literature-module.js && node --check ../docs/project-context-service.js && node --check ../docs/app.js",
+    "pretest": "npm run sync:shared",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

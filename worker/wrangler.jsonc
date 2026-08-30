@@ -3,9 +3,6 @@
   "name": "biodesign-copilot-worker",
   "main": "src/index.js",
   "compatibility_date": "2026-06-30",
-  "vars": {
-    "REQUESTY_MODEL": "google/gemma-4-31b-it"
-  },
   "observability": {
     "enabled": true
   }

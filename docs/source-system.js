@@ -13,6 +13,7 @@
   const CORPUS_MAP_SCHEMA_VERSION = 2;
   const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
   const NATIVE_PDF_PROMPT_VERSION = "requesty-native-pdf-v1";
+  const PAPER_CARD_CACHE_KEY_VERSION = 1;
   const DEFAULT_CORPUS_PREPARE_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_ATTEMPTS = 3;
@@ -22,6 +23,23 @@
   const RESULT_DIRECTORY = ".biodesign/results";
   const WORKFLOW_DIRECTORY = ".biodesign/workflows";
   const ARTIFACT_DIRECTORY = ".biodesign/sources/artifacts";
+  const KNOWLEDGE_DIRECTORY = ".biodesign/knowledge";
+  const KNOWLEDGE_PATHS = Object.freeze({
+    literatureEvidence: `${KNOWLEDGE_DIRECTORY}/literature`,
+    paperCards: `${KNOWLEDGE_DIRECTORY}/paper_cards`,
+    topics: `${KNOWLEDGE_DIRECTORY}/topics`,
+    syntheses: `${KNOWLEDGE_DIRECTORY}/syntheses`,
+    experimentNotes: `${KNOWLEDGE_DIRECTORY}/experiment_notes`,
+    projectMemory: `${KNOWLEDGE_DIRECTORY}/memory`,
+  });
+  const KNOWLEDGE_COLLECTIONS = Object.freeze({
+    literatureEvidence: "literature-evidence",
+    paperCards: "paper-cards",
+    topics: "topics",
+    syntheses: "syntheses",
+    experimentNotes: "experiment-notes",
+    projectMemory: "project-memory",
+  });
   const PAPER_EXTENSIONS = new Set(["pdf"]);
   const EXPERIMENT_EXTENSIONS = new Set(["csv", "tsv", "xlsx", "xls", "txt"]);
   const READINESS_CAPABILITIES = Object.freeze({
@@ -42,6 +60,16 @@
     yield: ["yield"],
     productivity: ["productivity"],
   });
+
+  function paperCardCacheKey(input = {}) {
+    return JSON.stringify({
+      version: PAPER_CARD_CACHE_KEY_VERSION,
+      contentHash: String(input.contentHash || ""),
+      schemaVersion: Number(input.schemaVersion) || 0,
+      model: String(input.model || "unspecified"),
+      promptVersion: String(input.promptVersion || "unspecified"),
+    });
+  }
   const ToolEffect = Object.freeze({
     INFORMATIONAL: "informational",
     INTERNAL_STATE: "internal_state",
@@ -209,6 +237,556 @@
       hash = Math.imul(hash, 0x01000193) >>> 0;
     }
     return hash.toString(16).padStart(8, "0");
+  }
+
+  function markdownScalar(value) {
+    if (value === null || value === undefined || value === "") return "null";
+    return JSON.stringify(String(value));
+  }
+
+  function markdownList(key, values) {
+    const items = uniqueStrings(asList(values), 500);
+    if (!items.length) return `${key}: []`;
+    return [
+      `${key}:`,
+      ...items.map((item) => `  - ${markdownScalar(item)}`),
+    ].join("\n");
+  }
+
+  function markdownSection(title, value) {
+    const text = Array.isArray(value)
+      ? value.filter(Boolean).map((item) => `- ${String(item).trim()}`).join("\n")
+      : String(value || "").trim();
+    return text ? `# ${title}\n\n${text}` : "";
+  }
+
+  function renderPaperEvidenceMarkdown(source, artifact) {
+    const discovery = source.legacy?.discovery || {};
+    const lines = [
+      "---",
+      `source_id: ${markdownScalar(source.sourceId)}`,
+      "source_kind: paper",
+      `source_file: ${markdownScalar(source.path)}`,
+      `content_hash: ${markdownScalar(source.contentHash)}`,
+      `title: ${markdownScalar(artifact.metadataTitle || discovery.title || source.displayName)}`,
+      markdownList("authors", discovery.authors),
+      `year: ${Number.isInteger(discovery.year) ? discovery.year : "null"}`,
+      `doi: ${markdownScalar((discovery.identifiers || []).find((item) => /^10\./.test(item)))}`,
+      "document_version: 1",
+      `extraction_version: ${markdownScalar(artifact.extractorVersion || SOURCE_EXTRACTOR_VERSION)}`,
+      `page_count: ${Number(artifact.pageCount) || "null"}`,
+      "authoritative: false",
+      "---",
+      "",
+      `# ${artifact.metadataTitle || discovery.title || source.displayName}`,
+      "",
+      "> Derived searchable representation. The original source file remains authoritative.",
+    ];
+    for (const page of artifact.pages || []) {
+      lines.push("", `## Page ${Number(page.page) || 1}`, "", String(page.text || "").trim());
+    }
+    return `${lines.join("\n").trim()}\n`;
+  }
+
+  function renderPaperCardMarkdown(source, card) {
+    const lines = [
+      "---",
+      `paper_id: ${markdownScalar(source.sourceId)}`,
+      `content_hash: ${markdownScalar(source.contentHash)}`,
+      `title: ${markdownScalar(card.title || source.displayName)}`,
+      `year: ${Number.isInteger(card.year) ? card.year : "null"}`,
+      markdownList("organisms", card.organisms),
+      markdownList("genes", card.genes),
+      markdownList("proteins", card.proteins),
+      markdownList("metabolites", card.metabolites),
+      markdownList("topics", card.topics || card.keywords),
+      `card_schema_version: ${Number(card.paperCardVersion) || 1}`,
+      `model: ${markdownScalar(card.model)}`,
+      "authoritative: false",
+      "---",
+      "",
+      markdownSection("Research Question", card.researchQuestion),
+      markdownSection("Main Findings", card.mainFindings || card.keyResults),
+      markdownSection("Methods", card.methods || card.methodsSummary),
+      markdownSection("Limitations", card.limitations),
+      markdownSection("Short Summary", card.shortSummary || card.summary),
+      markdownSection(
+        "Evidence Links",
+        uniqueStrings(card.evidenceRefs || card.evidence_refs, 100)
+      ),
+    ].filter(Boolean);
+    return `${lines.join("\n\n").trim()}\n`;
+  }
+
+  function renderExperimentNoteMarkdown(source, artifact) {
+    const sheetNames = (artifact.sheets || []).map((sheet) => sheet.name);
+    const headers = uniqueStrings(
+      (artifact.sheets || []).flatMap((sheet) =>
+        Array.isArray(sheet.rows?.[0]) ? sheet.rows[0].map(String) : []
+      ),
+      200
+    );
+    const entities = {
+      proteins: uniqueStrings((artifact.records || []).flatMap((record) => record.entities?.proteins || []), 100),
+      genes: uniqueStrings((artifact.records || []).flatMap((record) => record.entities?.genes || []), 100),
+      mutations: uniqueStrings((artifact.records || []).flatMap((record) => record.entities?.mutations || []), 100),
+      strains: uniqueStrings((artifact.records || []).flatMap((record) => record.entities?.strains || []), 100),
+    };
+    return `${[
+      "---",
+      `experiment_source_id: ${markdownScalar(source.sourceId)}`,
+      `source_file: ${markdownScalar(source.path)}`,
+      `content_hash: ${markdownScalar(source.contentHash)}`,
+      markdownList("experiment_ids", (artifact.records || []).map((record) => record.experimentId)),
+      markdownList("entities", Object.values(entities).flat()),
+      markdownList("fields", headers),
+      "authoritative: false",
+      "numerical_truth: structured_experiment_store",
+      "---",
+      "",
+      `# Experiment Source — ${source.displayName}`,
+      "",
+      `This derived descriptor covers ${artifact.records?.length || 0} normalized record(s) across ${sheetNames.length || 0} sheet(s).`,
+      "",
+      "# Sheets",
+      "",
+      ...(sheetNames.length ? sheetNames.map((name) => `- ${name}`) : ["- None detected"]),
+      "",
+      "# Fields represented",
+      "",
+      ...(headers.length ? headers.map((header) => `- ${header}`) : ["- None detected"]),
+      "",
+      "# Biological entities represented",
+      "",
+      ...Object.entries(entities).flatMap(([kind, values]) =>
+        values.length ? [`## ${kind}`, "", ...values.map((value) => `- ${value}`), ""] : []
+      ),
+      "# Provenance",
+      "",
+      "Exact numerical values remain in the normalized structured experiment records and the original source file.",
+    ].join("\n").trim()}\n`;
+  }
+
+  function renderMemoryMarkdown(record) {
+    return `${[
+      "---",
+      `memory_id: ${markdownScalar(record.memoryId)}`,
+      `type: ${markdownScalar(record.kind)}`,
+      `created_at: ${markdownScalar(record.createdAt)}`,
+      markdownList("source_refs", record.sourceIds),
+      markdownList("experiment_refs", record.experimentIds),
+      `status: ${markdownScalar(record.status)}`,
+      "---",
+      "",
+      `# ${String(record.kind || "Project memory").replace(/_/g, " ")}`,
+      "",
+      String(record.text || "").trim(),
+    ].join("\n").trim()}\n`;
+  }
+
+  function renderSynthesisMarkdown(journal) {
+    const findings = journal.reduction?.findings || [];
+    const themes = journal.reduction?.themes || [];
+    const sourceVersions = Object.fromEntries(
+      Object.values(journal.maps || {}).map((mapped) => [
+        mapped.paperId,
+        mapped.contentHash,
+      ])
+    );
+    return `${[
+      "---",
+      `synthesis_id: ${markdownScalar(journal.workflowId)}`,
+      "type: literature_review",
+      `query: ${markdownScalar(journal.question)}`,
+      `normalized_query_signature: ${markdownScalar(journal.normalizedSynthesisSignature || journal.normalizedQuestion)}`,
+      `paper_count: ${Number(journal.coverage?.papersSuccessfullyAnalyzed) || 0}`,
+      `corpus_version: ${markdownScalar(journal.corpusVersion)}`,
+      `parent_synthesis_id: ${markdownScalar(journal.parentWorkflowId)}`,
+      `synthesis_status: ${markdownScalar(journal.status)}`,
+      `stale_reason: ${markdownScalar(journal.staleReason)}`,
+      `created_at: ${markdownScalar(journal.createdAt)}`,
+      `updated_at: ${markdownScalar(journal.updatedAt)}`,
+      markdownList("source_snapshot", (journal.snapshot || []).map((entry) => entry.sourceId)),
+      markdownList("topic_ids", themes.map((theme) => topicSlug(theme.theme))),
+      `source_versions_json: ${markdownScalar(JSON.stringify(sourceVersions))}`,
+      `verification_status: ${markdownScalar(
+        journal.verification?.some((item) => item.status === "original-evidence-located")
+          ? "partially_verified"
+          : "unverified"
+      )}`,
+      "authoritative: false",
+      "---",
+      "",
+      "# Scope",
+      "",
+      String(journal.question || "Corpus literature synthesis."),
+      "",
+      "# Major Themes",
+      "",
+      ...(themes.length
+        ? themes.map((theme) => `- ${theme.theme} — ${theme.paperIds.length} paper(s)`)
+        : ["- No themes were produced."]),
+      "",
+      "# Major Findings",
+      "",
+      ...(findings.length
+        ? findings.map((finding) =>
+            `- ${finding.claim} [papers: ${(finding.supportingPaperIds || []).join(", ")}; evidence: ${(finding.evidenceRefs || []).join(", ")}]`
+          )
+        : ["- No structured findings were produced."]),
+      "",
+      "# Conflicting Evidence",
+      "",
+      ...(asList(journal.reduction?.conflictingEvidence).length
+        ? asList(journal.reduction.conflictingEvidence).map((item) => `- ${String(item)}`)
+        : ["- Not separately identified."]),
+      "",
+      "# Research Gaps",
+      "",
+      ...(asList(journal.reduction?.researchGaps).length
+        ? asList(journal.reduction.researchGaps).map((item) => `- ${String(item)}`)
+        : ["- Not separately identified."]),
+      "",
+      "# Source Coverage",
+      "",
+      `- Included: ${Number(journal.coverage?.papersIncludedInSnapshot) || 0}`,
+      `- Prepared: ${Number(journal.coverage?.papersSuccessfullyPrepared) || 0}`,
+      `- Analyzed: ${Number(journal.coverage?.papersSuccessfullyAnalyzed) || 0}`,
+      `- Failed: ${Number(journal.coverage?.papersFailed) || 0}`,
+      `- Missing: ${Number(journal.coverage?.papersMissing) || 0}`,
+      "",
+      "# Supporting Papers",
+      "",
+      ...((journal.coverage?.analyzedPaperIds || []).map((paperId) => `- ${paperId}`)),
+    ].join("\n").trim()}\n`;
+  }
+
+  function topicSlug(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 100) || `topic-${stableStringHash(value)}`;
+  }
+
+  function topicParents(label) {
+    const value = String(label || "").toLowerCase();
+    const parents = [];
+    if (/strain|protein|enzyme|pathway|regulat|transport|engineering/.test(value)) {
+      parents.push("strain-engineering");
+    }
+    if (/ferment|medium|feeding|temperature|\bph\b|oxygen/.test(value)) {
+      parents.push("fermentation");
+    }
+    if (/downstream|extract|purif|recovery/.test(value)) {
+      parents.push("downstream-processing");
+    }
+    return uniqueStrings(parents, 3);
+  }
+
+  function renderTopicMarkdown(topic) {
+    return `${[
+      "---",
+      `topic_id: ${markdownScalar(topic.topicId)}`,
+      markdownList("parent_topics", topic.parentTopicIds),
+      markdownList("paper_ids", topic.paperIds),
+      `summary_status: ${markdownScalar(topic.summaryStatus)}`,
+      `summary_version: ${markdownScalar(topic.summaryVersion)}`,
+      "authoritative: false",
+      "---",
+      "",
+      `# ${topic.label}`,
+      "",
+      String(topic.description || `Derived multi-label topic containing ${topic.paperIds.length} paper(s).`),
+      "",
+      "# Papers",
+      "",
+      ...(topic.paperIds.length ? topic.paperIds.map((paperId) => `- ${paperId}`) : ["- None"]),
+      "",
+      "# Current Topic Synthesis",
+      "",
+      topic.summary || "Not generated. Topic summaries are refreshed lazily.",
+    ].join("\n").trim()}\n`;
+  }
+
+  async function removeWorkspaceFileIfPresent(workspace, path) {
+    if (!path || typeof workspace?.fileExists !== "function") return false;
+    if (!(await workspace.fileExists(path))) return false;
+    if (typeof workspace.removeFile === "function") await workspace.removeFile(path);
+    return true;
+  }
+
+  class TopicKnowledgeService {
+    constructor(options) {
+      this.workspace = options.workspace;
+      this.knowledgeService = options.knowledgeService || null;
+      this.indexPath = `${KNOWLEDGE_PATHS.topics}/index.json`;
+      this.loaded = false;
+      this.topics = [];
+      this.now = options.now || (() => new Date());
+    }
+
+    async load() {
+      if (this.loaded) return this.topics;
+      if (await this.workspace.fileExists(this.indexPath)) {
+        const index = await this.workspace.readJson(this.indexPath);
+        this.topics = Array.isArray(index.topics) ? index.topics : [];
+      }
+      this.loaded = true;
+      return this.topics;
+    }
+
+    labelsFromCard(card) {
+      return uniqueStrings([
+        ...(card.topics || []),
+        ...(card.proteins || []).slice(0, 12),
+        ...(card.genes || []).slice(0, 12),
+        ...(card.metabolites || []).slice(0, 12),
+        ...(card.organisms || []).slice(0, 8),
+      ], 50);
+    }
+
+    ensureParentNode(topicId) {
+      const labels = {
+        "strain-engineering": "Strain Engineering",
+        fermentation: "Fermentation",
+        "downstream-processing": "Downstream Processing",
+      };
+      if (this.topics.some((topic) => topic.topicId === topicId)) return;
+      this.topics.push({
+        topicId,
+        label: labels[topicId] || topicId,
+        parentTopicIds: [],
+        paperIds: [],
+        summaryStatus: "stale",
+        summaryVersion: null,
+        summary: null,
+        updatedAt: nowIso(this.now),
+      });
+    }
+
+    async persist() {
+      await this.workspace.writeJson(this.indexPath, {
+        schemaVersion: 1,
+        topics: this.topics,
+        updatedAt: nowIso(this.now),
+      });
+    }
+
+    async renderAndIndex(topicIds = []) {
+      if (typeof this.workspace.writeFile !== "function") return;
+      const selected = topicIds.length
+        ? this.topics.filter((topic) => topicIds.includes(topic.topicId))
+        : this.topics;
+      for (const topic of selected) {
+        await this.workspace.writeFile(
+          `${KNOWLEDGE_PATHS.topics}/${topic.topicId}.md`,
+          renderTopicMarkdown(topic)
+        );
+      }
+      if (this.knowledgeService?.available) {
+        await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.topics, {
+          embed: false,
+        });
+      }
+    }
+
+    async pruneEmptyLeafTopics(topicIds = []) {
+      const retainedParentIds = new Set([
+        "strain-engineering",
+        "fermentation",
+        "downstream-processing",
+      ]);
+      const candidates = new Set(topicIds);
+      const removed = this.topics.filter((topic) =>
+        candidates.has(topic.topicId) &&
+        !retainedParentIds.has(topic.topicId) &&
+        !(topic.paperIds || []).length
+      );
+      if (!removed.length) return [];
+      const removedIds = new Set(removed.map((topic) => topic.topicId));
+      this.topics = this.topics.filter((topic) => !removedIds.has(topic.topicId));
+      for (const topicId of removedIds) {
+        await removeWorkspaceFileIfPresent(
+          this.workspace,
+          `${KNOWLEDGE_PATHS.topics}/${topicId}.md`
+        );
+      }
+      return [...removedIds];
+    }
+
+    async updatePaper(source, card) {
+      await this.load();
+      const labels = this.labelsFromCard(card);
+      const nextIds = new Set(labels.map(topicSlug));
+      const affected = new Set();
+      for (const topic of this.topics) {
+        if (!topic.paperIds.includes(source.sourceId) || nextIds.has(topic.topicId)) continue;
+        topic.paperIds = topic.paperIds.filter((paperId) => paperId !== source.sourceId);
+        topic.summaryStatus = "stale";
+        topic.updatedAt = nowIso(this.now);
+        affected.add(topic.topicId);
+        topic.parentTopicIds.forEach((parentId) => affected.add(parentId));
+      }
+      labels.forEach((label) => {
+        const topicId = topicSlug(label);
+        const parentTopicIds = topicParents(label);
+        parentTopicIds.forEach((parentId) => this.ensureParentNode(parentId));
+        let topic = this.topics.find((item) => item.topicId === topicId);
+        if (!topic) {
+          topic = {
+            topicId,
+            label,
+            parentTopicIds,
+            paperIds: [],
+            summaryStatus: "stale",
+            summaryVersion: null,
+            summary: null,
+            updatedAt: nowIso(this.now),
+          };
+          this.topics.push(topic);
+        }
+        topic.parentTopicIds = uniqueStrings([...topic.parentTopicIds, ...parentTopicIds], 10);
+        topic.paperIds = uniqueStrings([...topic.paperIds, source.sourceId], 10000);
+        topic.summaryStatus = "stale";
+        topic.updatedAt = nowIso(this.now);
+        affected.add(topicId);
+        topic.parentTopicIds.forEach((parentId) => {
+          const parent = this.topics.find((item) => item.topicId === parentId);
+          if (parent) {
+            parent.paperIds = uniqueStrings([...parent.paperIds, source.sourceId], 10000);
+            parent.summaryStatus = "stale";
+            parent.updatedAt = nowIso(this.now);
+          }
+          affected.add(parentId);
+        });
+      });
+      const removed = await this.pruneEmptyLeafTopics([...affected]);
+      removed.forEach((topicId) => affected.delete(topicId));
+      await this.persist();
+      await this.renderAndIndex([...affected]);
+      return [...affected];
+    }
+
+    async removePaper(paperId) {
+      await this.load();
+      const affected = [];
+      for (const topic of this.topics) {
+        if (!topic.paperIds.includes(paperId)) continue;
+        topic.paperIds = topic.paperIds.filter((value) => value !== paperId);
+        topic.summaryStatus = "stale";
+        topic.updatedAt = nowIso(this.now);
+        affected.push(topic.topicId, ...(topic.parentTopicIds || []));
+      }
+      if (!affected.length) return [];
+      const removed = await this.pruneEmptyLeafTopics(affected);
+      const removedIds = new Set(removed);
+      await this.persist();
+      const retained = uniqueStrings(affected, 1000).filter(
+        (topicId) => !removedIds.has(topicId)
+      );
+      await this.renderAndIndex(retained);
+      return uniqueStrings(affected, 1000);
+    }
+  }
+
+  class KnowledgeLifecycleService {
+    constructor(options) {
+      this.workspace = options.workspace;
+      this.knowledgeService = options.knowledgeService || null;
+      this.topics = options.topics;
+      this.registry = options.registry || null;
+      this.corpusWorkflows = options.corpusWorkflows || null;
+    }
+
+    async removePaperArtifacts(sourceId, options = {}) {
+      await this.removePaperEvidenceArtifact(sourceId, { update: false });
+      await this.removePaperCardArtifact(sourceId, { update: false });
+      if (options.invalidate !== false) {
+        await this.corpusWorkflows?.invalidateForSources?.(
+          [sourceId],
+          "source_version_changed_or_removed"
+        );
+      }
+    }
+
+    async removePaperEvidenceArtifact(sourceId, options = {}) {
+      await removeWorkspaceFileIfPresent(
+        this.workspace,
+        `${KNOWLEDGE_PATHS.literatureEvidence}/${sourceId}.md`
+      );
+      if (options.update !== false && this.knowledgeService?.available) {
+        await this.knowledgeService.indexDocuments(
+          KNOWLEDGE_COLLECTIONS.literatureEvidence
+        );
+      }
+    }
+
+    async removePaperCardArtifact(sourceId, options = {}) {
+      await removeWorkspaceFileIfPresent(
+        this.workspace,
+        `${KNOWLEDGE_PATHS.paperCards}/${sourceId}.md`
+      );
+      await this.topics?.removePaper(sourceId);
+      if (options.update !== false && this.knowledgeService?.available) {
+        await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.paperCards);
+      }
+    }
+
+    async removeExperimentArtifact(sourceId, options = {}) {
+      await removeWorkspaceFileIfPresent(
+        this.workspace,
+        `${KNOWLEDGE_PATHS.experimentNotes}/${sourceId}.md`
+      );
+      if (options.update !== false && this.knowledgeService?.available) {
+        await this.knowledgeService.indexDocuments(
+          KNOWLEDGE_COLLECTIONS.experimentNotes
+        );
+      }
+    }
+
+    async reconcile(changes = {}) {
+      const sourceIds = uniqueStrings([
+        ...(changes.dirty || []),
+        ...(changes.missing || []),
+      ], 10000);
+      if (!sourceIds.length) return { removedPaperIds: [], removedExperimentIds: [] };
+      const paperIds = [];
+      const experimentIds = [];
+      for (const sourceId of sourceIds) {
+        const source = this.registry?.get(sourceId, { includeMissing: true });
+        if (source?.sourceKind === "experiment") {
+          experimentIds.push(sourceId);
+          await this.removeExperimentArtifact(sourceId, { update: false });
+        } else {
+          paperIds.push(sourceId);
+          await this.removePaperArtifacts(sourceId, { invalidate: false });
+        }
+      }
+      if (this.knowledgeService?.available) {
+        const updates = [];
+        if (paperIds.length) {
+          updates.push(
+            this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.literatureEvidence),
+            this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.paperCards)
+          );
+        }
+        if (experimentIds.length) {
+          updates.push(
+            this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.experimentNotes)
+          );
+        }
+        await Promise.all(updates);
+      }
+      if (paperIds.length) {
+        await this.corpusWorkflows?.invalidateForSources?.(
+          paperIds,
+          "source_registry_changed"
+        );
+      }
+      return { removedPaperIds: paperIds, removedExperimentIds: experimentIds };
+    }
   }
 
   function uniqueStrings(values, limit = 100) {
@@ -468,6 +1046,8 @@
       catalogStatus: "discovered",
       parseStatus: "not_started",
       indexStatus: "not_started",
+      qmdLexStatus: "not_started",
+      qmdVectorStatus: "not_started",
       paperCardStatus: cardReady
         ? "ready"
         : ["failed", "stale"].includes(document.paperCardStatus)
@@ -530,7 +1110,13 @@
         };
         await this.workspace.writeJson(SOURCE_PATH, registry);
       }
-      this.records = Array.isArray(registry.sources) ? registry.sources : [];
+      this.records = (Array.isArray(registry.sources) ? registry.sources : []).map(
+        (source) => ({
+          ...source,
+          qmdLexStatus: source.qmdLexStatus || "not_started",
+          qmdVectorStatus: source.qmdVectorStatus || "not_started",
+        })
+      );
       this.metrics = { ...this.metrics, ...(registry.metrics || {}) };
       this.settings = {
         idleWarmingEnabled: false,
@@ -589,6 +1175,8 @@
         papersDiscovered: papers.length,
         papersSearchable: papers.filter((source) => source.indexStatus === "ready").length,
         papersWithCards: papers.filter((source) => source.paperCardStatus === "ready").length,
+        papersQmdLexReady: papers.filter((source) => source.qmdLexStatus === "ready").length,
+        papersQmdVectorReady: papers.filter((source) => source.qmdVectorStatus === "ready").length,
         experimentsDiscovered: experiments.length,
         experimentsReady: experiments.filter(
           (source) => source.structuredDataStatus === "ready"
@@ -640,6 +1228,8 @@
             catalogStatus: "discovered",
             parseStatus: "not_started",
             indexStatus: "not_started",
+            qmdLexStatus: "not_started",
+            qmdVectorStatus: "not_started",
             paperCardStatus: sourceKindFor(path) === "paper" ? "absent" : "not_applicable",
             structuredDataStatus:
               sourceKindFor(path) === "experiment" ? "not_started" : "not_applicable",
@@ -659,6 +1249,8 @@
           source.hashStatus = source.contentHash ? "dirty" : "absent";
           if (source.parseStatus === "ready") source.parseStatus = "stale";
           if (source.indexStatus === "ready") source.indexStatus = "stale";
+          if (source.qmdLexStatus === "ready") source.qmdLexStatus = "stale";
+          if (source.qmdVectorStatus === "ready") source.qmdVectorStatus = "stale";
           if (source.paperCardStatus === "ready") source.paperCardStatus = "stale";
           if (source.structuredDataStatus === "ready") source.structuredDataStatus = "stale";
           changes.dirty.push(source.sourceId);
@@ -685,6 +1277,8 @@
         source.hashStatus = source.contentHash ? "stale" : "absent";
         if (source.parseStatus !== "not_started") source.parseStatus = "stale";
         if (source.indexStatus !== "not_started") source.indexStatus = "stale";
+        if (source.qmdLexStatus !== "not_started") source.qmdLexStatus = "stale";
+        if (source.qmdVectorStatus !== "not_started") source.qmdVectorStatus = "stale";
         if (source.paperCardStatus !== "not_applicable") source.paperCardStatus = "stale";
         if (source.structuredDataStatus !== "not_applicable") {
           source.structuredDataStatus = "stale";
@@ -1199,6 +1793,9 @@
       this.parsePaper = options.parsePaper;
       this.spreadsheetProvider = options.spreadsheetProvider || root.XLSX;
       this.generatePaperCard = options.generatePaperCard || null;
+      this.knowledgeService = options.knowledgeService || null;
+      this.topicService = options.topicService || null;
+      this.knowledgeLifecycle = options.knowledgeLifecycle || null;
       this.now = options.now || (() => new Date());
       this.debounceMilliseconds = Number(options.debounceMilliseconds) || 750;
       this.metrics = {
@@ -1233,10 +1830,12 @@
         return source.hashStatus === "ready" && source.indexStatus === "ready";
       }
       if (capability === "paper_card") {
+        const artifact = source.artifacts?.paperCard;
         return (
           source.hashStatus === "ready" &&
           source.paperCardStatus === "ready" &&
-          source.artifacts?.paperCard?.contentHash === source.contentHash
+          artifact?.contentHash === source.contentHash &&
+          artifact.cacheKey === paperCardCacheKey(artifact)
         );
       }
       if (capability === "experiment_data") {
@@ -1258,6 +1857,7 @@
       return Boolean(
         artifact.path &&
         artifact.contentHash === source.contentHash &&
+        (capability !== "paper_card" || artifact.cacheKey === paperCardCacheKey(artifact)) &&
         (await this.workspace.fileExists(artifact.path))
       );
     }
@@ -1327,6 +1927,21 @@
       }
       if (this.capabilitySatisfied(source, capability)) {
         if (await this.cachedCapabilityAvailable(source, capability)) {
+          if (this.knowledgeService?.available) {
+            if (["full_text", "search"].includes(capability) &&
+              source.qmdLexStatus !== "ready") {
+              const artifact = await this.readPaperArtifact(source.sourceId);
+              await this.refreshPaperEvidenceKnowledge(source, artifact, requestContext);
+            } else if (capability === "paper_card" &&
+              !source.artifacts?.paperCardMarkdown?.path) {
+              const card = await this.workspace.readJson(source.artifacts.paperCard.path);
+              await this.refreshPaperCardKnowledge(source, card, requestContext);
+            } else if (capability === "experiment_data" &&
+              !source.artifacts?.experimentNote?.path) {
+              const artifact = await this.readExperimentArtifact(source.sourceId);
+              await this.refreshExperimentKnowledge(source, artifact, requestContext);
+            }
+          }
           this.metrics.cacheHits += 1;
           source.lastUsedAt = nowIso(this.now);
           await this.registry.persist();
@@ -1406,6 +2021,8 @@
         hashStatus: source.hashStatus,
         parseStatus: source.parseStatus,
         indexStatus: source.indexStatus,
+        qmdLexStatus: source.qmdLexStatus || "not_started",
+        qmdVectorStatus: source.qmdVectorStatus || "not_started",
         paperCardStatus: source.paperCardStatus,
         structuredDataStatus: source.structuredDataStatus,
         artifacts: source.artifacts || {},
@@ -1473,6 +2090,8 @@
         source.artifacts = {};
         source.parseStatus = "not_started";
         source.indexStatus = "not_started";
+        source.qmdLexStatus = "not_started";
+        source.qmdVectorStatus = "not_started";
         source.paperCardStatus = source.sourceKind === "paper" ? "absent" : "not_applicable";
         source.structuredDataStatus =
           source.sourceKind === "experiment" ? "not_started" : "not_applicable";
@@ -1510,6 +2129,11 @@
           "The source changed while it was being read. Retry after the copy or edit finishes."
         );
       }
+      if (contentChanged && source.sourceKind === "paper") {
+        await this.knowledgeLifecycle?.removePaperArtifacts(source.sourceId);
+      } else if (contentChanged && source.sourceKind === "experiment") {
+        await this.knowledgeLifecycle?.removeExperimentArtifact(source.sourceId);
+      }
       await this.registry.persist();
       return {
         source,
@@ -1520,6 +2144,122 @@
         hashPerformed: needsHash,
         contentChanged,
       };
+    }
+
+    async indexKnowledgeCollection(source, collection, requestContext = {}) {
+      if (!this.knowledgeService?.available) {
+        source.qmdLexStatus = "unavailable";
+        if (source.qmdVectorStatus !== "ready") source.qmdVectorStatus = "unavailable";
+        return { available: false };
+      }
+      try {
+        const embed = requestContext.generateEmbeddings === true ||
+          requestContext.knowledgeMode === "semantic";
+        const result = await this.knowledgeService.indexDocuments(collection, {
+          embed,
+          signal: requestContext.signal,
+        });
+        const embeddingErrors = (result?.embeddings || []).reduce(
+          (total, item) => total + Math.max(0, Number(item?.result?.errors) || 0),
+          0
+        );
+        source.qmdLexStatus = "ready";
+        source.qmdVectorStatus = embed
+          ? embeddingErrors ? "failed" : "ready"
+          : source.qmdVectorStatus === "ready" ? "ready" : "not_started";
+        source.knowledgeError = null;
+        return result;
+      } catch (error) {
+        source.qmdLexStatus = "failed";
+        source.qmdVectorStatus = "failed";
+        source.knowledgeError = compactError(error);
+        console.warn("qmd_collection_update_failed", {
+          sourceId: source.sourceId,
+          collection,
+          code: error?.code || error?.name || "QMD_UPDATE_FAILED",
+          message: String(error?.message || error).slice(0, 300),
+          fallback: "legacy-local-retrieval",
+        });
+        return { available: false, failed: true, error: source.knowledgeError };
+      }
+    }
+
+    async refreshPaperEvidenceKnowledge(source, paperArtifact, requestContext = {}) {
+      if (typeof this.workspace.writeFile !== "function") return null;
+      const path = `${KNOWLEDGE_PATHS.literatureEvidence}/${source.sourceId}.md`;
+      await this.workspace.writeFile(path, renderPaperEvidenceMarkdown(source, paperArtifact));
+      source.artifacts ||= {};
+      source.artifacts.knowledgeMarkdown = {
+        path,
+        contentHash: source.contentHash,
+        representationVersion: 1,
+        validationStatus: "validated",
+      };
+      await this.indexKnowledgeCollection(
+        source,
+        KNOWLEDGE_COLLECTIONS.literatureEvidence,
+        requestContext
+      );
+      return path;
+    }
+
+    async refreshPaperCardKnowledge(source, card, requestContext = {}) {
+      if (!card || typeof this.workspace.writeFile !== "function") return null;
+      const path = `${KNOWLEDGE_PATHS.paperCards}/${source.sourceId}.md`;
+      await this.workspace.writeFile(path, renderPaperCardMarkdown(source, card));
+      source.artifacts ||= {};
+      source.artifacts.paperCardMarkdown = {
+        path,
+        contentHash: source.contentHash,
+        cardSchemaVersion: Number(card.paperCardVersion) || 1,
+        validationStatus: "validated",
+      };
+      try {
+        if (this.knowledgeService?.available) {
+          await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.paperCards, {
+            embed: requestContext.generateEmbeddings === true,
+            signal: requestContext.signal,
+          });
+        }
+        await this.topicService?.updatePaper(source, card);
+      } catch (error) {
+        source.knowledgeError = compactError(error);
+        console.warn("paper_card_knowledge_update_failed", {
+          sourceId: source.sourceId,
+          code: error?.code || error?.name || "PAPER_CARD_KNOWLEDGE_FAILED",
+          message: String(error?.message || error).slice(0, 300),
+        });
+      }
+      return path;
+    }
+
+    async refreshExperimentKnowledge(source, artifact, requestContext = {}) {
+      if (typeof this.workspace.writeFile !== "function") return null;
+      const path = `${KNOWLEDGE_PATHS.experimentNotes}/${source.sourceId}.md`;
+      await this.workspace.writeFile(path, renderExperimentNoteMarkdown(source, artifact));
+      source.artifacts ||= {};
+      source.artifacts.experimentNote = {
+        path,
+        contentHash: source.contentHash,
+        representationVersion: 1,
+        validationStatus: "validated",
+      };
+      if (this.knowledgeService?.available) {
+        try {
+          await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.experimentNotes, {
+            embed: requestContext.generateEmbeddings === true,
+            signal: requestContext.signal,
+          });
+        } catch (error) {
+          source.knowledgeError = compactError(error);
+          console.warn("experiment_note_qmd_update_failed", {
+            sourceId: source.sourceId,
+            code: error?.code || error?.name || "QMD_UPDATE_FAILED",
+            message: String(error?.message || error).slice(0, 300),
+          });
+        }
+      }
+      return path;
     }
 
     async prepareOne(sourceId, capability, requestContext, report) {
@@ -1537,6 +2277,8 @@
         hashStatus: source.hashStatus,
         parseStatus: source.parseStatus,
         indexStatus: source.indexStatus,
+        qmdLexStatus: source.qmdLexStatus || "not_started",
+        qmdVectorStatus: source.qmdVectorStatus || "not_started",
         paperCardStatus: source.paperCardStatus,
         structuredDataStatus: source.structuredDataStatus,
         artifacts: JSON.parse(JSON.stringify(source.artifacts || {})),
@@ -1569,6 +2311,9 @@
       const needsExperiment = source.sourceKind === "experiment" && capability === "experiment_data";
       const artifactMatches = (artifact) =>
         artifact?.contentHash && artifact.contentHash === source.contentHash;
+      const paperCardArtifactMatches = (artifact) =>
+        artifactMatches(artifact) &&
+        artifact.cacheKey === paperCardCacheKey(artifact);
 
       if (!needsHash) {
         if (needsPaper && artifactMatches(source.artifacts?.paperText)) {
@@ -1578,7 +2323,10 @@
         if (needsExperiment && artifactMatches(source.artifacts?.experimentData)) {
           source.structuredDataStatus = "ready";
         }
-        if (capability === "paper_card" && artifactMatches(source.artifacts?.paperCard)) {
+        if (
+          capability === "paper_card" &&
+          paperCardArtifactMatches(source.artifacts?.paperCard)
+        ) {
           source.paperCardStatus = "ready";
         }
         if (this.capabilitySatisfied(source, capability)) {
@@ -1623,6 +2371,8 @@
         source.artifacts = {};
         source.parseStatus = "not_started";
         source.indexStatus = "not_started";
+        source.qmdLexStatus = "not_started";
+        source.qmdVectorStatus = "not_started";
         source.paperCardStatus = source.sourceKind === "paper" ? "absent" : "not_applicable";
         source.structuredDataStatus = source.sourceKind === "experiment" ? "not_started" : "not_applicable";
       }
@@ -1644,6 +2394,8 @@
 
       const artifactBase = sourceArtifactBase(source.sourceId, contentHash);
       let paperArtifact = null;
+      let experimentArtifact = null;
+      let generatedPaperCard = null;
       if (needsPaper) {
         if (artifactMatches(source.artifacts?.paperText)) {
           paperArtifact = await this.workspace.readJson(source.artifacts.paperText.path);
@@ -1679,6 +2431,7 @@
           this.metrics.experimentParseCalls += 1;
           const parseStarted = Date.now();
           const normalized = parseExperimentBytes(source, bytes, this.spreadsheetProvider);
+          experimentArtifact = normalized;
           this.metrics.experimentParseDurationMs += Date.now() - parseStarted;
           const path = `${artifactBase}/experiment-data.json`;
           await this.workspace.writeJson(path, normalized);
@@ -1689,12 +2442,16 @@
             schemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
             validationStatus: "validated",
           };
+        } else {
+          experimentArtifact = await this.workspace.readJson(
+            source.artifacts.experimentData.path
+          );
         }
         source.structuredDataStatus = "ready";
       }
 
       if (capability === "paper_card") {
-        if (!artifactMatches(source.artifacts?.paperCard)) {
+        if (!paperCardArtifactMatches(source.artifacts?.paperCard)) {
           if (typeof this.generatePaperCard !== "function") {
             throw new SourceSystemError("PAPER_CARD_GENERATOR_MISSING", "No Paper Card generator is configured.");
           }
@@ -1709,7 +2466,8 @@
             onProgress: requestContext.onProgress,
           });
           this.metrics.paperCardDurationMs += Date.now() - cardStarted;
-          source.artifacts.paperCard = {
+          generatedPaperCard = generated.card || null;
+          const paperCardArtifact = {
             path: generated.path,
             contentHash,
             schemaVersion: generated.schemaVersion || 1,
@@ -1717,6 +2475,12 @@
             promptVersion: generated.promptVersion || 1,
             validationStatus: "validated",
           };
+          paperCardArtifact.cacheKey = paperCardCacheKey(paperCardArtifact);
+          source.artifacts.paperCard = paperCardArtifact;
+        } else if (source.artifacts?.paperCard?.path) {
+          generatedPaperCard = await this.workspace.readJson(
+            source.artifacts.paperCard.path
+          );
         }
         source.paperCardStatus = "ready";
       }
@@ -1754,6 +2518,22 @@
         filesystemFileId: source.filesystemFileId,
       });
       source.lastUsedAt = nowIso(this.now);
+      if (contentChanged && source.sourceKind === "paper" && !needsPaper) {
+        await this.knowledgeLifecycle?.removePaperArtifacts(source.sourceId);
+      }
+      if (contentChanged && source.sourceKind === "experiment" && !needsExperiment) {
+        await this.knowledgeLifecycle?.removeExperimentArtifact(source.sourceId);
+      }
+      if (needsPaper && paperArtifact) {
+        await report({ stage: "markdown", completed: 0, total: 1 });
+        await this.refreshPaperEvidenceKnowledge(source, paperArtifact, requestContext);
+      }
+      if (needsExperiment && experimentArtifact) {
+        await this.refreshExperimentKnowledge(source, experimentArtifact, requestContext);
+      }
+      if (capability === "paper_card" && generatedPaperCard) {
+        await this.refreshPaperCardKnowledge(source, generatedPaperCard, requestContext);
+      }
       await this.registry.persist();
       console.info("source_readiness_transition", {
         sourceId: source.sourceId,
@@ -1979,6 +2759,7 @@
       this.preparation = options.preparation;
       this.results = options.results || this.preparation.results;
       this.nativePdfAnalyzer = options.nativePdfAnalyzer || null;
+      this.knowledgeService = options.knowledgeService || null;
     }
 
     paperMetadata(source) {
@@ -2052,6 +2833,7 @@
 
     async searchPapers(query, options = {}) {
       query = expandAliases(query, this.registry.aliases);
+      const qmdQuery = expandAliases(options.qmdQuery || query, this.registry.aliases);
       const allowed = Array.isArray(options.paperIds) ? new Set(options.paperIds) : null;
       const metadata = this.registry
         .list({ sourceKind: "paper" })
@@ -2070,7 +2852,44 @@
           return { source, item, score: scoreText(text, query) };
         });
       const readyResults = [];
-      for (const candidate of metadata.filter(({ source }) => source.indexStatus === "ready")) {
+      let qmdRouted = false;
+      if (this.knowledgeService?.available) {
+        try {
+          const qmd = await this.knowledgeService.searchLiterature({
+            query: qmdQuery,
+            paperIds: allowed ? [...allowed] : undefined,
+            mode: ["semantic", "deep"].includes(options.mode) ? options.mode : "fast",
+            collections: options.collections || [KNOWLEDGE_COLLECTIONS.literatureEvidence],
+            limit: Math.min(50, Number(options.topK) || 10),
+            signal: options.signal,
+          });
+          for (const result of qmd.results || []) {
+            const source = this.registry.get(result.paperId);
+            if (!source || source.sourceKind !== "paper") continue;
+            const item = this.paperMetadata(source);
+            const best = result.matchedSections?.[0] || {};
+            readyResults.push({
+              ...item,
+              score: Math.max(0, Number(result.score) || 0) * 20,
+              evidenceHandle: best.qmdDoc || null,
+              page: Number(String(best.snippet || "").match(/\bPage\s+(\d+)/i)?.[1]) || null,
+              snippet: String(best.snippet || "").slice(0, 500),
+              searchable: true,
+              retrievalBackend: "qmd",
+              matchedSections: result.matchedSections || [],
+            });
+          }
+          qmdRouted = readyResults.length > 0;
+        } catch (error) {
+          console.info("qmd_literature_search_fallback", {
+            code: error?.code || error?.name || "QMD_SEARCH_FAILED",
+            message: String(error?.message || error).slice(0, 300),
+          });
+        }
+      }
+      for (const candidate of qmdRouted
+        ? []
+        : metadata.filter(({ source }) => source.indexStatus === "ready")) {
         try {
           const artifact = await this.preparation.readPaperArtifact(candidate.source.sourceId);
           const best = artifact.chunks
@@ -2078,6 +2897,13 @@
             .sort((left, right) => right.score - left.score)[0];
           const score = candidate.score + (best?.score || 0);
           if (score > 0) {
+            const existing = readyResults.find(
+              (result) => result.paperId === candidate.item.paperId
+            );
+            if (existing) {
+              existing.score = Math.max(existing.score, score);
+              continue;
+            }
             readyResults.push({
               ...candidate.item,
               score,
@@ -2085,6 +2911,7 @@
               page: best?.chunk?.page || null,
               snippet: String(best?.chunk?.text || "").slice(0, 500),
               searchable: true,
+              retrievalBackend: "legacy",
             });
           }
         } catch (error) {
@@ -2096,8 +2923,18 @@
         }
       }
       const metadataOnly = metadata
-        .filter(({ source, score }) => source.indexStatus !== "ready" && score > 0)
-        .map(({ item, score }) => ({ ...item, score, searchable: false, snippet: "" }));
+        .filter(({ source, item, score }) =>
+          score > 0 &&
+          !readyResults.some((result) => result.paperId === item.paperId) &&
+          (source.indexStatus !== "ready" || qmdRouted)
+        )
+        .map(({ source, item, score }) => ({
+          ...item,
+          score,
+          searchable: source.indexStatus === "ready",
+          snippet: "",
+          retrievalBackend: "metadata",
+        }));
       const combined = [...readyResults, ...(options.includeUnpreparedMetadata === false ? [] : metadataOnly)]
         .sort((left, right) => right.score - left.score)
         .slice(0, Math.min(50, Number(options.topK) || 10));
@@ -2117,6 +2954,42 @@
       query = expandAliases(query, this.registry.aliases);
       await this.preparation.ensureSourceReady([paperId], "search", options);
       const source = this.registry.get(paperId);
+      if (this.knowledgeService?.available) {
+        try {
+          const qmd = await this.knowledgeService.searchLiterature({
+            query,
+            paperIds: [paperId],
+            mode: ["semantic", "deep"].includes(options.mode) ? options.mode : "fast",
+            collections: [KNOWLEDGE_COLLECTIONS.literatureEvidence],
+            limit: Math.min(30, Number(options.topK) || 8),
+            signal: options.signal,
+          });
+          const matched = qmd.results?.find((result) => result.paperId === paperId);
+          if (matched?.matchedSections?.length) {
+            const results = matched.matchedSections.map((section, index) => ({
+              paperId,
+              title: source.legacy?.discovery?.title || source.displayName,
+              page: Number(String(section.snippet || "").match(/\bPage\s+(\d+)/i)?.[1]) || null,
+              section: null,
+              chunkId: section.qmdDoc || `${paperId}-QMD-${index + 1}`,
+              snippet: String(section.snippet || "").slice(0, 900),
+              score: Number(section.score) || Number(matched.score) || 0,
+              retrievalBackend: "qmd",
+            }));
+            return this.results.compact(results, {
+              tool: "search_paper_content",
+              paperId,
+              retrievalBackend: "qmd",
+            });
+          }
+        } catch (error) {
+          console.info("qmd_paper_content_fallback", {
+            paperId,
+            code: error?.code || error?.name || "QMD_SEARCH_FAILED",
+            message: String(error?.message || error).slice(0, 300),
+          });
+        }
+      }
       const artifact = await this.preparation.readPaperArtifact(source.sourceId);
       const results = artifact.chunks
         .filter((chunk) =>
@@ -2226,6 +3099,7 @@
       this.registry = options.registry;
       this.preparation = options.preparation;
       this.results = options.results || this.preparation.results;
+      this.knowledgeService = options.knowledgeService || null;
     }
 
     async listExperimentSources(options = {}) {
@@ -2279,6 +3153,35 @@
     }
 
     async searchExperiments(query, options = {}) {
+      if (
+        this.knowledgeService?.available &&
+        !Array.isArray(options.experimentSourceIds)
+      ) {
+        try {
+          const discovered = await this.knowledgeService.searchExperimentSources({
+            query: expandAliases(query, this.registry.aliases),
+            mode: ["semantic", "deep"].includes(options.mode) ? options.mode : "fast",
+            limit: Math.min(30, Number(options.limit) || 12),
+            signal: options.signal,
+          });
+          const sourceIds = uniqueStrings(
+            (discovered.results || []).map((result) => result.sourceId),
+            100
+          ).filter((sourceId) => this.registry.get(sourceId)?.sourceKind === "experiment");
+          if (sourceIds.length) {
+            return this.queryExperimentResults({
+              ...options,
+              experimentSourceIds: sourceIds,
+              query: expandAliases(query, this.registry.aliases),
+            });
+          }
+        } catch (error) {
+          console.info("qmd_experiment_discovery_fallback", {
+            code: error?.code || error?.name || "QMD_SEARCH_FAILED",
+            message: String(error?.message || error).slice(0, 300),
+          });
+        }
+      }
       const matched = await this.queryExperimentResults({
         ...options,
         query: expandAliases(query, this.registry.aliases),
@@ -2373,6 +3276,7 @@
       this.mapWorker = options.mapWorker || null;
       this.fallbackMapWorker = options.fallbackMapWorker || null;
       this.nativePdfAnalyzer = options.nativePdfAnalyzer || null;
+      this.knowledgeService = options.knowledgeService || null;
       this.mapAttempts = Math.min(
         5,
         Math.max(1, Number(options.mapAttempts) || DEFAULT_CORPUS_MAP_ATTEMPTS)
@@ -2410,6 +3314,58 @@
         );
       }
       return this.workspace.readJson(this.workflowPath(resolvedId));
+    }
+
+    async invalidateForSources(sourceIds, reason = "source_registry_changed") {
+      const affectedSourceIds = new Set(uniqueStrings(sourceIds, 10000));
+      if (!affectedSourceIds.size) return [];
+      const index = await this.readWorkflowIndex();
+      const workflowIds = uniqueStrings([
+        index.latestWorkflowId,
+        ...(index.recentWorkflowIds || []),
+        ...Object.values(index.byQuestion || {}),
+      ], 1000);
+      const staleWorkflowIds = [];
+      for (const workflowId of workflowIds) {
+        const workflowPath = this.workflowPath(workflowId);
+        if (!(await this.workspace.fileExists(workflowPath))) continue;
+        const journal = await this.workspace.readJson(workflowPath);
+        if (journal.status !== "completed") continue;
+        const snapshotIds = new Set((journal.snapshot || []).map((entry) => entry.sourceId));
+        const staleSourceIds = [...affectedSourceIds].filter((sourceId) =>
+          snapshotIds.has(sourceId) || Object.hasOwn(journal.maps || {}, sourceId)
+        );
+        if (!staleSourceIds.length) continue;
+        journal.status = "stale";
+        journal.staleReason = reason;
+        journal.staleSourceIds = uniqueStrings([
+          ...(journal.staleSourceIds || []),
+          ...staleSourceIds,
+        ], 10000);
+        journal.updatedAt = nowIso(this.now);
+        await this.workspace.writeJson(workflowPath, journal);
+        if (typeof this.workspace.writeFile === "function") {
+          const synthesisPath =
+            journal.synthesisArtifact?.path ||
+            `${KNOWLEDGE_PATHS.syntheses}/${journal.workflowId}.md`;
+          await this.workspace.writeFile(synthesisPath, renderSynthesisMarkdown(journal));
+        }
+        staleWorkflowIds.push(workflowId);
+      }
+      if (staleWorkflowIds.length && this.knowledgeService?.available) {
+        try {
+          await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.syntheses, {
+            embed: false,
+          });
+        } catch (error) {
+          console.warn("stale_synthesis_qmd_update_failed", {
+            workflowCount: staleWorkflowIds.length,
+            code: error?.code || error?.name || "QMD_UPDATE_FAILED",
+            message: String(error?.message || error).slice(0, 300),
+          });
+        }
+      }
+      return staleWorkflowIds;
     }
 
     async resolveUpdateBaseWorkflow(workflowId = "", options = {}) {
@@ -3835,6 +4791,50 @@
         total: journal.coverage.papersIncludedInSnapshot,
         incremental: incrementalMode,
       });
+      if (typeof this.workspace.writeFile === "function") {
+        const synthesisPath = `${KNOWLEDGE_PATHS.syntheses}/${journal.workflowId}.md`;
+        await this.workspace.writeFile(synthesisPath, renderSynthesisMarkdown(journal));
+        journal.synthesisArtifact = {
+          path: synthesisPath,
+          synthesisId: journal.workflowId,
+          corpusVersion: journal.corpusVersion,
+          parentSynthesisId: journal.parentWorkflowId || null,
+          sourceVersions: Object.fromEntries(
+            Object.values(journal.maps || {}).map((mapped) => [
+              mapped.paperId,
+              mapped.contentHash,
+            ])
+          ),
+          createdAt: journal.completedAt,
+        };
+        await persist({
+          stage: "corpus-artifact",
+          completed: 1,
+          total: 1,
+          incremental: incrementalMode,
+        });
+        if (this.knowledgeService?.available) {
+          try {
+            await this.knowledgeService.indexDocuments(
+              KNOWLEDGE_COLLECTIONS.syntheses,
+              { embed: false, signal: options.signal }
+            );
+          } catch (error) {
+            journal.synthesisArtifact.qmdError = compactError(error);
+            console.warn("synthesis_qmd_update_failed", {
+              workflowId,
+              code: error?.code || error?.name || "QMD_UPDATE_FAILED",
+              message: String(error?.message || error).slice(0, 300),
+            });
+            await persist({
+              stage: "corpus-artifact",
+              completed: 1,
+              total: 1,
+              incremental: incrementalMode,
+            });
+          }
+        }
+      }
       console.info("corpus_workflow_completed", {
         workflowId,
         papersIncluded: journal.reduction.papersIncluded,
@@ -3857,6 +4857,7 @@
       this.registry = options.registry;
       this.jobs = options.jobs;
       this.corpusWorkflows = options.corpusWorkflows;
+      this.knowledgeService = options.knowledgeService || null;
       this.now = options.now || (() => new Date());
     }
 
@@ -3918,6 +4919,28 @@
         corpusCoverage: workflowStatus?.coverage || null,
         lastProcessingAt: nowIso(this.now),
       };
+      if (this.knowledgeService) {
+        const knowledgeStatus = await this.knowledgeService.status().catch((error) => ({
+          available: false,
+          error: { code: error?.code || error?.name, message: error?.message },
+        }));
+        metadata.knowledge = {
+          available: knowledgeStatus.available === true,
+          qmdPackageVersion: knowledgeStatus.qmdPackageVersion || null,
+          embeddingModelId: knowledgeStatus.embeddingModelId || null,
+          embeddingModelVersion: knowledgeStatus.embeddingModelVersion || null,
+          rerankingModelId: knowledgeStatus.rerankingModelId || null,
+          queryExpansionModelId: knowledgeStatus.queryExpansionModelId || null,
+          databasePath: ".biodesign/knowledge/qmd/index.sqlite",
+          metadataPath: ".biodesign/knowledge/qmd/metadata.json",
+          collectionPaths: { ...KNOWLEDGE_PATHS },
+          requiresVectorRebuild: knowledgeStatus.requiresVectorRebuild === true,
+          documentCount: Number(knowledgeStatus.qmdStatus?.totalDocuments) || 0,
+          pendingEmbeddings: Number(knowledgeStatus.qmdStatus?.needsEmbedding) || 0,
+          lastSearch: knowledgeStatus.lastSearch || null,
+          error: knowledgeStatus.error || null,
+        };
+      }
       const previous = state.projectMetadata || null;
       if (JSON.stringify(previous) !== JSON.stringify(metadata)) {
         await this.saveState({ ...state, projectMetadata: metadata });
@@ -3990,6 +5013,24 @@
           records: records.slice(-500),
         },
       });
+      if (typeof this.workspace.writeFile === "function") {
+        const memoryPath = `${KNOWLEDGE_PATHS.projectMemory}/${record.memoryId}.md`;
+        await this.workspace.writeFile(memoryPath, renderMemoryMarkdown(record));
+        if (this.knowledgeService?.available) {
+          try {
+            await this.knowledgeService.indexDocuments(
+              KNOWLEDGE_COLLECTIONS.projectMemory,
+              { embed: false, signal: options.signal }
+            );
+          } catch (error) {
+            console.warn("project_memory_qmd_update_failed", {
+              memoryId: record.memoryId,
+              code: error?.code || error?.name || "QMD_UPDATE_FAILED",
+              message: String(error?.message || error).slice(0, 300),
+            });
+          }
+        }
+      }
       return record;
     }
 
@@ -4160,11 +5201,23 @@
     const registry = options.registry || new SourceRegistry(options);
     const jobs = options.jobs || new SourceJobManager(options);
     const results = options.results || new SourceResultStore(options);
+    const topicService = options.topicService || new TopicKnowledgeService({
+      ...options,
+      knowledgeService: options.knowledgeService || null,
+    });
+    const knowledgeLifecycle = options.knowledgeLifecycle || new KnowledgeLifecycleService({
+      ...options,
+      registry,
+      knowledgeService: options.knowledgeService || null,
+      topics: topicService,
+    });
     const preparation = options.preparation || new SourcePreparationService({
       ...options,
       registry,
       jobs,
       results,
+      topicService,
+      knowledgeLifecycle,
     });
     const nativePdfAnalyzer = options.nativePdfAnalyzer ||
       (typeof options.nativePdfWorker === "function"
@@ -4180,8 +5233,14 @@
       preparation,
       results,
       nativePdfAnalyzer,
+      knowledgeService: options.knowledgeService || null,
     });
-    const experimentTools = new ExperimentTools({ registry, preparation, results });
+    const experimentTools = new ExperimentTools({
+      registry,
+      preparation,
+      results,
+      knowledgeService: options.knowledgeService || null,
+    });
     const corpusWorkflows = new CorpusWorkflowService({
       ...options,
       registry,
@@ -4189,12 +5248,15 @@
       results,
       literatureTools,
       nativePdfAnalyzer,
+      knowledgeService: options.knowledgeService || null,
     });
+    knowledgeLifecycle.corpusWorkflows = corpusWorkflows;
     const projectState = options.projectState || new ProjectStateService({
       ...options,
       registry,
       jobs,
       corpusWorkflows,
+      knowledgeService: options.knowledgeService || null,
     });
     const managedWorker = options.managedWorker || new ManagedLocalWorker({
       ...options,
@@ -4206,6 +5268,9 @@
       registry,
       jobs,
       results,
+      topicService,
+      knowledgeLifecycle,
+      knowledgeService: options.knowledgeService || null,
       preparation,
       nativePdfAnalyzer,
       literatureTools,
@@ -4224,6 +5289,10 @@
     EXPERIMENT_NORMALIZER_VERSION,
     ExperimentTools,
     JOB_PATH,
+    KNOWLEDGE_COLLECTIONS,
+    KNOWLEDGE_DIRECTORY,
+    KNOWLEDGE_PATHS,
+    KnowledgeLifecycleService,
     LARGE_RESULT_CHARACTERS,
     LiteratureTools,
     ManagedLocalWorker,
@@ -4241,6 +5310,7 @@
     SourceRegistry,
     SourceResultStore,
     SourceSystemError,
+    TopicKnowledgeService,
     TOOL_EFFECTS,
     ToolEffect,
     authorizeTool,
@@ -4255,9 +5325,16 @@
     paperArtifactFromExtraction,
     parseDelimited,
     parseExperimentBytes,
+    paperCardCacheKey,
     runBounded,
     requireAuthorizedTool,
     scoreText,
+    renderExperimentNoteMarkdown,
+    renderMemoryMarkdown,
+    renderPaperCardMarkdown,
+    renderPaperEvidenceMarkdown,
+    renderSynthesisMarkdown,
+    renderTopicMarkdown,
     sourceKindFor,
     statSignatureFor,
   };

@@ -22,6 +22,13 @@
     ".biodesign/chat",
     ".biodesign/chat/conversations",
     ".biodesign/cache",
+    ".biodesign/knowledge/qmd",
+    ".biodesign/knowledge/literature",
+    ".biodesign/knowledge/paper_cards",
+    ".biodesign/knowledge/topics",
+    ".biodesign/knowledge/syntheses",
+    ".biodesign/knowledge/experiment_notes",
+    ".biodesign/knowledge/memory",
   ];
 
   class WorkspaceError extends Error {
@@ -166,6 +173,10 @@
           !["not_started", "ready", "stale", "failed"].includes(document.parseStatus)) ||
         (document.indexStatus !== undefined &&
           !["not_started", "ready", "stale", "failed"].includes(document.indexStatus)) ||
+        (document.qmdLexStatus !== undefined &&
+          !["not_started", "ready", "stale", "failed", "unavailable"].includes(document.qmdLexStatus)) ||
+        (document.qmdVectorStatus !== undefined &&
+          !["not_started", "ready", "stale", "failed", "unavailable"].includes(document.qmdVectorStatus)) ||
         !validDiscovery
       ) {
         throw new WorkspaceError(
@@ -901,11 +912,172 @@
     }
   }
 
+  class ElectronWorkspaceManager extends WorkspaceManager {
+    constructor(options = {}) {
+      super({ ...options, secureContext: true, directoryPicker: async () => null });
+      this.desktop = options.desktop || globalThis.biodesignDesktop;
+      this.pendingClose = Promise.resolve();
+    }
+
+    isSupported() {
+      return Boolean(this.desktop?.project && this.desktop?.files);
+    }
+
+    async selectWorkspace() {
+      if (!this.isSupported()) {
+        throw new WorkspaceError("DESKTOP_BRIDGE_UNAVAILABLE", "The secure desktop bridge is unavailable.");
+      }
+      await this.pendingClose.catch(() => {});
+      let selection;
+      try {
+        selection = await this.desktop.project.open();
+      } catch (error) {
+        throw new WorkspaceError(
+          error?.code === "PICKER_CANCELLED" ? "PICKER_CANCELLED" : "PICKER_FAILED",
+          error?.message || "The project folder could not be selected.",
+          error
+        );
+      }
+      this.rootHandle = { name: selection.name || "BioDesign Workspace" };
+      this.workspace = null;
+      this.state = null;
+      return { name: this.rootHandle.name, initialized: selection.initialized === true };
+    }
+
+    async ensurePermission() {
+      this.requireRoot();
+      return true;
+    }
+
+    async ensureDirectory(relativePath) {
+      this.requireRoot();
+      splitPath(relativePath);
+      await this.desktop.files.mkdir({ relativePath });
+      return { name: relativePath.split("/").at(-1), kind: "directory" };
+    }
+
+    async fileExists(relativePath) {
+      this.requireRoot();
+      splitPath(relativePath);
+      return this.desktop.files.exists({ relativePath });
+    }
+
+    async readFile(relativePath) {
+      this.requireRoot();
+      splitPath(relativePath);
+      try {
+        const [metadata, bytes] = await Promise.all([
+          this.desktop.files.stat({ relativePath }),
+          this.desktop.files.readBinary({ relativePath }),
+        ]);
+        return new File([bytes], relativePath.split("/").at(-1), {
+          type: metadata.mimeType || "application/octet-stream",
+          lastModified: Number(metadata.lastModified) || Date.now(),
+        });
+      } catch (error) {
+        throw new WorkspaceError(
+          error?.code === "ENOENT" ? "FILE_NOT_FOUND" : "READ_FAILED",
+          `Could not read workspace file: ${relativePath}`,
+          error
+        );
+      }
+    }
+
+    async writeJson(relativePath, data) {
+      this.requireRoot();
+      validateKnownJson(relativePath, data);
+      let serialized;
+      try {
+        serialized = `${JSON.stringify(data, null, 2)}\n`;
+        validateKnownJson(relativePath, JSON.parse(serialized));
+      } catch (error) {
+        if (error instanceof WorkspaceError) throw error;
+        throw new WorkspaceError("SERIALIZATION_FAILED", `Could not serialize workspace JSON: ${relativePath}`, error);
+      }
+      try {
+        await this.desktop.files.writeText({ relativePath, value: serialized, atomic: true });
+        validateKnownJson(relativePath, JSON.parse(await this.desktop.files.readText({ relativePath })));
+        return data;
+      } catch (error) {
+        if (error instanceof WorkspaceError) throw error;
+        throw new WorkspaceError("WRITE_FAILED", `Could not safely write workspace file: ${relativePath}.`, error);
+      }
+    }
+
+    async writeFile(relativePath, data) {
+      this.requireRoot();
+      splitPath(relativePath);
+      try {
+        if (typeof data === "string") {
+          await this.desktop.files.writeText({ relativePath, value: data, atomic: true });
+        } else {
+          const bytes = data instanceof ArrayBuffer
+            ? data
+            : ArrayBuffer.isView(data)
+              ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+              : await data.arrayBuffer();
+          await this.desktop.files.writeBinary({ relativePath, value: bytes, atomic: true });
+        }
+        return this.readFile(relativePath);
+      } catch (error) {
+        throw new WorkspaceError("WRITE_FAILED", `Could not write workspace file: ${relativePath}`, error);
+      }
+    }
+
+    async removeFile(relativePath) {
+      this.requireRoot();
+      splitPath(relativePath);
+      try {
+        return await this.desktop.files.remove({ relativePath, recursive: false });
+      } catch (error) {
+        throw new WorkspaceError("DELETE_FAILED", `Could not remove workspace file: ${relativePath}`, error);
+      }
+    }
+
+    async listFiles(relativePath, options = {}) {
+      this.requireRoot();
+      splitPath(relativePath);
+      try {
+        return await this.desktop.files.list({ relativePath, recursive: options.recursive === true });
+      } catch (error) {
+        throw new WorkspaceError("SCAN_FAILED", `Could not scan workspace directory: ${relativePath}`, error);
+      }
+    }
+
+    async scanDirectoryTree(options = {}) {
+      this.requireRoot();
+      try {
+        return await this.desktop.files.tree({
+          excludeNames: Array.isArray(options.excludeNames) ? options.excludeNames : [".biodesign"],
+        });
+      } catch (error) {
+        throw new WorkspaceError("SCAN_FAILED", "Could not scan the selected workspace folder.", error);
+      }
+    }
+
+    closeWorkspace() {
+      const shouldClose = Boolean(this.rootHandle);
+      this.rootHandle = null;
+      this.workspace = null;
+      this.state = null;
+      if (shouldClose) this.pendingClose = this.desktop.project.close();
+      return this.pendingClose;
+    }
+  }
+
+  function createWorkspaceManager(options = {}) {
+    return options.desktop || globalThis.biodesignDesktop
+      ? new ElectronWorkspaceManager(options)
+      : new WorkspaceManager(options);
+  }
+
   return {
     MANAGED_DIRECTORIES,
     WORKSPACE_SCHEMA_VERSION,
     WorkspaceError,
+    ElectronWorkspaceManager,
     WorkspaceManager,
+    createWorkspaceManager,
     assertChatConversation,
     assertChatIndex,
     assertLiteratureIndex,

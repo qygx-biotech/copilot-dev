@@ -1,0 +1,126 @@
+name: Windows x64 prerelease
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-draft-release:
+    name: Test, package, and draft prerelease
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out tagged commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify tag and package version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $expectedTag = "v$($package.version)"
+          if ($env:GITHUB_REF_NAME -cne $expectedTag) {
+            throw "Tag $env:GITHUB_REF_NAME does not match package version $expectedTag."
+          }
+
+      - name: Install locked dependencies
+        shell: pwsh
+        run: |
+          npm ci
+          npm --prefix alibaba-fc ci
+
+      - name: Check source syntax
+        run: npm run check
+
+      - name: Run complete test suite
+        run: npm test
+
+      - name: Run Electron tests explicitly
+        run: npm run desktop:test
+
+      - name: Audit production dependencies
+        shell: pwsh
+        run: |
+          npm audit --omit=dev
+          npm --prefix alibaba-fc audit --omit=dev
+          npm --prefix local-backend audit --omit=dev
+
+      - name: Build Windows x64 Squirrel and ZIP artifacts
+        run: npm run desktop:build:windows
+
+      - name: Audit packaged application
+        run: npm run desktop:audit:package
+
+      - name: Smoke-test packaged application without a model cache
+        run: npm run desktop:smoke:packaged
+
+      - name: Verify Windows release artifacts
+        run: npm run desktop:verify:windows
+
+      - name: Collect artifacts and SHA-256 checksums
+        id: release_assets
+        shell: pwsh
+        run: |
+          $squirrelRoot = Join-Path $PWD "out/make/squirrel.windows/x64"
+          $zipRoot = Join-Path $PWD "out/make/zip/win32/x64"
+          $setup = Get-Item (Join-Path $squirrelRoot "BioDesign-Setup.exe")
+          $releases = Get-Item (Join-Path $squirrelRoot "RELEASES")
+          $nupkg = @(Get-ChildItem $squirrelRoot -File -Filter "*-full.nupkg")
+          $zip = @(Get-ChildItem $zipRoot -File -Filter "*.zip")
+          if ($nupkg.Count -ne 1 -or $zip.Count -ne 1) {
+            throw "Expected exactly one full NUPKG and one Windows ZIP."
+          }
+          $assets = @($setup, $nupkg[0], $releases, $zip[0])
+          $checksumPath = Join-Path $PWD "SHA256SUMS.txt"
+          $checksums = foreach ($asset in $assets) {
+            $hash = (Get-FileHash -Algorithm SHA256 $asset.FullName).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+          Set-Content -Path $checksumPath -Value $checksums -Encoding utf8NoBOM
+          Get-Content $checksumPath
+          "setup=$($setup.FullName)" >> $env:GITHUB_OUTPUT
+          "nupkg=$($nupkg[0].FullName)" >> $env:GITHUB_OUTPUT
+          "releases=$($releases.FullName)" >> $env:GITHUB_OUTPUT
+          "zip=$($zip[0].FullName)" >> $env:GITHUB_OUTPUT
+          "checksums=$checksumPath" >> $env:GITHUB_OUTPUT
+
+      - name: Create draft prerelease with Windows assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SETUP_PATH: ${{ steps.release_assets.outputs.setup }}
+          NUPKG_PATH: ${{ steps.release_assets.outputs.nupkg }}
+          RELEASES_PATH: ${{ steps.release_assets.outputs.releases }}
+          ZIP_PATH: ${{ steps.release_assets.outputs.zip }}
+          CHECKSUMS_PATH: ${{ steps.release_assets.outputs.checksums }}
+        run: |
+          @"
+          Windows x64 trusted-tester prerelease built from commit $env:GITHUB_SHA.
+
+          Install with BioDesign-Setup.exe, or extract the ZIP and run BioDesign.exe. This build is unsigned, so Windows SmartScreen may show an unknown-publisher warning. Verify SHA256SUMS.txt before installing.
+
+          Fast retrieval is fully local and needs no model download. Deep retrieval requires Internet access and uses authenticated Alibaba Function Compute endpoints; only budgeted retrieval evidence is sent onward to Requesty. No Requesty credential or Alibaba FC source is packaged in the desktop application.
+
+          This prerelease does not include an automatic updater.
+          "@ | Set-Content release-notes.md -Encoding utf8NoBOM
+          gh release create $env:GITHUB_REF_NAME `
+            $env:SETUP_PATH `
+            $env:NUPKG_PATH `
+            $env:RELEASES_PATH `
+            $env:ZIP_PATH `
+            $env:CHECKSUMS_PATH `
+            --verify-tag `
+            --draft `
+            --prerelease `
+            --title "BioDesign $env:GITHUB_REF_NAME Windows x64 prerelease" `
+            --notes-file release-notes.md

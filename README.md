@@ -4,28 +4,51 @@ BioDesign Copilot is a local-first, human-in-the-loop workspace for synthetic-bi
 
 ## Architecture
 
-The static frontend is served from `docs/` by GitHub Pages. After the existing login succeeds, the user explicitly selects a writable local project folder. That folder is the persistent source of truth; the browser does not retain its directory handle across restarts.
+The primary runtime is a packaged Electron desktop application that reuses the existing `docs/` renderer. After the existing login succeeds, the user selects one local project folder with Electron's native directory dialog. That folder is the persistent scientific source of truth; the unprivileged renderer receives only a narrow project-relative filesystem API.
 
 Alibaba Function Compute remains the authenticated, secret-bearing AI gateway:
 
 ```text
-GitHub Pages -> user-selected local workspace -> bounded evidence or on-demand private PDF -> Function Compute -> Requesty
+Electron -> user-selected local workspace -> bounded evidence or on-demand private PDF -> Function Compute -> Requesty
 ```
 
-Workspace metadata, project state, literature indexes, and generated summaries remain local. Local retrieval sends only bounded extracted or derived text. For an explicit high-fidelity whole-paper, table/figure, or recovery operation, one selected private PDF may instead be sent through the authenticated gateway as base64 Requesty `input_file` content; no public URL or absolute local path is created. Function Compute never receives a directory handle or the selected project folder itself.
+Retrieval has two production modes:
+
+- **Fast** is fully offline and runs project-local QMD/SQLite BM25 only. It makes no cloud-planning or reranking call and loads no local model.
+- **Deep** asks authenticated Alibaba FC for a structured search plan, runs every validated expansion against local lexical QMD, deterministically fuses candidates, and asks FC to rerank only opaque IDs, titles, stable evidence handles, and budgeted snippets. Evidence is reconstructed from the original local objects before answer generation.
+
+The Deep route is fixed:
+
+```text
+Electron renderer -> authenticated Alibaba Function Compute -> Requesty
+        ↑                                                      │
+        └──────── validated plan/ranking, no document content ─┘
+
+Electron renderer -> preload IPC -> main -> isolated QMD utility -> project-local SQLite BM25
+```
+
+Requesty credentials and model names exist only in FC environment variables or secrets. Electron has no Requesty URL or client. Deep sends no absolute path, directory handle, registry, project file, token, whole Paper Card collection, experiment table, or PDF. Candidate count and text follow the existing retrieval/context budgets; project growth is handled by bounded top-K/result handles and the separate coverage-preserving corpus workflow, not a total paper-count ceiling. The existing native-PDF endpoint remains the only explicit whole-PDF route.
 
 ## Main files
 
 - `docs/index.html` - login, workspace selection, and workbench structure.
 - `docs/styles.css` - responsive visual design.
 - `docs/workspace-manager.js` - generic File System Access abstraction, schema validation, initialization, safe JSON writes, and directory lifecycle.
+- `docs/knowledge-service.js` - browser-side high-level knowledge abstraction and soft QMD/legacy fallback boundary.
 - `docs/source-system.js` - persistent paper/experiment registry, lazy readiness service, preparation locks/jobs, source tools, external result storage, and resumable corpus workflows.
 - `docs/literature-module.js` - compatibility adapter for PDF.js extraction and the existing Paper Card generator/cache.
 - `docs/project-context-service.js` - bounded progressive source-context construction plus workspace-backed Side Chat persistence.
 - `docs/app.js` - UI integration, authentication, Workspace explorer, Side Chat, and workspace lifecycle.
+- `desktop/main/` - secure Electron lifecycle, window policy, native picker, and project sessions.
+- `desktop/preload/` and `desktop/ipc/` - frozen capability bridge and validated allowlisted IPC.
+- `desktop/services/` - confined project filesystem, persisted desktop jobs, and structured execution registry.
+- `desktop/workers/` - isolated production QMD runtime; heavy indexing/model work never runs in the renderer or main event loop.
 - `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`).
 - `alibaba-fc/side-chat-agent.js` - the bounded effect-authorized tool loop shared by Side Chat and Agent Work.
-- `worker/` - retained alternate Cloudflare Worker backend.
+- `local-backend/` - shared `ProjectQmdManager` plus a compatibility-only localhost adapter for targeted browser development/tests.
+- `docs/QMD_KNOWLEDGE_ARCHITECTURE.md` - authority, lifecycle, invalidation, model, retrieval, and benchmark design.
+- `local-backend/benchmark/REPORT.md` - measured lexical/cloud-replay results plus the historical local-semantic baseline.
+- `worker/` - retired Cloudflare endpoint stub; it contains no Requesty client or model configuration.
 
 ## Workspace structure
 
@@ -54,6 +77,16 @@ Initialization occurs only after confirmation and creates:
     │   └── index.json
     ├── results/
     ├── workflows/
+    ├── knowledge/
+    │   ├── qmd/
+    │   │   ├── index.sqlite
+    │   │   └── metadata.json
+    │   ├── literature/
+    │   ├── paper_cards/
+    │   ├── topics/
+    │   ├── syntheses/
+    │   ├── experiment_notes/
+    │   └── memory/
     ├── chat/
     │   ├── index.json
     │   └── conversations/
@@ -85,7 +118,7 @@ Paper Cards remain at `.biodesign/literature/summaries/<source-id>.json` for com
 
 CSV, TSV, TXT, XLS, and XLSX experiment sources are also lazy. Their sheets/rows are normalized into records with raw values, detected biological entities, content version, and source-file/sheet/cell-range provenance. Filtering, group aggregation, and numeric comparison are deterministic; the LLM receives bounded structured records and does not perform hidden numeric transformations.
 
-Encrypted, malformed, empty, and image-only/scanned PDFs, malformed workbooks, locked files, and parser failures produce persisted per-source failures without blocking unrelated files. OCR, embeddings, vector search, unit conversion, structured PDF table/figure extraction, cloud sync, and automatic directory-handle restoration remain out of scope. Table/figure search currently searches their extracted text mentions.
+Encrypted, malformed, empty, and image-only/scanned PDFs, malformed workbooks, locked files, and parser failures produce persisted per-source failures without blocking unrelated files. OCR, unit conversion, structured PDF table/figure extraction, cloud sync, and automatic directory-handle restoration remain out of scope. QMD supplies optional project-local embeddings/vector search; table/figure search still searches their extracted text mentions unless Requesty native PDF is used.
 
 ## Corpus workflow and result storage
 
@@ -99,24 +132,56 @@ Native-PDF analyses are also derived, content-hash-addressed artifacts. They are
 
 The tested OSS implementation and its legacy endpoints remain in `alibaba-fc/index.js`. `USE_OSS_WORKSPACE_STORAGE` is `false`, no workspace-opening code calls the OSS listing route, and local literature uploads and summaries do not call the OSS upload/review/delete routes. OSS is not required for the local literature flow.
 
-## Local checks
+## Desktop development, checks, and packaging
 
-Use a Chromium desktop browser because writable File System Access is required. File access requires a secure context; `localhost` is accepted for development and GitHub Pages is HTTPS.
+Use Node 22 or 24 for repository development (`package.json` enforces `>=22 <25`), then install dependencies once. End users run the packaged application and do not need Node, npm, QMD, a local server, or Python.
 
 ```bash
-cd alibaba-fc
 npm ci
-npm run check
+npm run desktop:dev
+npm run desktop:test
+npm run desktop:package
+npm run desktop:smoke:packaged
+npm run desktop:build
+npm run desktop:smoke:distributable
 npm test
 ```
 
-Serve the frontend from the repository root:
+Electron 44.0.0 bundles Node 24.18.1 and is compatible with QMD's Node `>=22` requirement. Electron Forge 7.11.2 creates the macOS package/DMG and structurally configures Windows ZIP/Squirrel outputs. The final macOS ARM64 artifacts are `out/make/BioDesign-0.1.0-arm64.dmg` and `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.0.zip`. Unsigned local artifacts are suitable for local validation; public distribution still requires Apple/Windows signing credentials and macOS notarization.
+
+Fast QMD works immediately and offline. Cloud-backed Deep requires Internet access and incurs Requesty usage through Alibaba FC, but downloads no local model weights. Search-plan and rerank caches live under `.biodesign/cache/cloud-retrieval/`, contain no credentials, and are invalidated by scope, candidate/evidence hashes, source versions, model signatures, prompt/schema versions, and retrieval configuration. Planning failure falls back to the original lexical query; reranking failure returns deterministic locally fused evidence with `fallback: "local-lexical-fusion"`.
+
+Local semantic embeddings are a separate, explicit opt-in and are disabled in the default app. When enabled for controlled research, EmbeddingGemma remains the default (about 318 MB model storage; prior measured process peak about 1.0 GiB), compatibility metadata still requires a controlled rebuild after model changes, and semantic search may require substantially more memory. It is never required by Fast or cloud-backed Deep.
+
+The packaged application excludes `alibaba-fc/` and `worker/`. Requesty credentials and direct Requesty requests remain exclusively in deployed Alibaba Function Compute. Authentication tokens remain session-only in renderer `sessionStorage` and are never written to project files, QMD, jobs, memory, or desktop logs.
+
+## Browser compatibility development
+
+The previous Chromium/File System Access path remains for compatibility tests and legacy static hosting. The localhost server is not used by Electron production. For a targeted browser/QMD development session, initialize the project once, then run:
+
+```bash
+cd local-backend
+npm ci
+npm start -- --project "/absolute/path/to/project"
+```
+
+Then open `http://127.0.0.1:43127`. Login and AI requests use the `ALIBABA_FC_URL` configured in `docs/app.js`. A plain static server remains supported and automatically uses legacy retrieval when QMD is absent:
 
 ```bash
 python3 -m http.server 3000 --directory docs
 ```
 
-Then open `http://localhost:3000`. Login and AI requests use the `ALIBABA_FC_URL` configured in `docs/app.js`.
+Inspect or rebuild the project index from `local-backend/`:
+
+```bash
+npm run knowledge -- status --project "/absolute/path/to/project"
+npm run knowledge -- rebuild --project "/absolute/path/to/project"
+npm run knowledge -- rebuild --vectors --force --project "/absolute/path/to/project"
+npm test
+npm run benchmark -- --fixture --model lexical --output /tmp/cloud-retrieval-benchmark.json
+```
+
+Use `--model default` or `--model both` only when explicitly benchmarking optional local embeddings. Add `--cpu` if that native backend can allocate a supported CPU context.
 
 ## GitHub Pages deployment
 
@@ -132,6 +197,9 @@ If the repository already uses an Actions-based Pages workflow, keep that workfl
 
 The new stateless routes are:
 
+- `GET /api/knowledge/config`
+- `POST /api/knowledge/plan-search`
+- `POST /api/knowledge/rerank`
 - `POST /api/literature/summarize-chunk`
 - `POST /api/literature/synthesize`
 - `POST /api/corpus/map-paper`

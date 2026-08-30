@@ -1,0 +1,72 @@
+[
+  {
+    "id": "en-exact-variant",
+    "language": "en",
+    "query": "EctD A163V thermostability",
+    "expectedPaperIds": ["paper-017"],
+    "expectedEvidenceTerms": ["A163V", "thermal stability"]
+  },
+  {
+    "id": "en-semantic-variant",
+    "language": "en",
+    "query": "Which enzyme variant tolerates heat while making hydroxyectoine?",
+    "expectedPaperIds": ["paper-017"],
+    "expectedEvidenceTerms": ["A163V", "thermal stability"]
+  },
+  {
+    "id": "en-fermentation",
+    "language": "en",
+    "query": "oxygen and carbon feeding strategy for Halomonas hydroxyectoine production",
+    "expectedPaperIds": ["paper-031"],
+    "expectedEvidenceTerms": ["oxygen transfer", "carbon feeding"]
+  },
+  {
+    "id": "zh-crosslingual-variant",
+    "language": "zh",
+    "query": "哪种酶突变能够提高羟基依克多因合成酶的热稳定性？",
+    "expectedPaperIds": ["paper-017"],
+    "expectedEvidenceTerms": ["A163V", "thermal stability"]
+  },
+  {
+    "id": "zh-crosslingual-fermentation",
+    "language": "zh",
+    "query": "提高盐单胞菌羟基依克多因产量的供氧和补料条件",
+    "expectedPaperIds": ["paper-031"],
+    "expectedEvidenceTerms": ["oxygen transfer", "carbon feeding"]
+  },
+  {
+    "id": "doi-lookup",
+    "language": "identifier",
+    "query": "10.1000/ectd.017",
+    "expectedPaperIds": ["paper-017"],
+    "expectedEvidenceTerms": ["10.1000/ectd.017"]
+  },
+  {
+    "id": "exact-kinetic-identifiers",
+    "language": "identifier",
+    "query": "kcat Km EctD",
+    "expectedPaperIds": ["paper-118"],
+    "expectedEvidenceTerms": ["kcat", "Km"]
+  },
+  {
+    "id": "exact-strain-id",
+    "language": "identifier",
+    "query": "BL21(DE3)",
+    "expectedPaperIds": ["paper-118"],
+    "expectedEvidenceTerms": ["BL21(DE3)"]
+  },
+  {
+    "id": "paper-author-year-lookup",
+    "language": "en",
+    "query": "What does Researcher et al. 2025 report about EctD?",
+    "expectedPaperIds": ["paper-017"],
+    "expectedEvidenceTerms": ["Researcher et al.", "A163V"]
+  },
+  {
+    "id": "broad-production-strategies",
+    "language": "en",
+    "query": "What approaches improve hydroxyectoine production?",
+    "expectedPaperIds": ["paper-017", "paper-031"],
+    "expectedEvidenceTerms": ["A163V", "oxygen transfer"]
+  }
+]

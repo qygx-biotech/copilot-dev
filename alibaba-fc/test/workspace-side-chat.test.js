@@ -451,9 +451,9 @@ test("Side Chat hides empty-state prompts and renders safe Markdown with math", 
   );
 
   assert.match(htmlSource, /id="sideChatExamples"/);
-  assert.match(htmlSource, /katex@0\.18\.1\/dist\/katex\.min\.css/);
-  assert.match(htmlSource, /katex@0\.18\.1\/dist\/katex\.min\.js/);
-  assert.match(htmlSource, /katex@0\.18\.1\/dist\/contrib\/auto-render\.min\.js/);
+  assert.match(htmlSource, /vendor\/katex\/katex\.min\.css/);
+  assert.match(htmlSource, /vendor\/katex\/katex\.min\.js/);
+  assert.match(htmlSource, /vendor\/katex\/auto-render\.min\.js/);
   assert.match(appSource, /sideChatExamples\.hidden = !isEmpty/);
   assert.match(appSource, /data-side-chat-intro/);
   assert.match(appSource, /renderSideChatMarkdown\(body, content\)/);

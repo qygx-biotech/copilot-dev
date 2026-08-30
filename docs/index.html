@@ -3,13 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BioDesign Workbench</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.18.1/dist/katex.min.css"
-      integrity="sha384-1vdNCNel6Tx/NQa8IR1mGOGKsbGreCkOPfbtPPnUURJ5Tu2PRVfQ/7KLZC+Pi1p1"
-      crossorigin="anonymous"
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' file:; script-src 'self' file:; style-src 'self' 'unsafe-inline' file:; font-src 'self' file: data:; img-src 'self' file: data: blob: https:; connect-src 'self' file: https:; worker-src 'self' file: blob:; object-src 'none'; base-uri 'none'; form-action 'self'"
     />
+    <title>BioDesign Workbench</title>
+    <link rel="stylesheet" href="vendor/katex/katex.min.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -251,24 +250,18 @@
     </main>
 
     <!-- pdf.js is used in-browser to extract text from local PDF reference files. -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script type="module" src="pdfjs-loader.js"></script>
     <!-- SheetJS/xlsx is used in-browser to extract visible cell values from Excel reference files. -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="vendor/xlsx/xlsx.full.min.js"></script>
+    <script src="vendor/retrieval-contract.js"></script>
     <script src="workspace-manager.js"></script>
+    <script src="knowledge-service.js"></script>
     <script src="source-system.js"></script>
     <script src="literature-module.js"></script>
     <script src="project-context-service.js"></script>
     <!-- KaTeX safely renders dollar-delimited math in Side Chat messages. -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/katex@0.18.1/dist/katex.min.js"
-      integrity="sha384-ycJ6GAwiS15LoUPipwJOrWTvkUHl/YqELValBwI5I4awP1EeEQJYarj+w85ntcz7"
-      crossorigin="anonymous"
-    ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/katex@0.18.1/dist/contrib/auto-render.min.js"
-      integrity="sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz"
-      crossorigin="anonymous"
-    ></script>
+    <script src="vendor/katex/katex.min.js"></script>
+    <script src="vendor/katex/auto-render.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -1,18 +1,26 @@
 (function exposeProjectContextService(root, factory) {
-  const api = factory();
+  const api = factory(root);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) Object.assign(root, api);
-})(typeof globalThis !== "undefined" ? globalThis : this, function contextFactory() {
+})(typeof globalThis !== "undefined" ? globalThis : this, function contextFactory(root) {
   "use strict";
+
+  const retrievalLimits = (root?.BioDesignRetrievalContract ||
+    (typeof require === "function" ? require("../shared/retrieval-contract.js") : {}))
+    .RETRIEVAL_LIMITS || {};
 
   const CHAT_SCHEMA_VERSION = 1;
   const CONTEXT_LIMITS = {
     maxInventoryFiles: 500,
     maxProjectSummaries: 20,
     maxEvidenceFiles: 150,
-    maxSummaryCharactersPerFile: 5000,
-    maxSourceCharactersPerFile: 5000,
-    maxTotalEvidenceCharacters: 360000,
+    maxSummaryCharactersPerFile: retrievalLimits.outputTextCharacters || 5000,
+    maxSourceCharactersPerFile: retrievalLimits.sourceCharactersPerEvidence || 5000,
+    maxTotalEvidenceCharacters: retrievalLimits.totalEvidenceCharacters || 360000,
+    maxRetrievalResults: retrievalLimits.resultMaximum || 100,
+    maxRetrievalTitleCharacters: retrievalLimits.titleCharacters || 500,
+    maxRetrievalSnippetCharacters: retrievalLimits.snippetCharacters || 1200,
+    maxEvidenceHandleCharacters: retrievalLimits.evidenceHandleCharacters || 500,
     maxConversationMessages: 40,
     maxConversationMessageCharacters: 120000,
     maxConversationCharacters: 120000,
@@ -64,6 +72,12 @@
     /\b(?:restart|recover|resume|unstick|stuck|unhealthy)\b[\s\S]{0,100}\b(?:analysis|processing|worker|job|workflow)\b|(?:重启|恢复|继续).{0,30}(?:分析|处理|任务|工作流)/i;
   const NATIVE_PDF_QUESTION_PATTERN =
     /\b(?:whole paper|entire paper|full paper|figure\s*\d+|table\s*\d+|layout|lost the table|parser.*(?:lost|missed)|high[- ]fidelity)\b|整篇|全文总结|图\s*\d+|表\s*\d+|版式|解析.*(?:丢失|遗漏)/i;
+  const PREVIOUS_SYNTHESIS_PATTERN =
+    /\b(?:previous|prior|earlier|last|saved|existing)\b[\s\S]{0,80}\b(?:review|synthesis|summary|analysis)\b|\bwhat did (?:the|our|my)?\s*(?:review|synthesis) conclude\b|之前|以前|上次|已有.{0,12}(?:综述|总结|综合分析)/i;
+  const PROJECT_DECISION_PATTERN =
+    /\b(?:what did we decide|project decision|current hypothesis|current metric|remembered|saved decision)\b|我们.*决定|项目决定|当前假设|当前指标|记住了什么/i;
+  const TOPIC_NAVIGATION_PATTERN =
+    /\b(?:topic|theme|strategy|strategies|approach|approaches|area|areas|about)\b|主题|方向|策略|方法类别|哪些领域/i;
 
   const STOP_WORDS = new Set([
     "about",
@@ -621,7 +635,76 @@
       this.projectState = this.sourceSystem?.projectState || null;
       this.managedWorker = this.sourceSystem?.managedWorker || null;
       this.nativePdfAnalyzer = this.sourceSystem?.nativePdfAnalyzer || null;
+      this.knowledgeService = this.sourceSystem?.knowledgeService || null;
       this.limits = { ...CONTEXT_LIMITS, ...(options.limits || {}) };
+    }
+
+    compactKnowledgeHits(payload, kind) {
+      return (payload?.results || []).slice(0, 8).map((result) => ({
+        kind,
+        sourceId: String(result.sourceId || result.paperId || "").slice(0, 200),
+        paperId: String(result.paperId || "").slice(0, 200) || null,
+        title: String(result.title || "").slice(0, this.limits.maxRetrievalTitleCharacters),
+        score: Number(result.score) || 0,
+        snippet: String(
+          result.snippet || result.matchedSections?.[0]?.snippet || ""
+        ).slice(0, this.limits.maxRetrievalSnippetCharacters),
+        qmdDoc: String(
+          result.file || result.matchedSections?.[0]?.qmdDoc || ""
+        ).slice(0, this.limits.maxEvidenceHandleCharacters),
+      }));
+    }
+
+    async retrieveLayeredKnowledge(question, options = {}) {
+      if (!this.knowledgeService?.available) return { available: false, hits: [] };
+      const hits = [];
+      const run = async (kind, callback) => {
+        try {
+          hits.push(...this.compactKnowledgeHits(await callback(), kind));
+        } catch (error) {
+          console.info("layered_knowledge_search_fallback", {
+            kind,
+            code: error?.code || error?.name || "QMD_SEARCH_FAILED",
+            message: String(error?.message || error).slice(0, 300),
+          });
+        }
+      };
+      if (PREVIOUS_SYNTHESIS_PATTERN.test(question)) {
+        await run("synthesis", () => this.knowledgeService.searchPreviousSyntheses({
+          query: question,
+          mode: "fast",
+          limit: 5,
+          signal: options.signal,
+        }));
+      }
+      if (PROJECT_METADATA_QUESTION_PATTERN.test(question) || PROJECT_DECISION_PATTERN.test(question)) {
+        await run("project-memory", () => this.knowledgeService.searchProjectMemory({
+          query: question,
+          mode: "fast",
+          limit: 8,
+          signal: options.signal,
+        }));
+      }
+      if (TOPIC_NAVIGATION_PATTERN.test(question) && questionMayNeedLiterature(question)) {
+        await run("topic", () => this.knowledgeService.searchTopics({
+          query: question,
+          mode: "fast",
+          limit: 8,
+          signal: options.signal,
+        }));
+      }
+      if (EXPERIMENT_QUESTION_PATTERN.test(question)) {
+        await run("experiment-note", () => this.knowledgeService.searchExperimentSources({
+          query: question,
+          mode: "fast",
+          limit: 8,
+          signal: options.signal,
+        }));
+      }
+      return {
+        available: true,
+        hits: hits.slice(0, 20),
+      };
     }
 
     buildConversationContext(conversation) {
@@ -705,6 +788,8 @@
             paperCardStatus: document?.paperCardStatus || "unprocessed",
             parseStatus: source?.parseStatus || "not_started",
             indexStatus: source?.indexStatus || "not_started",
+            qmdLexStatus: source?.qmdLexStatus || "not_started",
+            qmdVectorStatus: source?.qmdVectorStatus || "not_started",
             structuredDataStatus: source?.structuredDataStatus || "not_applicable",
           };
         });
@@ -1125,6 +1210,9 @@
         routing
       );
       context.routing = routing;
+      context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest
+        ? { available: this.knowledgeService?.available === true, hits: [] }
+        : await this.retrieveLayeredKnowledge(question, options);
       const sourceCounts = this.sourceRegistry?.counts?.() || {};
       const paperSources = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
       context.literature = {
@@ -1190,6 +1278,8 @@
           catalogStatus: source.catalogStatus,
           parseStatus: source.parseStatus,
           indexStatus: source.indexStatus,
+          qmdLexStatus: source.qmdLexStatus || "not_started",
+          qmdVectorStatus: source.qmdVectorStatus || "not_started",
           paperCardStatus: source.paperCardStatus,
         })),
         availableSourceTools: Boolean(this.sourceSystem),
@@ -1439,7 +1529,7 @@
         const result = await this.experimentTools.searchExperiments(question, {
           readyOnly: true,
           fallbackToAll: false,
-          limit: 100,
+          limit: this.limits.maxRetrievalResults,
         });
         const records = result?.resultHandle
           ? await this.sourceSystem.results.read(result.resultHandle)
@@ -1562,10 +1652,17 @@
       }
       const rankedCards = rankPaperCards(cards, query, options);
       if (!this.literatureTools) return rankedCards;
+      const containsHan = /[\u3400-\u9fff]/.test(query);
+      const broadTopicQuery = TOPIC_NAVIGATION_PATTERN.test(query);
       const lexicalQuery = tokenizeQuestion(query).join(" ") || query;
       const searched = await this.literatureTools.searchPapers(lexicalQuery, {
+        qmdQuery: query,
         topK: Math.min(20, Math.max(1, Number(options.topK) || 5)),
         includeUnpreparedMetadata: options.readyOnly !== true,
+        mode: containsHan ? "deep" : "fast",
+        collections: broadTopicQuery
+          ? ["literature-evidence", "paper-cards"]
+          : ["literature-evidence"],
         ...(candidateIds ? { paperIds: [...candidateIds] } : {}),
       });
       const byPaperId = new Map(rankedCards.map((item) => [item.paperId, item]));
@@ -1620,7 +1717,7 @@
       );
       const evidence = [];
       const perPaperBudget = Math.max(
-        1200,
+        this.limits.maxRetrievalSnippetCharacters,
         Math.floor(this.limits.maxTotalEvidenceCharacters / Math.max(1, boundedIds.length))
       );
       const summaryBudget = Math.min(

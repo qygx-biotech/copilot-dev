@@ -1,0 +1,68 @@
+[
+  {
+    "paperId": "paper-017",
+    "title": "Engineering EctD thermostability for hydroxyectoine biosynthesis",
+    "body": "Researcher et al. (2025) report that EctD is an ectoine hydroxylase that produces hydroxyectoine. Variant A163V retained catalytic activity after heat challenge and showed increased thermal stability. The study recommends A163V for enzyme-engineering workflows in Halomonas elongata.",
+    "doi": "10.1000/ectd.017"
+  },
+  {
+    "paperId": "paper-021",
+    "title": "Regulation of the ectABC ectoine pathway",
+    "body": "The ectABC operon controls ectoine biosynthesis under osmotic stress. Promoter tuning altered ectoine accumulation but this study did not evaluate EctD mutations or hydroxyectoine enzyme thermostability.",
+    "doi": "10.1000/ectabc.021"
+  },
+  {
+    "paperId": "paper-031",
+    "title": "Oxygen and feeding control for hydroxyectoine fermentation",
+    "body": "Fed-batch cultivation of Halomonas elongata improved hydroxyectoine titer when oxygen transfer and carbon feeding were coordinated. The work focuses on fermentation control rather than enzyme mutation.",
+    "doi": "10.1000/fermentation.031"
+  },
+  {
+    "paperId": "paper-041",
+    "title": "Downstream recovery of compatible solutes",
+    "body": "A membrane and crystallization process purified ectoine-family compatible solutes from fermentation broth. Product recovery and purity were the primary outcomes.",
+    "doi": "10.1000/recovery.041"
+  },
+  {
+    "paperId": "paper-052",
+    "title": "Thermostable dehydrogenases for cell-free catalysis",
+    "body": "Dehydrogenase variants were selected for heat tolerance in a cell-free reaction. Neither EctD nor hydroxyectoine was studied.",
+    "doi": "10.1000/dehydrogenase.052"
+  },
+  {
+    "paperId": "paper-063",
+    "title": "Ectoine transport in stress adaptation",
+    "body": "Transport proteins mediate ectoine uptake during salt stress. The paper reports transporter genetics but no enzyme engineering or fermentation optimization.",
+    "doi": "10.1000/transport.063"
+  },
+  {
+    "paperId": "paper-074",
+    "title": "Protein stability measurements by differential scanning fluorimetry",
+    "body": "This methods paper compares thermal-shift assays for purified proteins and discusses melting-temperature uncertainty.",
+    "doi": "10.1000/dsf.074"
+  },
+  {
+    "paperId": "paper-085",
+    "title": "Medium optimization for bacterial osmolytes",
+    "body": "Design-of-experiments methods optimized trace elements for bacterial osmolyte production, without resolving hydroxyectoine-specific pathways.",
+    "doi": "10.1000/medium.085"
+  },
+  {
+    "paperId": "paper-096",
+    "title": "Halomonas genome engineering toolkit",
+    "body": "A CRISPR toolkit enabled multiplex genome editing in Halomonas. The examples target pigments and ectoine genes but not EctD A163V.",
+    "doi": "10.1000/crispr.096"
+  },
+  {
+    "paperId": "paper-107",
+    "title": "Bioreactor scale-up under oxygen limitation",
+    "body": "Scale-up criteria for oxygen-limited bacterial fermentation are compared across stirred-tank geometries.",
+    "doi": "10.1000/scaleup.107"
+  },
+  {
+    "paperId": "paper-118",
+    "title": "Kinetic characterization of EctD variants in BL21(DE3)",
+    "body": "Purified EctD variants expressed in Escherichia coli BL21(DE3) were compared using kcat and Km measurements. The study provides exact enzyme-kinetic identifiers and strain provenance.",
+    "doi": "10.1000/kinetics.118"
+  }
+]

@@ -72,15 +72,12 @@ const SUPPORTED_DOCUMENT_EXTENSIONS = new Set([
   "xls",
 ]);
 
-const BACKEND_PROVIDER = "alibaba"; // "cloudflare" or "alibaba"
-const CLOUDFLARE_WORKER_URL = "https://biodesign-copilot-worker.zhangjatsh666.workers.dev";
 const ALIBABA_FC_URL = "https://biodesi-api-dev-jvvowibabk.cn-beijing.fcapp.run";
-const WORKER_URL = BACKEND_PROVIDER === "alibaba" ? ALIBABA_FC_URL : CLOUDFLARE_WORKER_URL;
+const WORKER_URL = ALIBABA_FC_URL;
 const USE_BACKEND = true;
 // Retained OSS code is intentionally inactive for local-workspace storage.
 const USE_OSS_WORKSPACE_STORAGE = false;
-const PDF_JS_WORKER_URL =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const PDF_JS_WORKER_URL = new URL("vendor/pdfjs/pdf.worker.mjs", window.location.href).href;
 const ACCESS_TOKEN_STORAGE_KEY = "access_token";
 const ACCOUNT_STORAGE_KEY = "account";
 const EXPERIMENT_MODULES_STORAGE_KEY = "biodesign_workbench_experiment_modules";
@@ -281,7 +278,6 @@ const I18N = {
     sideChatPlaceholder: "Ask a question without updating the project plan...",
     askButton: "Ask",
     backendProviderAlibaba: "Alibaba FC backend",
-    backendProviderCloudflare: "Cloudflare Worker backend",
     backendReady: "Ready",
     backendConnected: "Connected",
     backendWorking: "Working",
@@ -606,7 +602,6 @@ const I18N = {
     sideChatPlaceholder: "提出一个不会更新项目计划的问题...",
     askButton: "提问",
     backendProviderAlibaba: "阿里云 FC 后端",
-    backendProviderCloudflare: "Cloudflare Worker 后端",
     backendReady: "就绪",
     backendConnected: "已连接",
     backendWorking: "处理中",
@@ -793,7 +788,7 @@ let activeAgentPanelId = "";
 let activePdfUploads = 0;
 let activeSideChatDocumentKeys = [];
 let sideChatBusy = false;
-const workspaceManager = new WorkspaceManager();
+const workspaceManager = createWorkspaceManager();
 const literatureApiClient = new LiteratureApiClient({
   baseUrl: WORKER_URL,
   getHeaders: () => getAuthHeaders(),
@@ -808,6 +803,7 @@ let workspaceTree = null;
 let selectedWorkspacePaths = new Set();
 let expandedWorkspacePaths = new Set([""]);
 let projectContextService = null;
+let knowledgeService = null;
 let workspaceChatStore = null;
 let lastSourceUsage = null;
 let activeCorpusProgress = null;
@@ -1258,9 +1254,18 @@ async function openSelectedWorkspace(initialize) {
     : await workspaceManager.loadWorkspace();
   workspaceAbortController?.abort();
   workspaceAbortController = new AbortController();
+  await knowledgeService?.close?.();
+  knowledgeService = createKnowledgeService({
+    workspace: workspaceManager,
+    cloudApi: literatureApiClient,
+    cryptoProvider: window.crypto,
+    allowLocalSemantic: false,
+  });
+  await knowledgeService.initialize(result.workspace);
   literatureModule = new LiteratureModule({
     workspace: workspaceManager,
     api: literatureApiClient,
+    knowledgeService,
     pdfjsLib: window.pdfjsLib,
     pdfWorkerSrc: PDF_JS_WORKER_URL,
     getLanguage: () => currentLanguage,
@@ -1428,6 +1433,8 @@ function closeWorkspaceInMemory() {
   workspaceAbortController = null;
   literatureModule = null;
   projectContextService = null;
+  knowledgeService?.close?.();
+  knowledgeService = null;
   lastSourceUsage = null;
   workspaceChatStore = null;
   sideChatConversation = null;
@@ -1630,7 +1637,6 @@ async function handleDocumentFiles({
 
     if (
       extension === "pdf" &&
-      BACKEND_PROVIDER === "alibaba" &&
       USE_OSS_WORKSPACE_STORAGE
     ) {
       const pendingId = makeId();
@@ -1810,10 +1816,6 @@ async function uploadPdfToOss(file) {
 
 async function syncStoredPdfDocuments() {
   if (!authToken) return;
-  if (BACKEND_PROVIDER !== "alibaba") {
-    renderBackendStatus("backendConnected");
-    return;
-  }
 
   renderBackendStatus("backendWorking");
   showToast(t("pdfSyncing"));
@@ -3040,6 +3042,13 @@ async function runAgentInstruction(panelId) {
     let localWorkspaceContext = null;
     if (projectContextService && workspaceTree) {
       activeLiteratureOperations += 1;
+      const unsubscribeKnowledgeStatus = knowledgeService?.subscribe?.((event) => {
+        const status = knowledgeProgressText(event);
+        if (!status) return;
+        panel.statusKey = "";
+        panel.status = status;
+        renderAnalysisPanels();
+      });
       try {
         localWorkspaceContext = await projectContextService.buildContext({
           surface: "agent_command",
@@ -3061,6 +3070,7 @@ async function runAgentInstruction(panelId) {
         renderWorkspaceExplorer();
         renderAllDocumentLists();
       } finally {
+        unsubscribeKnowledgeStatus?.();
         activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
       }
     }
@@ -3957,6 +3967,12 @@ async function askSideChat(question) {
   sideChatMessages.push(userMessage);
   addSideChatMessage("user", question);
   const thinkingMessage = addSideChatThinking();
+  const unsubscribeKnowledgeStatus = knowledgeService?.subscribe?.((event) => {
+    updateSideChatThinking(thinkingMessage, {
+      stage: `knowledge-${event.stage || "working"}`,
+      message: knowledgeProgressText(event),
+    });
+  });
   setSideChatBusy(true);
   activeCorpusProgress = null;
   let contextPrepared = false;
@@ -4061,6 +4077,7 @@ async function askSideChat(question) {
     });
     await persistSideChatConversation().catch(() => {});
   } finally {
+    unsubscribeKnowledgeStatus?.();
     activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
     activeCorpusProgress = null;
     renderSideChatContext();
@@ -4086,7 +4103,11 @@ function appendCorpusCoverage(reply, literature) {
 function updateSideChatThinking(message, progress) {
   const text = message.querySelector(".thinking-content > span:first-child");
   if (!text) return;
-  if (progress.stage?.startsWith("corpus-")) {
+  if (progress.stage?.startsWith("knowledge-")) {
+    text.textContent = progress.message || (currentLanguage === "zh"
+      ? "正在搜索本地知识..."
+      : "Searching local knowledge...");
+  } else if (progress.stage?.startsWith("corpus-")) {
     const incremental = progress.incremental === true;
     const labels = currentLanguage === "zh"
       ? {
@@ -4149,6 +4170,40 @@ function updateSideChatThinking(message, progress) {
       ? `语料库工作流：${progress.phase}（${progress.completed || 0}/${progress.total || 0}）`
       : `Corpus workflow: ${progress.phase} (${progress.completed || 0}/${progress.total || 0})`;
   }
+}
+
+function knowledgeProgressText(event = {}) {
+  const completed = Math.max(0, Number(event.completed) || 0);
+  const total = Math.max(0, Number(event.total) || 0);
+  if (event.stage === "embedding" && total > 0) {
+    return currentLanguage === "zh"
+      ? `正在生成本地语义嵌入 ${completed}/${total}...`
+      : `Generating local semantic embeddings ${completed}/${total}...`;
+  }
+  const labels = currentLanguage === "zh"
+    ? {
+        initializing: "正在初始化本地搜索...",
+        indexing: "正在更新本地搜索索引...",
+        embedding: "正在生成本地语义嵌入...",
+        searching: "正在搜索本地知识...",
+        "cloud-retrieval": "正在通过云端规划与重排搜索本地证据...",
+        "initializing-search-model": "正在初始化本地语义搜索模型...",
+        ready: "本地搜索已就绪。",
+        fallback: "本地搜索不可用，正在使用兼容检索。",
+        "search-fallback": "本地搜索失败，正在使用兼容检索。",
+      }
+    : {
+        initializing: "Initializing local search...",
+        indexing: "Updating the local search index...",
+        embedding: "Generating local semantic embeddings...",
+        searching: "Searching local knowledge...",
+        "cloud-retrieval": "Planning and reranking local evidence through the cloud...",
+        "initializing-search-model": "Initializing the local semantic search model...",
+        ready: "Local search is ready.",
+        fallback: "Local search is unavailable; using compatible retrieval.",
+        "search-fallback": "Local search failed; using compatible retrieval.",
+      };
+  return labels[event.stage] || String(event.message || "").trim();
 }
 
 function setSideChatEmptyState(isEmpty) {
@@ -4492,10 +4547,7 @@ function getProjectContext() {
 
 function renderBackendStatus(status = lastBackendStatus) {
   lastBackendStatus = status || lastBackendStatus;
-  const providerLabel =
-    BACKEND_PROVIDER === "alibaba"
-      ? t("backendProviderAlibaba")
-      : t("backendProviderCloudflare");
+  const providerLabel = t("backendProviderAlibaba");
   backendStatusLabel.lastChild.textContent = ` ${providerLabel} · ${t(lastBackendStatus)}`;
 }
 
@@ -4549,8 +4601,7 @@ async function extractPdfText(file) {
   }
 
   if (window.pdfjsLib.GlobalWorkerOptions) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_JS_WORKER_URL;
   }
 
   const arrayBuffer = await readFileAsArrayBuffer(file);

@@ -1,0 +1,29 @@
+{
+  "name": "biodesign-copilot-local-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project-scoped local QMD backend for BioDesign Copilot.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/project-qmd-manager.js && node --check src/server.js && node --check src/knowledge-cli.js && node --check scripts/benchmark-retrieval.js",
+    "test": "node --test test/*.test.js",
+    "knowledge": "node src/knowledge-cli.js",
+    "benchmark": "node scripts/benchmark-retrieval.js"
+  },
+  "dependencies": {
+    "@tobilu/qmd": "2.8.3"
+  },
+  "allowScripts": {
+    "node-llama-cpp@3.20.0": true,
+    "better-sqlite3": true,
+    "tree-sitter-go": true,
+    "tree-sitter-javascript": true,
+    "tree-sitter-python": true,
+    "tree-sitter-rust": true,
+    "tree-sitter-typescript": true
+  }
+}

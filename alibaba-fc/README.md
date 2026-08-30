@@ -1,17 +1,19 @@
 # BioDesign Copilot Alibaba Function Compute Backend
 
-This folder contains an experimental Alibaba Cloud Function Compute HTTP backend for BioDesign Copilot. It is an alternative API proxy for teammates who need a China-accessible backend path:
+This folder contains the authoritative cloud gateway for BioDesign Copilot. Electron's authenticated AI traffic uses this route:
 
 ```text
 docs/ frontend -> Alibaba Function Compute HTTP endpoint -> Requesty
 ```
 
-It keeps the same `/chat` response shape as the Cloudflare Worker so the existing frontend can switch providers without UI changes.
+Electron never calls Requesty directly. The retired `worker/` implementation contains no Requesty client; Requesty credentials and cloud model configuration exist only in Function Compute environment variables or secrets.
 
 ## Required Environment Variables
 
 - `REQUESTY_API_KEY` - Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code.
 - `REQUESTY_MODEL` - Requesty model name.
+- `REQUESTY_SEARCH_PLANNER_MODEL` - optional model for strict search-plan output. Falls back to `REQUESTY_MODEL` when absent.
+- `REQUESTY_RERANK_MODEL` - optional model for strict candidate reranking output. Falls back to `REQUESTY_MODEL` when absent.
 - `REQUESTY_PDF_MODEL` - optional PDF-capable Requesty model. Configuring it enables PDF capability unless `REQUESTY_PDF_ENABLED=false`. OpenAI PDF models are routed through the required `openai-responses/` prefix without changing the general text model.
 - `REQUESTY_PDF_ENABLED`, `REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA`, and `REQUESTY_PDF_SUPPORTS_JSON_SCHEMA` - explicit capability declarations; unsupported or undeclared combinations take the conservative fallback. Per-model overrides may be supplied with `REQUESTY_MODEL_CAPABILITIES_JSON`.
 - `ADMIN_ACCOUNT` - Existing stable login account used in the authenticated OSS ownership prefix.
@@ -70,19 +72,20 @@ npm test
    `ListObjects` uses the bucket itself as the RAM resource; the `oss:Prefix` condition restricts the listable scope. Legacy application authentication further narrows every request to the current account's exact hashed prefix.
 
    The legacy object-level statement must include `oss:GetObject`, `oss:PutObject`, and `oss:DeleteObject` on `acs:oss:*:*:biodesign-copilot-files-2026/uploads/*` if those old endpoints remain deployed.
-7. Install production dependencies and package the root handler with `node_modules`:
+7. Install production dependencies, synchronize the shared retrieval contract, and package the root handler with `node_modules`:
 
    ```bash
    cd alibaba-fc
    npm ci --omit=dev
-   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js package.json package-lock.json node_modules
+   npm run sync:shared
+   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js shared package.json package-lock.json node_modules
    ```
 
 8. Upload `alibaba-fc-local-workspace.zip`. Keep the handler set to `index.handler`.
 9. The local-workspace routes process one bounded chunk per invocation and a separate bounded synthesis request. Keep the existing memory and timeout settings; the legacy server-side OSS review still benefits from 1 GB memory and a 300-second timeout.
 10. Keep the existing HTTP-trigger CORS origin for the GitHub Pages frontend.
 11. The local-workspace flow does not require OSS bucket CORS. Keep the old rule only if the retained legacy signed-upload endpoint is still in use elsewhere.
-12. Copy the public HTTP endpoint into `docs/app.js` as `ALIBABA_FC_URL` and keep `BACKEND_PROVIDER = "alibaba"`.
+12. Copy the public HTTP endpoint into `docs/app.js` as `ALIBABA_FC_URL`. There is no production provider switch or direct Requesty fallback in Electron.
 13. Publish the updated `docs/` directory through the existing GitHub Pages deployment.
 
 No production dependency was added for the local-workspace routes. The existing `unpdf@1.8.0` dependency remains for the retained legacy OSS PDF review path.
@@ -91,12 +94,19 @@ No production dependency was added for the local-workspace routes. The existing 
 
 The source-worker endpoints require the existing JWT bearer token and are stateless with respect to project storage:
 
+- `GET /api/knowledge/config` returns opaque planner/ranker configuration signatures plus prompt/schema versions for deterministic client-cache invalidation. It never returns a model name or secret.
+- `POST /api/knowledge/plan-search` accepts only a bounded query and retrieval intent, and returns strict JSON containing validated lexical queries, exact identifiers, source language, and a short interpretation summary.
+- `POST /api/knowledge/rerank` accepts only the original query/intent plus bounded opaque candidate IDs, titles, evidence handles, and snippets. It returns strict ranked IDs, finite scores, and bounded reasons. Duplicate or unknown IDs are rejected.
 - `POST /api/literature/summarize-chunk` accepts one extracted-text chunk, its bounded index/count, language, and filename.
 - `POST /api/literature/synthesize` accepts bounded chunk summaries plus minimal source metadata and returns the structured content used by a local Paper Card.
 - `POST /api/corpus/map-paper` accepts one bounded question plus up to eight evidence excerpts for one paper and returns a host-validated, query-specific map note with only supplied evidence references. It requests strict Requesty `json_schema` output when advertised and falls back to `json_object` plus the same host validation.
 - `POST /api/literature/analyze-pdf-native` accepts one bounded task and one private base64 PDF (20 MB maximum), sends Requesty Chat Completions an `input_file` block, and returns a validated derived paper analysis or corpus map. It never accepts or creates a public URL.
 
-None of these routes accepts an OSS key, a directory handle, or a project folder, and none reads or writes OSS. The native-PDF route accepts PDF bytes only as an authenticated, request-scoped base64 data URI; filenames are reduced to their basename and raw PDF content is not logged.
+Every route above reuses the existing login/JWT validation, CORS policy, Requesty helper, structured-output validation, two-attempt transient retry policy, logging, and error sanitization. The knowledge routes reject unknown input/output keys. They use values imported from `shared/retrieval-contract.js`, which centralizes the pre-existing Electron/QMD/context limits without changing them.
+
+None of these routes accepts an OSS key, a directory handle, or a project folder, and none reads or writes OSS. The planning route receives no evidence. The reranking route rejects absolute paths, bearer/JWT-like content, PDF data, and requests beyond the existing aggregate context/request budgets. Candidate IDs and evidence handles are non-authoritative references; Electron reconstructs every final result from its local candidate object. The native-PDF route accepts PDF bytes only as an authenticated, request-scoped base64 data URI; filenames are reduced to their basename and raw PDF content is not logged.
+
+Function Compute requests Requesty's strict `json_schema` response mode when the configured model advertises it, otherwise it uses `json_object` plus the identical host-side schema validation. Malformed structured output, chain-of-thought fields, duplicate IDs, hallucinated IDs, and out-of-range or non-finite scores fail closed. Sanitized errors never disclose credentials, model configuration, prompts, or provider response bodies.
 
 The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its compact source map, hard paper/experiment scopes, coverage, project summaries, metadata-only inventory, processed evidence, and limitation notices. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
 
