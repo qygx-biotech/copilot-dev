@@ -16,10 +16,10 @@ jobs:
 
     steps:
       - name: Check out tagged commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -33,11 +33,11 @@ jobs:
             throw "Tag $env:GITHUB_REF_NAME does not match package version $expectedTag."
           }
 
-      - name: Install locked dependencies
-        shell: pwsh
-        run: |
-          npm ci
-          npm --prefix alibaba-fc ci
+      - name: Install locked desktop dependencies
+        run: npm ci
+
+      - name: Install locked Alibaba FC dependencies
+        run: npm --prefix alibaba-fc ci
 
       - name: Check source syntax
         run: npm run check
@@ -48,12 +48,14 @@ jobs:
       - name: Run Electron tests explicitly
         run: npm run desktop:test
 
-      - name: Audit production dependencies
-        shell: pwsh
-        run: |
-          npm audit --omit=dev
-          npm --prefix alibaba-fc audit --omit=dev
-          npm --prefix local-backend audit --omit=dev
+      - name: Audit desktop production dependencies
+        run: npm audit --omit=dev
+
+      - name: Audit Alibaba FC production dependencies
+        run: npm --prefix alibaba-fc audit --omit=dev
+
+      - name: Audit QMD production dependencies
+        run: npm --prefix local-backend audit --omit=dev
 
       - name: Build Windows x64 Squirrel and ZIP artifacts
         run: npm run desktop:build:windows

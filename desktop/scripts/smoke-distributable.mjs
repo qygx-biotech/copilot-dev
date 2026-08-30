@@ -1,4 +1,4 @@
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -15,13 +15,14 @@ function run(command, args, options = {}) {
   });
 }
 
+const packageMetadata = JSON.parse(await readFile(path.resolve("package.json"), "utf8"));
 const archive = path.resolve(
   "out",
   "make",
   "zip",
   "darwin",
   process.arch,
-  `BioDesign-darwin-${process.arch}-0.1.0.zip`,
+  `BioDesign-darwin-${process.arch}-${packageMetadata.version}.zip`,
 );
 await access(archive);
 const extractionRoot = await mkdtemp(path.join(os.tmpdir(), "biodesign-distributable-smoke-"));

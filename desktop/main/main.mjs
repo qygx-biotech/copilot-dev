@@ -99,8 +99,12 @@ async function runSmoke(window) {
     loginVisible: !document.getElementById("loginPanel")?.hidden
   })`);
   const runtime = await window.webContents.executeJavaScript("window.biodesignDesktop.runtime.info()");
+  const acceptedSmokeTitles = new Set([
+    "BioDesign Workbench",
+    "BioDesign Workbench | 生物设计工作台",
+  ]);
   const result = {
-    rendererLoaded: renderer.bridge && renderer.title === "BioDesign Workbench",
+    rendererLoaded: renderer.bridge && acceptedSmokeTitles.has(renderer.title),
     renderer,
     runtime,
     security: { nodeIntegration: false, contextIsolation: true, sandbox: true },

@@ -147,7 +147,7 @@ npm run desktop:smoke:distributable
 npm test
 ```
 
-Electron 44.0.0 bundles Node 24.18.1 and is compatible with QMD's Node `>=22` requirement. Electron Forge 7.11.2 creates the macOS package/DMG and structurally configures Windows ZIP/Squirrel outputs. The final macOS ARM64 artifacts are `out/make/BioDesign-0.1.0-arm64.dmg` and `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.0.zip`. Unsigned local artifacts are suitable for local validation; public distribution still requires Apple/Windows signing credentials and macOS notarization.
+Electron 44.0.0 bundles Node 24.18.1 and is compatible with QMD's Node `>=22` requirement. Electron Forge 7.11.2 creates the macOS package/DMG and structurally configures Windows ZIP/Squirrel outputs. The final macOS ARM64 artifacts are `out/make/BioDesign-0.1.1-arm64.dmg` and `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.1.zip`. Unsigned local artifacts are suitable for local validation; public distribution still requires Apple/Windows signing credentials and macOS notarization.
 
 Fast QMD works immediately and offline. Cloud-backed Deep requires Internet access and incurs Requesty usage through Alibaba FC, but downloads no local model weights. Search-plan and rerank caches live under `.biodesign/cache/cloud-retrieval/`, contain no credentials, and are invalidated by scope, candidate/evidence hashes, source versions, model signatures, prompt/schema versions, and retrieval configuration. Planning failure falls back to the original lexical query; reranking failure returns deterministic locally fused evidence with `fallback: "local-lexical-fusion"`.
 

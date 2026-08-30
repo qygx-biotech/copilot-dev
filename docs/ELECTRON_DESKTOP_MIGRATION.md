@@ -376,14 +376,14 @@ Validation results:
 - Controlled retrieval rerun, unchanged 11-document/10-query fixture: legacy/QMD lexical recall@5/recall@10/evidence recall were `0.80/0.80/0.70` and `0.20/0.20/0.20`; cloud-planned lexical and cloud-reranked replay were both `1.00/1.00/1.00`, including Chinese→English and exact identifiers. Local orchestration steady p50 was `0.994 ms` planned and `0.981 ms` reranked; this explicitly excludes live network/provider latency. Estimated 10-query cold use was 6,580 input and 1,078 output tokens, 30 FC requests, and 20 Requesty calls.
 - The earlier optional local-semantic baseline remains `1.00/1.00/1.00`; a fresh reproduction was not possible because this host's QMD build reported no CPU-only prebuilt and Metal could not allocate an embedding context. Production-path replay required no model.
 - Packaged and relocated-ZIP smokes: Electron `44.0.0`, bundled Node `24.18.1`, packaged mode true, Fast marker matched, native diagnostics empty, and zero files resembling local model weights in a newly empty cache.
-- Package audit: 6,327 ASAR entries, 49 native modules, raw sqlite-vec library unpacked, compatibility dependencies/server trees excluded, zero direct Requesty paths, and zero packaged model-weight files. Production dependency audits for desktop, Alibaba FC, and local backend each reported zero vulnerabilities.
+- Package audit: 6,138 ASAR entries, 41 packaged native binaries, raw sqlite-vec library unpacked, compatibility dependencies/server trees excluded, zero direct Requesty paths, and zero packaged model-weight files. Native dependencies with published platform/architecture prebuilds are consumed directly instead of being recompiled against host Xcode or Visual Studio. Production dependency audits for desktop, Alibaba FC, and local backend each reported zero vulnerabilities.
 
 Final macOS ARM64 outputs:
 
-- `out/make/BioDesign-0.1.0-arm64.dmg` — 219,782,564 bytes; SHA-256 `c660167eb3b05c825a13098fdc28c6c2c8165b59c7d640838220e62499ad154c`.
-- `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.0.zip` — 220,161,209 bytes; SHA-256 `50e93919518d028b2e02bd2723cc4ee1baa63dbb5e0d9519990f42f72a009a52`.
+- `out/make/BioDesign-0.1.1-arm64.dmg` — 217,597,313 bytes; SHA-256 `e8a290da91722732b03149a93b7bfb69891f6fcd15faa05b3c1f69aaf4aac179`.
+- `out/make/zip/darwin/arm64/BioDesign-darwin-arm64-0.1.1.zip` — 217,998,051 bytes; SHA-256 `77d24f89c2ba2bf747789fa7264677306b7f5c8eb13816ee96bcd9882b12a005`.
 
-This local build is ad-hoc/unsigned and not notarized. Public macOS distribution requires an Apple Developer identity/notarization; Windows signing and execution validation require a Windows host and credentials. Live production login/Requesty calls were not made without deployment/account credentials; authenticated FC, Requesty-only, failure, cache, and native-PDF contracts were exercised with repository mocks. Therefore checklist item 39 remains externally blocked and this document does not claim live-cloud completion.
+This local build is ad-hoc/unsigned and not notarized. Public macOS distribution requires an Apple Developer identity/notarization, and Windows code signing requires separate signing credentials. The tag-triggered GitHub workflow performs Windows x64 packaging and execution validation on `windows-latest` before it creates a draft prerelease. Live production login/Requesty calls were not made without deployment/account credentials; authenticated FC, Requesty-only, failure, cache, and native-PDF contracts were exercised with repository mocks. Therefore checklist item 39 remains externally blocked and this document does not claim live-cloud completion.
 
 ## Final fresh-machine scenario
 

@@ -38,6 +38,17 @@ module.exports = {
   },
   rebuildConfig: {
     force: true,
+    // These dependencies ship platform/architecture prebuilds and load them
+    // directly. Recompiling them makes packaging depend on the runner's host
+    // Visual Studio/Xcode version without changing the Electron runtime ABI.
+    ignoreModules: [
+      "better-sqlite3",
+      "tree-sitter-go",
+      "tree-sitter-javascript",
+      "tree-sitter-python",
+      "tree-sitter-rust",
+      "tree-sitter-typescript",
+    ],
   },
   makers: [
     { name: "@electron-forge/maker-zip", platforms: ["darwin", "win32"] },
