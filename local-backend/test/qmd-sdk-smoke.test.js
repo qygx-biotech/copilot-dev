@@ -8,7 +8,6 @@ import { ProjectQmdManager } from "../src/project-qmd-manager.js";
 
 test("real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper mirror", async (t) => {
   const projectRoot = await mkdtemp(path.join(os.tmpdir(), "biodesign-real-qmd-"));
-  t.after(() => rm(projectRoot, { recursive: true, force: true }));
   await mkdir(path.join(projectRoot, ".biodesign/knowledge/literature"), { recursive: true });
   await writeFile(
     path.join(projectRoot, ".biodesign/workspace.json"),
@@ -32,7 +31,10 @@ test("real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper m
     ].join("\n")
   );
   const manager = new ProjectQmdManager({ projectRoot });
-  t.after(() => manager.close());
+  t.after(async () => {
+    await manager.close();
+    await rm(projectRoot, { recursive: true, force: true });
+  });
 
   const update = await manager.update({
     workspaceId: "real-qmd-smoke",
