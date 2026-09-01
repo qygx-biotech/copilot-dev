@@ -88,6 +88,10 @@ export class ProjectSessionManager extends EventEmitter {
     return active.qmd.request(method, payload);
   }
 
+  hasRunningJobs() {
+    return this.active?.jobs.hasRunningJobs() || false;
+  }
+
   async close() {
     if (!this.active) return { closed: true };
     const active = this.active;

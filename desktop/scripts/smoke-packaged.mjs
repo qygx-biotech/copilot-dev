@@ -32,11 +32,11 @@ const child = spawn(executable, smokeArguments, {
   env: { ...process.env, BIODESIGN_SMOKE_PROJECT: temporaryRoot },
   stdio: "inherit",
 });
-const exitCode = await new Promise((resolve, reject) => {
+const exit = await new Promise((resolve, reject) => {
   child.once("error", reject);
-  child.once("exit", resolve);
+  child.once("exit", (code, signal) => resolve({ code, signal }));
 });
-if (exitCode !== 0) throw new Error(`Packaged application smoke exited with ${exitCode}.`);
+if (exit.code !== 0) throw new Error(`Packaged application smoke exited with code ${exit.code} and signal ${exit.signal || "none"}.`);
 const result = JSON.parse(await readFile(resultPath, "utf8"));
 if (!result.rendererLoaded || !result.security?.contextIsolation || result.security?.nodeIntegration) {
   throw new Error(`Packaged smoke failed: ${JSON.stringify(result)}`);

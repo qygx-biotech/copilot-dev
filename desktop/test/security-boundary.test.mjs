@@ -43,8 +43,12 @@ async function filesUnder(relativeRoot) {
 }
 
 test("BrowserWindow and preload enforce the Electron privilege boundary", async () => {
-  const main = await source("desktop/main/main.mjs");
+  const entry = await source("desktop/main/main.mjs");
+  const main = await source("desktop/main/application.mjs");
   const preload = await source("desktop/preload/index.cjs");
+  assert.match(entry, /require\("electron-squirrel-startup"\)/);
+  assert.match(entry, /if \(!squirrelStartup\)[\s\S]+import\("\.\/application\.mjs"\)/);
+  assert.doesNotMatch(entry, /BrowserWindow|ProjectSessionManager/);
   assert.match(main, /nodeIntegration:\s*false/);
   assert.match(main, /contextIsolation:\s*true/);
   assert.match(main, /sandbox:\s*true/);
@@ -52,6 +56,7 @@ test("BrowserWindow and preload enforce the Electron privilege boundary", async 
   assert.match(preload, /contextBridge\.exposeInMainWorld\("biodesignDesktop"/);
   assert.doesNotMatch(preload, /exposeInMainWorld\([^\n]+ipcRenderer/);
   assert.doesNotMatch(preload, /child_process|require\(["']node:fs/);
+  assert.doesNotMatch(preload, /autoUpdater|setFeedURL|checkForUpdates|quitAndInstall|update\.electronjs\.org/);
   const channelValues = [...(await source("desktop/ipc/channels.cjs")).matchAll(/"(biodesign:[^"]+)"/g)].map((match) => match[1]).sort();
   const preloadValues = [...preload.matchAll(/"(biodesign:[^"]+)"/g)].map((match) => match[1]).sort();
   assert.deepEqual(preloadValues, channelValues);
@@ -85,7 +90,7 @@ test("renderer runtime libraries are local and production QMD has no localhost d
   const knowledge = await source("docs/knowledge-service.js");
   assert.match(knowledge, /ElectronQmdKnowledgeService/);
   assert.match(knowledge, /root\?\.biodesignDesktop/);
-  assert.doesNotMatch(await source("desktop/main/main.mjs"), /localhost|127\.0\.0\.1/);
+  assert.doesNotMatch(await source("desktop/main/application.mjs"), /localhost|127\.0\.0\.1/);
   assert.doesNotMatch(await source("desktop/preload/index.cjs"), /localhost|127\.0\.0\.1/);
 });
 
@@ -96,6 +101,11 @@ test("Forge excludes deployable server trees and unpacks native dependencies", a
   assert.match(forge, /local-backend\[\/\\\\\]node_modules/);
   assert.match(forge, /maker-dmg/);
   assert.match(forge, /maker-squirrel/);
+  assert.match(forge, /EnableEmbeddedAsarIntegrityValidation[^\n]+true/);
+  assert.match(forge, /OnlyLoadAppFromAsar[^\n]+true/);
+  assert.match(forge, /RunAsNode[^\n]+false/);
+  assert.match(forge, /EnableNodeOptionsEnvironmentVariable[^\n]+false/);
+  assert.match(forge, /EnableNodeCliInspectArguments[^\n]+false/);
 });
 
 test("desktop preparation patches sqlite-vec raw library paths for packaged Electron", async () => {

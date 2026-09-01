@@ -3,7 +3,7 @@ name: Windows x64 prerelease
 on:
   push:
     tags:
-      - "v*"
+      - "v*-beta.*"
 
 permissions:
   contents: write
@@ -16,10 +16,12 @@ jobs:
 
     steps:
       - name: Check out tagged commit
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
           cache: npm
@@ -67,6 +69,8 @@ jobs:
         run: npm run desktop:smoke:packaged
 
       - name: Verify Windows release artifacts
+        env:
+          BIODESIGN_ALLOW_PRERELEASE: "1"
         run: npm run desktop:verify:windows
 
       - name: Collect artifacts and SHA-256 checksums
@@ -113,7 +117,7 @@ jobs:
 
           Fast retrieval is fully local and needs no model download. Deep retrieval requires Internet access and uses authenticated Alibaba Function Compute endpoints; only budgeted retrieval evidence is sent onward to Requesty. No Requesty credential or Alibaba FC source is packaged in the desktop application.
 
-          This prerelease does not include an automatic updater.
+          This build contains the updater, but the automatic update channel is stable-only. Stable installations ignore draft and prerelease releases, and this prerelease cannot be promoted in place to a stable release.
           "@ | Set-Content release-notes.md -Encoding utf8NoBOM
           gh release create $env:GITHUB_REF_NAME `
             $env:SETUP_PATH `

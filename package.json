@@ -1,6 +1,6 @@
 {
   "name": "biodesign-copilot-desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Packaged Electron desktop runtime for BioDesign Copilot.",
   "author": "qygx-biotech",
@@ -26,14 +26,17 @@
     "desktop:smoke:distributable": "node desktop/scripts/smoke-distributable.mjs",
     "desktop:audit:package": "node desktop/scripts/audit-package.mjs",
     "desktop:verify:windows": "node desktop/scripts/verify-windows-release.mjs",
+    "desktop:smoke:update:windows": "node desktop/scripts/build-windows-update-smoke.mjs && node desktop/scripts/windows-update-smoke.mjs",
     "desktop:test": "npm run desktop:prepare && node --test desktop/test/*.test.mjs",
     "test": "npm run desktop:test && npm --prefix alibaba-fc test && npm --prefix local-backend test",
-    "check": "node --check desktop/main/main.mjs && node --check desktop/preload/index.cjs && node --check desktop/ipc/register-handlers.mjs && node --check desktop/services/project-filesystem.mjs && node --check desktop/workers/qmd-worker.mjs"
+    "check": "node --check desktop/main/main.mjs && node --check desktop/main/application.mjs && node --check desktop/main/windows-updater.mjs && node --check desktop/preload/index.cjs && node --check desktop/ipc/register-handlers.mjs && node --check desktop/services/project-filesystem.mjs && node --check desktop/workers/qmd-worker.mjs && node --check desktop/scripts/validate-stable-release.mjs"
   },
   "dependencies": {
     "@tobilu/qmd": "2.8.3",
+    "electron-squirrel-startup": "1.0.1",
     "katex": "0.18.1",
     "pdfjs-dist": "6.3.289",
+    "update-electron-app": "3.3.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
@@ -42,7 +45,11 @@
     "@electron-forge/maker-squirrel": "7.11.2",
     "@electron-forge/maker-zip": "7.11.2",
     "@electron-forge/plugin-auto-unpack-natives": "7.11.2",
-    "electron": "44.0.0"
+    "@electron-forge/plugin-fuses": "7.11.2",
+    "@electron/fuses": "1.8.0",
+    "@electron/packager": "18.4.4",
+    "electron": "44.0.0",
+    "electron-winstaller": "5.4.4"
   },
   "allowScripts": {
     "node-llama-cpp@3.20.0": true,

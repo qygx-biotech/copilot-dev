@@ -1,0 +1,197 @@
+name: Windows x64 stable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Stable tag matching package.json (for example, v0.1.6)
+        required: true
+        type: string
+      confirmation:
+        description: Type publish-stable to authorize a normal GitHub release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-stable-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  signed-stable-release:
+    if: inputs.confirmation == 'publish-stable'
+    name: Test, sign, verify, and publish stable release
+    runs-on: windows-latest
+    timeout-minutes: 90
+    environment: windows-production
+    permissions:
+      contents: write
+
+    steps:
+      - name: Validate requested tag syntax
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
+            throw "The stable release tag must be vMAJOR.MINOR.PATCH with no prerelease suffix."
+          }
+
+      - name: Check out the exact tagged commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Validate version monotonicity and release state
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BIODESIGN_RELEASE_TAG: ${{ inputs.release_tag }}
+          BIODESIGN_RELEASES_JSON_PATH: ${{ runner.temp }}\biodesign-releases.json
+        run: |
+          gh api --paginate --slurp "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" |
+            Set-Content -LiteralPath $env:BIODESIGN_RELEASES_JSON_PATH -Encoding utf8NoBOM
+          node desktop/scripts/validate-stable-release.mjs
+          $matchingTag = @(git tag --points-at HEAD | Where-Object { $_ -ceq $env:BIODESIGN_RELEASE_TAG })
+          if ($matchingTag.Count -ne 1) { throw "The checked-out commit is not the requested release tag." }
+          gh release view $env:BIODESIGN_RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) { throw "A GitHub release already exists for this tag." }
+
+      - name: Install locked desktop dependencies
+        run: npm ci
+
+      - name: Install locked Alibaba FC dependencies
+        run: npm --prefix alibaba-fc ci
+
+      - name: Check source syntax
+        run: npm run check
+
+      - name: Run complete test suite
+        run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+      - name: Audit Alibaba FC production dependencies
+        run: npm --prefix alibaba-fc audit --omit=dev
+
+      - name: Audit QMD production dependencies
+        run: npm --prefix local-backend audit --omit=dev
+
+      - name: Materialize protected signing certificate
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_SIGNING_SUBJECT: ${{ secrets.WINDOWS_SIGNING_SUBJECT }}
+          WINDOWS_CERTIFICATE_FILE: ${{ runner.temp }}\biodesign-windows-signing.pfx
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64) -or
+              [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD) -or
+              [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_SUBJECT)) {
+            throw "Production Windows signing secrets are missing."
+          }
+          [IO.File]::WriteAllBytes(
+            $env:WINDOWS_CERTIFICATE_FILE,
+            [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          )
+
+      - name: Build signed Windows x64 Squirrel and ZIP artifacts
+        env:
+          BIODESIGN_PRODUCTION_RELEASE: "1"
+          WINDOWS_CERTIFICATE_FILE: ${{ runner.temp }}\biodesign-windows-signing.pfx
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_SIGNING_SUBJECT: ${{ secrets.WINDOWS_SIGNING_SUBJECT }}
+        run: npm run desktop:build:windows
+
+      - name: Audit packaged application and Electron fuses
+        run: npm run desktop:audit:package
+
+      - name: Start packaged application with network unavailable
+        shell: pwsh
+        env:
+          HTTPS_PROXY: http://127.0.0.1:9
+          HTTP_PROXY: http://127.0.0.1:9
+          NO_PROXY: ""
+        run: npm run desktop:smoke:packaged
+
+      - name: Verify Windows release artifacts and Squirrel identity
+        run: npm run desktop:verify:windows
+
+      - name: Verify publisher identity and trusted timestamps
+        shell: pwsh
+        env:
+          BIODESIGN_PRODUCTION_RELEASE: "1"
+          WINDOWS_SIGNING_SUBJECT: ${{ secrets.WINDOWS_SIGNING_SUBJECT }}
+        run: ./desktop/scripts/verify-windows-signatures.ps1
+
+      - name: Collect release assets and SHA-256 checksums
+        id: release_assets
+        shell: pwsh
+        run: |
+          $squirrelRoot = Join-Path $PWD "out/make/squirrel.windows/x64"
+          $zipRoot = Join-Path $PWD "out/make/zip/win32/x64"
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $setup = Get-Item (Join-Path $squirrelRoot "BioDesign-Setup.exe")
+          $releases = Get-Item (Join-Path $squirrelRoot "RELEASES")
+          $nupkg = Get-Item (Join-Path $squirrelRoot "BioDesign-$($package.version)-full.nupkg")
+          $zip = Get-Item (Join-Path $zipRoot "BioDesign-win32-x64-$($package.version).zip")
+          $assets = @($setup, $nupkg, $releases, $zip)
+          $checksumPath = Join-Path $PWD "SHA256SUMS.txt"
+          $checksums = foreach ($asset in $assets) {
+            $hash = (Get-FileHash -Algorithm SHA256 $asset.FullName).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+          Set-Content -LiteralPath $checksumPath -Value $checksums -Encoding utf8NoBOM
+          Get-Content -LiteralPath $checksumPath
+          "setup=$($setup.FullName)" >> $env:GITHUB_OUTPUT
+          "nupkg=$($nupkg.FullName)" >> $env:GITHUB_OUTPUT
+          "releases=$($releases.FullName)" >> $env:GITHUB_OUTPUT
+          "zip=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+          "checksums=$checksumPath" >> $env:GITHUB_OUTPUT
+
+      - name: Publish normal stable GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SETUP_PATH: ${{ steps.release_assets.outputs.setup }}
+          NUPKG_PATH: ${{ steps.release_assets.outputs.nupkg }}
+          RELEASES_PATH: ${{ steps.release_assets.outputs.releases }}
+          ZIP_PATH: ${{ steps.release_assets.outputs.zip }}
+          CHECKSUMS_PATH: ${{ steps.release_assets.outputs.checksums }}
+        run: |
+          @"
+          Signed BioDesign Windows x64 stable release built from commit $env:GITHUB_SHA.
+
+          Existing v0.1.5 users must manually install this release once because v0.1.5 has no updater. After this bootstrap, future eligible stable releases download in the background and require no browser visit or manual installer download.
+
+          Automatic updates use the fixed https://update.electronjs.org/qygx-biotech/copilot-dev feed. Drafts and prereleases are not offered to stable installations. Offline or update-service failures do not block local startup or project work.
+          "@ | Set-Content release-notes.md -Encoding utf8NoBOM
+          gh release create $env:RELEASE_TAG `
+            $env:SETUP_PATH `
+            $env:NUPKG_PATH `
+            $env:RELEASES_PATH `
+            $env:ZIP_PATH `
+            $env:CHECKSUMS_PATH `
+            --verify-tag `
+            --title "BioDesign $env:RELEASE_TAG Windows x64 stable" `
+            --notes-file release-notes.md
+
+      - name: Remove materialized signing certificate
+        if: always()
+        shell: pwsh
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "biodesign-windows-signing.pfx"
+          if (Test-Path -LiteralPath $certificatePath) {
+            Remove-Item -LiteralPath $certificatePath -Force
+          }

@@ -2,6 +2,14 @@
 
 BioDesign Copilot is a local-first, human-in-the-loop workspace for synthetic-biology literature review, evidence interpretation, and planning.
 
+## Windows automatic updates
+
+Signed, packaged Windows installations starting with `v0.1.6` check the fixed HTTPS Electron update service after startup and every six hours. Eligible normal stable releases download in the background. After download, BioDesign offers **Restart Now** or **Later**; Later preserves the current session and lets Squirrel install the update on a subsequent normal restart. An open project or running job is never interrupted for an update. Offline use, GitHub outages, and update-service errors never block the application or local project features.
+
+**One-time bootstrap for v0.1.5:** the existing `v0.1.5` application has no updater. Every `v0.1.5` user must manually download and install the first updater-enabled signed stable installer once. Future eligible stable releases then require no browser visit or manual installer download.
+
+See [Windows releases and automatic updates](docs/WINDOWS_RELEASES.md) for release channels, signing, validation, recovery, the required assets, and the current public-source protection blocker.
+
 ## Architecture
 
 The primary runtime is a packaged Electron desktop application that reuses the existing `docs/` renderer. After the existing login succeeds, the user selects one local project folder with Electron's native directory dialog. That folder is the persistent scientific source of truth; the unprivileged renderer receives only a narrow project-relative filesystem API.

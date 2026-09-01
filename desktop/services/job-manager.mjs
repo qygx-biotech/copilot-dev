@@ -109,6 +109,12 @@ export class JobManager {
     return this.publicJob(this.jobs.get(id));
   }
 
+  hasRunningJobs() {
+    return this.controllers.size > 0 || [...this.jobs.values()].some(
+      (job) => job.status === "running" || job.status === "queued"
+    );
+  }
+
   async cancel(id) {
     await this.load();
     const job = this.jobs.get(id);
