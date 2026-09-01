@@ -42,6 +42,31 @@ function run(executable, argumentsList, options = {}) {
   });
 }
 
+const terminalFailurePhases = new Set([
+  "no-update",
+  "project-data-lost",
+  "timeout",
+  "update-error",
+]);
+
+async function waitForStatus(expectedPhase, timeoutMs = 210_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastStatus = null;
+  while (Date.now() < deadline) {
+    try {
+      lastStatus = JSON.parse(await readFile(statusPath, "utf8"));
+      if (lastStatus.phase === expectedPhase) return lastStatus;
+      if (terminalFailurePhases.has(lastStatus.phase)) {
+        throw new Error(`Update smoke reached failure phase ${lastStatus.phase}: ${JSON.stringify(lastStatus)}`);
+      }
+    } catch (error) {
+      if (error?.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`Timed out waiting for update smoke phase ${expectedPhase}; last status: ${JSON.stringify(lastStatus)}`);
+}
+
 const allowedAssets = new Set(["RELEASES", `${manifest.identity}-0.0.2-full.nupkg`]);
 const server = http.createServer(async (request, response) => {
   const name = decodeURIComponent(new URL(request.url, "http://127.0.0.1").pathname).replace(/^\/+/, "");
@@ -80,14 +105,17 @@ try {
     BIODESIGN_UPDATE_SMOKE_STATUS: statusPath,
   };
   await run(installedExecutable, [], { env: smokeEnvironment });
-  const downloaded = JSON.parse(await readFile(statusPath, "utf8"));
+  const downloaded = await waitForStatus("downloaded");
   if (downloaded.phase !== "downloaded" || downloaded.version !== "0.0.1" || !downloaded.projectDataPreserved) {
     throw new Error(`Version A did not download version B safely: ${JSON.stringify(downloaded)}`);
   }
 
+  // The installed root launcher can return before the versioned Electron child.
+  // Version A writes "downloaded" just before its deliberate normal quit.
+  await new Promise((resolve) => setTimeout(resolve, 2_000));
   await rm(statusPath, { force: true });
   await run(installedExecutable, [], { env: smokeEnvironment });
-  const updated = JSON.parse(await readFile(statusPath, "utf8"));
+  const updated = await waitForStatus("updated");
   if (updated.phase !== "updated" || updated.version !== "0.0.2" || !updated.projectDataPreserved) {
     throw new Error(`Version B did not launch with version A project data: ${JSON.stringify(updated)}`);
   }
