@@ -62,7 +62,7 @@ test("stable workflow publishes a normal release with pinned actions and protect
   assert.match(workflow, /actions\/checkout@[a-f\d]{40}/);
   assert.match(workflow, /actions\/setup-node@[a-f\d]{40}/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_BASE64: \$\{\{ secrets\./);
-  assert.match(workflow, /permissions:\n\s+contents: read/);
+  assert.match(workflow, /permissions:\r?\n\s+contents: read/);
   assert.match(workflow, /contents: write/);
 });
 
