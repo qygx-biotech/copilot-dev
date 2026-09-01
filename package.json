@@ -1,0 +1,69 @@
+{
+  "name": "biodesign-copilot-desktop",
+  "version": "0.1.6",
+  "private": true,
+  "description": "Packaged Electron desktop runtime for BioDesign Copilot.",
+  "author": "qygx-biotech",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qygx-biotech/copilot-dev.git"
+  },
+  "type": "commonjs",
+  "main": "desktop/main/main.mjs",
+  "engines": {
+    "node": ">=22.0.0 <25.0.0"
+  },
+  "scripts": {
+    "postinstall": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
+    "desktop:prepare": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
+    "desktop:dev": "npm run desktop:prepare && electron-forge start",
+    "desktop:package": "npm run desktop:prepare && electron-forge package",
+    "desktop:build": "npm run desktop:prepare && electron-forge make",
+    "desktop:build:windows": "npm run desktop:prepare && electron-forge make --platform=win32 --arch=x64",
+    "desktop:smoke": "npm run desktop:prepare && electron desktop/main/main.mjs --smoke-test",
+    "desktop:smoke:qmd": "npm run desktop:prepare && node desktop/scripts/smoke-qmd.mjs",
+    "desktop:smoke:packaged": "node desktop/scripts/smoke-packaged.mjs",
+    "desktop:smoke:distributable": "node desktop/scripts/smoke-distributable.mjs",
+    "desktop:audit:package": "node desktop/scripts/audit-package.mjs",
+    "desktop:verify:windows": "node desktop/scripts/verify-windows-release.mjs",
+    "desktop:smoke:update:windows": "node desktop/scripts/build-windows-update-smoke.mjs && node desktop/scripts/windows-update-smoke.mjs",
+    "desktop:test": "npm run desktop:prepare && node --test desktop/test/*.test.mjs",
+    "test": "npm run desktop:test && npm --prefix alibaba-fc test && npm --prefix local-backend test",
+    "check": "node --check desktop/main/main.mjs && node --check desktop/main/application.mjs && node --check desktop/main/windows-updater.mjs && node --check desktop/preload/index.cjs && node --check desktop/ipc/register-handlers.mjs && node --check desktop/services/project-filesystem.mjs && node --check desktop/workers/qmd-worker.mjs && node --check desktop/scripts/validate-stable-release.mjs"
+  },
+  "dependencies": {
+    "@tobilu/qmd": "2.8.3",
+    "electron-squirrel-startup": "1.0.1",
+    "katex": "0.18.1",
+    "pdfjs-dist": "6.3.289",
+    "update-electron-app": "3.3.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.2",
+    "@electron-forge/maker-dmg": "7.11.2",
+    "@electron-forge/maker-squirrel": "7.11.2",
+    "@electron-forge/maker-zip": "7.11.2",
+    "@electron-forge/plugin-auto-unpack-natives": "7.11.2",
+    "@electron-forge/plugin-fuses": "7.11.2",
+    "@electron/fuses": "1.8.0",
+    "@electron/packager": "18.4.4",
+    "electron": "44.0.0",
+    "electron-winstaller": "5.4.4"
+  },
+  "allowScripts": {
+    "node-llama-cpp@3.20.0": true,
+    "better-sqlite3": false,
+    "electron-winstaller@5.4.4": true,
+    "fs-xattr@0.3.1": true,
+    "macos-alias@0.2.12": true,
+    "tree-sitter-go": true,
+    "tree-sitter-javascript": true,
+    "tree-sitter-python": true,
+    "tree-sitter-rust": true,
+    "tree-sitter-typescript": true
+  },
+  "overrides": {
+    "tar": "7.5.22"
+  }
+}

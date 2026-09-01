@@ -1,0 +1,42 @@
+{
+  "en-exact-variant": {
+    "queries": ["A163V", "EctD", "thermal stability"],
+    "identifiers": ["A163V", "EctD"]
+  },
+  "en-semantic-variant": {
+    "queries": ["EctD heat tolerance", "hydroxyectoine enzyme", "thermal stability"],
+    "identifiers": ["A163V", "EctD"]
+  },
+  "en-fermentation": {
+    "queries": ["Halomonas hydroxyectoine", "oxygen transfer", "carbon feeding"],
+    "identifiers": ["Halomonas elongata"]
+  },
+  "zh-crosslingual-variant": {
+    "queries": ["EctD hydroxyectoine", "thermal stability", "ectoine hydroxylase"],
+    "identifiers": ["A163V", "EctD"]
+  },
+  "zh-crosslingual-fermentation": {
+    "queries": ["Halomonas hydroxyectoine", "oxygen transfer", "carbon feeding"],
+    "identifiers": ["Halomonas elongata"]
+  },
+  "doi-lookup": {
+    "queries": ["10.1000 ectd 017"],
+    "identifiers": ["10.1000/ectd.017"]
+  },
+  "exact-kinetic-identifiers": {
+    "queries": ["EctD kcat", "EctD Km", "enzyme kinetics"],
+    "identifiers": ["EctD", "kcat", "Km"]
+  },
+  "exact-strain-id": {
+    "queries": ["BL21(DE3)", "EctD variants"],
+    "identifiers": ["BL21(DE3)"]
+  },
+  "paper-author-year-lookup": {
+    "queries": ["Researcher 2025", "EctD A163V"],
+    "identifiers": ["EctD", "A163V"]
+  },
+  "broad-production-strategies": {
+    "queries": ["hydroxyectoine production", "EctD enzyme engineering", "Halomonas fermentation"],
+    "identifiers": ["EctD", "A163V", "Halomonas elongata"]
+  }
+}
