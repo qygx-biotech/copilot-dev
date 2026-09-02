@@ -13,7 +13,10 @@ if (process.platform !== "win32" || process.arch !== "x64") {
 
 const packageMetadata = JSON.parse(await readFile("package.json", "utf8"));
 const allowPrerelease = process.env.BIODESIGN_ALLOW_PRERELEASE === "1";
-const validPrerelease = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$/.test(packageMetadata.version);
+const prereleaseMatch = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)$/.exec(packageMetadata.version);
+const validPrerelease = Boolean(prereleaseMatch && !prereleaseMatch[4]
+  .split(".")
+  .some((identifier) => /^\d+$/.test(identifier) && identifier.length > 1 && identifier.startsWith("0")));
 if (!parseStableSemver(packageMetadata.version) && !(allowPrerelease && validPrerelease)) {
   throw new Error(`Windows ${allowPrerelease ? "release" : "stable release"} version is invalid: ${packageMetadata.version}.`);
 }

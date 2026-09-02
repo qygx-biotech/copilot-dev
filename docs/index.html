@@ -14,12 +14,15 @@
   <body>
     <section id="loginPanel" class="login-panel" aria-label="Login">
       <form id="loginForm" class="login-card" novalidate>
-        <div class="language-control login-language-control">
-          <label for="loginLanguageSelect" data-i18n="languageLabel">Language</label>
-          <select id="loginLanguageSelect" data-language-select>
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
+        <div class="utility-control-row">
+          <div class="language-control login-language-control">
+            <label for="loginLanguageSelect" data-i18n="languageLabel">Language</label>
+            <select id="loginLanguageSelect" data-language-select>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+          <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
         </div>
         <div class="login-copy">
           <p class="eyebrow" data-i18n="loginEyebrow">Account Login</p>
@@ -60,12 +63,15 @@
 
     <section id="workspaceSelectionPanel" class="workspace-selection-panel is-hidden" hidden aria-label="Workspace selection">
       <div class="workspace-selection-card">
-        <div class="language-control workspace-language-control">
-          <label for="workspaceLanguageSelect" data-i18n="languageLabel">Language</label>
-          <select id="workspaceLanguageSelect" data-language-select>
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
+        <div class="utility-control-row">
+          <div class="language-control workspace-language-control">
+            <label for="workspaceLanguageSelect" data-i18n="languageLabel">Language</label>
+            <select id="workspaceLanguageSelect" data-language-select>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+          <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
         </div>
         <p class="eyebrow" data-i18n="workspaceSelectionEyebrow">Local Workspace</p>
         <h1 data-i18n="workspaceSelectionTitle">BioDesign Copilot</h1>
@@ -102,6 +108,33 @@
       </form>
     </dialog>
 
+    <dialog id="aboutDialog" class="workspace-dialog" aria-labelledby="aboutDialogTitle">
+      <form method="dialog" class="workspace-dialog-card about-dialog-card">
+        <p class="eyebrow" data-i18n="aboutEyebrow">Application</p>
+        <h2 id="aboutDialogTitle" data-i18n="aboutTitle">About BioDesign</h2>
+        <p class="about-version-line">
+          <span data-i18n="versionLabel">Version</span>
+          <strong id="aboutAppVersion">Development preview</strong>
+        </p>
+        <section class="beta-update-card" aria-labelledby="betaUpdateTitle">
+          <h3 id="betaUpdateTitle" data-i18n="betaUpdateTitle">Beta updates</h3>
+          <p data-i18n="betaUpdateDescription">
+            Packaged Windows prerelease builds can manually check the public BioDesign beta channel.
+          </p>
+          <button id="betaUpdateButton" class="secondary-button" type="button" disabled data-i18n="checkBetaUpdates">
+            Check for Beta Updates
+          </button>
+          <p id="betaUpdateStatus" class="beta-update-status" role="status" aria-live="polite"></p>
+        </section>
+        <p class="about-security-note" data-i18n="betaUnsignedWarning">
+          Beta builds are unsigned development builds and may trigger Windows Unknown publisher or SmartScreen warnings. Stable production releases still require trusted code signing.
+        </p>
+        <div class="workspace-dialog-actions">
+          <button class="primary-button" value="close" type="submit" data-i18n="closeButton">Close</button>
+        </div>
+      </form>
+    </dialog>
+
     <main id="appShell" class="app-shell is-hidden" hidden>
       <header class="workbench-header">
         <div class="workbench-title-group">
@@ -121,6 +154,7 @@
               <option value="zh">中文</option>
             </select>
           </div>
+          <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
           <div id="backendStatusLabel" class="status-pill" aria-label="Backend status">
             <span></span>
             Alibaba FC backend

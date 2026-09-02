@@ -66,6 +66,22 @@ test("stable workflow publishes a normal release with pinned actions and protect
   assert.match(workflow, /contents: write/);
 });
 
+test("beta workflow stays draft-only until manual publication and preserves stable signing gates", async () => {
+  const workflow = await readFile(path.join(repositoryRoot, ".github/workflows/windows-prerelease.yml"), "utf8");
+  const stableWorkflow = await readFile(path.join(repositoryRoot, ".github/workflows/windows-stable-release.yml"), "utf8");
+  assert.match(workflow, /--draft/);
+  assert.match(workflow, /--prerelease/);
+  assert.match(workflow, /BioDesign-Setup\.exe/);
+  assert.match(workflow, /RELEASES/);
+  assert.match(workflow, /\*-full\.nupkg/);
+  assert.match(workflow, /SHA256SUMS\.txt/);
+  assert.match(workflow, /manually publish it as a public prerelease/);
+  assert.match(workflow, /Unknown.publisher|unknown-publisher/i);
+  assert.match(stableWorkflow, /environment: windows-production/);
+  assert.match(stableWorkflow, /WINDOWS_CERTIFICATE_BASE64/);
+  assert.doesNotMatch(stableWorkflow, /--prerelease/);
+});
+
 test("Windows Squirrel identity and release artifact names remain stable", async () => {
   const forge = await readFile(path.join(repositoryRoot, "forge.config.cjs"), "utf8");
   const packageMetadata = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8"));

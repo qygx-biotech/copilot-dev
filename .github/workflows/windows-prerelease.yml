@@ -30,6 +30,9 @@ jobs:
         shell: pwsh
         run: |
           $package = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($package.version -cnotmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.(0|[1-9]\d*)$') {
+            throw "Windows beta package version must be canonical MAJOR.MINOR.PATCH-beta.NUMBER semantic version."
+          }
           $expectedTag = "v$($package.version)"
           if ($env:GITHUB_REF_NAME -cne $expectedTag) {
             throw "Tag $env:GITHUB_REF_NAME does not match package version $expectedTag."
@@ -117,7 +120,9 @@ jobs:
 
           Fast retrieval is fully local and needs no model download. Deep retrieval requires Internet access and uses authenticated Alibaba Function Compute endpoints; only budgeted retrieval evidence is sent onward to Requesty. No Requesty credential or Alibaba FC source is packaged in the desktop application.
 
-          This build contains the updater, but the automatic update channel is stable-only. Stable installations ignore draft and prerelease releases, and this prerelease cannot be promoted in place to a stable release.
+          This unsigned build exposes Check for Beta Updates only when installed as a packaged Windows prerelease. Stable installations remain on the signed stable-only channel and can never opt into this beta feed.
+
+          This workflow creates a draft prerelease. Installed beta clients cannot discover it while it is a draft. After validation, a maintainer must manually publish it as a public prerelease without changing the tag or assets. Required beta assets are BioDesign-Setup.exe, RELEASES, the matching BioDesign-*-full.nupkg, SHA256SUMS.txt, and the x64 ZIP.
           "@ | Set-Content release-notes.md -Encoding utf8NoBOM
           gh release create $env:GITHUB_REF_NAME `
             $env:SETUP_PATH `

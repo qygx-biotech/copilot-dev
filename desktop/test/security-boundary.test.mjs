@@ -57,9 +57,28 @@ test("BrowserWindow and preload enforce the Electron privilege boundary", async 
   assert.doesNotMatch(preload, /exposeInMainWorld\([^\n]+ipcRenderer/);
   assert.doesNotMatch(preload, /child_process|require\(["']node:fs/);
   assert.doesNotMatch(preload, /autoUpdater|setFeedURL|checkForUpdates|quitAndInstall|update\.electronjs\.org/);
+  assert.match(preload, /requestBetaUpdateCheck:\s*\(\)\s*=>\s*invoke\(channels\.betaUpdateCheck\)/);
+  assert.match(preload, /onBetaUpdateStatus\(listener\)/);
+  assert.doesNotMatch(preload, /github\.com|api\.github\.com|releases\/download|feedUrl|filesystem|installer/i);
   const channelValues = [...(await source("desktop/ipc/channels.cjs")).matchAll(/"(biodesign:[^"]+)"/g)].map((match) => match[1]).sort();
   const preloadValues = [...preload.matchAll(/"(biodesign:[^"]+)"/g)].map((match) => match[1]).sort();
   assert.deepEqual(preloadValues, channelValues);
+});
+
+test("beta updates keep URLs, discovery, and feed configuration in the main process", async () => {
+  const updater = await source("desktop/main/windows-updater.mjs");
+  const handlers = await source("desktop/ipc/register-handlers.mjs");
+  const renderer = await source("docs/app.js");
+  const index = await source("docs/index.html");
+  assert.match(updater, /https:\/\/api\.github\.com\/repos\/qygx-biotech\/copilot-dev\/releases\?per_page=100/);
+  assert.match(updater, /https:\/\/github\.com\/qygx-biotech\/copilot-dev\/releases\/download/);
+  assert.match(updater, /release-assets\.githubusercontent\.com/);
+  assert.doesNotMatch(updater, /process\.env|GITHUB_TOKEN|Authorization\s*:/);
+  assert.match(handlers, /assertTrustedIpcSender\(event, getWindow\)/);
+  assert.match(handlers, /assertOnlyKeys\(payload, \[\]\)/);
+  assert.doesNotMatch(renderer, /setFeedURL|getFeedURL|autoUpdater|quitAndInstall|api\.github\.com|releases\/download/);
+  assert.match(index, /id="betaUpdateButton"/);
+  assert.match(index, />\s*Check for Beta Updates\s*</);
 });
 
 test("desktop and renderer sources contain no direct Requesty host or credential", async () => {

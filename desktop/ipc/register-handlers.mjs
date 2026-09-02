@@ -28,6 +28,16 @@ function safeHandler(handler) {
   };
 }
 
+function assertTrustedIpcSender(event, getWindow) {
+  const window = getWindow();
+  const contents = window && !window.isDestroyed() ? window.webContents : null;
+  const senderUrl = event.senderFrame?.url || event.sender?.getURL?.() || "";
+  const trustedUrl = contents?.getURL?.() || "";
+  if (!contents || event.sender !== contents || !senderUrl.startsWith("file:") || senderUrl !== trustedUrl) {
+    throw new ValidationError("UNTRUSTED_IPC_SENDER", "The desktop request source is not allowed.");
+  }
+}
+
 function boolean(value, label, fallback = false) {
   if (value === undefined) return fallback;
   if (typeof value !== "boolean") throw new ValidationError("INVALID_BOOLEAN", `${label} must be a boolean.`);
@@ -70,7 +80,7 @@ function searchPayload(payload) {
 }
 
 export function registerIpcHandlers(options) {
-  const { ipcMain, dialog, sessionManager, runtimeInfo, getWindow } = options;
+  const { ipcMain, dialog, sessionManager, runtimeInfo, getWindow, getUpdaterController } = options;
   const registered = [];
   const handle = (channel, handler) => {
     ipcMain.handle(channel, safeHandler(handler));
@@ -80,6 +90,14 @@ export function registerIpcHandlers(options) {
   handle(channels.runtimeInfo, async (_event, payload) => {
     assertOnlyKeys(payload, []);
     return runtimeInfo();
+  });
+
+  handle(channels.betaUpdateCheck, async (event, payload) => {
+    assertOnlyKeys(payload, []);
+    assertTrustedIpcSender(event, getWindow);
+    const controller = getUpdaterController?.();
+    if (!controller) return { state: "unsupported", reason: "packaged_windows_only" };
+    return controller.requestBetaUpdateCheck();
   });
 
   handle(channels.projectOpen, async (_event, payload) => {

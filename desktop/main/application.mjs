@@ -11,9 +11,11 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "../ipc/register-handlers.mjs";
+import channels from "../ipc/channels.cjs";
 import { ProjectSessionManager } from "../services/project-session.mjs";
 import {
   BIO_DESIGN_APP_USER_MODEL_ID,
+  getBetaUpdateEligibility,
   startWindowsAutoUpdates,
 } from "./windows-updater.mjs";
 
@@ -115,7 +117,10 @@ async function runSmoke(window) {
     nodeRequireType: typeof window.require,
     processType: typeof window.process,
     title: document.title,
-    loginVisible: !document.getElementById("loginPanel")?.hidden
+    loginVisible: !document.getElementById("loginPanel")?.hidden,
+    aboutButtonCount: document.querySelectorAll(".about-trigger").length,
+    betaButtonPresent: Boolean(document.getElementById("betaUpdateButton")),
+    betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true
   })`);
   const runtime = await window.webContents.executeJavaScript("window.biodesignDesktop.runtime.info()");
   const acceptedSmokeTitles = new Set([
@@ -123,7 +128,11 @@ async function runSmoke(window) {
     "BioDesign Workbench | 生物设计工作台",
   ]);
   const result = {
-    rendererLoaded: renderer.bridge && acceptedSmokeTitles.has(renderer.title),
+    rendererLoaded: renderer.bridge &&
+      acceptedSmokeTitles.has(renderer.title) &&
+      renderer.aboutButtonCount === 3 &&
+      renderer.betaButtonPresent &&
+      renderer.betaButtonDisabled,
     renderer,
     runtime,
     security: { nodeIntegration: false, contextIsolation: true, sandbox: true },
@@ -186,22 +195,6 @@ app.whenReady().then(async () => {
       console.error("qmd_worker_diagnostic", redact(message));
     }
   });
-  unregisterHandlers = registerIpcHandlers({
-    ipcMain,
-    dialog,
-    sessionManager,
-    getWindow: () => mainWindow,
-    runtimeInfo: () => ({
-      appVersion: app.getVersion(),
-      electronVersion: process.versions.electron,
-      nodeVersion: process.versions.node,
-      chromeVersion: process.versions.chrome,
-      packaged: app.isPackaged,
-      platform: process.platform,
-      architecture: process.arch,
-    }),
-  });
-  const window = createWindow();
   if (!smokeTest) {
     updaterController = startWindowsAutoUpdates({
       app,
@@ -215,9 +208,36 @@ app.whenReady().then(async () => {
       prepareForUpdate: async () => {
         await sessionManager?.close();
       },
+      onBetaStatus: (status) => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channels.betaUpdateStatus, status);
+      },
       logEvent: (event) => { void log(event); },
     });
   }
+  unregisterHandlers = registerIpcHandlers({
+    ipcMain,
+    dialog,
+    sessionManager,
+    getWindow: () => mainWindow,
+    getUpdaterController: () => updaterController,
+    runtimeInfo: () => ({
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron,
+      nodeVersion: process.versions.node,
+      chromeVersion: process.versions.chrome,
+      packaged: app.isPackaged,
+      platform: process.platform,
+      architecture: process.arch,
+      betaUpdates: updaterController?.getBetaUpdateCapability() || getBetaUpdateEligibility({
+        platform: process.platform,
+        packaged: app.isPackaged,
+        version: app.getVersion(),
+        architecture: process.arch,
+        processArguments: process.argv,
+      }),
+    }),
+  });
+  const window = createWindow();
   if (smokeTest) {
     try {
       await runSmoke(window);

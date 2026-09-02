@@ -359,7 +359,60 @@ textarea:focus {
 
 .login-language-control {
   justify-content: flex-end;
+}
+
+.utility-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   margin-bottom: 18px;
+}
+
+.about-dialog-card {
+  width: min(560px, calc(100vw - 36px));
+}
+
+.about-version-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.beta-update-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: var(--accent-soft);
+  border: 1px solid #cbe7de;
+  border-radius: var(--radius);
+}
+
+.beta-update-card h3,
+.beta-update-card p,
+.about-security-note {
+  margin: 0;
+}
+
+.beta-update-card .secondary-button {
+  justify-self: start;
+}
+
+.beta-update-status {
+  min-height: 1.4em;
+  color: var(--accent-dark);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.about-security-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .status-pill,
@@ -1557,6 +1610,11 @@ textarea:focus {
   .language-control {
     justify-content: space-between;
     width: 100%;
+  }
+
+  .utility-control-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .memo-section,

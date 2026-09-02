@@ -8,6 +8,7 @@ on:
       - "desktop/main/**"
       - "desktop/scripts/*windows*"
       - "desktop/test/windows-update-fixture/**"
+      - "desktop/test/windows-beta-update-fixture/**"
       - "forge.config.cjs"
       - "package.json"
       - "package-lock.json"
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   two-version-squirrel-update:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Check out source
@@ -47,3 +48,9 @@ jobs:
 
       - name: Install A, download B, restart normally, and verify retained data
         run: node desktop/scripts/windows-update-smoke.mjs
+
+      - name: Build prerelease A and B with the production Squirrel identity
+        run: node desktop/scripts/build-windows-beta-update-smoke.mjs
+
+      - name: Trigger the narrow beta action, choose Later, and verify redirected installation
+        run: node desktop/scripts/windows-beta-update-smoke.mjs
