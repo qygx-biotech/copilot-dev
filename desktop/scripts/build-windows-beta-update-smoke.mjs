@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { toSquirrelPackageVersion } from "../main/windows-updater.mjs";
 
 if (process.platform !== "win32" || process.arch !== "x64") {
   throw new Error("The beta Squirrel update fixture must be built on Windows x64.");
@@ -81,7 +82,12 @@ const versionA = await buildVersion("a", versionAValue);
 const versionB = await buildVersion("b", versionBValue);
 const feedRoot = path.join(smokeRoot, "feed");
 await mkdir(feedRoot, { recursive: true });
-const fullPackageName = `${identity}-${versionBValue}-full.nupkg`;
+const expectedFullPackageName = `${identity}-${toSquirrelPackageVersion(versionBValue)}-full.nupkg`;
+const fullPackageNames = (await readdir(versionB.installerOutput)).filter((name) => name.endsWith("-full.nupkg"));
+if (fullPackageNames.length !== 1 || fullPackageNames[0] !== expectedFullPackageName) {
+  throw new Error(`Expected one Squirrel-normalized full NUPKG named ${expectedFullPackageName}.`);
+}
+const [fullPackageName] = fullPackageNames;
 for (const fileName of ["RELEASES", fullPackageName, `${identity}-Setup.exe`]) {
   await cp(path.join(versionB.installerOutput, fileName), path.join(feedRoot, fileName));
 }

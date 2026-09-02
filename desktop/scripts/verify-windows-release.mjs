@@ -6,6 +6,7 @@ import { parseStableSemver } from "./validate-stable-release.mjs";
 
 const require = createRequire(import.meta.url);
 const extract = require("extract-zip");
+const { convertVersion } = require("electron-winstaller");
 
 if (process.platform !== "win32" || process.arch !== "x64") {
   throw new Error("Windows release verification must run on a Windows x64 host.");
@@ -41,7 +42,8 @@ async function oneMatchingFile(directory, predicate, label) {
 
 const setupPath = path.join(squirrelRoot, "BioDesign-Setup.exe");
 const releasesPath = path.join(squirrelRoot, "RELEASES");
-const expectedFullPackageName = `BioDesign-${packageMetadata.version}-full.nupkg`;
+const squirrelPackageVersion = convertVersion(packageMetadata.version);
+const expectedFullPackageName = `BioDesign-${squirrelPackageVersion}-full.nupkg`;
 const expectedZipName = `BioDesign-win32-x64-${packageMetadata.version}.zip`;
 const packagePath = path.join(squirrelRoot, expectedFullPackageName);
 const zipPath = path.join(zipRoot, expectedZipName);
@@ -73,7 +75,7 @@ try {
   const nuspec = await readFile(path.join(extractionRoot, nuspecNames[0]), "utf8");
   for (const [label, pattern] of [
     ["package identity", /<id>BioDesign<\/id>/],
-    ["package version", new RegExp(`<version>${packageMetadata.version.replaceAll(".", "\\.")}<\\/version>`)],
+    ["package version", new RegExp(`<version>${squirrelPackageVersion.replaceAll(".", "\\.")}<\\/version>`)],
     ["package title", /<title>BioDesign<\/title>/],
   ]) {
     if (!pattern.test(nuspec)) throw new Error(`Full NUPKG ${label} is incorrect.`);
@@ -92,5 +94,6 @@ console.log(JSON.stringify({
   platform: process.platform,
   architecture: process.arch,
   prereleaseValidation: allowPrerelease,
+  squirrelPackageVersion,
   artifacts,
 }, null, 2));

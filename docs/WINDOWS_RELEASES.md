@@ -73,9 +73,11 @@ On a button press the main process:
 
 1. fetches only `https://api.github.com/repos/qygx-biotech/copilot-dev/releases?per_page=100`, without a GitHub token;
 2. considers only `draft: false`, `prerelease: true` releases with canonical `vMAJOR.MINOR.PATCH-prerelease` tags that are strictly higher than the installed prerelease;
-3. requires the exact `qygx-biotech/copilot-dev` release URL and exactly these uploaded assets: `BioDesign-Setup.exe`, `RELEASES`, `BioDesign-<version>-full.nupkg`, `SHA256SUMS.txt`, and `BioDesign-win32-x64-<version>.zip`;
+3. requires the exact `qygx-biotech/copilot-dev` release URL and exactly these uploaded assets: `BioDesign-Setup.exe`, `RELEASES`, the Squirrel-generated full NUPKG, `SHA256SUMS.txt`, and `BioDesign-win32-x64-<version>.zip`;
 4. validates every browser download URL against the exact allowlisted HTTPS GitHub release path, prefetches the small `RELEASES` and checksum manifests through only GitHub's allowlisted release-asset redirect host, rejects unexpected URLs, and checks that `RELEASES` names the one matching full NUPKG and byte size;
 5. derives the Squirrel feed solely as `https://github.com/qygx-biotech/copilot-dev/releases/download/<validated-tag>` and asks Electron's main-process `autoUpdater` to check it.
+
+Squirrel/NuGet removes dots from the prerelease portion of the NUPKG filename. For tag and application version `v0.1.6-beta.1` / `0.1.6-beta.1`, the exact full package asset is therefore `BioDesign-0.1.6-beta1-full.nupkg`; `RELEASES` and the NUPKG's NuSpec must use that same normalized Squirrel version. The ZIP retains the semantic version as `BioDesign-win32-x64-0.1.6-beta.1.zip`.
 
 The UI states are checking, downloading, no eligible beta, ready to restart, temporarily unavailable, or a concise disabled explanation. Discovery responses are bounded; errors, response bodies, headers, cookies, redirect signatures, local paths, project data, and tokens are never logged. Offline access, GitHub failures, rate limits, malformed responses, unsafe redirects, or Squirrel errors return a nonfatal temporarily-unavailable state and never block local startup or work.
 
@@ -180,7 +182,7 @@ To create `v0.1.6-beta.1` later, before any stable `v0.1.6` has been published:
 
 1. Merge the reviewed beta-button change without changing the stable package identity or installation location.
 2. On a separate release-preparation branch, change only the root package version and lockfile version fields from `0.1.6` to `0.1.6-beta.1`; run the full test, package audit, packaged Windows offline smoke, stable two-version smoke, and beta two-version smoke.
-3. Confirm the package is still `BioDesign` / `BioDesign.exe` / `com.squirrel.BioDesign.BioDesign` and the generated files are `BioDesign-Setup.exe`, `RELEASES`, `BioDesign-0.1.6-beta.1-full.nupkg`, `BioDesign-win32-x64-0.1.6-beta.1.zip`, and `SHA256SUMS.txt`.
+3. Confirm the package is still `BioDesign` / `BioDesign.exe` / `com.squirrel.BioDesign.BioDesign` and the generated files are `BioDesign-Setup.exe`, `RELEASES`, the Squirrel-normalized `BioDesign-0.1.6-beta1-full.nupkg`, `BioDesign-win32-x64-0.1.6-beta.1.zip`, and `SHA256SUMS.txt`.
 4. Create and push the exact tag `v0.1.6-beta.1` on that reviewed version commit. The tag-triggered prerelease workflow creates an unsigned draft prerelease; it does not publish it automatically.
 5. Validate the draft's checksums, matching tag/package/NUPKG versions, Squirrel identity, assets, package-content audit, fuses, packaged offline startup, and Windows smoke results. Install the draft manually on an isolated Windows tester and confirm existing project data is intact.
 6. In GitHub, manually publish the unchanged draft as a public prerelease. Only then can an already installed lower beta discover it. Because `v0.1.6-beta.1` is the first beta with the button, testers must still download and install it manually once; the button becomes useful for `v0.1.6-beta.2` or a higher prerelease.

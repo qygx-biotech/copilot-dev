@@ -12,6 +12,7 @@ import {
   parseStableVersion,
   selectEligibleBetaReleases,
   startWindowsAutoUpdates,
+  toSquirrelPackageVersion,
   validateBetaRelease,
   WINDOWS_BETA_ASSET_REDIRECT_HOST,
   WINDOWS_BETA_RELEASES_API_URL,
@@ -108,10 +109,11 @@ function releaseAsset(tag, name, size) {
 
 function betaRelease(version, overrides = {}) {
   const tag = `v${version}`;
+  const squirrelVersion = toSquirrelPackageVersion(version);
   const sizes = {
     "BioDesign-Setup.exe": 120,
     RELEASES: 140,
-    [`BioDesign-${version}-full.nupkg`]: 1234,
+    [`BioDesign-${squirrelVersion}-full.nupkg`]: 1234,
     "SHA256SUMS.txt": 400,
     [`BioDesign-win32-x64-${version}.zip`]: 1500,
   };
@@ -232,6 +234,9 @@ test("strict semantic ordering handles prerelease progression without stable opt
   assert.equal(isStrictlyNewerPrereleaseVersion("0.1.6-beta.1", "0.1.6-beta.1"), false);
   assert.equal(isStrictlyNewerPrereleaseVersion("0.1.6-beta.1", "0.1.6-beta.2"), false);
   assert.equal(isStrictlyNewerPrereleaseVersion("0.1.6-beta.1", "0.1.6"), false);
+  assert.equal(toSquirrelPackageVersion("0.1.6-beta.1"), "0.1.6-beta1");
+  assert.equal(toSquirrelPackageVersion("0.1.7-rc.2-x.3"), "0.1.7-rc2-x3");
+  assert.equal(toSquirrelPackageVersion("invalid"), null);
 });
 
 test("only exact public prereleases with matching Squirrel assets and repository URLs are eligible", () => {
@@ -246,7 +251,8 @@ test("only exact public prereleases with matching Squirrel assets and repository
     { ...valid, html_url: "https://github.com/other/repository/releases/tag/v0.1.6-beta.2" },
     { ...valid, assets: valid.assets.slice(1) },
     { ...valid, assets: [...valid.assets, releaseAsset(valid.tag_name, "unexpected.exe", 10)] },
-    { ...valid, assets: valid.assets.map((asset) => asset.name.endsWith("-full.nupkg") ? { ...asset, name: "Other-0.1.6-beta.2-full.nupkg" } : asset) },
+    { ...valid, assets: valid.assets.map((asset) => asset.name.endsWith("-full.nupkg") ? { ...asset, name: "Other-0.1.6-beta2-full.nupkg" } : asset) },
+    { ...valid, assets: valid.assets.map((asset) => asset.name.endsWith("-full.nupkg") ? { ...asset, name: "BioDesign-0.1.6-beta.2-full.nupkg" } : asset) },
     { ...valid, assets: valid.assets.map((asset) => asset.name === "RELEASES" ? { ...asset, browser_download_url: "https://example.com/RELEASES" } : asset) },
   ];
   for (const release of invalid) assert.equal(validateBetaRelease(release, { currentVersion: "0.1.6-beta.1" }), null);

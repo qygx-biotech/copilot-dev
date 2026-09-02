@@ -63,6 +63,13 @@ export function parseSemanticVersion(value, { allowLeadingV = false } = {}) {
   return { text, core: match.slice(1, 4), prerelease };
 }
 
+export function toSquirrelPackageVersion(value) {
+  const parsed = parseSemanticVersion(value);
+  if (!parsed) return null;
+  const core = parsed.core.join(".");
+  return parsed.prerelease.length ? `${core}-${parsed.prerelease.join("")}` : core;
+}
+
 export function parseStableVersion(value) {
   const parsed = parseSemanticVersion(value, { allowLeadingV: true });
   if (!parsed || parsed.prerelease.length) return null;
@@ -148,10 +155,11 @@ export function getBetaUpdateEligibility({
 }
 
 function expectedBetaAssetNames(version) {
+  const squirrelVersion = toSquirrelPackageVersion(version);
   return Object.freeze({
     setup: "BioDesign-Setup.exe",
     releases: "RELEASES",
-    fullPackage: `BioDesign-${version}-full.nupkg`,
+    fullPackage: `BioDesign-${squirrelVersion}-full.nupkg`,
     checksums: "SHA256SUMS.txt",
     architectureMarker: `BioDesign-win32-x64-${version}.zip`,
   });
