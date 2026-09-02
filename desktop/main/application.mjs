@@ -111,6 +111,24 @@ async function runSmoke(window) {
     window.webContents.once("did-finish-load", resolve);
     window.webContents.once("did-fail-load", (_event, code, description) => reject(new Error(`${code}: ${description}`)));
   });
+  const runtime = await window.webContents.executeJavaScript("window.biodesignDesktop.runtime.info()");
+  const betaUpdates = getBetaUpdateEligibility({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    version: app.getVersion(),
+    architecture: process.arch,
+    processArguments: process.argv,
+  });
+  await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
+    const deadline = Date.now() + 5000;
+    const waitForBetaState = () => {
+      const button = document.getElementById("betaUpdateButton");
+      if (button && button.disabled === ${!betaUpdates.eligible}) return resolve(true);
+      if (Date.now() >= deadline) return reject(new Error("Beta update button state did not initialize."));
+      window.setTimeout(waitForBetaState, 25);
+    };
+    waitForBetaState();
+  })`);
   const renderer = await window.webContents.executeJavaScript(`({
     bridge: Boolean(window.biodesignDesktop),
     bridgeKeys: Object.keys(window.biodesignDesktop || {}),
@@ -122,14 +140,6 @@ async function runSmoke(window) {
     betaButtonPresent: Boolean(document.getElementById("betaUpdateButton")),
     betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true
   })`);
-  const runtime = await window.webContents.executeJavaScript("window.biodesignDesktop.runtime.info()");
-  const betaUpdates = getBetaUpdateEligibility({
-    platform: process.platform,
-    packaged: app.isPackaged,
-    version: app.getVersion(),
-    architecture: process.arch,
-    processArguments: process.argv,
-  });
   const acceptedSmokeTitles = new Set([
     "BioDesign Workbench",
     "BioDesign Workbench | 生物设计工作台",
@@ -139,7 +149,7 @@ async function runSmoke(window) {
       acceptedSmokeTitles.has(renderer.title) &&
       renderer.aboutButtonCount === 3 &&
       renderer.betaButtonPresent &&
-      renderer.betaButtonDisabled === !betaUpdates.enabled,
+      renderer.betaButtonDisabled === !betaUpdates.eligible,
     renderer,
     runtime,
     security: { nodeIntegration: false, contextIsolation: true, sandbox: true },

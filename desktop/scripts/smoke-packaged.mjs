@@ -36,8 +36,11 @@ const exit = await new Promise((resolve, reject) => {
   child.once("error", reject);
   child.once("exit", (code, signal) => resolve({ code, signal }));
 });
-if (exit.code !== 0) throw new Error(`Packaged application smoke exited with code ${exit.code} and signal ${exit.signal || "none"}.`);
-const result = JSON.parse(await readFile(resultPath, "utf8"));
+const resultText = await readFile(resultPath, "utf8").catch(() => "");
+if (exit.code !== 0) {
+  throw new Error(`Packaged application smoke exited with code ${exit.code} and signal ${exit.signal || "none"}. Result: ${resultText || "unavailable"}`);
+}
+const result = JSON.parse(resultText);
 if (!result.rendererLoaded || !result.security?.contextIsolation || result.security?.nodeIntegration) {
   throw new Error(`Packaged smoke failed: ${JSON.stringify(result)}`);
 }
