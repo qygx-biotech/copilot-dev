@@ -43,6 +43,20 @@ jobs:
       - name: Run updater and security tests
         run: npm run desktop:test
 
+      - name: Build the full packaged BioDesign application
+        run: npm run desktop:package -- --platform=win32 --arch=x64
+
+      - name: Audit the full package, ASAR, fuses, and packaged content
+        run: npm run desktop:audit:package
+
+      - name: Start the full packaged application with offline network proxies
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: ""
+        run: npm run desktop:smoke:packaged
+
       - name: Build versions A and B with one Squirrel identity
         run: node desktop/scripts/build-windows-update-smoke.mjs
 

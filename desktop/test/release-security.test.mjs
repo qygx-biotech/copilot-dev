@@ -82,6 +82,16 @@ test("beta workflow stays draft-only until manual publication and preserves stab
   assert.doesNotMatch(stableWorkflow, /--prerelease/);
 });
 
+test("Windows update smoke audits and starts the full package before two-version fixtures", async () => {
+  const workflow = await readFile(path.join(repositoryRoot, ".github/workflows/windows-update-smoke.yml"), "utf8");
+  assert.match(workflow, /desktop:package -- --platform=win32 --arch=x64/);
+  assert.match(workflow, /desktop:audit:package/);
+  assert.match(workflow, /desktop:smoke:packaged/);
+  assert.match(workflow, /HTTPS_PROXY: http:\/\/127\.0\.0\.1:9/);
+  assert.match(workflow, /build-windows-update-smoke\.mjs/);
+  assert.match(workflow, /build-windows-beta-update-smoke\.mjs/);
+});
+
 test("Windows Squirrel identity and release artifact names remain stable", async () => {
   const forge = await readFile(path.join(repositoryRoot, "forge.config.cjs"), "utf8");
   const packageMetadata = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8"));
