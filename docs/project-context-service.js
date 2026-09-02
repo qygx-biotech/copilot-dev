@@ -8,6 +8,12 @@
   const retrievalLimits = (root?.BioDesignRetrievalContract ||
     (typeof require === "function" ? require("../shared/retrieval-contract.js") : {}))
     .RETRIEVAL_LIMITS || {};
+  const retrievalProfiles = root?.BioDesignRetrievalProfiles ||
+    (typeof require === "function" ? require("../shared/retrieval-profiles.js") : {});
+  const normalizeRetrievalProfile = retrievalProfiles.normalizeRetrievalProfile ||
+    ((value) => (["light", "medium", "high"].includes(value) ? value : "light"));
+  const qualityModeForProfile = retrievalProfiles.qualityModeForProfile ||
+    ((value) => value === "high" ? "high_fidelity" : "balanced");
 
   const CHAT_SCHEMA_VERSION = 1;
   const CONTEXT_LIMITS = {
@@ -26,6 +32,8 @@
     maxConversationCharacters: 120000,
     maxStoredMessages: 100,
     maxConversationSummaryCharacters: 48000,
+    maxActivitySteps: 12,
+    maxActivityStepCharacters: 240,
   };
 
   const DETAIL_QUESTION_PATTERN =
@@ -72,6 +80,8 @@
     /\b(?:restart|recover|resume|unstick|stuck|unhealthy)\b[\s\S]{0,100}\b(?:analysis|processing|worker|job|workflow)\b|(?:重启|恢复|继续).{0,30}(?:分析|处理|任务|工作流)/i;
   const NATIVE_PDF_QUESTION_PATTERN =
     /\b(?:whole paper|entire paper|full paper|figure\s*\d+|table\s*\d+|layout|lost the table|parser.*(?:lost|missed)|high[- ]fidelity)\b|整篇|全文总结|图\s*\d+|表\s*\d+|版式|解析.*(?:丢失|遗漏)/i;
+  const HIGH_NATIVE_PDF_QUESTION_PATTERN =
+    /\b(?:poor extraction|critical verification|verify (?:the )?(?:exact|original))\b|提取质量差|关键核验|核对原文/i;
   const PREVIOUS_SYNTHESIS_PATTERN =
     /\b(?:previous|prior|earlier|last|saved|existing)\b[\s\S]{0,80}\b(?:review|synthesis|summary|analysis)\b|\bwhat did (?:the|our|my)?\s*(?:review|synthesis) conclude\b|之前|以前|上次|已有.{0,12}(?:综述|总结|综合分析)/i;
   const PROJECT_DECISION_PATTERN =
@@ -436,6 +446,25 @@
     return selected;
   }
 
+  function prepareLatestSideChatRevision(messages, messageId, nextContent) {
+    const history = Array.isArray(messages) ? messages : [];
+    const question = typeof nextContent === "string" ? nextContent.trim() : "";
+    if (!question || typeof messageId !== "string" || !messageId) return null;
+    let latestUserIndex = -1;
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      if (history[index]?.role === "user") {
+        latestUserIndex = index;
+        break;
+      }
+    }
+    if (latestUserIndex < 0 || history[latestUserIndex]?.id !== messageId) return null;
+    return {
+      question,
+      replacedMessageId: messageId,
+      previousMessages: history.slice(0, latestUserIndex),
+    };
+  }
+
   function normalizeStoredConversation(conversation, limits = CONTEXT_LIMITS) {
     const candidates = (Array.isArray(conversation?.messages) ? conversation.messages : [])
       .filter(
@@ -453,6 +482,14 @@
         id: message.id,
         role: message.role,
         content: message.content.trim(),
+        ...(message.role === "assistant" && Array.isArray(message.activity)
+          ? {
+              activity: message.activity
+                .filter((step) => typeof step === "string" && step.trim())
+                .map((step) => step.trim().slice(0, limits.maxActivityStepCharacters))
+                .slice(-limits.maxActivitySteps),
+            }
+          : {}),
         ...(message.role === "user" && isPlainObject(message.context)
           ? {
               context: {
@@ -490,6 +527,30 @@
                   typeof message.context.corpusWorkflowId === "string"
                     ? message.context.corpusWorkflowId.trim().slice(0, 200)
                     : "",
+                ...(isPlainObject(message.context.retrieval)
+                  ? {
+                      retrieval: {
+                        profile: normalizeRetrievalProfile(
+                          message.context.retrieval.profile
+                        ),
+                        mode: ["fast", "deep", "not-needed"].includes(
+                          message.context.retrieval.mode
+                        )
+                          ? message.context.retrieval.mode
+                          : "not-needed",
+                        ...(["fast", "deep"].includes(
+                          message.context.retrieval.attemptedMode
+                        )
+                          ? { attemptedMode: message.context.retrieval.attemptedMode }
+                          : {}),
+                        escalated: message.context.retrieval.escalated === true,
+                        reason: String(
+                          message.context.retrieval.reason ||
+                            "retrieval-path-unavailable"
+                        ).slice(0, 80),
+                      },
+                    }
+                  : {}),
               },
             }
           : {}),
@@ -959,6 +1020,15 @@
     }
 
     async buildContext(options) {
+      const retrievalProfile = normalizeRetrievalProfile(options?.retrievalProfile);
+      options = {
+        ...options,
+        retrievalProfile,
+        qualityMode: qualityModeForProfile(retrievalProfile),
+        // This authenticated router is a High-only policy. Callers and remote
+        // tool output cannot enable it independently of the persisted setting.
+        enableContextRouter: retrievalProfile === "high",
+      };
       const selectedPaths = [...new Set(
         (Array.isArray(options.selectedPaths) ? options.selectedPaths : [])
           .map(normalizePath)
@@ -1100,9 +1170,11 @@
         !corpusWideLiteratureRequest &&
         !corpusUpdateRequest &&
         !corpusWorkflowFollowUp
-        ? await this.matchPapers(question, {
+          ? await this.matchPapers(question, {
             topK: Math.min(5, this.limits.maxEvidenceFiles),
             readyOnly: false,
+            retrievalProfile,
+            signal: options.signal,
             ...(selectedPaperIds.length
               ? { candidatePaperIds: selectedPaperIds }
               : {}),
@@ -1188,6 +1260,8 @@
           if (!relevantPaperIds.length && !routedPaperIds.length) {
             matches = await this.matchPapers(question, {
               topK: Math.min(5, this.limits.maxEvidenceFiles),
+              retrievalProfile,
+              signal: options.signal,
             });
             relevantPaperIds = matches.map((match) => match.paperId);
           }
@@ -1216,6 +1290,13 @@
       const sourceCounts = this.sourceRegistry?.counts?.() || {};
       const paperSources = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
       context.literature = {
+        retrievalProfile,
+        retrievalDecision: matches.retrievalDecision || {
+          profile: retrievalProfile,
+          mode: "not-needed",
+          escalated: false,
+          reason: "literature-retrieval-not-needed",
+        },
         selectedPaperIds,
         relevantPaperIds,
         discoveryMode,
@@ -1651,15 +1732,23 @@
         });
       }
       const rankedCards = rankPaperCards(cards, query, options);
-      if (!this.literatureTools) return rankedCards;
-      const containsHan = /[\u3400-\u9fff]/.test(query);
+      if (!this.literatureTools) {
+        rankedCards.retrievalDecision = {
+          profile: normalizeRetrievalProfile(options.retrievalProfile),
+          mode: "fast",
+          escalated: false,
+          reason: "local-paper-card-ranking",
+        };
+        return rankedCards;
+      }
       const broadTopicQuery = TOPIC_NAVIGATION_PATTERN.test(query);
       const lexicalQuery = tokenizeQuestion(query).join(" ") || query;
       const searched = await this.literatureTools.searchPapers(lexicalQuery, {
         qmdQuery: query,
         topK: Math.min(20, Math.max(1, Number(options.topK) || 5)),
         includeUnpreparedMetadata: options.readyOnly !== true,
-        mode: containsHan ? "deep" : "fast",
+        retrievalProfile: normalizeRetrievalProfile(options.retrievalProfile),
+        signal: options.signal,
         collections: broadTopicQuery
           ? ["literature-evidence", "paper-cards"]
           : ["literature-evidence"],
@@ -1696,7 +1785,7 @@
           matchedTerms: 0,
         });
       }
-      return [...byPaperId.values()]
+      const ranked = [...byPaperId.values()]
         .filter((item) => item.score > 0)
         .sort(
           (left, right) =>
@@ -1704,6 +1793,13 @@
             String(left.document.filename).localeCompare(String(right.document.filename))
         )
         .slice(0, Math.max(1, Number(options.topK) || 5));
+      ranked.retrievalDecision = searched.retrievalDecision || {
+        profile: normalizeRetrievalProfile(options.retrievalProfile),
+        mode: "fast",
+        escalated: false,
+        reason: "local-paper-card-ranking",
+      };
+      return ranked;
     }
 
     async retrievePaperEvidence(query, paperIds, options = {}) {
@@ -1952,9 +2048,17 @@
           relativePath: file.relativePath,
         });
         const broad = BROAD_PAPER_QUESTION_PATTERN.test(String(options.question || ""));
+        const source = this.sourceRegistry?.get(document.id);
+        const highNeedsNative =
+          options.retrievalProfile === "high" &&
+          (broad ||
+            NATIVE_PDF_QUESTION_PATTERN.test(String(options.question || "")) ||
+            HIGH_NATIVE_PDF_QUESTION_PATTERN.test(String(options.question || "")) ||
+            source?.parseStatus === "failed");
         const useNativePdf = Boolean(
           this.nativePdfAnalyzer &&
-          (NATIVE_PDF_QUESTION_PATTERN.test(String(options.question || "")) ||
+          (highNeedsNative ||
+            NATIVE_PDF_QUESTION_PATTERN.test(String(options.question || "")) ||
             (broad && (options.qualityMode || "balanced") !== "fast"))
         );
         if (useNativePdf) {
@@ -2186,6 +2290,7 @@
     flattenWorkspaceTree,
     formatPaperSummary,
     normalizeStoredConversation,
+    prepareLatestSideChatRevision,
     questionNeedsSourceEvidence,
     questionMayNeedLiterature,
     questionRequiresFileEvidence,

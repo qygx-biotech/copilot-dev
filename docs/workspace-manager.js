@@ -12,6 +12,7 @@
     "experiments/fermentation",
     "experiments/downstream-processing",
     "data",
+    "output",
     ".biodesign/literature/summaries",
     ".biodesign/literature/cache",
     ".biodesign/experiments",
@@ -89,6 +90,9 @@
   }
 
   function assertWorkspaceState(value) {
+    const validRetrievalProfile =
+      value?.ui?.retrievalProfile === undefined ||
+      ["light", "medium", "high"].includes(value.ui.retrievalProfile);
     if (
       !isPlainObject(value) ||
       value.schemaVersion !== WORKSPACE_SCHEMA_VERSION ||
@@ -98,6 +102,7 @@
       !isPlainObject(value.agent) ||
       !isPlainObject(value.memory) ||
       typeof value.updatedAt !== "string" ||
+      !validRetrievalProfile ||
       containsForbiddenSecretKey(value)
     ) {
       throw new WorkspaceError(
@@ -316,6 +321,24 @@
           validPaperIds(message.context.relevantPaperIds) &&
           validPaperIds(message.context.selectedExperimentIds) &&
           validPaperIds(message.context.relevantExperimentIds));
+      const validActivity =
+        message?.activity === undefined ||
+        (message.role === "assistant" &&
+          Array.isArray(message.activity) &&
+          message.activity.every(
+            (step) => typeof step === "string" && step.trim() && step.length <= 240
+          ) &&
+          message.activity.length <= 12);
+      const validRetrieval =
+        message?.context?.retrieval === undefined ||
+        (isPlainObject(message.context.retrieval) &&
+          ["light", "medium", "high"].includes(message.context.retrieval.profile) &&
+          ["fast", "deep", "not-needed"].includes(message.context.retrieval.mode) &&
+          (message.context.retrieval.attemptedMode === undefined ||
+            ["fast", "deep"].includes(message.context.retrieval.attemptedMode)) &&
+          typeof message.context.retrieval.escalated === "boolean" &&
+          typeof message.context.retrieval.reason === "string" &&
+          message.context.retrieval.reason.length <= 80);
       if (
         !isPlainObject(message) ||
         typeof message.id !== "string" ||
@@ -324,7 +347,9 @@
         typeof message.content !== "string" ||
         !message.content.trim() ||
         typeof message.createdAt !== "string" ||
-        !validContext
+        !validContext ||
+        !validRetrieval ||
+        !validActivity
       ) {
         throw new WorkspaceError(
           "INVALID_CHAT_CONVERSATION",
@@ -565,7 +590,7 @@
       const state = {
         schemaVersion: WORKSPACE_SCHEMA_VERSION,
         project: { goal: "" },
-        ui: {},
+        ui: { retrievalProfile: "light" },
         agent: {},
         memory: {
           projectSummary: "",

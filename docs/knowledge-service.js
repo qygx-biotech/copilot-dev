@@ -811,6 +811,7 @@
         }
         config = this.validateCloudConfig(await this.cloudApi.getKnowledgeRetrievalConfig(options.signal));
       } catch (error) {
+        this.emit({ stage: "retrieval-local-fallback" });
         const local = await this.searchLocal(query, { ...options, mode: "fast" });
         return {
           ...local,
@@ -827,8 +828,10 @@
 
       let plan = null;
       try {
+        this.emit({ stage: "planning-expanded-queries" });
         const planned = await this.getSearchPlan(query, intent, options, config);
         plan = planned.plan;
+        if (planned.cached) this.emit({ stage: "retrieval-cache-hit" });
         diagnostics.planner = {
           status: "succeeded",
           cached: planned.cached,
@@ -838,6 +841,7 @@
           attempts: planned.attempts || null,
         };
       } catch (error) {
+        this.emit({ stage: "retrieval-local-fallback" });
         diagnostics.planner = {
           status: "failed",
           ...sanitizeDiagnostic(error, "Cloud search planning failed."),
@@ -868,7 +872,9 @@
       }
 
       try {
+        this.emit({ stage: "reranking-evidence" });
         const reranked = await this.getRanking(query, intent, options, config, built.submitted);
+        if (reranked.cached) this.emit({ stage: "retrieval-cache-hit" });
         const byId = new Map(built.candidates.map((candidate) => [candidate.candidateId, candidate]));
         const rankedIds = new Set(reranked.ranked.map((item) => item.candidateId));
         const ordered = [
@@ -900,6 +906,7 @@
           diagnostics,
         };
       } catch (error) {
+        this.emit({ stage: "retrieval-local-fallback" });
         return {
           mode: "deep",
           collections: options.collections || [],
@@ -919,7 +926,10 @@
     async search(query, options = {}) {
       if (!this.available) return { results: [], fallbackRequired: true };
       const mode = ["fast", "semantic", "deep"].includes(options.mode) ? options.mode : "fast";
-      this.emit({ stage: mode === "deep" ? "cloud-retrieval" : "searching", mode });
+      this.emit({
+        stage: mode === "deep" ? "cloud-retrieval" : "searching-local-evidence",
+        mode,
+      });
       try {
         let result;
         if (mode === "deep") {

@@ -136,6 +136,32 @@ The host groups QMD results by stable paper ID, keeps only the best few snippets
 
 Cloud plan and rerank results use the project's existing cache-management and invalidation path under `.biodesign/cache/cloud-retrieval/`. Cache identities include normalized query and intent, collection and paper/experiment scope, candidate IDs, evidence/content hashes, source versions, retrieval configuration, opaque FC model signature, and prompt/schema versions. Credentials and bearer tokens are neither identity inputs nor cached values.
 
+### User retrieval-quality profiles
+
+The compact Side Chat-header selector is the single authority for the internal `light`, `medium`, or `high` profile. It is validated before being stored in `.biodesign/state.json`, defaults to `light` when absent, and is passed as an immutable value into the current Side Chat or Agent Command context build. There is no profile/feed/provider IPC method. Remote answers and tool arguments cannot change workspace UI state.
+
+| Profile | Literature discovery/content | Context routing | Broad paper handling |
+|---|---|---|---|
+| Light | Existing rule unchanged: Han → Deep; otherwise Fast | Deterministic local only | Existing Paper Card/native-PDF triggers unchanged |
+| Medium | Fast first; deterministic escalation below | Deterministic local only | Existing Paper Card/native-PDF triggers unchanged |
+| High | Deep for every relevant search | Authenticated FC router, local fallback | Reuse valid artifacts; create only a needed missing/stale card; prefer native PDF for relevant whole-paper/table/figure/layout/poor-extraction/critical-verification work |
+
+Medium applies these ordered pure rules:
+
+1. Run Fast and inspect its bounded results.
+2. Accept when a result strongly contains the query's DOI, exact title, author/year pair, biological/enzyme/strain identifier, mutation, `Km`, or `kcat`.
+3. Otherwise escalate cross-language queries and conceptual/topic/strategy/comparison/broad-discovery intent.
+4. Escalate if Fast returns no usable evidence.
+5. Otherwise accept only if one of the first five usable results contains every non-stopword query term; partial coverage escalates.
+
+The coverage rule is intentionally lexical and auditable. It does not use an arbitrary QMD score threshold whose meaning can vary by backend or corpus, and it never invokes the context-router LLM. Fixtures cover positive exact matches, complete coverage, partial coverage, empty results, cross-language input, and conceptual intent.
+
+Profile selection affects whether Deep is requested, but is not itself a cache-key field. Equivalent Deep calls already key on the material query/scope/configuration/source inputs, so adding the label would fragment valid plan/rank caches. Paper Card, native-PDF, and corpus caches retain their existing content/configuration identities. Each turn records only the validated profile, actual path, optional attempted Deep path, and an allowlisted reason; it stores no chain-of-thought.
+
+Operational activity is rendered from fixed local stages: searching local evidence, accepting Fast, escalating, planning expanded queries, reranking, cache reuse, and local fallback. Model planning/ranking text, private prompts, provider responses, credentials, headers, tokens, absolute paths, and project contents are not activity messages.
+
+Retrieval calls are distinct from final answer generation. Fast adds no FC/Requesty retrieval call; Deep may add planner/reranker calls before the normal authenticated answer call. High does not blindly run every layer: ordinary workspace open/refresh is metadata-only, generic project questions do not invoke PDF/corpus work, relevant valid artifacts are reused, and L4 synthesis still requires explicit corpus-wide intent.
+
 ### Reused bounded-retrieval contract
 
 `shared/retrieval-contract.js` centralizes values that already existed in IPC validation, QMD normalization, and source-context construction; the migration does not lower them. Tests import the same contract instead of declaring separate numeric expectations.
@@ -200,7 +226,7 @@ hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf
 
 It requires roughly 318 MB of cached model storage and prior measurements observed about 1.0 GiB process RSS; actual native-backend memory varies. Changing the URI preserves the existing compatibility check and controlled vector-rebuild requirement. The Qwen3 embedding URI remains an explicit benchmark/override candidate, not a production default.
 
-`scripts/benchmark-retrieval.js` retains the original 11-document corpus and 10-query set, and now compares legacy lexical, QMD lexical, recorded cloud-planned lexical, and recorded cloud-reranked paths without local model acquisition. The recorded cloud stages use validated representative plan/rank responses to measure deterministic local orchestration, exact identifier recall, semantic/concept recall, Chinese→English recall, evidence recall, FC call counts, and estimated Requesty input/output usage. They do not claim live network/provider latency. Optional historical vector/model comparisons remain documented separately.
+`scripts/benchmark-retrieval.js` retains the original 11-document corpus and 10-query set, and now compares Light, Medium, and High in addition to legacy lexical, QMD lexical, recorded cloud-planned lexical, and recorded cloud-reranked paths without local model acquisition. It imports the same production profile helpers. The recorded cloud stages use validated representative plan/rank responses to measure deterministic local orchestration, exact identifier recall, semantic/concept recall, Chinese→English recall, evidence recall, FC call counts, cache behavior, and estimated Requesty input/output usage. They do not claim live network/provider latency or a production average. The measured profile table and limitations are in `local-backend/benchmark/REPORT.md`; optional historical vector/model comparisons remain documented separately.
 
 ## Operations
 

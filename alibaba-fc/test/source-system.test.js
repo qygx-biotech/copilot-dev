@@ -292,6 +292,19 @@ test("TEST A: 32 discovered papers produce exactly 32 successful mapper calls", 
   assert.ok(completedMapUpdates.every((update) => update.outcome === "analyzed"));
   assert.equal(new Set(completedMapUpdates.map((update) => update.paperId)).size, 32);
   assert.doesNotMatch(context.files[0].content, /cannot summarize|cannot analyze/i);
+
+  for (const retrievalProfile of ["medium", "high"]) {
+    const repeated = await service.buildContext({
+      question: "Summarize all papers",
+      selectedPaths: [],
+      selectedPaperIds: [],
+      workspaceTree: treeFor(workspace),
+      retrievalProfile,
+    });
+    assert.equal(repeated.literature.corpusWideRequest, true);
+    assert.equal(repeated.literature.discoveryMode, "corpus");
+  }
+  assert.equal(mapCalls, 32, "profile changes must reuse the valid corpus synthesis/maps");
 });
 
 test("restart follow-ups retain all nested literature metadata despite stale chat claims", async () => {
@@ -406,15 +419,17 @@ test("TEST C: a generic concept question does not prepare the 32-paper corpus", 
   const literature = makeLiteratureHarness(system);
   const service = new ProjectContextService({ workspace, literature });
 
-  const context = await service.buildContext({
-    question: "What is kcat?",
-    selectedPaths: [],
-    selectedPaperIds: [],
-    workspaceTree: treeFor(workspace),
-  });
-
-  assert.equal(context.literature.corpusWideRequest, false);
-  assert.equal(context.literature.discoveryMode, "not-needed");
+  for (const retrievalProfile of ["light", "medium", "high"]) {
+    const context = await service.buildContext({
+      question: "What is kcat?",
+      selectedPaths: [],
+      selectedPaperIds: [],
+      workspaceTree: treeFor(workspace),
+      retrievalProfile,
+    });
+    assert.equal(context.literature.corpusWideRequest, false);
+    assert.equal(context.literature.discoveryMode, "not-needed");
+  }
   assert.equal(system.preparation.metrics.fullHashCalls, 0);
   assert.equal(system.parseCalls, 0);
 });

@@ -57,6 +57,14 @@ const clearSideChatButton = document.querySelector("#clearSideChatButton");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
 const sideChatExamples = document.querySelector("#sideChatExamples");
 const sideChatContextChips = document.querySelector("#sideChatContextChips");
+const retrievalProfileSelect = document.querySelector("#retrievalProfileSelect");
+const retrievalProfileDescription = document.querySelector("#retrievalProfileDescription");
+
+const retrievalProfilePolicy = window.BioDesignRetrievalProfiles || {};
+const isValidRetrievalProfile = retrievalProfilePolicy.isValidRetrievalProfile ||
+  ((value) => ["light", "medium", "high"].includes(value));
+const normalizeRetrievalProfile = retrievalProfilePolicy.normalizeRetrievalProfile ||
+  ((value) => isValidRetrievalProfile(value) ? value : "light");
 
 const MAX_REFERENCE_FILES = 100;
 const MAX_BROWSER_REFERENCE_FILES = 8;
@@ -292,6 +300,10 @@ const I18N = {
     sideChatTitle: "Side Chat",
     sideChatHelper: "Ask questions without changing the current recommendation.",
     sideChatContextLabel: "Context",
+    retrievalQualityLabel: "Retrieval",
+    retrievalProfileLight: "Light — lower cost, mostly local",
+    retrievalProfileMedium: "Medium — Fast first, Deep when useful",
+    retrievalProfileHigh: "High — maximum relevant quality",
     sideExampleFiles: "Summarize the selected files.",
     sideExamplePatterns: "Compare the selected papers.",
     sideExamplePaper: "What does this paper suggest?",
@@ -301,6 +313,15 @@ const I18N = {
     clearSideChatConfirm: "Clear this Side Chat conversation? Workspace files and paper summaries will not be changed.",
     sideChatPlaceholder: "Ask a question without updating the project plan...",
     askButton: "Ask",
+    editLastMessage: "Edit last message",
+    saveAndRegenerate: "Save and regenerate",
+    cancelEdit: "Cancel",
+    processingSummary: "Processing summary",
+    processingSummaryNote: "High-level activity only; private model reasoning is not shown.",
+    preparingRequest: "Preparing request...",
+    generatingAnswer: "Generating an answer with the model...",
+    answerReady: "Answer ready.",
+    localFallbackActivity: "The remote request was unavailable; preparing a local fallback.",
     backendProviderAlibaba: "Alibaba FC backend",
     backendReady: "Ready",
     backendConnected: "Connected",
@@ -635,6 +656,10 @@ const I18N = {
     sideChatTitle: "侧边问答",
     sideChatHelper: "在不改变当前推荐的情况下提问。",
     sideChatContextLabel: "上下文",
+    retrievalQualityLabel: "检索质量",
+    retrievalProfileLight: "轻量 — 成本较低，主要使用本地检索",
+    retrievalProfileMedium: "中等 — 先快速检索，必要时深度检索",
+    retrievalProfileHigh: "高 — 在相关范围内提供最高检索质量",
     sideExampleFiles: "总结所选文件。",
     sideExamplePatterns: "比较所选论文。",
     sideExamplePaper: "这篇论文提示了什么？",
@@ -644,6 +669,15 @@ const I18N = {
     clearSideChatConfirm: "清空当前侧边问答吗？工作区文件和论文摘要不会改变。",
     sideChatPlaceholder: "提出一个不会更新项目计划的问题...",
     askButton: "提问",
+    editLastMessage: "编辑最后一条消息",
+    saveAndRegenerate: "保存并重新生成",
+    cancelEdit: "取消",
+    processingSummary: "处理摘要",
+    processingSummaryNote: "仅显示高层级处理活动，不展示模型的私有推理过程。",
+    preparingRequest: "正在准备请求...",
+    generatingAnswer: "正在调用模型生成回答...",
+    answerReady: "回答已生成。",
+    localFallbackActivity: "远程请求暂不可用，正在准备本地回退回答。",
     backendProviderAlibaba: "阿里云 FC 后端",
     backendReady: "就绪",
     backendConnected: "已连接",
@@ -820,6 +854,7 @@ let lastBackendStatus = "backendReady";
 let authToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "";
 let currentAccount = sessionStorage.getItem(ACCOUNT_STORAGE_KEY) || "";
 let projectContext = "";
+let retrievalProfile = "light";
 let referenceDocuments = [];
 let experimentModules = loadExperimentModules();
 let analysisPanels = loadAnalysisPanels();
@@ -863,6 +898,16 @@ class AuthRequiredError extends Error {
 
 languageSelects.forEach((select) => {
   select.addEventListener("change", () => setLanguage(select.value));
+});
+
+retrievalProfileSelect.addEventListener("change", () => {
+  if (!isValidRetrievalProfile(retrievalProfileSelect.value)) {
+    renderRetrievalProfileControl();
+    return;
+  }
+  retrievalProfile = retrievalProfileSelect.value;
+  renderRetrievalProfileControl();
+  scheduleWorkspaceStateSave();
 });
 
 initializeWorkbench();
@@ -1206,6 +1251,32 @@ clearSideChatButton.addEventListener("click", async () => {
   }
 });
 
+sideChatHistory.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-side-chat-action]");
+  if (!button || sideChatBusy) return;
+  const action = button.dataset.sideChatAction;
+  const messageId = button.dataset.messageId || "";
+  if (action === "edit") {
+    beginSideChatMessageEdit(messageId);
+  } else if (action === "cancel-edit") {
+    renderSideChatConversation();
+  } else if (action === "save-edit") {
+    const message = button.closest("[data-message-id]");
+    const input = message?.querySelector("[data-side-chat-edit-input]");
+    await reviseLatestSideChatMessage(messageId, input?.value || "");
+  }
+});
+
+sideChatHistory.addEventListener("keydown", (event) => {
+  if (!(event.key === "Enter" && (event.ctrlKey || event.metaKey))) return;
+  const input = event.target.closest("[data-side-chat-edit-input]");
+  if (!input) return;
+  event.preventDefault();
+  input.closest("[data-message-id]")
+    ?.querySelector('[data-side-chat-action="save-edit"]')
+    ?.click();
+});
+
 function normalizeBetaUpdateStatus(status) {
   const allowedStates = new Set([
     "idle",
@@ -1429,7 +1500,9 @@ async function openSelectedWorkspace(initialize) {
   selectedWorkspacePaths = new Set();
   expandedWorkspacePaths = new Set([""]);
   projectContext = result.state.project.goal || "";
+  retrievalProfile = normalizeRetrievalProfile(result.state.ui?.retrievalProfile);
   projectContextInput.value = projectContext;
+  renderRetrievalProfileControl();
   workspaceNameLabel.textContent = result.workspace.name;
   applyLiteratureScan(documents);
   renderWorkspaceExplorer();
@@ -1550,6 +1623,10 @@ async function saveWorkspaceStateNow() {
     project: {
       ...workspaceManager.state.project,
       goal: projectContextInput.value.trim(),
+    },
+    ui: {
+      ...workspaceManager.state.ui,
+      retrievalProfile,
     },
   };
   await workspaceManager.saveState(nextState);
@@ -1712,6 +1789,7 @@ function applyLanguage() {
   renderAnalysisPanels();
   renderWorkspaceExplorer();
   renderSideChatContext();
+  renderRetrievalProfileControl();
   renderBetaUpdateStatus();
 
   if (!sideChatMessages.length && sideChatHistory.childElementCount <= 1) {
@@ -1719,6 +1797,16 @@ function applyLanguage() {
     setSideChatEmptyState(true);
     addSideChatMessage("assistant", t("sideChatIntro"), { isIntro: true });
   }
+}
+
+function renderRetrievalProfileControl() {
+  if (!retrievalProfileSelect || !retrievalProfileDescription) return;
+  retrievalProfile = normalizeRetrievalProfile(retrievalProfile);
+  retrievalProfileSelect.value = retrievalProfile;
+  const key = `retrievalProfile${retrievalProfile[0].toUpperCase()}${retrievalProfile.slice(1)}`;
+  const description = t(key);
+  retrievalProfileSelect.title = description;
+  retrievalProfileDescription.textContent = description;
 }
 
 function requireLoginForUnauthorized(response) {
@@ -2927,8 +3015,6 @@ function showReviewInSideChat(documentItem, reviewMessage) {
   const question = t("summaryConversationQuestion", {
     name: documentItem.filename,
   });
-  addSideChatMessage("user", question);
-  addSideChatMessage("assistant", reviewMessage);
   activeSideChatDocumentKeys = documentItem.objectKey ? [documentItem.objectKey] : [];
   if (documentItem.localWorkspace) {
     updateDocumentById(documentItem.id, { selectedForChat: true });
@@ -3200,6 +3286,7 @@ async function runAgentInstruction(panelId) {
         localWorkspaceContext = await projectContextService.buildContext({
           surface: "agent_command",
           question: instruction,
+          retrievalProfile,
           selectedPaths: [...selectedWorkspacePaths],
           selectedPaperIds: getSelectedPaperIds(),
           workspaceTree,
@@ -3207,6 +3294,9 @@ async function runAgentInstruction(panelId) {
           language: currentLanguage,
           signal: workspaceAbortController?.signal,
         });
+        panel.retrieval = normalizeRetrievalMetadata(
+          localWorkspaceContext.literature?.retrievalDecision
+        );
         lastSourceUsage = {
           literature: localWorkspaceContext.literature,
           experiments: localWorkspaceContext.experiments,
@@ -3372,9 +3462,98 @@ function renderSideChatConversation() {
     addSideChatMessage("assistant", t("sideChatIntro"), { isIntro: true });
     return;
   }
-  sideChatMessages.forEach((message) =>
-    addSideChatMessage(message.role, message.content)
+  const latestUserIndex = sideChatMessages.findLastIndex(
+    (message) => message.role === "user"
   );
+  sideChatMessages.forEach((message, index) =>
+    addSideChatMessage(message.role, message.content, {
+      messageId: message.id,
+      activity: message.activity,
+      canEdit: index === latestUserIndex,
+    })
+  );
+}
+
+function beginSideChatMessageEdit(messageId) {
+  const original = sideChatMessages.find((message) => message.id === messageId);
+  const revision = prepareLatestSideChatRevision(
+    sideChatMessages,
+    messageId,
+    original?.content || ""
+  );
+  if (!revision || !original) return;
+  renderSideChatConversation();
+  const message = [...sideChatHistory.querySelectorAll("[data-message-id]")]
+    .find((element) => element.dataset.messageId === messageId);
+  if (!message) return;
+  const body = message.querySelector(".side-message-body");
+  message.querySelector('[data-side-chat-action="edit"]')?.remove();
+  message.classList.add("editing");
+
+  const input = document.createElement("textarea");
+  input.className = "side-message-edit-input";
+  input.dataset.sideChatEditInput = "true";
+  input.rows = 4;
+  input.value = original.content;
+  input.setAttribute("aria-label", t("editLastMessage"));
+
+  const actions = document.createElement("div");
+  actions.className = "side-message-edit-actions";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "secondary-button";
+  cancel.dataset.sideChatAction = "cancel-edit";
+  cancel.dataset.messageId = messageId;
+  cancel.textContent = t("cancelEdit");
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "primary-button";
+  save.dataset.sideChatAction = "save-edit";
+  save.dataset.messageId = messageId;
+  save.textContent = t("saveAndRegenerate");
+  actions.append(cancel, save);
+  body.replaceChildren(input, actions);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+async function reviseLatestSideChatMessage(messageId, nextContent) {
+  const revision = prepareLatestSideChatRevision(
+    sideChatMessages,
+    messageId,
+    nextContent
+  );
+  if (!revision || sideChatBusy) return;
+  const current = sideChatMessages.find((message) => message.id === messageId);
+  if (current?.content === revision.question) {
+    renderSideChatConversation();
+    return;
+  }
+
+  const previousMessages = sideChatMessages;
+  const previousConversation = sideChatConversation;
+  setSideChatBusy(true);
+  sideChatMessages = revision.previousMessages;
+  sideChatConversation = {
+    ...sideChatConversation,
+    ...(revision.previousMessages.some((message) => message.role === "user")
+      ? {}
+      : { title: "Side Chat" }),
+    messages: revision.previousMessages,
+  };
+  try {
+    await persistSideChatConversation();
+  } catch (error) {
+    sideChatMessages = previousMessages;
+    sideChatConversation = previousConversation;
+    renderSideChatConversation();
+    showToast(t("chatPersistenceFailed"));
+    return;
+  } finally {
+    setSideChatBusy(false);
+  }
+  renderSideChatConversation();
+  await askSideChat(revision.question);
 }
 
 function recordSideChatExchange(question, reply) {
@@ -3392,6 +3571,7 @@ function recordSideChatExchange(question, reply) {
     content: reply,
     createdAt: new Date().toISOString(),
   });
+  renderSideChatConversation();
   saveSideChatMessages();
 }
 
@@ -3409,6 +3589,28 @@ function getCurrentChatContextSnapshot() {
     relevantPaperIds: selectedPaperIds,
     selectedExperimentIds,
     relevantExperimentIds: selectedExperimentIds,
+    retrieval: {
+      profile: retrievalProfile,
+      mode: "not-needed",
+      escalated: false,
+      reason: "request-not-started",
+    },
+  };
+}
+
+function normalizeRetrievalMetadata(value) {
+  const profile = normalizeRetrievalProfile(value?.profile);
+  const mode = ["fast", "deep", "not-needed"].includes(value?.mode)
+    ? value.mode
+    : "not-needed";
+  return {
+    profile,
+    mode,
+    ...(["fast", "deep"].includes(value?.attemptedMode)
+      ? { attemptedMode: value.attemptedMode }
+      : {}),
+    escalated: value?.escalated === true,
+    reason: String(value?.reason || "retrieval-path-unavailable").slice(0, 80),
   };
 }
 
@@ -3986,6 +4188,7 @@ function createAnalysisPanel(overrides = {}) {
     collapsed: false,
     statusKey: "",
     status: "",
+    retrieval: null,
     ...overrides,
   };
 }
@@ -4059,6 +4262,9 @@ function setSideChatBusy(isBusy) {
   sideChatInput.disabled = isBusy;
   sendSideChatButton.disabled = isBusy;
   clearSideChatButton.disabled = isBusy;
+  sideChatHistory.querySelectorAll('[data-side-chat-action="edit"]').forEach((button) => {
+    button.disabled = isBusy;
+  });
   sendSideChatButton.textContent = isBusy ? t("thinking") : t("askButton");
 }
 
@@ -4070,10 +4276,13 @@ function addSideChatThinking() {
 
   const label = document.createElement("strong");
   label.textContent = t("sideChatAssistantLabel");
-  const body = document.createElement("div");
-  body.className = "thinking-content";
+  const details = document.createElement("details");
+  details.className = "side-chat-activity side-chat-activity-live";
+  details.open = true;
+  const summary = document.createElement("summary");
   const text = document.createElement("span");
-  text.textContent = t("thinking");
+  text.className = "side-chat-activity-current";
+  text.textContent = t("preparingRequest");
   const dots = document.createElement("span");
   dots.className = "thinking-dots";
   dots.setAttribute("aria-hidden", "true");
@@ -4082,11 +4291,19 @@ function addSideChatThinking() {
     document.createElement("span"),
     document.createElement("span")
   );
-  body.append(text, dots);
-  message.append(label, body);
+  summary.append(text, dots);
+  const list = document.createElement("ol");
+  list.className = "side-chat-activity-steps";
+  const note = document.createElement("p");
+  note.className = "side-chat-activity-note";
+  note.textContent = t("processingSummaryNote");
+  details.append(summary, list, note);
+  message.append(label, details);
   sideChatHistory.appendChild(message);
   sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
-  return message;
+  const activity = { element: message, current: text, list, steps: [] };
+  updateSideChatThinking(activity, { stage: "preparing-request" });
+  return activity;
 }
 
 async function askSideChat(question) {
@@ -4100,6 +4317,7 @@ async function askSideChat(question) {
     return;
   }
 
+  setSideChatBusy(true);
   const conversationContext = projectContextService.buildConversationContext(
     sideChatConversation
   );
@@ -4112,7 +4330,7 @@ async function askSideChat(question) {
     createdAt: new Date().toISOString(),
   };
   sideChatMessages.push(userMessage);
-  addSideChatMessage("user", question);
+  renderSideChatConversation();
   const thinkingMessage = addSideChatThinking();
   const unsubscribeKnowledgeStatus = knowledgeService?.subscribe?.((event) => {
     updateSideChatThinking(thinkingMessage, {
@@ -4120,7 +4338,6 @@ async function askSideChat(question) {
       message: knowledgeProgressText(event),
     });
   });
-  setSideChatBusy(true);
   activeCorpusProgress = null;
   let contextPrepared = false;
 
@@ -4135,15 +4352,16 @@ async function askSideChat(question) {
     const localWorkspaceContext = await projectContextService.buildContext({
       surface: "side_chat",
       question,
+      retrievalProfile,
       selectedPaths: contextSnapshot.files,
       selectedPaperIds: contextSnapshot.selectedPaperIds,
       workspaceTree,
       projectGoal: getProjectContext(),
       language: currentLanguage,
       conversation: sideChatConversation,
-      // The primary model can route through the compact source catalog and its
-      // tools; avoid a mandatory extra routing-model call on every chat turn.
-      enableContextRouter: false,
+      // Only High enables the authenticated context router. The context service
+      // independently derives this again from the validated profile.
+      enableContextRouter: retrievalProfile === "high",
       signal: workspaceAbortController?.signal,
       onProgress(progress) {
         if (progress.workflowId) {
@@ -4167,6 +4385,9 @@ async function askSideChat(question) {
     ];
     userMessage.context.corpusWorkflowId =
       localWorkspaceContext.literature?.corpusWorkflowId || "";
+    userMessage.context.retrieval = normalizeRetrievalMetadata(
+      localWorkspaceContext.literature?.retrievalDecision
+    );
     contextPrepared = true;
     applyLiteratureScan(literatureModule.documents);
     applyPreparedContextToDocuments(localWorkspaceContext);
@@ -4181,6 +4402,7 @@ async function askSideChat(question) {
     ) {
       reply = t("unsupportedSelectedFilesChat");
     } else {
+      updateSideChatThinking(thinkingMessage, { stage: "model-request" });
       const messagesForBackend = buildSideChatMessages(question, conversationContext);
       const response = await sendWorkbenchRequest({
         mode: "side_chat",
@@ -4193,12 +4415,18 @@ async function askSideChat(question) {
       );
     }
 
-    addSideChatMessage("assistant", reply);
-    sideChatMessages.push({
+    updateSideChatThinking(thinkingMessage, { stage: "answer-ready" });
+    const assistantMessage = {
       id: makeId(),
       role: "assistant",
       content: reply,
+      activity: getSideChatActivitySteps(thinkingMessage),
       createdAt: new Date().toISOString(),
+    };
+    sideChatMessages.push(assistantMessage);
+    addSideChatMessage("assistant", reply, {
+      messageId: assistantMessage.id,
+      activity: assistantMessage.activity,
     });
     await persistSideChatConversation();
   } catch (error) {
@@ -4209,18 +4437,24 @@ async function askSideChat(question) {
     }
 
     console.warn("Side chat backend failed; using local fallback.", error);
+    updateSideChatThinking(thinkingMessage, { stage: "local-fallback" });
     const reply = contextPrepared
       ? `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`
       : t("sideChatContextFailed", { message: error.message || t("loginFailed") });
     const coveredReply = contextPrepared
       ? appendCorpusCoverage(reply, lastSourceUsage?.literature)
       : reply;
-    addSideChatMessage("assistant", coveredReply);
-    sideChatMessages.push({
+    const assistantMessage = {
       id: makeId(),
       role: "assistant",
       content: coveredReply,
+      activity: getSideChatActivitySteps(thinkingMessage),
       createdAt: new Date().toISOString(),
+    };
+    sideChatMessages.push(assistantMessage);
+    addSideChatMessage("assistant", coveredReply, {
+      messageId: assistantMessage.id,
+      activity: assistantMessage.activity,
     });
     await persistSideChatConversation().catch(() => {});
   } finally {
@@ -4228,7 +4462,7 @@ async function askSideChat(question) {
     activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
     activeCorpusProgress = null;
     renderSideChatContext();
-    thinkingMessage.remove();
+    thinkingMessage.element.remove();
     setSideChatBusy(false);
     sideChatInput.focus();
   }
@@ -4247,14 +4481,17 @@ function appendCorpusCoverage(reply, literature) {
   return `${line}\n\n${String(reply || "").trim()}`;
 }
 
-function updateSideChatThinking(message, progress) {
-  const text = message.querySelector(".thinking-content > span:first-child");
-  if (!text) return;
+function sideChatProgressText(progress = {}) {
+  if (progress.stage === "preparing-request") return t("preparingRequest");
+  if (progress.stage === "model-request") return t("generatingAnswer");
+  if (progress.stage === "answer-ready") return t("answerReady");
+  if (progress.stage === "local-fallback") return t("localFallbackActivity");
   if (progress.stage?.startsWith("knowledge-")) {
-    text.textContent = progress.message || (currentLanguage === "zh"
+    return progress.message || (currentLanguage === "zh"
       ? "正在搜索本地知识..."
       : "Searching local knowledge...");
-  } else if (progress.stage?.startsWith("corpus-")) {
+  }
+  if (progress.stage?.startsWith("corpus-")) {
     const incremental = progress.incremental === true;
     const labels = currentLanguage === "zh"
       ? {
@@ -4277,46 +4514,78 @@ function updateSideChatThinking(message, progress) {
           "corpus-verify": "Verifying claims",
           "corpus-answer": "Preparing answer",
         };
-    text.textContent = `${labels[progress.stage] || progress.phase} · ${progress.completed || 0}/${progress.total || 0}`;
-  } else if (progress.stage === "summarizing") {
-    text.textContent = t("sideChatProcessingPdf", {
+    return `${labels[progress.stage] || progress.phase} · ${progress.completed || 0}/${progress.total || 0}`;
+  }
+  if (progress.stage === "summarizing") {
+    return t("sideChatProcessingPdf", {
       name: progress.relativePath?.split("/").pop() || "PDF",
       done: progress.completed,
       total: progress.total,
     });
-  } else if (progress.stage === "synthesizing") {
-    text.textContent = t("sideChatSynthesizingPdf", {
+  }
+  if (progress.stage === "synthesizing") {
+    return t("sideChatSynthesizingPdf", {
       name: progress.relativePath?.split("/").pop() || "PDF",
     });
-  } else if (progress.stage === "extracting-detail") {
-    text.textContent = t("sideChatReadingDetail", {
+  }
+  if (progress.stage === "extracting-detail") {
+    return t("sideChatReadingDetail", {
       name: progress.relativePath?.split("/").pop() || "PDF",
     });
-  } else if (progress.stage === "analyzing-native-pdf") {
-    text.textContent = currentLanguage === "zh"
+  }
+  if (progress.stage === "analyzing-native-pdf") {
+    return currentLanguage === "zh"
       ? "正在进行高保真 PDF 分析..."
       : "Analyzing the PDF at high fidelity...";
-  } else if (progress.stage === "native-pdf-fallback") {
-    text.textContent = currentLanguage === "zh"
+  }
+  if (progress.stage === "native-pdf-fallback") {
+    return currentLanguage === "zh"
       ? "原生 PDF 分析不可用，正在使用本地解析内容..."
       : "Native PDF analysis was unavailable; using local parsed evidence...";
-  } else if (progress.stage === "recovering-worker") {
-    text.textContent = currentLanguage === "zh"
+  }
+  if (progress.stage === "recovering-worker") {
+    return currentLanguage === "zh"
       ? "正在恢复分析任务..."
       : "Recovering analysis jobs...";
-  } else if (progress.stage === "preparing-file" || progress.stage === "extracting") {
-    text.textContent = t("sideChatPreparingPdf", {
+  }
+  if (progress.stage === "preparing-file" || progress.stage === "extracting") {
+    return t("sideChatPreparingPdf", {
       name: progress.relativePath?.split("/").pop() || "PDF",
     });
-  } else if (["verifying", "hashing", "parsing", "normalizing", "paper-card"].includes(progress.stage)) {
-    text.textContent = currentLanguage === "zh"
+  }
+  if (["verifying", "hashing", "parsing", "normalizing", "paper-card"].includes(progress.stage)) {
+    return currentLanguage === "zh"
       ? `正在准备来源（${progress.stage}）...`
       : `Preparing source (${progress.stage})...`;
-  } else if (progress.phase) {
-    text.textContent = currentLanguage === "zh"
+  }
+  if (progress.phase) {
+    return currentLanguage === "zh"
       ? `语料库工作流：${progress.phase}（${progress.completed || 0}/${progress.total || 0}）`
       : `Corpus workflow: ${progress.phase} (${progress.completed || 0}/${progress.total || 0})`;
   }
+  return String(progress.message || t("thinking")).trim();
+}
+
+function updateSideChatThinking(activity, progress) {
+  if (!activity?.current || !activity?.list) return;
+  const value = sideChatProgressText(progress).trim().slice(0, 240);
+  if (!value) return;
+  activity.current.textContent = value;
+  const key = String(progress.stage || progress.phase || value).slice(0, 120);
+  const previous = activity.steps.at(-1);
+  if (previous?.key === key) previous.text = value;
+  else activity.steps.push({ key, text: value });
+  activity.steps = activity.steps.slice(-12);
+  activity.list.replaceChildren(...activity.steps.map((step) => {
+    const item = document.createElement("li");
+    item.textContent = step.text;
+    return item;
+  }));
+  sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
+}
+
+function getSideChatActivitySteps(activity) {
+  return (activity?.steps || []).map((step) => step.text).slice(-12);
 }
 
 function knowledgeProgressText(event = {}) {
@@ -4333,6 +4602,13 @@ function knowledgeProgressText(event = {}) {
         indexing: "正在更新本地搜索索引...",
         embedding: "正在生成本地语义嵌入...",
         searching: "正在搜索本地知识...",
+        "searching-local-evidence": "正在搜索本地证据...",
+        "fast-result-accepted": "已采用快速检索结果。",
+        "escalating-deep-retrieval": "正在升级到深度检索...",
+        "planning-expanded-queries": "正在规划扩展查询...",
+        "reranking-evidence": "正在重排证据...",
+        "retrieval-cache-hit": "正在复用已缓存的检索结果...",
+        "retrieval-local-fallback": "云端检索暂不可用，正在回退到本地证据...",
         "cloud-retrieval": "正在通过云端规划与重排搜索本地证据...",
         "initializing-search-model": "正在初始化本地语义搜索模型...",
         ready: "本地搜索已就绪。",
@@ -4344,6 +4620,13 @@ function knowledgeProgressText(event = {}) {
         indexing: "Updating the local search index...",
         embedding: "Generating local semantic embeddings...",
         searching: "Searching local knowledge...",
+        "searching-local-evidence": "Searching local evidence...",
+        "fast-result-accepted": "Fast result accepted.",
+        "escalating-deep-retrieval": "Escalating to Deep retrieval...",
+        "planning-expanded-queries": "Planning expanded queries...",
+        "reranking-evidence": "Reranking evidence...",
+        "retrieval-cache-hit": "Reusing cached retrieval...",
+        "retrieval-local-fallback": "Falling back to local evidence...",
         "cloud-retrieval": "Planning and reranking local evidence through the cloud...",
         "initializing-search-model": "Initializing the local semantic search model...",
         ready: "Local search is ready.",
@@ -4661,7 +4944,35 @@ function renderSideChatMarkdown(container, content) {
   renderSideChatMath(container);
 }
 
-function addSideChatMessage(role, content, { isIntro = false } = {}) {
+function createSideChatActivitySummary(activity) {
+  const steps = (Array.isArray(activity) ? activity : [])
+    .filter((step) => typeof step === "string" && step.trim())
+    .map((step) => step.trim().slice(0, 240))
+    .slice(-12);
+  if (!steps.length) return null;
+  const details = document.createElement("details");
+  details.className = "side-chat-activity";
+  const summary = document.createElement("summary");
+  summary.textContent = t("processingSummary");
+  const list = document.createElement("ol");
+  list.className = "side-chat-activity-steps";
+  steps.forEach((step) => {
+    const item = document.createElement("li");
+    item.textContent = step;
+    list.appendChild(item);
+  });
+  const note = document.createElement("p");
+  note.className = "side-chat-activity-note";
+  note.textContent = t("processingSummaryNote");
+  details.append(summary, list, note);
+  return details;
+}
+
+function addSideChatMessage(
+  role,
+  content,
+  { isIntro = false, messageId = "", activity = [], canEdit = false } = {}
+) {
   if (!isIntro) {
     setSideChatEmptyState(false);
     sideChatHistory.querySelector("[data-side-chat-intro]")?.remove();
@@ -4670,6 +4981,7 @@ function addSideChatMessage(role, content, { isIntro = false } = {}) {
   const message = document.createElement("article");
   message.className = `side-message ${role}`;
   if (isIntro) message.dataset.sideChatIntro = "true";
+  if (messageId) message.dataset.messageId = messageId;
 
   const label = document.createElement("strong");
   label.textContent =
@@ -4679,7 +4991,23 @@ function addSideChatMessage(role, content, { isIntro = false } = {}) {
   body.className = "side-message-body";
   renderSideChatMarkdown(body, content);
 
-  message.append(label, body);
+  message.append(label);
+  const activitySummary = role === "assistant"
+    ? createSideChatActivitySummary(activity)
+    : null;
+  if (activitySummary) message.append(activitySummary);
+  message.append(body);
+  if (role === "user" && canEdit && messageId) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "side-message-edit-button";
+    edit.dataset.sideChatAction = "edit";
+    edit.dataset.messageId = messageId;
+    edit.textContent = t("editLastMessage");
+    edit.setAttribute("aria-label", t("editLastMessage"));
+    edit.disabled = sideChatBusy;
+    message.appendChild(edit);
+  }
   sideChatHistory.appendChild(message);
   sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
 }
@@ -5005,6 +5333,7 @@ function normalizeStoredAnalysisPanel(panel) {
     statusKey:
       typeof panel.statusKey === "string" && panel.statusKey ? panel.statusKey : "",
     status: typeof panel.status === "string" && panel.status ? panel.status : "",
+    retrieval: panel.retrieval ? normalizeRetrievalMetadata(panel.retrieval) : null,
   });
 }
 

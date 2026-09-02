@@ -283,7 +283,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.ok(chatStart >= 0 && chatEnd > chatStart);
   assert.doesNotMatch(chatFunction, /currentRecommendation\s*=/);
   assert.doesNotMatch(chatFunction, /runAgentInstruction/);
-  assert.match(chatFunction, /enableContextRouter:\s*false/);
+  assert.match(chatFunction, /enableContextRouter:\s*retrievalProfile\s*===\s*"high"/);
   const agentStart = appSource.indexOf("async function runAgentInstruction");
   const agentEnd = appSource.indexOf("function setAgentBusy", agentStart);
   const agentFunction = appSource.slice(agentStart, agentEnd);
@@ -294,6 +294,28 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.match(htmlSource, /id="sideChatHistory"/);
   assert.doesNotMatch(htmlSource, /Literature & References/);
   assert.doesNotMatch(htmlSource, /Experimental Results/);
+});
+
+test("retrieval quality is a compact validated workspace setting, not a preload control", () => {
+  const appSource = fs.readFileSync(path.join(__dirname, "../../docs/app.js"), "utf8");
+  const htmlSource = fs.readFileSync(path.join(__dirname, "../../docs/index.html"), "utf8");
+  const stylesSource = fs.readFileSync(path.join(__dirname, "../../docs/styles.css"), "utf8");
+  const preloadSource = fs.readFileSync(
+    path.join(__dirname, "../../desktop/preload/index.cjs"),
+    "utf8"
+  );
+
+  assert.match(htmlSource, /id="retrievalProfileSelect"/);
+  for (const profile of ["light", "medium", "high"]) {
+    assert.match(htmlSource, new RegExp(`value="${profile}"`));
+  }
+  assert.match(stylesSource, /\.retrieval-profile-control select\s*\{[^}]*width:\s*106px/s);
+  assert.match(appSource, /retrievalProfile\s*=\s*normalizeRetrievalProfile\(result\.state\.ui\?\.retrievalProfile\)/);
+  assert.match(appSource, /ui:\s*\{[\s\S]*retrievalProfile,[\s\S]*\}/);
+  assert.match(appSource, /surface:\s*"side_chat"[\s\S]*retrievalProfile,/);
+  assert.match(appSource, /surface:\s*"agent_command"[\s\S]*retrievalProfile,/);
+  assert.doesNotMatch(preloadSource, /retrievalProfile|setRetrieval|providerConfig|setFeedURL/);
+  assert.doesNotMatch(appSource, /retrievalProfile\s*=\s*(?:response|reply|tool|model)/);
 });
 
 test("workspace open, login, and Refresh never generate Paper Cards", () => {
@@ -418,6 +440,17 @@ test("desktop workbench contains the Workspace and gives Side Chat more width", 
   );
 });
 
+test("workbench header groups account and workspace controls into two compact rows", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../../docs/index.html"), "utf8");
+  const styles = fs.readFileSync(path.join(__dirname, "../../docs/styles.css"), "utf8");
+
+  assert.match(html, /class="header-utility-row"[\s\S]*workbenchLanguageSelect[\s\S]*about-trigger[\s\S]*account-chip/);
+  assert.match(html, /class="header-status-row"[\s\S]*backendStatusLabel[\s\S]*workspace-status-group/);
+  assert.match(styles, /\.workbench-header\s*\{[^}]*padding:\s*16px 18px/s);
+  assert.match(styles, /\.header-actions\s*\{[^}]*display:\s*grid[^}]*gap:\s*7px/s);
+  assert.match(styles, /\.header-actions \.workspace-chip\s*\{[^}]*display:\s*flex[^}]*min-height:\s*34px/s);
+});
+
 test("Side Chat context wraps long paper names without widening its column", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),
@@ -434,6 +467,26 @@ test("Side Chat context wraps long paper names without widening its column", () 
   assert.match(stylesSource, /\.context-chip span\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*white-space:\s*normal/s);
   assert.match(stylesSource, /\.context-chip-remove\s*\{[^}]*flex:\s*0 0 auto/s);
   assert.match(appSource, /chip\.title = path/);
+});
+
+test("Side Chat stays bounded, edits only the latest user turn, and retains safe activity summaries", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+  const stylesSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/styles.css"),
+    "utf8"
+  );
+
+  assert.match(stylesSource, /\.side-chat-panel\s*\{[^}]*height:\s*calc\(100vh - 32px\)[^}]*max-height:\s*calc\(100vh - 32px\)[^}]*overflow:\s*hidden/s);
+  assert.match(stylesSource, /\.side-chat-history\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain[^}]*scrollbar-gutter:\s*stable/s);
+  assert.match(appSource, /prepareLatestSideChatRevision\(\s*sideChatMessages/);
+  assert.match(appSource, /sideChatMessages = revision\.previousMessages/);
+  assert.match(appSource, /await persistSideChatConversation\(\)[\s\S]*await askSideChat\(revision\.question\)/);
+  assert.match(appSource, /dataset\.sideChatAction = "edit"/);
+  assert.match(appSource, /activity: getSideChatActivitySteps\(thinkingMessage\)/);
+  assert.match(appSource, /processingSummaryNote: "High-level activity only; private model reasoning is not shown\."/);
 });
 
 test("Side Chat hides empty-state prompts and renders safe Markdown with math", () => {

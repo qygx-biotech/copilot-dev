@@ -129,6 +129,23 @@ async function runSmoke(window) {
     };
     waitForBetaState();
   })`);
+  const headerLayout = await window.webContents.executeJavaScript(`(() => {
+    const shell = document.getElementById("appShell");
+    const header = document.querySelector(".workbench-header");
+    const wasHidden = shell.hidden;
+    const hadHiddenClass = shell.classList.contains("is-hidden");
+    shell.hidden = false;
+    shell.classList.remove("is-hidden");
+    const height = Math.round(header.getBoundingClientRect().height);
+    shell.hidden = wasHidden;
+    if (hadHiddenClass) shell.classList.add("is-hidden");
+    return {
+      height,
+      compact: height > 0 && height <= 150,
+      utilityRowPresent: Boolean(document.querySelector(".header-utility-row")),
+      statusRowPresent: Boolean(document.querySelector(".header-status-row"))
+    };
+  })()`);
   const renderer = await window.webContents.executeJavaScript(`({
     bridge: Boolean(window.biodesignDesktop),
     bridgeKeys: Object.keys(window.biodesignDesktop || {}),
@@ -138,7 +155,15 @@ async function runSmoke(window) {
     loginVisible: !document.getElementById("loginPanel")?.hidden,
     aboutButtonCount: document.querySelectorAll(".about-trigger").length,
     betaButtonPresent: Boolean(document.getElementById("betaUpdateButton")),
-    betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true
+    betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true,
+    retrievalProfilePresent: Boolean(document.getElementById("retrievalProfileSelect")),
+    retrievalProfileValue: document.getElementById("retrievalProfileSelect")?.value,
+    retrievalProfileOptions: [...(document.getElementById("retrievalProfileSelect")?.options || [])]
+      .map((option) => option.value),
+    sideChatScrollable:
+      getComputedStyle(document.getElementById("sideChatHistory")).overflowY === "auto" &&
+      getComputedStyle(document.querySelector(".side-chat-panel")).overflow === "hidden" &&
+      getComputedStyle(document.querySelector(".side-chat-panel")).maxHeight !== "none"
   })`);
   const acceptedSmokeTitles = new Set([
     "BioDesign Workbench",
@@ -149,8 +174,16 @@ async function runSmoke(window) {
       acceptedSmokeTitles.has(renderer.title) &&
       renderer.aboutButtonCount === 3 &&
       renderer.betaButtonPresent &&
-      renderer.betaButtonDisabled === !betaUpdates.eligible,
+      renderer.betaButtonDisabled === !betaUpdates.eligible &&
+      renderer.retrievalProfilePresent &&
+      renderer.retrievalProfileValue === "light" &&
+      JSON.stringify(renderer.retrievalProfileOptions) === JSON.stringify(["light", "medium", "high"]) &&
+      renderer.sideChatScrollable &&
+      headerLayout.compact &&
+      headerLayout.utilityRowPresent &&
+      headerLayout.statusRowPresent,
     renderer,
+    headerLayout,
     runtime,
     security: { nodeIntegration: false, contextIsolation: true, sandbox: true },
   };

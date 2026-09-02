@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createStore } from "@tobilu/qmd";
 import retrievalContract from "../../shared/retrieval-contract.js";
+import retrievalProfiles from "../../shared/retrieval-profiles.js";
 
 import {
   DEFAULT_EMBED_MODEL,
@@ -119,11 +120,81 @@ function evidenceRecallAt5(result, expectedTerms) {
 function groupedOutput(raw, query) {
   const groups = groupPaperResults(raw, { query, limit: 10 });
   return {
+    results: groups,
     ranking: groups.map((result) => result.paperId),
     evidenceByPaper: Object.fromEntries(groups.map((result) => [
       result.paperId,
       result.matchedSections.map((section) => section.snippet),
     ])),
+  };
+}
+
+function localFastOutput(raw, query, documents) {
+  const qmd = groupedOutput(raw, query);
+  if (qmd.results.length) return qmd;
+  const ranking = legacyRanking(documents, query);
+  const byId = new Map(documents.map((document) => [document.paperId, document]));
+  const results = ranking.map((paperId) => {
+    const document = byId.get(paperId);
+    return {
+      paperId,
+      title: document?.title || paperId,
+      identifiers: document?.doi ? [document.doi] : [],
+      snippet: document?.body || "",
+      matchedSections: [{ snippet: document?.body || "" }],
+    };
+  });
+  return {
+    results,
+    ranking,
+    evidenceByPaper: Object.fromEntries(results.map((result) => [
+      result.paperId,
+      [result.snippet],
+    ])),
+  };
+}
+
+function emptyUsageEstimate() {
+  return {
+    inputCharacters: 0,
+    outputCharacters: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    coldFcRequests: 0,
+    coldRequestyCalls: 0,
+    cachedFcRequests: 0,
+    cachedRequestyCalls: 0,
+  };
+}
+
+async function replayProfileRetrieval(store, item, plan, profile, documents) {
+  const normalized = retrievalProfiles.normalizeRetrievalProfile(profile);
+  let fast = null;
+  let decision = retrievalProfiles.selectRetrievalProfile(normalized, {
+    query: item.query,
+  });
+  if (normalized === "medium" || decision.mode === "fast") {
+    fast = localFastOutput(
+      await store.searchLex(item.query, {
+        collection: "literature-evidence",
+        limit: RETRIEVAL_LIMITS.candidateDefault,
+      }),
+      item.query,
+      documents
+    );
+  }
+  if (normalized === "medium") {
+    decision = retrievalProfiles.selectRetrievalProfile(normalized, {
+      query: item.query,
+      fastResults: fast.results,
+    });
+  }
+  const selected = decision.mode === "deep"
+    ? await replayCloudRetrieval(store, item, plan, true)
+    : { ...fast, usageEstimate: emptyUsageEstimate() };
+  return {
+    ...selected,
+    retrievalDecision: decision,
   };
 }
 
@@ -292,6 +363,43 @@ function aggregateQueryMetrics(rows, backend, language = null) {
   };
 }
 
+function aggregateProfileMetrics(rows, backend) {
+  const selected = rows.filter((row) => row.backend === backend);
+  const retrievalProfile = selected[0]?.retrievalDecision?.profile || null;
+  const deepQueryCount = selected.filter(
+    (row) => row.retrievalDecision?.mode === "deep"
+  ).length;
+  const sumUsage = (key) => selected.reduce(
+    (total, row) => total + (Number(row.usageEstimate?.[key]) || 0),
+    0
+  );
+  return {
+    profile: retrievalProfile,
+    ...aggregateQueryMetrics(rows, backend),
+    deepQueryCount,
+    deepQueryPercentage: selected.length ? deepQueryCount / selected.length : 0,
+    fcRequestCount: {
+      cold: sumUsage("coldFcRequests"),
+      cached: sumUsage("cachedFcRequests"),
+    },
+    requestyCallCount: {
+      cold: sumUsage("coldRequestyCalls"),
+      cached: sumUsage("cachedRequestyCalls"),
+    },
+    estimatedUsage: {
+      inputCharacters: sumUsage("inputCharacters"),
+      outputCharacters: sumUsage("outputCharacters"),
+      inputTokens: sumUsage("inputTokens"),
+      outputTokens: sumUsage("outputTokens"),
+    },
+    cacheBehavior:
+      deepQueryCount > 0
+        ? "Cold Deep uses config, plan, and rank requests; valid plan/rank caches retain one FC config-signature check and make zero Requesty calls. Fast remains local."
+        : "All queries remained local; no FC or Requesty retrieval calls were required.",
+    latencyScope: "Measured local orchestration only; live FC and Requesty latency is not included.",
+  };
+}
+
 async function runModelBenchmark({ modelName, modelId, root, documents, queries, cloudPlans, repeats }) {
   const dbDirectory = path.join(root, ".biodesign/knowledge/qmd/benchmarks");
   await mkdir(dbDirectory, { recursive: true });
@@ -379,6 +487,27 @@ async function runModelBenchmark({ modelName, modelId, root, documents, queries,
           cloudPlans[item.id],
           true
         ),
+        profileLight: async () => replayProfileRetrieval(
+          store,
+          item,
+          cloudPlans[item.id],
+          "light",
+          documents
+        ),
+        profileMedium: async () => replayProfileRetrieval(
+          store,
+          item,
+          cloudPlans[item.id],
+          "medium",
+          documents
+        ),
+        profileHigh: async () => replayProfileRetrieval(
+          store,
+          item,
+          cloudPlans[item.id],
+          "high",
+          documents
+        ),
       };
       for (const [backend, search] of Object.entries(backends)) {
         const timing = await measure(search, repeats);
@@ -401,6 +530,9 @@ async function runModelBenchmark({ modelName, modelId, root, documents, queries,
           steadyMs: timing.steadyMs,
           steadyP50Ms: timing.steadyP50Ms,
           ...(timing.usageEstimate ? { usageEstimate: timing.usageEstimate } : {}),
+          ...(timing.retrievalDecision
+            ? { retrievalDecision: timing.retrievalDecision }
+            : {}),
         });
       }
     }
@@ -429,6 +561,11 @@ async function runModelBenchmark({ modelName, modelId, root, documents, queries,
           zh: aggregateQueryMetrics(rows, backend, "zh"),
         },
       ])),
+      profiles: Object.fromEntries([
+        ["light", aggregateProfileMetrics(rows, "profileLight")],
+        ["medium", aggregateProfileMetrics(rows, "profileMedium")],
+        ["high", aggregateProfileMetrics(rows, "profileHigh")],
+      ]),
       queries: rows,
     };
   } finally {
@@ -491,7 +628,7 @@ async function main() {
       }));
     }
     const report = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       generatedAt: new Date().toISOString(),
       fixture: args.fixture,
       qmdPackageVersion: QMD_PACKAGE_VERSION,
@@ -507,6 +644,7 @@ async function main() {
         "RSS checkpoints are process-level and the two models run sequentially, so retained native allocations can affect the second baseline.",
         "Cloud-planned and cloud-reranked rows replay validated structured responses over the unchanged corpus/query set; their measured latency is local orchestration only, not live FC/Requesty network latency.",
         "Recorded usage is a character-based token estimate (four characters per token); live provider usage was unavailable because no production FC credential was supplied.",
+        "Profile comparisons use the same unchanged corpus and query set. Medium applies the production deterministic Fast-first decision helpers; Light and High apply their production mode selectors.",
       ],
     };
     if (args.outputPath) {

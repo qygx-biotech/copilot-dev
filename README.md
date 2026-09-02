@@ -27,6 +27,14 @@ Retrieval has two production modes:
 - **Fast** is fully offline and runs project-local QMD/SQLite BM25 only. It makes no cloud-planning or reranking call and loads no local model.
 - **Deep** asks authenticated Alibaba FC for a structured search plan, runs every validated expansion against local lexical QMD, deterministically fuses candidates, and asks FC to rerank only opaque IDs, titles, stable evidence handles, and budgeted snippets. Evidence is reconstructed from the original local objects before answer generation.
 
+Users choose how those modes are applied with the compact **Retrieval** selector in the Side Chat header. The validated value is saved in `.biodesign/state.json`, is shared by Side Chat and Agent Command, and defaults to **Light** for existing and new workspaces:
+
+- **Light** preserves the previous production policy exactly: Han literature queries use Deep; other literature queries and all project-memory, synthesis, topic, and experiment-note lookups use Fast. The optional context router stays off.
+- **Medium** runs Fast first. A DOI, exact title, author/year, gene/protein/enzyme or strain identifier, mutation, `Km`, or `kcat` match is accepted locally. Cross-language or conceptual/discovery/comparison intent, no usable result, or incomplete lexical coverage escalates to Deep. The rule is deterministic and never asks an LLM whether to escalate.
+- **High** uses Deep for every relevant literature discovery/content search and enables the existing authenticated FC context router with deterministic local fallback. It prefers native-PDF analysis and generates a missing/stale Paper Card only when a relevant paper and the request actually need broad or layout-critical analysis.
+
+High is not an “invoke everything” switch. Workspace open/refresh never calls an LLM, generic project questions do not trigger PDF work, and L4 corpus synthesis still requires explicit whole-corpus intent in every profile. Valid plans, rankings, Paper Cards, native-PDF artifacts, and syntheses are reused. The selector controls retrieval only; the final answer-generation call remains a separate authenticated request.
+
 The Deep route is fixed:
 
 ```text
@@ -72,6 +80,7 @@ Initialization occurs only after confirmation and creates:
 │   ├── fermentation/
 │   └── downstream-processing/
 ├── data/
+├── output/
 └── .biodesign/
     ├── workspace.json
     ├── state.json
@@ -161,6 +170,8 @@ Electron 44.0.0 bundles Node 24.18.1 and is compatible with QMD's Node `>=22` re
 
 Fast QMD works immediately and offline. Cloud-backed Deep requires Internet access and incurs Requesty usage through Alibaba FC, but downloads no local model weights. Search-plan and rerank caches live under `.biodesign/cache/cloud-retrieval/`, contain no credentials, and are invalidated by scope, candidate/evidence hashes, source versions, model signatures, prompt/schema versions, and retrieval configuration. Planning failure falls back to the original lexical query; reranking failure returns deterministic locally fused evidence with `fallback: "local-lexical-fusion"`.
 
+Retrieval profile names are not included in plan/rank cache identity because equivalent Deep operations have identical query, scope, candidates, source versions, and FC configuration. The selected profile and bounded actual path (`fast`, `deep`, or local fallback after a Deep attempt) are retained as operational metadata, without private prompts or model reasoning. Offline/provider failure is nonfatal and leaves project browsing and local evidence available.
+
 Local semantic embeddings are a separate, explicit opt-in and are disabled in the default app. When enabled for controlled research, EmbeddingGemma remains the default (about 318 MB model storage; prior measured process peak about 1.0 GiB), compatibility metadata still requires a controlled rebuild after model changes, and semantic search may require substantially more memory. It is never required by Fast or cloud-backed Deep.
 
 The packaged application excludes `alibaba-fc/` and `worker/`. Requesty credentials and direct Requesty requests remain exclusively in deployed Alibaba Function Compute. Authentication tokens remain session-only in renderer `sessionStorage` and are never written to project files, QMD, jobs, memory, or desktop logs.
@@ -225,4 +236,8 @@ Side Chat sends bounded recent conversation history, the current question, a com
 
 Both Side Chat and the existing **Agent instruction → Analyze & Recommend** surface call the same `ProjectContextService`, registry, readiness service, and source tools, then use the same bounded model-driven tool loop. Each tool has an effect: informational/internal-state tools are allowed from both surfaces, while official result-producing tools are reserved for Agent Command and destructive/external effects remain denied. Side Chat may therefore prepare sources, update deterministic metadata and compact typed memory, retry workflows, and recover the allowlisted browser analysis coordinator without changing the Current Recommendation. The optional context-router LLM is disabled by default, so unrelated messages make no preparatory source call.
 
+The Side Chat selector offers concise English/Chinese descriptions without adding a new row to the panel. Only `light`, `medium`, and `high` pass its UI and workspace-state validators. The setting never crosses preload as a URL, provider option, raw retrieval mode, prompt, or model name; remote model/tool output cannot update it.
+
 The complete Project context / goal remains a dedicated durable system message. Internal tool inspection is not copied to persistent chat. Typed memory records store compact reusable conclusions and source IDs—not paper text or experiment tables—and are retrieved on demand. Each user message stores a compact source-context snapshot, and the active conversation is restored from `.biodesign/chat/`; **Clear chat** deletes only that conversation. Side Chat still never invokes the Agent Work button or mutates its recommendation panels.
+
+The Side Chat transcript is height-bounded and scrolls independently instead of expanding the entire workbench. After an answer is produced, the newest user message can be edited and regenerated: the old user/assistant turn is removed from local history before the revised question is persisted and sent again. Assistant replies retain a collapsible, bounded processing summary made from actual retrieval, workflow, and model-call status events. This is operational activity—not hidden model chain-of-thought, which is not exposed.

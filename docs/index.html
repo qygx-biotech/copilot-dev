@@ -147,30 +147,34 @@
         </div>
 
         <div class="header-actions">
-          <div class="language-control">
-            <label for="workbenchLanguageSelect" data-i18n="languageLabel">Language</label>
-            <select id="workbenchLanguageSelect" data-language-select>
-              <option value="en">English</option>
-              <option value="zh">中文</option>
-            </select>
-          </div>
-          <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
-          <div id="backendStatusLabel" class="status-pill" aria-label="Backend status">
-            <span></span>
-            Alibaba FC backend
-          </div>
-          <div class="workspace-status-group" aria-label="Local workspace status">
-            <div class="workspace-chip">
-              <span><span data-i18n="workspaceLabel">Workspace</span>: <strong id="workspaceNameLabel"></strong></span>
-              <span><span data-i18n="storageLabel">Storage</span>: <strong data-i18n="storageLocal">Local</strong></span>
+          <div class="header-utility-row">
+            <div class="language-control">
+              <label for="workbenchLanguageSelect" data-i18n="languageLabel">Language</label>
+              <select id="workbenchLanguageSelect" data-language-select>
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+              </select>
             </div>
-            <button id="changeWorkspaceButton" class="text-button" type="button" data-i18n="changeWorkspace">Change Workspace</button>
+            <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
+            <div class="account-chip" aria-label="Current account">
+              <span id="currentAccountName" class="current-account">Not signed in</span>
+              <button id="logoutButton" class="logout-button" type="button" data-i18n="logoutButton">
+                Logout
+              </button>
+            </div>
           </div>
-          <div class="account-chip" aria-label="Current account">
-            <span id="currentAccountName" class="current-account">Not signed in</span>
-            <button id="logoutButton" class="logout-button" type="button" data-i18n="logoutButton">
-              Logout
-            </button>
+          <div class="header-status-row">
+            <div id="backendStatusLabel" class="status-pill" aria-label="Backend status">
+              <span></span>
+              Alibaba FC backend
+            </div>
+            <div class="workspace-status-group" aria-label="Local workspace status">
+              <div class="workspace-chip">
+                <span><span data-i18n="workspaceLabel">Workspace</span>: <strong id="workspaceNameLabel"></strong></span>
+                <span><span data-i18n="storageLabel">Storage</span>: <strong data-i18n="storageLocal">Local</strong></span>
+              </div>
+              <button id="changeWorkspaceButton" class="text-button" type="button" data-i18n="changeWorkspace">Change Workspace</button>
+            </div>
           </div>
         </div>
 
@@ -249,6 +253,17 @@
                 </p>
               </div>
               <div class="panel-actions">
+                <label class="retrieval-profile-control" for="retrievalProfileSelect">
+                  <span class="sr-only" data-i18n="retrievalQualityLabel">Retrieval</span>
+                  <select id="retrievalProfileSelect" aria-describedby="retrievalProfileDescription">
+                    <option value="light" data-i18n="retrievalProfileLight">Light — lower cost, mostly local</option>
+                    <option value="medium" data-i18n="retrievalProfileMedium">Medium — Fast first, Deep when useful</option>
+                    <option value="high" data-i18n="retrievalProfileHigh">High — maximum relevant quality</option>
+                  </select>
+                  <span id="retrievalProfileDescription" class="sr-only">
+                    Light — lower cost, mostly local
+                  </span>
+                </label>
                 <button id="clearSideChatButton" class="secondary-button" type="button" data-i18n="clearSideChat">
                   Clear chat
                 </button>
@@ -288,6 +303,7 @@
     <!-- SheetJS/xlsx is used in-browser to extract visible cell values from Excel reference files. -->
     <script src="vendor/xlsx/xlsx.full.min.js"></script>
     <script src="vendor/retrieval-contract.js"></script>
+    <script src="vendor/retrieval-profiles.js"></script>
     <script src="workspace-manager.js"></script>
     <script src="knowledge-service.js"></script>
     <script src="source-system.js"></script>

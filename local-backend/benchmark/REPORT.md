@@ -1,6 +1,20 @@
 # Cloud-Assisted Retrieval Benchmark Report
 
-Validation was rerun on 2026-08-30 (Asia/Shanghai) on Apple Silicon, macOS, Node `v26.3.0`, and QMD `2.8.3`. The existing controlled fixture was not changed: it contains 11 synthetic-biology paper mirrors and 10 queries covering `EctD`, `A163V`, `kcat`, `Km`, `BL21(DE3)`, DOI and author/year lookup, semantic production questions, and two Chinese→English questions. Expected paper IDs and evidence terms are checked separately.
+Validation was rerun on 2026-09-02 (Asia/Shanghai) on Apple Silicon, macOS, Node `v26.3.0`, and QMD `2.8.3`. The existing controlled fixture was not changed: it contains 11 synthetic-biology paper mirrors and 10 queries covering `EctD`, `A163V`, `kcat`, `Km`, `BL21(DE3)`, DOI and author/year lookup, semantic production questions, and two Chinese→English questions. Expected paper IDs and evidence terms are checked separately.
+
+## Retrieval-quality profile comparison
+
+The benchmark imports the production profile selector and deterministic Medium escalation helpers. Fast includes the current local compatibility fallback when QMD returns no routed candidate; Deep replays the existing validated FC plan/rank fixtures.
+
+| Profile | Paper recall@5 | Paper recall@10 | Evidence recall@5 | Deep queries | Cold FC / Requesty calls | Cached FC / Requesty calls | Estimated input / output tokens | Local orchestration first mean / steady p50 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Light | 1.00 | 1.00 | 0.90 | 2/10 (20%) | 6 / 4 | 2 / 0 | 1,176 / 208 | 0.369 / 0.143 ms |
+| Medium | 1.00 | 1.00 | 0.90 | 5/10 (50%) | 15 / 10 | 5 / 0 | 3,561 / 602 | 1.131 / 0.488 ms |
+| High | 1.00 | 1.00 | 1.00 | 10/10 (100%) | 30 / 20 | 10 / 0 | 6,580 / 1,078 | 0.963 / 0.945 ms |
+
+Medium kept all five exact identifier/title/author-year fixtures local and escalated the two cross-language, semantic-insufficient, fermentation-strategy, and broad-discovery queries. Light made the fewest retrieval calls; Medium made half as many Deep/FC/Requesty calls as High; High produced the strongest measured evidence recall. Paper recall is saturated at 1.00 for all three because Light already sends the two Chinese fixtures to Deep and the local compatibility scorer finds every remaining expected paper. Consequently this unchanged small fixture cannot demonstrate a further Medium paper-recall gain over Light; it demonstrates deterministic escalation and call separation, while the High evidence-recall difference is measurable. This is a controlled replay, not production telemetry or a production average.
+
+Cold Deep uses three FC requests (configuration, plan, rank) and two Requesty calls. A valid plan/rank cache retains one FC configuration-signature request and makes no Requesty planner/reranker call. Token counts are four-character estimates. Timings are local orchestration only and exclude unmeasured live Alibaba FC/Requesty network and provider latency.
 
 ## Current production-path replay
 

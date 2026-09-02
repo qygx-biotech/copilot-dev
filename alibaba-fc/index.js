@@ -4712,7 +4712,46 @@ function sanitizeLocalWorkspaceContext(value) {
       .filter((paperId) => typeof paperId === "string" && paperId.trim())
       .map((paperId) => paperId.trim().slice(0, 120))
   )].slice(0, MAX_LOCAL_WORKSPACE_EVIDENCE_FILES);
+  const retrievalProfiles = new Set(["light", "medium", "high"]);
+  const retrievalModes = new Set(["fast", "deep", "not-needed"]);
+  const retrievalReasons = new Set([
+    "light-han-deep",
+    "light-non-han-fast",
+    "medium-strong-exact-match",
+    "medium-complete-lexical-coverage",
+    "medium-cross-language",
+    "medium-conceptual-discovery",
+    "medium-no-usable-fast-results",
+    "medium-insufficient-lexical-coverage",
+    "high-relevant-deep",
+    "local-paper-card-ranking",
+    "local-compatible-fallback",
+    "literature-retrieval-not-needed"
+  ]);
+  const rawRetrievalDecision = isPlainObject(rawLiterature.retrievalDecision)
+    ? rawLiterature.retrievalDecision
+    : {};
+  const retrievalProfile = retrievalProfiles.has(rawLiterature.retrievalProfile)
+    ? rawLiterature.retrievalProfile
+    : "light";
   const literature = {
+    retrievalProfile,
+    retrievalDecision: {
+      profile: retrievalProfiles.has(rawRetrievalDecision.profile)
+        ? rawRetrievalDecision.profile
+        : retrievalProfile,
+      mode: retrievalModes.has(rawRetrievalDecision.mode)
+        ? rawRetrievalDecision.mode
+        : "not-needed",
+      ...(retrievalModes.has(rawRetrievalDecision.attemptedMode) &&
+      rawRetrievalDecision.attemptedMode !== "not-needed"
+        ? { attemptedMode: rawRetrievalDecision.attemptedMode }
+        : {}),
+      escalated: rawRetrievalDecision.escalated === true,
+      reason: retrievalReasons.has(rawRetrievalDecision.reason)
+        ? rawRetrievalDecision.reason
+        : "literature-retrieval-not-needed"
+    },
     selectedPaperIds: normalizePaperIds(rawLiterature.selectedPaperIds),
     relevantPaperIds: normalizePaperIds(rawLiterature.relevantPaperIds),
     discoveryMode: [
@@ -5154,6 +5193,8 @@ function buildLocalWorkspaceContext(value) {
   sections.push(`Current Side Chat scope:\n${scopeLabel}`);
 
   const literatureLines = [
+    `Retrieval profile: ${value.literature.retrievalProfile}`,
+    `Actual retrieval path: ${value.literature.retrievalDecision.mode} (${value.literature.retrievalDecision.reason})`,
     `Discovery mode: ${value.literature.discoveryMode}`,
     `Explicitly selected paper IDs: ${value.literature.selectedPaperIds.join(", ") || "none"}`,
     `Paper IDs used for this turn: ${value.literature.relevantPaperIds.join(", ") || "none"}`,

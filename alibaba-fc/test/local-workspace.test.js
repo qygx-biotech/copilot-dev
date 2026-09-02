@@ -15,6 +15,7 @@ const {
   ProjectContextService,
   WorkspaceChatStore,
   flattenWorkspaceTree,
+  prepareLatestSideChatRevision,
 } = require("../../docs/project-context-service.js");
 
 function notFound(message) {
@@ -180,6 +181,7 @@ test("workspace initialization creates the generic structure and stable metadata
   assert.equal(workspace.name, "EctD Optimization");
   assert.equal(workspace.schemaVersion, 1);
   assert.equal(state.project.goal, "");
+  assert.equal(state.ui.retrievalProfile, "light");
   assert.deepEqual(Object.keys(state.memory), [
     "projectSummary",
     "conversationSummary",
@@ -191,6 +193,7 @@ test("workspace initialization creates the generic structure and stable metadata
     (await manager.getDirectory("experiments/downstream-processing")).kind,
     "directory"
   );
+  assert.equal((await root.getDirectoryHandle("output")).kind, "directory");
   assert.equal(
     await (await (await root.getFileHandle("existing-notes.txt")).getFile()).text(),
     "keep this unrelated file"
@@ -206,6 +209,19 @@ test("workspace initialization creates the generic structure and stable metadata
   const reloaded = await manager.loadWorkspace();
   assert.equal(reloaded.workspace.workspaceId, originalId);
   assert.equal(reloaded.state.project.goal, "Optimize EctD production");
+  assert.equal(reloaded.state.ui.retrievalProfile, "light");
+
+  await assert.rejects(
+    manager.saveState({
+      ...reloaded.state,
+      ui: { retrievalProfile: "https://untrusted.example/deep" },
+    }),
+    (error) => error instanceof WorkspaceError && error.code === "INVALID_STATE"
+  );
+  assert.equal(
+    (await manager.readJson(".biodesign/state.json")).ui.retrievalProfile,
+    "light"
+  );
 });
 
 test("malformed managed JSON is preserved and produces an actionable error", async () => {
@@ -311,6 +327,7 @@ test("Side Chat conversations persist locally and clear without touching project
       id: manager.createId(),
       role: "assistant",
       content: "They use different activity assays.",
+      activity: ["Prepared selected papers.", "Generated the answer."],
       createdAt: "2026-08-20T06:01:10.000Z",
     }
   );
@@ -329,6 +346,10 @@ test("Side Chat conversations persist locally and clear without touching project
     "paper-1",
     "paper-2",
   ]);
+  assert.deepEqual(restored.messages[1].activity, [
+    "Prepared selected papers.",
+    "Generated the answer.",
+  ]);
 
   const cleared = await restoredStore.clearActiveConversation();
   assert.notEqual(cleared.id, originalId);
@@ -338,6 +359,27 @@ test("Side Chat conversations persist locally and clear without touching project
     false
   );
   assert.equal(await (await manager.readFile("notes.txt")).text(), "keep me");
+});
+
+test("editing the latest Side Chat question removes its old turn before regeneration", () => {
+  const messages = [
+    { id: "user-1", role: "user", content: "First question" },
+    { id: "assistant-1", role: "assistant", content: "First answer" },
+    { id: "user-2", role: "user", content: "Original latest question" },
+    { id: "assistant-2", role: "assistant", content: "Answer to replace" },
+  ];
+  const revision = prepareLatestSideChatRevision(
+    messages,
+    "user-2",
+    "  Revised latest question  "
+  );
+  assert.equal(revision.question, "Revised latest question");
+  assert.deepEqual(revision.previousMessages, messages.slice(0, 2));
+  assert.equal(
+    prepareLatestSideChatRevision(messages, "user-1", "Cannot edit an older turn"),
+    null
+  );
+  assert.equal(prepareLatestSideChatRevision(messages, "user-2", "   "), null);
 });
 
 test("Side Chat persistence keeps a complete long model reply", async () => {
@@ -1004,6 +1046,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     selectedPaperIds: [],
     workspaceTree,
     enableContextRouter: true,
+    retrievalProfile: "high",
   });
   assert.equal(genericConcept.routing.mode, "llm");
   assert.equal(genericConcept.routing.useLiterature, false);
@@ -1025,11 +1068,42 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     selectedPaperIds: [],
     workspaceTree,
     enableContextRouter: true,
+    retrievalProfile: "high",
   });
   assert.equal(memoryRouted.routing.useProjectMemory, true);
   assert.equal(memoryRouted.project.projectSummary, "Saved EctD project memory.");
   assert.deepEqual(memoryRouted.files, []);
   assert.deepEqual(synthesisCalls, []);
+
+  literature.api.routeContext = async () => {
+    throw new Error("simulated provider outage");
+  };
+  const highFallback = await service.buildContext({
+    question: "What was our saved project summary?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+    retrievalProfile: "high",
+  });
+  assert.equal(highFallback.routing.mode, "local-fallback");
+  assert.equal(highFallback.routing.useProjectMemory, true);
+  assert.equal(highFallback.project.projectSummary, "Saved EctD project memory.");
+
+  let lightRouterCalls = 0;
+  literature.api.routeContext = async () => {
+    lightRouterCalls += 1;
+    return { useLiterature: false, useProjectMemory: false };
+  };
+  const lightRoute = await service.buildContext({
+    question: "What was our saved project summary?",
+    selectedPaths: [],
+    selectedPaperIds: [],
+    workspaceTree,
+    enableContextRouter: true,
+    retrievalProfile: "light",
+  });
+  assert.equal(lightRouterCalls, 0);
+  assert.equal(lightRoute.routing.mode, "local");
   delete literature.api.routeContext;
 
   const idle = await service.buildContext({
@@ -1072,6 +1146,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   operationOrder.length = 0;
   const selectedAWithCard = await service.buildContext({
     question: "Summarize the selected paper again.",
+    retrievalProfile: "high",
     selectedPaths: ["literature/paper-a.pdf"],
     selectedPaperIds: [ids["paper-a.pdf"]],
     workspaceTree,
@@ -1139,6 +1214,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     selectedPaperIds: [],
     workspaceTree,
     enableContextRouter: true,
+    retrievalProfile: "high",
   });
   assert.equal(semanticRoute.routing.mode, "llm");
   assert.deepEqual(semanticRoute.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
@@ -1313,6 +1389,7 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
     selectedPaperIds: [],
     workspaceTree: await manager.scanDirectoryTree(),
     enableContextRouter: true,
+    retrievalProfile: "high",
   });
   assert.equal(failedContext.literature.discoveryMode, "automatic");
   assert.deepEqual(failedContext.literature.relevantPaperIds, [failed.id]);

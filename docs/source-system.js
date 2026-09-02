@@ -5,6 +5,15 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function sourceSystemFactory(root) {
   "use strict";
 
+  const retrievalProfiles = root?.BioDesignRetrievalProfiles ||
+    (typeof require === "function" ? require("../shared/retrieval-profiles.js") : {});
+  const isValidRetrievalProfile = retrievalProfiles.isValidRetrievalProfile ||
+    ((value) => ["light", "medium", "high"].includes(value));
+  const normalizeRetrievalProfile = retrievalProfiles.normalizeRetrievalProfile ||
+    ((value) => isValidRetrievalProfile(value) ? value : "light");
+  const selectRetrievalProfile = retrievalProfiles.selectRetrievalProfile ||
+    ((profile) => ({ profile: normalizeRetrievalProfile(profile), mode: "fast", reason: "fallback-fast" }));
+
   const SOURCE_REGISTRY_SCHEMA_VERSION = 2;
   const SOURCE_ARTIFACT_SCHEMA_VERSION = 1;
   const SOURCE_EXTRACTOR_VERSION = "local-source-v1";
@@ -2852,18 +2861,94 @@
           return { source, item, score: scoreText(text, query) };
         });
       const readyResults = [];
+      const prefetchedLegacyResults = [];
       let qmdRouted = false;
+      let retrievalDecision = null;
       if (this.knowledgeService?.available) {
         try {
-          const qmd = await this.knowledgeService.searchLiterature({
-            query: qmdQuery,
-            paperIds: allowed ? [...allowed] : undefined,
-            mode: ["semantic", "deep"].includes(options.mode) ? options.mode : "fast",
-            collections: options.collections || [KNOWLEDGE_COLLECTIONS.literatureEvidence],
-            limit: Math.min(50, Number(options.topK) || 10),
-            signal: options.signal,
-          });
-          for (const result of qmd.results || []) {
+          const runKnowledgeSearch = (mode) => this.knowledgeService.searchLiterature({
+              query: qmdQuery,
+              paperIds: allowed ? [...allowed] : undefined,
+              mode,
+              collections: options.collections || [KNOWLEDGE_COLLECTIONS.literatureEvidence],
+              limit: Math.min(50, Number(options.topK) || 10),
+              signal: options.signal,
+            });
+          let qmd;
+          if (isValidRetrievalProfile(options.retrievalProfile)) {
+            const profile = normalizeRetrievalProfile(options.retrievalProfile);
+            retrievalDecision = selectRetrievalProfile(profile, { query: qmdQuery });
+            if (profile === "medium") {
+              const fast = await runKnowledgeSearch("fast");
+              const enrichedFastResults = (fast.results || []).map((result) => {
+                const source = this.registry.get(result.paperId);
+                const metadataItem = source ? this.paperMetadata(source) : {};
+                return {
+                  ...result,
+                  ...metadataItem,
+                  snippet: (result.matchedSections || [])[0]?.snippet || "",
+                };
+              });
+              if (!enrichedFastResults.length) {
+                for (const candidate of metadata.filter(({ source }) => source.indexStatus === "ready")) {
+                  try {
+                    const artifact = await this.preparation.readPaperArtifact(
+                      candidate.source.sourceId
+                    );
+                    const best = artifact.chunks
+                      .map((chunk) => ({ chunk, score: scoreText(chunk.text, query) }))
+                      .sort((left, right) => right.score - left.score)[0];
+                    const score = candidate.score + (best?.score || 0);
+                    if (score <= 0) continue;
+                    const localResult = {
+                      ...candidate.item,
+                      score,
+                      evidenceHandle: best?.chunk?.chunkId || null,
+                      page: best?.chunk?.page || null,
+                      snippet: String(best?.chunk?.text || "").slice(0, 500),
+                      searchable: true,
+                      retrievalBackend: "legacy",
+                    };
+                    prefetchedLegacyResults.push(localResult);
+                    enrichedFastResults.push(localResult);
+                  } catch {
+                    // The normal legacy fallback below owns source-state updates.
+                  }
+                }
+              }
+              retrievalDecision = selectRetrievalProfile(profile, {
+                query: qmdQuery,
+                fastResults: enrichedFastResults,
+              });
+              if (retrievalDecision.mode === "deep") {
+                this.knowledgeService.emit?.({ stage: "escalating-deep-retrieval" });
+                qmd = await runKnowledgeSearch("deep");
+              } else {
+                this.knowledgeService.emit?.({ stage: "fast-result-accepted" });
+                qmd = fast;
+              }
+            } else {
+              qmd = await runKnowledgeSearch(retrievalDecision.mode);
+            }
+          } else {
+            const mode = ["semantic", "deep"].includes(options.mode) ? options.mode : "fast";
+            retrievalDecision = {
+              profile: "legacy",
+              mode,
+              escalated: mode === "deep",
+              reason: "legacy-explicit-mode",
+            };
+            qmd = await runKnowledgeSearch(mode);
+          }
+          if (qmd?.diagnostics?.fallback && retrievalDecision?.mode === "deep") {
+            retrievalDecision = {
+              ...retrievalDecision,
+              attemptedMode: "deep",
+              mode: "fast",
+              reason: "local-compatible-fallback",
+            };
+          }
+          for (const result of qmd?.results || []) {
             const source = this.registry.get(result.paperId);
             if (!source || source.sourceKind !== "paper") continue;
             const item = this.paperMetadata(source);
@@ -2880,12 +2965,22 @@
             });
           }
           qmdRouted = readyResults.length > 0;
+          if (
+            !qmdRouted &&
+            retrievalDecision?.mode === "fast" &&
+            prefetchedLegacyResults.length
+          ) {
+            readyResults.push(...prefetchedLegacyResults);
+            qmdRouted = true;
+          }
         } catch (error) {
           console.info("qmd_literature_search_fallback", {
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
             message: String(error?.message || error).slice(0, 300),
           });
         }
+      } else if (isValidRetrievalProfile(options.retrievalProfile)) {
+        this.knowledgeService?.emit?.({ stage: "retrieval-local-fallback" });
       }
       for (const candidate of qmdRouted
         ? []
@@ -2940,6 +3035,12 @@
         .slice(0, Math.min(50, Number(options.topK) || 10));
       return {
         results: combined,
+        retrievalDecision: retrievalDecision || {
+          profile: normalizeRetrievalProfile(options.retrievalProfile),
+          mode: "fast",
+          escalated: false,
+          reason: "local-compatible-fallback",
+        },
         coverage: {
           papersDiscovered: metadata.length,
           papersSearchable: metadata.filter(({ source }) => source.indexStatus === "ready").length,
@@ -2956,14 +3057,90 @@
       const source = this.registry.get(paperId);
       if (this.knowledgeService?.available) {
         try {
-          const qmd = await this.knowledgeService.searchLiterature({
-            query,
-            paperIds: [paperId],
-            mode: ["semantic", "deep"].includes(options.mode) ? options.mode : "fast",
-            collections: [KNOWLEDGE_COLLECTIONS.literatureEvidence],
-            limit: Math.min(30, Number(options.topK) || 8),
-            signal: options.signal,
-          });
+          const runKnowledgeSearch = (mode) => this.knowledgeService.searchLiterature({
+              query,
+              paperIds: [paperId],
+              mode,
+              collections: [KNOWLEDGE_COLLECTIONS.literatureEvidence],
+              limit: Math.min(30, Number(options.topK) || 8),
+              signal: options.signal,
+            });
+          let retrievalDecision;
+          let qmd;
+          if (isValidRetrievalProfile(options.retrievalProfile)) {
+            const profile = normalizeRetrievalProfile(options.retrievalProfile);
+            retrievalDecision = selectRetrievalProfile(profile, { query });
+            if (profile === "medium") {
+              const fast = await runKnowledgeSearch("fast");
+              let prefetchedLocalResults = [];
+              if (!(fast.results || []).length) {
+                const artifact = await this.preparation.readPaperArtifact(source.sourceId);
+                prefetchedLocalResults = artifact.chunks
+                  .filter((chunk) =>
+                    !Array.isArray(options.sectionFilters) ||
+                    !options.sectionFilters.length ||
+                    options.sectionFilters.includes(chunk.section)
+                  )
+                  .map((chunk) => ({
+                    paperId: source.sourceId,
+                    title: source.legacy?.discovery?.title || source.displayName,
+                    page: chunk.page,
+                    section: chunk.section,
+                    chunkId: chunk.chunkId,
+                    snippet: chunk.text.slice(0, 900),
+                    score: scoreText(chunk.text, query),
+                    retrievalBackend: "legacy",
+                  }))
+                  .filter((item) => item.score > 0)
+                  .sort((left, right) => right.score - left.score)
+                  .slice(0, Math.min(30, Number(options.topK) || 8));
+              }
+              retrievalDecision = selectRetrievalProfile(profile, {
+                query,
+                fastResults: (fast.results || []).length
+                  ? (fast.results || []).map((result) => ({
+                      ...result,
+                      title: source.legacy?.discovery?.title || source.displayName,
+                      snippet: (result.matchedSections || [])[0]?.snippet || "",
+                    }))
+                  : prefetchedLocalResults,
+              });
+              if (retrievalDecision.mode === "deep") {
+                this.knowledgeService.emit?.({ stage: "escalating-deep-retrieval" });
+                qmd = await runKnowledgeSearch("deep");
+              } else {
+                this.knowledgeService.emit?.({ stage: "fast-result-accepted" });
+                if (prefetchedLocalResults.length) {
+                  return this.results.compact(prefetchedLocalResults, {
+                    tool: "search_paper_content",
+                    paperId,
+                    retrievalBackend: "legacy",
+                    retrievalDecision,
+                  });
+                }
+                qmd = fast;
+              }
+            } else {
+              qmd = await runKnowledgeSearch(retrievalDecision.mode);
+            }
+          } else {
+            const mode = ["semantic", "deep"].includes(options.mode) ? options.mode : "fast";
+            retrievalDecision = {
+              profile: "legacy",
+              mode,
+              escalated: mode === "deep",
+              reason: "legacy-explicit-mode",
+            };
+            qmd = await runKnowledgeSearch(mode);
+          }
+          if (qmd?.diagnostics?.fallback && retrievalDecision?.mode === "deep") {
+            retrievalDecision = {
+              ...retrievalDecision,
+              attemptedMode: "deep",
+              mode: "fast",
+              reason: "local-compatible-fallback",
+            };
+          }
           const matched = qmd.results?.find((result) => result.paperId === paperId);
           if (matched?.matchedSections?.length) {
             const results = matched.matchedSections.map((section, index) => ({
@@ -2980,6 +3157,7 @@
               tool: "search_paper_content",
               paperId,
               retrievalBackend: "qmd",
+              retrievalDecision,
             });
           }
         } catch (error) {
@@ -4375,7 +4553,12 @@
             const search = await this.literatureTools.searchPaperContent(
               readySource.sourceId,
               journal.question,
-              { topK: 8, signal: options.signal }
+              {
+                topK: 8,
+                signal: options.signal,
+                surface: options.surface,
+                retrievalProfile: normalizeRetrievalProfile(options.retrievalProfile),
+              }
             );
             let evidence = search?.resultHandle ? await this.results.read(search.resultHandle) : search;
             if (!Array.isArray(evidence) || !evidence.length) {
