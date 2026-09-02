@@ -123,6 +123,13 @@ async function runSmoke(window) {
     betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true
   })`);
   const runtime = await window.webContents.executeJavaScript("window.biodesignDesktop.runtime.info()");
+  const betaUpdates = getBetaUpdateEligibility({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    version: app.getVersion(),
+    architecture: process.arch,
+    processArguments: process.argv,
+  });
   const acceptedSmokeTitles = new Set([
     "BioDesign Workbench",
     "BioDesign Workbench | 生物设计工作台",
@@ -132,7 +139,7 @@ async function runSmoke(window) {
       acceptedSmokeTitles.has(renderer.title) &&
       renderer.aboutButtonCount === 3 &&
       renderer.betaButtonPresent &&
-      renderer.betaButtonDisabled,
+      renderer.betaButtonDisabled === !betaUpdates.enabled,
     renderer,
     runtime,
     security: { nodeIntegration: false, contextIsolation: true, sandbox: true },
