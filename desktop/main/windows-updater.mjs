@@ -580,9 +580,11 @@ export class WindowsUpdaterController {
     const channel = this.activeChannel;
     const installedVersion = this.app.getVersion();
     const stable = channel === "stable" ? parseStableVersion(releaseName) : null;
-    const beta = channel === "beta" ? parsePrereleaseVersion(releaseName) : null;
+    const beta = channel === "beta" ? parsePrereleaseVersion(this.expectedBetaVersion) : null;
     const acceptedStable = stable && isStrictlyNewerStableVersion(stable.text, installedVersion);
-    const acceptedBeta = beta && beta.text === this.expectedBetaVersion && isStrictlyNewerPrereleaseVersion(beta.text, installedVersion);
+    const acceptedBeta = beta &&
+      releaseName === toSquirrelPackageVersion(beta.text) &&
+      isStrictlyNewerPrereleaseVersion(beta.text, installedVersion);
     if (!acceptedStable && !acceptedBeta) {
       if (channel === "beta") this.emitBetaStatus(sanitizedBetaStatus("temporarily-unavailable"));
       this.resetOperation();

@@ -386,7 +386,7 @@ test("Later never closes the app and leaves stable and beta updates staged", asy
   const beta = fixture({ version: "0.1.6-beta.1", dialogs: [{ response: 1 }], fetchImplementation: source.fetchImplementation });
   await beta.controller.requestBetaUpdateCheck();
   beta.autoUpdater.emit("update-available");
-  beta.autoUpdater.emit("update-downloaded", {}, "", "0.1.6-beta.2");
+  beta.autoUpdater.emit("update-downloaded", {}, "", "0.1.6-beta2");
   await nextTurn();
   assert.equal(beta.autoUpdater.quitCount, 0);
   assert.equal(beta.betaStatuses.at(-1).state, "ready-to-restart");
@@ -404,12 +404,25 @@ test("a downloaded beta never interrupts a running job or open project", async (
   });
   await state.controller.requestBetaUpdateCheck();
   state.autoUpdater.emit("update-available");
-  state.autoUpdater.emit("update-downloaded", {}, "", "0.1.6-beta.2");
+  state.autoUpdater.emit("update-downloaded", {}, "", "0.1.6-beta2");
   await nextTurn();
   await nextTurn();
   assert.equal(state.autoUpdater.quitCount, 0);
   assert.equal(state.dialog.calls.length, 2);
   assert.ok(state.events.includes("windows_updater_restart_blocked_by_job"));
+});
+
+test("beta downloads require the exact Squirrel-normalized expected version", async () => {
+  const release = betaRelease("0.1.6-beta.2");
+  const source = betaFetch([release]);
+  const state = fixture({ version: "0.1.6-beta.1", fetchImplementation: source.fetchImplementation });
+  await state.controller.requestBetaUpdateCheck();
+  state.autoUpdater.emit("update-available");
+  state.autoUpdater.emit("update-downloaded", {}, "", "0.1.6-beta.2");
+  await nextTurn();
+  assert.equal(state.dialog.calls.length, 0);
+  assert.equal(state.betaStatuses.at(-1).state, "temporarily-unavailable");
+  assert.ok(state.events.includes("windows_updater_rejected_version"));
 });
 
 test("Restart Now installs only when no project or job is active", async () => {
