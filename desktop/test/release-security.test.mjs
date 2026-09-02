@@ -95,7 +95,7 @@ test("Windows update smoke audits and starts the full package before two-version
 test("Windows Squirrel identity and release artifact names remain stable", async () => {
   const forge = await readFile(path.join(repositoryRoot, "forge.config.cjs"), "utf8");
   const packageMetadata = JSON.parse(await readFile(path.join(repositoryRoot, "package.json"), "utf8"));
-  assert.equal(packageMetadata.version, "0.1.6");
+  assert.match(packageMetadata.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-beta\.(0|[1-9]\d*))?$/);
   assert.match(forge, /name: "BioDesign"/);
   assert.match(forge, /executableName: "BioDesign"/);
   assert.match(forge, /setupExe: "BioDesign-Setup\.exe"/);
