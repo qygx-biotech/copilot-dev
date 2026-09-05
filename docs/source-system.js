@@ -7,6 +7,8 @@
 
   const retrievalProfiles = root?.BioDesignRetrievalProfiles ||
     (typeof require === "function" ? require("../shared/retrieval-profiles.js") : {});
+  const experimentSemantics = root?.BioDesignExperimentSemantics ||
+    (typeof require === "function" ? require("../shared/experiment-semantics.js") : null);
   const isValidRetrievalProfile = retrievalProfiles.isValidRetrievalProfile ||
     ((value) => ["light", "medium", "high"].includes(value));
   const normalizeRetrievalProfile = retrievalProfiles.normalizeRetrievalProfile ||
@@ -17,7 +19,7 @@
   const SOURCE_REGISTRY_SCHEMA_VERSION = 2;
   const SOURCE_ARTIFACT_SCHEMA_VERSION = 1;
   const SOURCE_EXTRACTOR_VERSION = "local-source-v1";
-  const EXPERIMENT_NORMALIZER_VERSION = "generic-tabular-v1";
+  const EXPERIMENT_NORMALIZER_VERSION = "canonical-tabular-v2";
   const CORPUS_WORKFLOW_VERSION = 2;
   const CORPUS_MAP_SCHEMA_VERSION = 2;
   const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
@@ -63,7 +65,8 @@
   });
   const DEFAULT_ENTITY_ALIASES = Object.freeze({
     ectd: ["EctD", "ectD"],
-    hydroxyectoine: ["hydroxyectoine", "hydroxy-ectoine"],
+    hydroxyectoine: ["hydroxyectoine", "hydroxy-ectoine", "5-hydroxyectoine", "羟基依克多因"],
+    wild_type: ["WT", "wild type", "wild-type", "野生型"],
     bl21: ["BL21", "BL21(DE3)"],
     kcat: ["kcat", "turnover number"],
     km: ["Km", "Michaelis constant"],
@@ -365,6 +368,11 @@
       ),
       200
     );
+    const canonicalFields = uniqueStrings((artifact.schemas || []).flatMap((schema) =>
+      (schema.columns || []).filter((column) => column.canonicalField).flatMap((column) => {
+        const field = experimentSemantics?.FIELD_REGISTRY[column.canonicalField];
+        return [column.canonicalField, ...(field ? Object.values(field.labels) : [])];
+      })), 200);
     const entities = {
       proteins: uniqueStrings((artifact.records || []).flatMap((record) => record.entities?.proteins || []), 100),
       genes: uniqueStrings((artifact.records || []).flatMap((record) => record.entities?.genes || []), 100),
@@ -379,6 +387,7 @@
       markdownList("experiment_ids", (artifact.records || []).map((record) => record.experimentId)),
       markdownList("entities", Object.values(entities).flat()),
       markdownList("fields", headers),
+      markdownList("canonical_fields", canonicalFields),
       "authoritative: false",
       "numerical_truth: structured_experiment_store",
       "---",
@@ -394,6 +403,10 @@
       "# Fields represented",
       "",
       ...(headers.length ? headers.map((header) => `- ${header}`) : ["- None detected"]),
+      "",
+      "# Canonical field labels",
+      "",
+      ...canonicalFields.map((field) => `- ${field}`),
       "",
       "# Biological entities represented",
       "",
@@ -1903,12 +1916,22 @@
     return { startColumn, startRow, endColumn, endRow };
   }
 
-  function rowsToExperimentRecords(source, sheets) {
+  function rowsToExperimentRecords(source, sheets, schemas = []) {
     const records = [];
     for (const sheet of sheets) {
       const rows = Array.isArray(sheet.rows) ? sheet.rows : [];
       if (!rows.length) continue;
-      const headers = rows[0].map(normalizeHeader);
+      const usedHeaders = new Set();
+      const headers = rows[0].map((header, index) => {
+        const base = normalizeHeader(header, index);
+        let key = base;
+        let suffix = 2;
+        while (usedHeaders.has(key)) key = `${base}_${suffix++}`;
+        usedHeaders.add(key);
+        return key;
+      });
+      const schema = schemas.find((item) => item.sheet === sheet.name) ||
+        experimentSemantics?.buildSheetSchema(source, sheet);
       for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
         const raw = {};
         headers.forEach((header, columnIndex) => {
@@ -1916,16 +1939,37 @@
         });
         const rawText = Object.values(raw).join(" ");
         if (!rawText.trim()) continue;
+        const rawCells = (schema?.columns || []).map((column) =>
+          experimentSemantics.normalizeCell(rows[rowIndex][column.columnIndex] ?? "", column, rows[rowIndex]));
+        const canonical = {};
+        const canonicalUnits = {};
+        const duplicates = new Set();
+        for (const cell of rawCells) {
+          if (!cell.canonicalField) continue;
+          if (Object.hasOwn(canonical, cell.canonicalField)) duplicates.add(cell.canonicalField);
+          else {
+            canonical[cell.canonicalField] = cell.normalizedValue;
+            canonicalUnits[cell.canonicalField] = cell.normalizedUnit;
+          }
+        }
+        // Two measurements with the same semantic name require a column-specific selection.
+        for (const field of duplicates) { delete canonical[field]; delete canonicalUnits[field]; }
+        const entityValues = (field) => rawCells.filter((cell) => cell.canonicalField === field)
+          .map((cell) => String(cell.normalizedValue ?? ""));
         records.push({
           experimentId: `${source.sourceId}-R${records.length + 1}`,
           sourceId: source.sourceId,
           sourceContentHash: source.contentHash,
           raw,
+          rawCells,
+          canonical,
+          canonicalUnits,
+          ambiguousCanonicalFields: [...duplicates],
           entities: {
-            proteins: uniqueStrings(Object.entries(raw).filter(([key]) => /protein|enzyme/i.test(key)).map(([, value]) => String(value))),
-            genes: uniqueStrings(Object.entries(raw).filter(([key]) => /gene/i.test(key)).map(([, value]) => String(value))),
-            mutations: uniqueStrings((rawText.match(/\b[A-Z]\d{1,5}[A-Z]\b/g) || [])),
-            strains: uniqueStrings(Object.entries(raw).filter(([key]) => /strain|host/i.test(key)).map(([, value]) => String(value))),
+            proteins: uniqueStrings([...entityValues("protein"), ...Object.entries(raw).filter(([key]) => /protein|enzyme/i.test(key)).map(([, value]) => String(value))]),
+            genes: uniqueStrings([...entityValues("gene"), ...Object.entries(raw).filter(([key]) => /gene/i.test(key)).map(([, value]) => String(value))]),
+            mutations: uniqueStrings([...entityValues("mutation"), ...(rawText.match(/\b[A-Z]\d{1,5}[A-Z]\b/g) || [])]),
+            strains: uniqueStrings([...entityValues("strain"), ...Object.entries(raw).filter(([key]) => /strain|host/i.test(key)).map(([, value]) => String(value))]),
           },
           provenance: {
             sourceFile: source.path,
@@ -1971,13 +2015,15 @@
           : ",";
       sheets = [{ name: "data", rows: parseDelimited(text, delimiter) }];
     }
+    const schemas = sheets.map((sheet) => experimentSemantics?.buildSheetSchema(source, sheet)).filter(Boolean);
     return {
       schemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
       normalizerVersion: EXPERIMENT_NORMALIZER_VERSION,
       sourceId: source.sourceId,
       contentHash: source.contentHash,
       sheets,
-      records: rowsToExperimentRecords(source, sheets),
+      schemas,
+      records: rowsToExperimentRecords(source, sheets, schemas),
       createdAt: new Date().toISOString(),
     };
   }
@@ -2007,6 +2053,9 @@
       this.cryptoProvider = options.cryptoProvider || root.crypto;
       this.parsePaper = options.parsePaper;
       this.spreadsheetProvider = options.spreadsheetProvider || root.XLSX;
+      this.schemaMappings = options.schemaMappings || (experimentSemantics
+        ? new experimentSemantics.SchemaMappingService({ workspace: this.workspace, schemaMapper: options.schemaMapper })
+        : null);
       this.generatePaperCard = options.generatePaperCard || null;
       this.knowledgeService = options.knowledgeService || null;
       this.topicService = options.topicService || null;
@@ -2646,6 +2695,10 @@
           this.metrics.experimentParseCalls += 1;
           const parseStarted = Date.now();
           const normalized = parseExperimentBytes(source, bytes, this.spreadsheetProvider);
+          if (this.schemaMappings) {
+            normalized.schemas = await this.schemaMappings.normalize(source, normalized.sheets, requestContext);
+            normalized.records = rowsToExperimentRecords(source, normalized.sheets, normalized.schemas);
+          }
           experimentArtifact = normalized;
           this.metrics.experimentParseDurationMs += Date.now() - parseStarted;
           const path = `${artifactBase}/experiment-data.json`;
@@ -2779,13 +2832,23 @@
       return this.workspace.readJson(artifact.path);
     }
 
-    async readExperimentArtifact(sourceId) {
+    async readExperimentArtifact(sourceId, options = {}) {
       const source = this.registry.get(sourceId);
       const artifact = source?.artifacts?.experimentData;
       if (!artifact?.path || artifact.contentHash !== source.contentHash) {
         throw new SourceSystemError("EXPERIMENT_DATA_NOT_READY", "Normalized experiment data is not ready.");
       }
-      return this.workspace.readJson(artifact.path);
+      const data = await this.workspace.readJson(artifact.path);
+      if (this.schemaMappings) {
+        const schemas = await this.schemaMappings.normalize(source, data.sheets || [], options);
+        if (data.normalizerVersion !== EXPERIMENT_NORMALIZER_VERSION || JSON.stringify(schemas) !== JSON.stringify(data.schemas)) {
+          data.schemas = schemas;
+          data.records = rowsToExperimentRecords(source, data.sheets || [], schemas);
+          data.normalizerVersion = EXPERIMENT_NORMALIZER_VERSION;
+          await this.workspace.writeJson(artifact.path, data);
+        }
+      }
+      return data;
     }
   }
 
@@ -3452,27 +3515,29 @@
   }
 
   function recordMatchesFilters(record, options = {}) {
-    const rawText = JSON.stringify(record.raw || {}).toLowerCase();
+    const rawText = JSON.stringify([record.raw || {}, record.canonical || {}]).toLowerCase();
     const check = (values, candidates) => {
       const required = uniqueStrings(Array.isArray(values) ? values : values ? [values] : []);
       if (!required.length) return true;
       const haystack = `${rawText} ${(candidates || []).join(" ")}`.toLowerCase();
-      return required.some((value) => haystack.includes(value.toLowerCase()));
+      return required.some((value) => haystack.includes(String(experimentSemantics?.normalizeEntity(value) ?? value).toLowerCase()));
     };
     const rawEntries = Object.entries(record.raw || {});
-    const metricMatches = !options.metric || rawEntries.some(([key]) =>
-      key.toLowerCase().includes(String(options.metric).toLowerCase())
-    );
+    const canonicalMetric = experimentSemantics?.normalizeField(options.metric);
+    const metricMatches = !options.metric || (canonicalMetric && Object.hasOwn(record.canonical || {}, canonicalMetric)) ||
+      rawEntries.some(([key]) => key.toLowerCase().includes(String(options.metric).toLowerCase()));
     const conditionMatches = !options.conditionFilters || Object.entries(
       options.conditionFilters
     ).every(([requestedKey, requestedValue]) => {
-      const match = rawEntries.find(
+      const canonicalField = experimentSemantics?.normalizeField(requestedKey);
+      const match = canonicalField && Object.hasOwn(record.canonical || {}, canonicalField)
+        ? [canonicalField, record.canonical[canonicalField]] : rawEntries.find(
         ([key]) => key.toLowerCase() === String(requestedKey).toLowerCase()
       );
       if (!match) return false;
       const allowed = Array.isArray(requestedValue) ? requestedValue : [requestedValue];
       return allowed.some(
-        (value) => String(match[1]).toLowerCase() === String(value).toLowerCase()
+        (value) => String(match[1]).toLowerCase() === String(experimentSemantics?.normalizeEntity(value) ?? value).toLowerCase()
       );
     });
     return (
@@ -3532,7 +3597,7 @@
         .map((result) => result.sourceId);
       const records = [];
       for (const sourceId of readyIds) {
-        const artifact = await this.preparation.readExperimentArtifact(sourceId);
+        const artifact = await this.preparation.readExperimentArtifact(sourceId, options);
         for (const record of artifact.records || []) {
           if (recordMatchesFilters(record, options)) records.push(record);
         }
@@ -3542,6 +3607,142 @@
         sourceIds: readyIds,
         failures: readiness.failures,
       });
+    }
+
+    async executeSemanticQuery(ir = {}, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "query_experiment_results");
+      const requestedScope = Array.isArray(ir.scope?.experiments) ? new Set(ir.scope.experiments) : null;
+      const allowedIds = Array.isArray(options.experimentSourceIds)
+        ? uniqueStrings(options.experimentSourceIds)
+        : this.registry.list({ sourceKind: "experiment" }).map((source) => source.sourceId);
+      const sourceIds = allowedIds.filter((id) => (!requestedScope || requestedScope.has(id)) &&
+        this.registry.get(id)?.sourceKind === "experiment");
+      const unresolved = [];
+      const unappliedConstraints = [];
+      const operations = Array.isArray(ir.operations) ? ir.operations : [];
+      const needsNumeric = operations.some((op) => ["rank", "aggregate", "statistics", "trend"].includes(op));
+      const metrics = (ir.metrics || []).filter((metric) => metric?.canonicalField);
+      const field = metrics.length === 1 ? experimentSemantics?.normalizeField(metrics[0].canonicalField) : null;
+      const metric = field ? { canonicalField: field, direction: metrics[0].direction || "maximize" } : null;
+      if (needsNumeric && !metric) unresolved.push(metrics.length > 1 ? "multiple_metrics_require_explicit_selection" : "ranking_metric");
+      if (needsNumeric && metric?.direction === "target") unresolved.push("target_value");
+      if (operations.includes("trend")) unresolved.push("trend_grouping_requires_explicit_selection");
+      const ready = sourceIds.length ? await this.preparation.ensureSourceReady(sourceIds, "experiment_data", options) : { sources: [], failures: [] };
+      const records = [];
+      for (const source of ready.sources.filter((item) => !item.failed)) {
+        const artifact = await this.preparation.readExperimentArtifact(source.sourceId, options);
+        records.push(...(artifact.records || []));
+      }
+      if (ready.failures?.length) unresolved.push("source_preparation_incomplete");
+      const predicates = [];
+      for (const filter of [...(ir.filters || []), ...(ir.constraints || [])]) {
+        const canonicalField = experimentSemantics?.normalizeField(filter.field);
+        if (!canonicalField || filter.type === "maximum-difference") {
+          unappliedConstraints.push(filter);
+          if (!/^paper_|temperature_difference$/.test(String(filter.field))) unresolved.push(`unsupported_filter:${String(filter.field || "constraint")}`);
+          continue;
+        }
+        if (!["=", "!=", "<", "<=", ">", ">=", "in", "contains"].includes(filter.operator)) {
+          unresolved.push(`unsupported_operator:${String(filter.operator)}`);
+          continue;
+        }
+        const unit = experimentSemantics.normalizeUnit(filter.unit);
+        if (unit && (unit.factor === null || !experimentSemantics.compatibleUnit(canonicalField, unit))) {
+          unresolved.push(`incompatible_filter_unit:${canonicalField}`);
+          continue;
+        }
+        let expected = experimentSemantics.normalizeEntity(filter.value);
+        if (unit && typeof expected === "number") expected = expected * unit.factor + unit.offset;
+        predicates.push((record) => {
+          const value = record.canonical?.[canonicalField];
+          if (value == null || (unit && unit.normalizedUnit !== record.canonicalUnits?.[canonicalField])) return false;
+          switch (filter.operator) {
+            case "=": return value === expected || String(value) === String(expected);
+            case "!=": return String(value) !== String(expected);
+            case "in": return Array.isArray(expected) && expected.some((entry) => String(value) === String(experimentSemantics.normalizeEntity(entry)));
+            case "contains": return String(value).includes(String(expected));
+            case "<": return typeof value === "number" && typeof expected === "number" && value < expected;
+            case "<=": return typeof value === "number" && typeof expected === "number" && value <= expected;
+            case ">": return typeof value === "number" && typeof expected === "number" && value > expected;
+            case ">=": return typeof value === "number" && typeof expected === "number" && value >= expected;
+            default: return false;
+          }
+        });
+      }
+      const entityFilters = (ir.entities || []).filter((entity) =>
+        ["protein", "gene", "mutation", "strain"].includes(entity.type) || /^(?:EctD|ectD|[A-Z]\d{1,6}[A-Z*]|BL21(?:\(DE3\))?)$/.test(entity.canonicalId));
+      let matched = records.filter((record) => predicates.every((predicate) => predicate(record)) && entityFilters.every((entity) =>
+        Object.values(record.canonical || {}).some((value) => String(value) === entity.canonicalId) ||
+        Object.values(record.entities || {}).some((values) => values.includes(entity.canonicalId))));
+      if (needsNumeric && field && matched.some((record) => record.ambiguousCanonicalFields?.includes(field))) unresolved.push("ambiguous_metric_columns");
+      if (needsNumeric && field && matched.some((record) => (record.rawCells || []).some((cell) =>
+        cell.canonicalField === field && experimentSemantics.valueType(cell.rawValue) === "number" && cell.normalizedValue === null))) {
+        unresolved.push("incompatible_metric_cell_units");
+      }
+      if (needsNumeric && field) matched = matched.filter((record) => Number.isFinite(record.canonical?.[field]));
+      const unitSet = field ? [...new Set(matched.map((record) => record.canonicalUnits?.[field] || "unspecified"))] : [];
+      if (needsNumeric && unitSet.length > 1) unresolved.push("incompatible_or_unspecified_metric_units");
+      if (needsNumeric && field && !matched.length) unresolved.push(`no_numeric_values:${field}`);
+      const summary = (items) => {
+        const values = items.map((record) => record.canonical[field]);
+        const count = values.length;
+        const mean = count ? values.reduce((sum, value) => sum + value, 0) / count : null;
+        const deviationSum = count ? values.reduce((sum, value) => sum + (value - mean) ** 2, 0) : null;
+        return { operation: "mean", canonicalField: field, count, value: mean,
+          min: count ? values.reduce((min, value) => Math.min(min, value), Infinity) : null,
+          max: count ? values.reduce((max, value) => Math.max(max, value), -Infinity) : null,
+          ...(operations.includes("statistics") ? {
+            populationVariance: count ? deviationSum / count : null,
+            sampleVariance: count > 1 ? deviationSum / (count - 1) : null,
+          } : {}),
+          unit: unitSet[0] === "unspecified" ? null : unitSet[0] || null };
+      };
+      const canCompute = needsNumeric && metric && !unresolved.length;
+      let aggregation = canCompute ? summary(matched) : null;
+      let groups = [];
+      if (canCompute && operations.includes("rank")) {
+        const sign = metric.direction === "minimize" ? 1 : -1;
+        if (operations.includes("aggregate") && matched.every((record) => record.canonical?.mutation != null)) {
+          const members = new Map();
+          for (const record of matched) {
+            const key = String(record.canonical.mutation);
+            if (!members.has(key)) members.set(key, []);
+            members.get(key).push(record);
+          }
+          groups = [...members].map(([groupValue, items]) => ({ ...summary(items), groupBy: "mutation", groupValue,
+            experimentIds: items.map((record) => record.experimentId), sourceIds: uniqueStrings(items.map((record) => record.sourceId)) }));
+          groups.sort((a, b) => sign * (a.value - b.value) || a.groupValue.localeCompare(b.groupValue));
+        } else matched.sort((a, b) => sign * (a.canonical[field] - b.canonical[field]) || a.experimentId.localeCompare(b.experimentId));
+      }
+      const requestedLimit = Number(ir.requestedOutput?.limit) || Number(options.limit) || 80;
+      const limit = Math.min(500, Math.max(1, Math.trunc(requestedLimit)));
+      let selected;
+      if (groups.length) {
+        groups = groups.slice(0, limit);
+        const selectedIds = new Set(groups.flatMap((group) => group.experimentIds));
+        selected = matched.filter((record) => selectedIds.has(record.experimentId)).slice(0, 500);
+      } else selected = matched.slice(0, limit);
+      return {
+        status: unresolved.length ? "unresolved" : "ready", metric, aggregation, groups,
+        records: selected.map((record) => ({ experimentId: record.experimentId, sourceId: record.sourceId,
+          ...(record.sourceContentHash ? { sourceContentHash: record.sourceContentHash } : {}),
+          values: record.canonical || {}, units: record.canonicalUnits || {}, raw: record.raw,
+          rawCells: record.rawCells || [], entities: record.entities, provenance: record.provenance })),
+        unresolved: uniqueStrings(unresolved), unappliedConstraints,
+        provenance: { sourceIds, totalRecords: records.length, matchedRecords: matched.length, returnedRecords: selected.length },
+      };
+    }
+
+    async confirmSchemaMapping(sourceId, sheetName, columnId, canonicalField, options = {}) {
+      requireAuthorizedTool(options.surface || "side_chat", "query_experiment_results");
+      if (!this.preparation.schemaMappings) throw new SourceSystemError("SCHEMA_MAPPING_UNAVAILABLE", "Schema normalization is unavailable.");
+      await this.preparation.ensureSourceReady([sourceId], "experiment_data", options);
+      const artifact = await this.preparation.readExperimentArtifact(sourceId, options);
+      const sheet = artifact.sheets.find((item) => item.name === sheetName);
+      if (!sheet) throw new SourceSystemError("EXPERIMENT_SHEET_NOT_FOUND", "The experiment sheet was not found.");
+      const mapping = await this.preparation.schemaMappings.confirmMapping(this.registry.get(sourceId), sheet, columnId, canonicalField, options);
+      await this.preparation.readExperimentArtifact(sourceId, options);
+      return mapping;
     }
 
     async searchExperiments(query, options = {}) {
@@ -3590,28 +3791,29 @@
       const resolve = async (group) => {
         const result = await this.queryExperimentResults(group || {});
         const records = result?.resultHandle ? await this.results.read(result.resultHandle) : result;
-        const values = records
-          .map((record) => {
+        const observations = records.map((record) => {
+            const canonicalField = experimentSemantics?.normalizeField(metric);
+            if (canonicalField && Object.hasOwn(record.canonical || {}, canonicalField)) {
+              return { value: record.canonical[canonicalField], unit: record.canonicalUnits?.[canonicalField] || null };
+            }
             const entry = Object.entries(record.raw || {}).find(
               ([key]) => key.toLowerCase() === String(metric || "").toLowerCase()
             );
-            return Number(entry?.[1]);
-          })
-          .filter(Number.isFinite);
-        const units = uniqueStrings(
-          records.flatMap((record) =>
-            Object.entries(record.raw || {})
-              .filter(([key]) => /unit/i.test(key))
-              .map(([, value]) => String(value))
-          )
-        );
+            const rawUnit = Object.entries(record.raw || {}).find(([key]) => /^units?$/i.test(key))?.[1];
+            const parsedUnit = experimentSemantics?.normalizeUnit(rawUnit);
+            const number = entry && String(entry[1]).trim() !== "" ? Number(entry[1]) : null;
+            return { value: Number.isFinite(number) ? (parsedUnit?.factor != null ? number * parsedUnit.factor + parsedUnit.offset : number) : null,
+              unit: parsedUnit?.normalizedUnit || (rawUnit ? String(rawUnit) : null) };
+          }).filter((item) => Number.isFinite(item.value));
+        const values = observations.map((item) => item.value);
+        const units = uniqueStrings(observations.map((item) => item.unit || "unspecified"));
         const sum = values.reduce((total, value) => total + value, 0);
         return {
           count: values.length,
           aggregation,
-          value: aggregation === "sum" ? sum : values.length ? sum / values.length : null,
-          min: values.length ? Math.min(...values) : null,
-          max: values.length ? Math.max(...values) : null,
+          value: units.length > 1 ? null : aggregation === "sum" ? sum : values.length ? sum / values.length : null,
+          min: units.length <= 1 && values.length ? Math.min(...values) : null,
+          max: units.length <= 1 && values.length ? Math.max(...values) : null,
           metric,
           units,
         };
@@ -3625,7 +3827,7 @@
         comparable: allUnits.length <= 1,
         unitWarning:
           allUnits.length > 1
-            ? `Groups contain multiple units (${allUnits.join(", ")}); no conversion was applied.`
+            ? `Groups contain incompatible or unspecified units (${allUnits.join(", ")}); no cross-unit comparison is valid.`
             : null,
       };
     }
@@ -3633,7 +3835,7 @@
     async readExperimentSource(sourceId, options = {}) {
       requireAuthorizedTool(options.surface || "side_chat", "read_experiment_source");
       await this.preparation.ensureSourceReady([sourceId], "experiment_data", options);
-      const artifact = await this.preparation.readExperimentArtifact(sourceId);
+      const artifact = await this.preparation.readExperimentArtifact(sourceId, options);
       let selected = options.sheet
         ? artifact.sheets.filter((sheet) => sheet.name === options.sheet)
         : artifact.sheets;

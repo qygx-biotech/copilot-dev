@@ -1,0 +1,986 @@
+{
+  "fixtureVersion": 1,
+  "semanticSchemaVersion": 1,
+  "patternLibraryVersion": 1,
+  "method": "Versioned multilingual alias/concept-space cosine similarity; no embedding model; closed tool metadata, open goal/output. Controlled parser callbacks measure accounting only, not live LLM accuracy.",
+  "samples": {
+    "known": 30,
+    "novel": 12,
+    "ambiguous": 5
+  },
+  "thresholds": {
+    "known": 0.86,
+    "uncertain": 0.64,
+    "margin": 0.08
+  },
+  "local": {
+    "knownPatternAccuracyPercent": 100,
+    "openSetFalsePositivePercent": 0,
+    "ambiguousFalsePositivePercent": 0,
+    "slotEntityAccuracyPercent": 100,
+    "slotChecks": 60,
+    "medianMilliseconds": 0.215,
+    "p95Milliseconds": 0.948
+  },
+  "legacyComparison": {
+    "scope": "Existing detector only routes corpus synthesis; it has no general intent/slot representation.",
+    "corpusParaphrases": 14,
+    "legacyCorpusRecallPercent": 50,
+    "semanticCorpusRecallPercent": 100,
+    "legacyNovelCorpusFalsePositivePercent": 25,
+    "semanticNovelCorpusFalsePositivePercent": 0,
+    "improvedQueries": [
+      "What does my literature say overall?",
+      "Give me the main findings from the entire collection of articles.",
+      "What does the whole corpus say?",
+      "Put together the major themes from every publication.",
+      "把这些文章综合归纳一下。",
+      "全部文章主要讲了什么？",
+      "把项目里的文章归纳一下。"
+    ]
+  },
+  "profiles": [
+    {
+      "profile": "light",
+      "requests": 47,
+      "semanticParserCallsCold": 0,
+      "semanticParserCallsRepeated": 0,
+      "escalationPercent": 0,
+      "acceptedRemote": 0,
+      "byCategoryCold": {
+        "known": 0,
+        "novel": 0,
+        "ambiguous": 0
+      },
+      "otherCloudCalls": {
+        "retrievalPlanner": 0,
+        "reranker": 0,
+        "schemaMapper": 0,
+        "corpusMapper": 0,
+        "nativePdf": 0,
+        "finalAnswer": 0
+      }
+    },
+    {
+      "profile": "medium",
+      "requests": 47,
+      "semanticParserCallsCold": 17,
+      "semanticParserCallsRepeated": 17,
+      "escalationPercent": 36.17,
+      "acceptedRemote": 17,
+      "byCategoryCold": {
+        "known": 0,
+        "novel": 12,
+        "ambiguous": 5
+      },
+      "otherCloudCalls": {
+        "retrievalPlanner": 0,
+        "reranker": 0,
+        "schemaMapper": 0,
+        "corpusMapper": 0,
+        "nativePdf": 0,
+        "finalAnswer": 0
+      }
+    },
+    {
+      "profile": "high",
+      "requests": 47,
+      "semanticParserCallsCold": 37,
+      "semanticParserCallsRepeated": 17,
+      "escalationPercent": 78.72,
+      "acceptedRemote": 37,
+      "byCategoryCold": {
+        "known": 20,
+        "novel": 12,
+        "ambiguous": 5
+      },
+      "otherCloudCalls": {
+        "retrievalPlanner": 0,
+        "reranker": 0,
+        "schemaMapper": 0,
+        "corpusMapper": 0,
+        "nativePdf": 0,
+        "finalAnswer": 0
+      }
+    }
+  ],
+  "calibration": [
+    {
+      "threshold": 0.82,
+      "margin": 0.05,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.82,
+      "margin": 0.08,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.82,
+      "margin": 0.15,
+      "knownAccuracyPercent": 53.33,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.86,
+      "margin": 0.05,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.86,
+      "margin": 0.08,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.86,
+      "margin": 0.15,
+      "knownAccuracyPercent": 53.33,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.9,
+      "margin": 0.05,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.9,
+      "margin": 0.08,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.9,
+      "margin": 0.15,
+      "knownAccuracyPercent": 53.33,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.95,
+      "margin": 0.05,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.95,
+      "margin": 0.08,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.95,
+      "margin": 0.15,
+      "knownAccuracyPercent": 53.33,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.98,
+      "margin": 0.05,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.98,
+      "margin": 0.08,
+      "knownAccuracyPercent": 100,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    },
+    {
+      "threshold": 0.98,
+      "margin": 0.15,
+      "knownAccuracyPercent": 53.33,
+      "novelFalsePositivePercent": 0,
+      "ambiguousFalsePositivePercent": 0
+    }
+  ],
+  "limitations": [
+    "Small curated fixture, not population-level language coverage or out-of-distribution guarantees.",
+    "Threshold sweep is development calibration, not an independent statistical estimate.",
+    "Concept aliases are static lexical semantic features, not pretrained multilingual embeddings.",
+    "Remote parser quality and live provider latency were not measured; authenticated FC integration has separate mocked contract tests.",
+    "Interpretation benchmark does not run retrieval or final answers; their zero counts mean outside this benchmark, not zero production cost.",
+    "Unresolved novel goals may require clarification or unavailable capabilities; interpretation does not promise execution of unsupported actions."
+  ],
+  "cases": [
+    {
+      "category": "known",
+      "query": "Summarize all papers.",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Write a literature review of everything.",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "What does my literature say overall?",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Write a review using all papers.",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Give me the main findings from the entire collection of articles.",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "What does the whole corpus say?",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Put together the major themes from every publication.",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "总结全部论文。",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "帮我写一个文献综述。",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "把这些文章综合归纳一下。",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "把所有论文综合成一个综述。",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "全部文章主要讲了什么？",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "把现在这些论文综合分析一下。",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "把项目里的文章归纳一下。",
+      "expectedPattern": "literature.corpus_synthesis",
+      "matchedPattern": "literature.corpus_synthesis",
+      "confidence": 1,
+      "operations": [
+        "summarize",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Which mutation performs best?",
+      "expectedPattern": "experiment.rank",
+      "matchedPattern": "experiment.rank",
+      "confidence": 1,
+      "operations": [
+        "rank",
+        "filter",
+        "aggregate"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Rank the variants.",
+      "expectedPattern": "experiment.rank",
+      "matchedPattern": "experiment.rank",
+      "confidence": 1,
+      "operations": [
+        "rank",
+        "filter",
+        "aggregate"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Which sequence should we prioritize?",
+      "expectedPattern": "experiment.rank",
+      "matchedPattern": "experiment.rank",
+      "confidence": 1,
+      "operations": [
+        "rank",
+        "filter",
+        "aggregate"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "哪个突变最好？",
+      "expectedPattern": "experiment.rank",
+      "matchedPattern": "experiment.rank",
+      "confidence": 1,
+      "operations": [
+        "rank",
+        "filter",
+        "aggregate"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "哪个变体产量最高？",
+      "expectedPattern": "experiment.rank",
+      "matchedPattern": "experiment.rank",
+      "confidence": 1,
+      "operations": [
+        "rank",
+        "filter",
+        "aggregate"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "按实验表现给突变体排序。",
+      "expectedPattern": "experiment.rank",
+      "matchedPattern": "experiment.rank",
+      "confidence": 1,
+      "operations": [
+        "rank",
+        "filter",
+        "aggregate"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Look for publications about EctD.",
+      "expectedPattern": "literature.search",
+      "matchedPattern": "literature.search",
+      "confidence": 1,
+      "operations": [
+        "search"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "请检索关于 EctD 的文献。",
+      "expectedPattern": "literature.search",
+      "matchedPattern": "literature.search",
+      "confidence": 1,
+      "operations": [
+        "search"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Contrast these assay results.",
+      "expectedPattern": "experiment.compare",
+      "matchedPattern": "experiment.compare",
+      "confidence": 1,
+      "operations": [
+        "compare",
+        "filter"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "请比较实验结果。",
+      "expectedPattern": "experiment.compare",
+      "matchedPattern": "experiment.compare",
+      "confidence": 1,
+      "operations": [
+        "compare",
+        "filter"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Why is the current recommendation A163V?",
+      "expectedPattern": "recommendation.explain",
+      "matchedPattern": "recommendation.explain",
+      "confidence": 1,
+      "operations": [
+        "explain",
+        "read"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "为何目前推荐 A163V？",
+      "expectedPattern": "recommendation.explain",
+      "matchedPattern": "recommendation.explain",
+      "confidence": 1,
+      "operations": [
+        "explain",
+        "read"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Revise our current recommendation.",
+      "expectedPattern": "recommendation.update",
+      "matchedPattern": "recommendation.update",
+      "confidence": 1,
+      "operations": [
+        "update"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "请修改当前推荐。",
+      "expectedPattern": "recommendation.update",
+      "matchedPattern": "recommendation.update",
+      "confidence": 1,
+      "operations": [
+        "update"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "Recall the decisions saved for this project.",
+      "expectedPattern": "memory.lookup",
+      "matchedPattern": "memory.lookup",
+      "confidence": 1,
+      "operations": [
+        "recall"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "known",
+      "query": "回忆已保存的项目决定。",
+      "expectedPattern": "memory.lookup",
+      "matchedPattern": "memory.lookup",
+      "confidence": 1,
+      "operations": [
+        "recall"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Find our top five EctD mutants, search the literature for each, exclude comparisons with temperature differences above 5°C, and explain the remaining contradictions.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.6868,
+      "operations": [
+        "filter",
+        "rank",
+        "compare",
+        "find-conflicts",
+        "analyze-conditions",
+        "explain",
+        "search"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Find the five mutations with the best experimental titer, search the literature for evidence about each, remove candidates whose reported assay temperatures differ from ours by more than 5°C, and explain the remaining disagreements.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.5847,
+      "operations": [
+        "filter",
+        "rank",
+        "find-conflicts",
+        "analyze-conditions",
+        "explain",
+        "search"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Find experiments that disagree with papers before 2023 and check whether temperature explains the discrepancy.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.6117,
+      "operations": [
+        "search",
+        "filter",
+        "find-conflicts",
+        "analyze-conditions"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "筛选前五个 EctD 变体，检索相关文献，排除温度相差超过5℃的比较，并解释矛盾。",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.6868,
+      "operations": [
+        "filter",
+        "rank",
+        "compare",
+        "find-conflicts",
+        "analyze-conditions",
+        "explain",
+        "search"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Rank experimental variants, plot their uncertainty, then design a follow-up assay.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.7759,
+      "operations": [
+        "rank",
+        "visualize",
+        "design"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Summarize all papers and email the review to my collaborator.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.85,
+      "operations": [
+        "summarize",
+        "send",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "总结全部论文并每周提醒我查找新文献。",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.8361,
+      "operations": [
+        "search",
+        "summarize",
+        "schedule",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Compare experiments with the literature, predict the next mutation, and export a chart.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.7694,
+      "operations": [
+        "compare",
+        "visualize",
+        "export",
+        "predict"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Read the project decisions, find conflicts with the latest literature, and rank the experimental evidence.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.5812,
+      "operations": [
+        "read",
+        "rank",
+        "find-conflicts",
+        "search"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "先对比实验，再根据文献预测温度变化的影响。",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.8361,
+      "operations": [
+        "compare",
+        "analyze-conditions",
+        "predict"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Find EctD papers, translate the methods, and propose an experiment.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.6561,
+      "operations": [
+        "search",
+        "design",
+        "translate"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "novel",
+      "query": "Review all papers, delete the weak datasets, then update the recommendation.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.8165,
+      "operations": [
+        "summarize",
+        "update",
+        "delete",
+        "snapshot",
+        "prepare",
+        "map",
+        "group",
+        "reduce",
+        "verify"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": true,
+      "slotsCorrect": true
+    },
+    {
+      "category": "ambiguous",
+      "query": "Which one is best?",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.575,
+      "operations": [
+        "rank"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "ambiguous",
+      "query": "哪个最好？",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.575,
+      "operations": [
+        "rank"
+      ],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "ambiguous",
+      "query": "Do it again.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0,
+      "operations": [],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "ambiguous",
+      "query": "这个怎么样？",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0,
+      "operations": [],
+      "answerLanguage": "zh",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    },
+    {
+      "category": "ambiguous",
+      "query": "Compare it.",
+      "expectedPattern": null,
+      "matchedPattern": null,
+      "confidence": 0.5952,
+      "operations": [
+        "compare"
+      ],
+      "answerLanguage": "en",
+      "legacyCorpus": false,
+      "slotsCorrect": true
+    }
+  ]
+}

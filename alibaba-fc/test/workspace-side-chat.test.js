@@ -558,7 +558,7 @@ test("Side Chat stays bounded, edits only the latest user turn, and retains safe
   assert.match(stylesSource, /\.side-chat-history\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior:\s*contain[^}]*scrollbar-gutter:\s*stable/s);
   assert.match(appSource, /prepareLatestSideChatRevision\(\s*sideChatMessages/);
   assert.match(appSource, /sideChatMessages = revision\.previousMessages/);
-  assert.match(appSource, /await persistSideChatConversation\(\)[\s\S]*await askSideChat\(revision\.question\)/);
+  assert.match(appSource, /await askSideChat\(revision\.question, \{ revision \}\)/);
   assert.match(appSource, /dataset\.sideChatAction = "edit"/);
   assert.match(appSource, /activity: getSideChatActivitySteps\(thinkingMessage\)/);
   assert.match(appSource, /processingSummaryNote: "High-level activity only; private model reasoning is not shown\."/);
@@ -584,7 +584,7 @@ test("Side Chat hides empty-state prompts and renders safe Markdown with math", 
   assert.match(htmlSource, /vendor\/katex\/auto-render\.min\.js/);
   assert.match(appSource, /sideChatExamples\.hidden = !isEmpty/);
   assert.match(appSource, /data-side-chat-intro/);
-  assert.match(appSource, /renderSideChatMarkdown\(body, content\)/);
+  assert.match(appSource, /renderSideChatMarkdown\(body, legacy\.reply, legacy\.citations\)/);
   assert.doesNotMatch(appSource, /body\.textContent = content/);
   assert.match(appSource, /\^\(\?:https\?:\|mailto:\)/);
   assert.match(appSource, /window\.renderMathInElement\(container/);

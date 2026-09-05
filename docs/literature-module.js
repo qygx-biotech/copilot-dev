@@ -311,6 +311,7 @@
       this.getHeaders = options.getHeaders || (() => ({}));
       this.onUnauthorized = options.onUnauthorized || (() => {});
       this.fetch = options.fetch || root.fetch.bind(root);
+      this.turnCallCounts = new Map();
     }
 
     async summarizeChunk(payload, signal) {
@@ -413,6 +414,36 @@
       };
     }
 
+    async interpretSemantics(payload, signal) {
+      const data = await this.request("/api/semantic/interpret", {
+        ...payload,
+        callContext: boundedCallContext(payload.callContext, "semantic_parser"),
+      }, signal);
+      return data.ir;
+    }
+
+    async mapExperimentSchema(payload, signal) {
+      const data = await this.request("/api/semantic/map-schema", {
+        ...payload,
+        callContext: boundedCallContext(payload.callContext, "schema_mapper"),
+      }, signal);
+      return data.mapping;
+    }
+
+    recordTurnCall(turnId, role) {
+      if (!/^[A-Za-z0-9._:-]{1,200}$/.test(String(turnId || ""))) return;
+      const allowed = ["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "answer"];
+      if (!allowed.includes(role)) return;
+      const counts = this.turnCallCounts.get(turnId) || Object.fromEntries(allowed.map((name) => [name, 0]));
+      counts[role] += 1;
+      this.turnCallCounts.set(turnId, counts);
+      if (this.turnCallCounts.size > 100) this.turnCallCounts.delete(this.turnCallCounts.keys().next().value);
+    }
+
+    getTurnCallCounts(turnId) {
+      return { ...(this.turnCallCounts.get(turnId) || {}) };
+    }
+
     async routeContext(payload, signal) {
       const data = await this.request(
         "/api/context/route",
@@ -480,8 +511,12 @@
     }
 
     async request(path, body, signal, method = "POST") {
+      const roles = { "/api/semantic/interpret": "semantic_parser", "/api/semantic/map-schema": "schema_mapper", "/api/knowledge/plan-search": "search_planner", "/api/knowledge/rerank": "reranker", "/api/corpus/map-paper": "corpus_mapper", "/api/literature/analyze-pdf-native": "native_pdf" };
+      this.recordTurnCall(body?.callContext?.turnId, roles[path]);
+      // Semantic parsing is one logical FC call. A failure returns to the local IR.
+      const maximumAttempts = path.startsWith("/api/semantic/") ? 1 : 2;
       let lastError;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
+      for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
         assertNotAborted(signal);
         try {
           const response = await this.fetch(`${this.baseUrl}${path}`, {
@@ -507,7 +542,7 @@
           // browser retries only throttling/timeouts (plus network exceptions)
           // to avoid multiplying model calls.
           const retryable = [408, 425, 429, 504].includes(response.status);
-          if (!retryable || attempt > 0) throw error;
+          if (!retryable || attempt + 1 >= maximumAttempts) throw error;
           lastError = error;
         } catch (error) {
           if (error?.name === "AbortError") {
@@ -515,7 +550,7 @@
           }
           if (error instanceof LiteratureError) throw error;
           lastError = error;
-          if (attempt > 0) break;
+          if (attempt + 1 >= maximumAttempts) break;
         }
         await new Promise((resolve) => setTimeout(resolve, 400));
       }
@@ -554,6 +589,12 @@
             signal,
           }),
         generatePaperCard: (payload) => this.generatePaperCardFromPrepared(payload),
+        schemaMapper: typeof this.api?.mapExperimentSchema === "function"
+          ? (payload, mapperOptions) => this.api.mapExperimentSchema({
+              ...payload,
+              callContext: mapperOptions?.callContext || { turnId: mapperOptions?.turnId, profile: mapperOptions?.profile },
+            }, mapperOptions?.signal)
+          : null,
         mapWorker:
           typeof this.api?.mapCorpusPaper === "function"
             ? (payload, workerOptions) =>

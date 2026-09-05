@@ -1603,8 +1603,20 @@ textarea:focus {
   width: 100%;
   min-height: 96px;
   resize: vertical;
-  color: var(--text);
-  background: #ffffff;
+  color: var(--ink);
+  caret-color: var(--ink);
+  background: var(--surface);
+}
+
+.side-message-edit-input::selection {
+  color: var(--ink);
+  background: var(--accent-soft);
+}
+
+.side-message-edit-error {
+  margin: 6px 0 0;
+  color: #ffffff;
+  font-size: 0.8rem;
 }
 
 .side-message-edit-actions {
@@ -1892,4 +1904,23 @@ textarea:focus {
     padding-left: 0;
     border-left: 0;
   }
+}
+
+.side-source-citation {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.side-source-citation:disabled {
+  color: var(--muted);
+  cursor: default;
+  text-decoration: none;
 }

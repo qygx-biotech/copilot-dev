@@ -72,3 +72,18 @@ test("two project instances cannot observe each other's relative paths", async (
   assert.equal(await projectB.readText("literature/result.txt"), "B");
   assert.notEqual(projectA.id, projectB.id);
 });
+
+test("citation existence checks reject symlink escapes and remain scoped to the selected workspace", async () => {
+  const root = await temporaryProject("biodesign-citation-");
+  const outside = await temporaryProject("biodesign-citation-other-");
+  const filesystem = await ProjectFilesystem.open(root);
+  await filesystem.ensureDirectory("literature/中文");
+  await filesystem.writeText("literature/中文/论文.pdf", "fixture");
+  await writeFile(path.join(outside, "paper.pdf"), "other workspace");
+  await symlink(path.join(outside, "paper.pdf"), path.join(root, "literature", "escape.pdf"));
+  assert.equal(await filesystem.exists("literature/中文/论文.pdf"), true);
+  assert.equal(await filesystem.exists("literature/missing.pdf"), false);
+  await assert.rejects(() => filesystem.exists("literature/escape.pdf"), { code: "SYMLINK_NOT_ALLOWED" });
+  await assert.rejects(() => filesystem.exists(path.join(outside, "paper.pdf")), { code: "INVALID_PATH" });
+  await assert.rejects(() => filesystem.exists("../paper.pdf"), { code: "INVALID_PATH" });
+});

@@ -15,6 +15,11 @@
   const qualityModeForProfile = retrievalProfiles.qualityModeForProfile ||
     ((value) => value === "high" ? "high_fidelity" : "balanced");
 
+  const semanticApi = root?.BioDesignSemanticIntent ||
+    (typeof require === "function" ? require("../shared/semantic-intent.js") : {});
+
+  const citationApi = root?.BioDesignSourceCitations ||
+    (typeof require === "function" ? require("../shared/source-citations.js") : {});
   const CHAT_SCHEMA_VERSION = 1;
   const CONTEXT_LIMITS = {
     maxInventoryFiles: 500,
@@ -527,6 +532,9 @@
                   typeof message.context.corpusWorkflowId === "string"
                     ? message.context.corpusWorkflowId.trim().slice(0, 200)
                     : "",
+                ...(isPlainObject(message.context.semanticTelemetry)
+                  ? { semanticTelemetry: normalizeSemanticTelemetry(message.context.semanticTelemetry) }
+                  : {}),
                 ...(isPlainObject(message.context.retrieval)
                   ? {
                       retrieval: {
@@ -554,6 +562,7 @@
               },
             }
           : {}),
+        ...(message.role === "assistant" ? { citations: citationApi.normalizeCitations(message.citations) } : {}),
         createdAt: message.createdAt,
       }));
     const messages = candidates.slice(-limits.maxStoredMessages);
@@ -568,6 +577,30 @@
         limits.maxConversationSummaryCharacters
       ),
       messages,
+    };
+  }
+
+  function normalizeSemanticTelemetry(value) {
+    if (!isPlainObject(value)) return null;
+    const patterns = new Set(semanticApi.SEMANTIC_PATTERNS.map((item) => item.patternId));
+    const capabilities = new Set(semanticApi.CAPABILITY_REGISTRY.map((item) => item.capability));
+    const detail = isPlainObject(value.semantic) ? value.semantic : {};
+    const counter = (number) => Number.isInteger(number) && number >= 0 ? Math.min(number, 100000) : 0;
+    const counts = isPlainObject(value.cloudCalls) ? value.cloudCalls : {};
+    return {
+      profile: normalizeRetrievalProfile(value.profile),
+      semantic: {
+        localPattern: patterns.has(detail.localPattern) ? detail.localPattern : null,
+        localConfidence: Number.isFinite(detail.localConfidence) ? Math.max(0, Math.min(1, detail.localConfidence)) : 0,
+        matchState: ["known", "uncertain", "novel"].includes(detail.matchState) ? detail.matchState : "novel",
+        remoteSemanticParserUsed: detail.remoteSemanticParserUsed === true,
+        finalPattern: patterns.has(detail.finalPattern) ? detail.finalPattern : null,
+        route: ["local", "remote", "cache", "local-fallback"].includes(detail.route) ? detail.route : "local",
+      },
+      operations: [...new Set((Array.isArray(value.operations) ? value.operations : []).filter((item) => semanticApi.OPERATIONS.includes(item)))],
+      capabilitiesUsed: [...new Set((Array.isArray(value.capabilitiesUsed) ? value.capabilitiesUsed : []).filter((item) => capabilities.has(item)))],
+      semanticParserCalls: counter(value.semanticParserCalls),
+      cloudCalls: Object.fromEntries(["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "answer"].map((role) => [role, counter(counts[role])])),
     };
   }
 
@@ -698,6 +731,7 @@
       this.nativePdfAnalyzer = this.sourceSystem?.nativePdfAnalyzer || null;
       this.knowledgeService = this.sourceSystem?.knowledgeService || null;
       this.limits = { ...CONTEXT_LIMITS, ...(options.limits || {}) };
+      this.semanticInterpreter = options.semanticInterpreter || new semanticApi.SemanticInterpreter();
     }
 
     compactKnowledgeHits(payload, kind) {
@@ -966,6 +1000,18 @@
 
     async decideContextRouting(input, options = {}) {
       const fallback = this.localRoutingDecision(input);
+      if (options.semanticIR && typeof this.literature?.api?.interpretSemantics === "function") {
+        const wantsLiterature = options.semanticIR.objects.includes("literature");
+        const wantsMemory = options.semanticIR.objects.includes("memory");
+        return {
+          ...fallback,
+          useLiterature: wantsLiterature || fallback.useLiterature,
+          useProjectMemory: wantsMemory || fallback.useProjectMemory,
+          memoryIds: wantsMemory ? input.memoryDescriptions.map((item) => item.id) : fallback.memoryIds,
+          mode: "semantic",
+          reason: "Semantic objects and host-validated active scope select existing context tools.",
+        };
+      }
       if (
         options.enableContextRouter !== true ||
         typeof this.literature?.api?.routeContext !== "function"
@@ -1073,14 +1119,7 @@
           options.onProgress?.({ stage: "recovering-worker", completed: 1, total: 1 });
         }
       }
-      const corpusWideLiteratureRequest = detectCorpusWideLiteratureIntent(question);
-      const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
-      const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
-      const corpusUpdateRequest = detectCorpusUpdateIntent(question);
-      const paperQuestion = corpusWideLiteratureRequest ||
-        corpusFailureFollowUpRequest ||
-        corpusUpdateRequest ||
-        questionMayNeedLiterature(question);
+
       const eligiblePaperIds = (this.literature?.documents || [])
         .filter((document) => document.isLiteraturePaper)
         .map((document) => document.id);
@@ -1090,6 +1129,45 @@
         .map((source) => source.sourceId);
 
       const conversationContext = this.buildConversationContext(options.conversation);
+      const activeScope = {
+        projectId: String(this.workspace.workspace?.id || ""),
+        paperIds: selectedPaperIds,
+        experimentSourceIds: selectedExperimentIds,
+        currentTopic: String(this.workspace.state?.agent?.sideChat?.currentTopic || "").slice(0, 500),
+        projectObjective: String(options.projectGoal || this.workspace.state?.project?.goal || "").slice(0, 1000),
+        primaryMetric: this.workspace.state?.project?.primaryMetric || null,
+        knownMetrics: this.workspace.state?.project?.knownMetrics || [],
+      };
+      const interpretation = await this.semanticInterpreter.interpret({
+        query: question,
+        profile: retrievalProfile,
+        activeScope,
+        conversationContext: { summary: conversationContext.summary.slice(0, 2000) },
+        projectSemanticRegistry: this.workspace.state?.semanticRegistry || {},
+        remoteParser: typeof this.literature?.api?.interpretSemantics === "function"
+          ? (payload) => this.literature.api.interpretSemantics({
+              ...payload,
+              callContext: { turnId: options.turnId, profile: retrievalProfile },
+            }, options.signal)
+          : null,
+      });
+      const semanticIR = interpretation.ir;
+      const capabilityPlan = semanticApi.planCapabilities(semanticIR, { surface, activeScope });
+      options = {
+        ...options, semanticIR, profile: retrievalProfile, language: semanticIR.answerLanguage,
+        callContext: { turnId: options.turnId, profile: retrievalProfile },
+      };
+      const corpusWideLiteratureRequest = semanticIR.matchedPattern === "literature.corpus_synthesis" ||
+        (semanticIR.capabilityHints.includes("corpus_workflow") &&
+          semanticIR.operations.includes("snapshot") && semanticIR.operations.includes("reduce") &&
+          semanticIR.operations.includes("summarize") &&
+          capabilityPlan.steps.some((step) => step.capability === "corpus_workflow" && step.allowed));
+      // Existing recovery/update protocols remain deterministic lifecycle operations.
+      const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
+      const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
+      const corpusUpdateRequest = semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question);
+      const paperQuestion = corpusWideLiteratureRequest || corpusFailureFollowUpRequest || corpusUpdateRequest ||
+        semanticIR.objects.includes("literature") || questionMayNeedLiterature(question);
       let corpusWorkflowStatus = null;
       let corpusRecoveryResult = null;
       let corpusUpdateResult = null;
@@ -1160,10 +1238,22 @@
       const recentExperimentIds = conversationContext.recentlyDiscussedExperimentIds.filter(
         (sourceId) => Boolean(this.sourceRegistry?.get(sourceId))
       );
-      const experimentQuestion = EXPERIMENT_QUESTION_PATTERN.test(question);
+      const experimentQuestion = semanticIR.objects.includes("experiments") || EXPERIMENT_QUESTION_PATTERN.test(question);
       const followUpNeedsExperiments = Boolean(
         recentExperimentIds.length && EXPERIMENT_FOLLOW_UP_PATTERN.test(question)
       );
+      const relevantExperimentIds = await this.resolveExperimentSourceIds(question, {
+        selectedExperimentIds, recentExperimentIds,
+        shouldUseExperiments: experimentQuestion || followUpNeedsExperiments,
+        semanticIR,
+      });
+      const semanticExperimentResult = experimentQuestion && relevantExperimentIds.length &&
+        typeof this.experimentTools?.executeSemanticQuery === "function" &&
+        semanticIR.operations.some((operation) => ["rank", "aggregate", "statistics", "filter"].includes(operation))
+          ? await this.experimentTools.executeSemanticQuery(semanticIR, {
+              ...options, experimentSourceIds: relevantExperimentIds,
+            })
+          : null;
       const memoryDescriptions = this.buildMemoryDescriptions();
       const shouldSearchLiterature = paperQuestion || followUpNeedsLiterature;
       let matches = shouldSearchLiterature &&
@@ -1174,12 +1264,37 @@
             topK: Math.min(5, this.limits.maxEvidenceFiles),
             readyOnly: false,
             retrievalProfile,
+            turnId: options.turnId,
+            callContext: { turnId: options.turnId, profile: retrievalProfile },
             signal: options.signal,
             ...(selectedPaperIds.length
               ? { candidatePaperIds: selectedPaperIds }
               : {}),
           })
         : [];
+      // Bind deterministic output identifiers into subsequent literature discovery.
+      // This is preparation for the same tool loop, with its existing hard paper scope.
+      if (shouldSearchLiterature && !corpusWideLiteratureRequest &&
+          semanticExperimentResult?.status === "ready" && semanticIR.operations.includes("rank")) {
+        const identifiers = [...new Set([
+          ...(semanticExperimentResult.groups || []).map((group) => group.groupValue),
+          ...(semanticExperimentResult.records || []).map((record) => record.values?.mutation),
+        ].filter((value) => typeof value === "string" && value))].slice(0, this.limits.maxRetrievalResults);
+        const byPaperId = new Map(matches.map((item) => [item.paperId, item]));
+        for (const identifier of identifiers) {
+          const boundQuery = [...semanticIR.entities.map((entity) => entity.canonicalId), identifier, ...semanticIR.comparisonVariables].join(" ");
+          const found = await this.matchPapers(boundQuery, {
+            topK: 5, readyOnly: false, retrievalProfile,
+            callContext: { turnId: options.turnId, profile: retrievalProfile },
+            signal: options.signal,
+            ...(selectedPaperIds.length ? { candidatePaperIds: selectedPaperIds } : {}),
+          });
+          for (const item of found) if (!byPaperId.has(item.paperId) || item.score > byPaperId.get(item.paperId).score) byPaperId.set(item.paperId, item);
+        }
+        const decision = matches.retrievalDecision;
+        matches = [...byPaperId.values()].sort((a, b) => b.score - a.score).slice(0, this.limits.maxEvidenceFiles);
+        matches.retrievalDecision = decision;
+      }
       const literatureIndex = this.buildLiteratureIndex([
         ...selectedPaperIds,
         ...recentIds,
@@ -1284,6 +1399,7 @@
         routing
       );
       context.routing = routing;
+      context.semantic = { ir: semanticIR, telemetry: interpretation.telemetry, plan: capabilityPlan };
       context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest
         ? { available: this.knowledgeService?.available === true, hits: [] }
         : await this.retrieveLayeredKnowledge(question, options);
@@ -1454,19 +1570,19 @@
         );
       }
       const experimentEvidence = [];
-      const relevantExperimentIds = await this.resolveExperimentSourceIds(question, {
-        selectedExperimentIds,
-        recentExperimentIds,
-        shouldUseExperiments: experimentQuestion || followUpNeedsExperiments,
-      });
+
+      const rankedExperimentSourceIds = [...new Set((semanticExperimentResult?.records || []).map((record) => record.sourceId))];
       if (experimentQuestion || followUpNeedsExperiments) {
-        for (const sourceId of relevantExperimentIds.slice(0, this.limits.maxEvidenceFiles)) {
+        const preparationOrder = [...new Set([...rankedExperimentSourceIds, ...relevantExperimentIds])];
+        for (const sourceId of preparationOrder.slice(0, this.limits.maxEvidenceFiles)) {
           experimentEvidence.push(await this.buildExperimentEvidence(sourceId, options));
         }
       }
-      context.experiments.relevantExperimentIds = experimentEvidence
-        .filter((item) => item.analysisStatus === "processed")
-        .map((item) => item.sourceId);
+      if (semanticExperimentResult) context.semanticExperimentResult = semanticExperimentResult;
+      context.experiments.relevantExperimentIds = [...new Set([
+        ...rankedExperimentSourceIds,
+        ...experimentEvidence.filter((item) => item.analysisStatus === "processed").map((item) => item.sourceId),
+      ])];
       context.sourceMap.activeExperimentIds = [...context.experiments.relevantExperimentIds];
       const otherEvidence = [];
       for (const file of selectedNonPaperFiles.slice(0, this.limits.maxEvidenceFiles)) {
@@ -1594,13 +1710,61 @@
       this.addLibraryNotices(context);
       this.addFileNotices(context);
       this.applyProgressiveInventory(context, question);
+      context.citationEvidence = await this.buildCitationEvidence(context);
+      context.sourceMap.paperSources = context.sourceMap.paperSources.map((item) => {
+        const current = this.sourceRegistry?.get(item.sourceId);
+        return { ...item, contentHash: current?.contentHash || item.contentHash,
+          catalogStatus: current?.catalogStatus || "missing", indexStatus: current?.indexStatus || item.indexStatus };
+      });
+      context.semantic.telemetry = normalizeSemanticTelemetry({
+        ...context.semantic.telemetry,
+        capabilitiesUsed: [
+          ...((corpusWideLiteratureRequest || corpusUpdateRequest) && context.literature.corpusWorkflowId ? ["corpus_workflow"] : []),
+          ...(shouldSearchLiterature && !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp ? ["search_papers"] : []),
+          ...(paperEvidence.length && !corpusWideLiteratureRequest ? ["read_paper_evidence"] : []),
+          ...(experimentEvidence.length ? ["query_experiment_results"] : []),
+          ...(internalStateUpdates.some((item) => item.startsWith("memory:")) ? ["update_project_memory"] : []),
+        ],
+        cloudCalls: this.literature?.api?.getTurnCallCounts?.(options.turnId) || {
+          semantic_parser: context.semantic.telemetry.semanticParserCalls,
+        },
+      });
       return context;
+    }
+
+    async buildCitationEvidence(context) {
+      const references = new Set();
+      for (const file of context.files || []) {
+        for (const match of String(file.content || "").matchAll(/([A-Za-z0-9_.-]+):p([1-9]\d*):([A-Za-z0-9_.:-]+)/g)) references.add(match[0]);
+      }
+      const evidence = [];
+      const sourceIds = [...new Set([...references].map((reference) => reference.split(":p")[0]))];
+      for (const sourceId of sourceIds) {
+        const source = this.sourceRegistry?.get(sourceId);
+        if (source?.sourceKind !== "paper" || !this.literature?.preparation?.readPaperArtifact) continue;
+        try {
+          const artifact = await this.literature.preparation.readPaperArtifact(sourceId);
+          if (!source.contentHash || artifact.contentHash !== source.contentHash) continue;
+          for (const chunk of artifact.chunks || []) {
+            const reference = `${sourceId}:p${chunk.page}:${chunk.chunkId}`;
+            if (references.has(reference) && Number.isInteger(chunk.page) && chunk.page > 0) {
+              evidence.push({ sourceId, reference, page: chunk.page, contentHash: source.contentHash });
+            }
+            if (evidence.length >= 5000) return evidence;
+          }
+        } catch { /* Missing/stale parsed artifacts do not establish page locations. */ }
+      }
+      return evidence;
     }
 
     async resolveExperimentSourceIds(question, options = {}) {
       if (!options.shouldUseExperiments) return [];
       if (options.selectedExperimentIds?.length) {
         return [...new Set(options.selectedExperimentIds)];
+      }
+      if (options.semanticIR?.scope?.experiments === "current-project" &&
+          options.semanticIR.operations.some((operation) => ["rank", "aggregate", "statistics", "trend", "filter"].includes(operation))) {
+        return (this.sourceRegistry?.list({ sourceKind: "experiment" }) || []).map((source) => source.sourceId);
       }
       if (options.recentExperimentIds?.length) {
         return [...new Set(options.recentExperimentIds)];
@@ -1635,10 +1799,12 @@
         .filter((item) => item.score > 0)
         .sort((left, right) => right.score - left.score)
         .map((item) => item.sourceId);
-      return [...new Set([...matchedIds, ...metadataMatches])].slice(
-        0,
-        Math.min(5, this.limits.maxEvidenceFiles)
-      );
+      const resolved = [...new Set([...matchedIds, ...metadataMatches])];
+      if (!resolved.length && options.semanticIR?.objects.includes("experiments")) {
+        return (this.sourceRegistry?.list({ sourceKind: "experiment" }) || [])
+          .map((source) => source.sourceId).slice(0, this.limits.maxEvidenceFiles);
+      }
+      return resolved.slice(0, Math.min(5, this.limits.maxEvidenceFiles));
     }
 
     applyProgressiveInventory(context, question) {
@@ -1748,6 +1914,7 @@
         topK: Math.min(20, Math.max(1, Number(options.topK) || 5)),
         includeUnpreparedMetadata: options.readyOnly !== true,
         retrievalProfile: normalizeRetrievalProfile(options.retrievalProfile),
+        callContext: options.callContext || { turnId: options.turnId, profile: options.retrievalProfile },
         signal: options.signal,
         collections: broadTopicQuery
           ? ["literature-evidence", "paper-cards"]
@@ -2244,7 +2411,11 @@
           : result;
         const compactRecords = (Array.isArray(records) ? records : []).slice(0, 40).map((record) => ({
           experimentId: record.experimentId,
+          ...(record.sourceContentHash ? { sourceContentHash: record.sourceContentHash } : {}),
           values: record.raw,
+          canonicalValues: record.canonical,
+          canonicalUnits: record.canonicalUnits,
+          normalizedFields: record.rawCells,
           entities: record.entities,
           provenance: record.provenance,
         }));
@@ -2290,6 +2461,7 @@
     flattenWorkspaceTree,
     formatPaperSummary,
     normalizeStoredConversation,
+    normalizeSemanticTelemetry,
     prepareLatestSideChatRevision,
     questionNeedsSourceEvidence,
     questionMayNeedLiterature,

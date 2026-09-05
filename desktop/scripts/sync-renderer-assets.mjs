@@ -8,6 +8,9 @@ const vendorRoot = path.join(repositoryRoot, "docs", "vendor");
 const assets = [
   ["shared/retrieval-contract.js", "retrieval-contract.js"],
   ["shared/retrieval-profiles.js", "retrieval-profiles.js"],
+  ["shared/semantic-intent.js", "semantic-intent.js"],
+  ["shared/source-citations.js", "source-citations.js"],
+  ["shared/experiment-semantics.js", "experiment-semantics.js"],
   ["node_modules/pdfjs-dist/build/pdf.mjs", "pdfjs/pdf.mjs"],
   ["node_modules/pdfjs-dist/build/pdf.worker.mjs", "pdfjs/pdf.worker.mjs"],
   ["node_modules/xlsx/dist/xlsx.full.min.js", "xlsx/xlsx.full.min.js"],
