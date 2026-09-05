@@ -28,7 +28,7 @@
     "desktop:verify:windows": "node desktop/scripts/verify-windows-release.mjs",
     "desktop:smoke:update:windows": "node desktop/scripts/build-windows-update-smoke.mjs && node desktop/scripts/windows-update-smoke.mjs",
     "desktop:smoke:update:beta:windows": "node desktop/scripts/build-windows-beta-update-smoke.mjs && node desktop/scripts/windows-beta-update-smoke.mjs",
-    "desktop:test": "npm run desktop:prepare && node --test desktop/test/*.test.mjs",
+    "desktop:test": "npm run desktop:prepare && node desktop/scripts/prepare-electron-test-runtime.mjs && node --test desktop/test/*.test.mjs",
     "test": "npm run desktop:test && npm --prefix alibaba-fc test && npm --prefix local-backend test",
     "check": "node --check desktop/main/main.mjs && node --check desktop/main/application.mjs && node --check desktop/main/windows-updater.mjs && node --check desktop/preload/index.cjs && node --check desktop/ipc/register-handlers.mjs && node --check desktop/services/project-filesystem.mjs && node --check desktop/workers/qmd-worker.mjs && node --check desktop/scripts/validate-stable-release.mjs"
   },

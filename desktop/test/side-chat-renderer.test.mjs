@@ -17,6 +17,6 @@ test("Side Chat editor and citation navigation behave correctly in the sandboxed
   assert.ok(line, stdout);
   const result = JSON.parse(line.slice("SIDE_CHAT_RESULT ".length));
   assert.equal(result.failed.length, 0, JSON.stringify(result, null, 2));
-  assert.ok(result.passed.length >= 12, JSON.stringify(result));
+  assert.ok(result.passed.length >= 17, JSON.stringify(result));
   console.log(`Electron renderer: ${result.passed.length} behavioral checks passed; screenshot: ${result.screenshot}`);
 });

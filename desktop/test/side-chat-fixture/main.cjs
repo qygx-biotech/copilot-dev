@@ -9,6 +9,9 @@ const profile = fs.mkdtempSync(path.join(os.tmpdir(), "biodesign-side-chat-ui-")
 app.setPath("userData", profile);
 app.commandLine.appendSwitch("disable-background-networking");
 const source = fs.readFileSync(path.join(root, "docs/app.js"), "utf8");
+const applicationSource = fs.readFileSync(path.join(root, "desktop/main/application.mjs"), "utf8");
+const scrollInspection = applicationSource.match(/^function inspectSideChatScrollLayout\([\s\S]*?^}/m)?.[0];
+if (!scrollInspection) throw new Error("Missing production Side Chat smoke inspection");
 function actualFunction(name) {
   const match = source.match(new RegExp(`^(?:async )?function ${name}\\([\\s\\S]*?^}`, "m"));
   if (!match) throw new Error(`Missing production function ${name}`);
@@ -63,7 +66,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     const css = fs.readFileSync(path.join(root, "docs/styles.css"), "utf8");
     await win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`<html><head><meta charset="utf-8"><style>${css}</style></head><body style="padding:24px"><main style="max-width:700px"><div id="tree"></div><div id="history" class="side-chat-history"></div><div id="examples"></div><textarea id="input"></textarea><button id="send">Ask</button><button id="clear">Clear</button></main></body></html>`));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/source-citations.js"), "utf8"));
-    await win.webContents.executeJavaScript(`${setup}\n${functions}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
+    await win.webContents.executeJavaScript(`${setup}\n${functions}\n${scrollInspection}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     const result = await win.webContents.executeJavaScript("runScenarios()");
     const screenshot = path.join(profile, "editor.png");
     await win.webContents.executeJavaScript("resetConversation(); edit(); document.querySelector('[data-side-chat-edit-input]').setSelectionRange(0, 14)");

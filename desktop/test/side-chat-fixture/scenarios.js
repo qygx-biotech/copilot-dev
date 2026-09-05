@@ -35,6 +35,25 @@ function contrast(foreground, background) { const a = luminance(foreground), b =
 async function runScenarios() {
   const passed = [], failed = [];
   async function scenario(name, callback) { resetConversation(); try { await callback(); passed.push(name); } catch (error) { failed.push({ name, error: error.message }); } }
+  for (const width of [1500, 1200, 900]) await scenario(`Packaged smoke accepts bounded Side Chat at ${width}px and rejects unbounded history`, async () => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = `width:${width}px;height:800px;max-width:none;border:0`;
+    const loaded = new Promise(resolve => { frame.onload = resolve; });
+    frame.srcdoc = `<style>${document.querySelector("style").textContent}</style><section class="side-chat-panel"><div id="sideChatHistory" class="side-chat-history">History</div></section>`;
+    document.body.append(frame);
+    try {
+      await loaded;
+      const result = inspectSideChatScrollLayout(frame.contentDocument);
+      equal(result.viewportWidth, width);
+      ok(result.bounded, "Existing responsive scroll containment rejected: " + JSON.stringify(result));
+      const doc = frame.contentDocument;
+      doc.getElementById("sideChatHistory").style.maxHeight = "none";
+      doc.querySelector(".side-chat-panel").style.maxHeight = "none";
+      ok(!inspectSideChatScrollLayout(doc).bounded, "Unbounded history must fail smoke validation");
+    } finally {
+      frame.remove();
+    }
+  });
   await scenario("Only the latest user turn is editable; Cancel preserves history", async () => {
     equal(sideChatHistory.querySelectorAll('[data-side-chat-action="edit"]').length, 1);
     beginSideChatMessageEdit("user-1"); equal(input(), null);

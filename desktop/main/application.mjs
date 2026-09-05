@@ -106,6 +106,24 @@ function createWindow() {
   return mainWindow;
 }
 
+function inspectSideChatScrollLayout(doc = document) {
+  const view = doc.defaultView;
+  const history = view.getComputedStyle(doc.getElementById("sideChatHistory"));
+  const panel = view.getComputedStyle(doc.querySelector(".side-chat-panel"));
+  const panelBoundsHistory = panel.overflow === "hidden" && panel.maxHeight !== "none";
+  // Compact layouts bound the history itself while allowing the panel to grow
+  // around its controls. Both existing responsive layouts must remain valid.
+  const historyBoundsItself = history.maxHeight !== "none";
+  return {
+    viewportWidth: view.innerWidth,
+    historyOverflowY: history.overflowY,
+    historyMaxHeight: history.maxHeight,
+    panelOverflow: panel.overflow,
+    panelMaxHeight: panel.maxHeight,
+    bounded: history.overflowY === "auto" && (panelBoundsHistory || historyBoundsItself),
+  };
+}
+
 async function runSmoke(window) {
   await new Promise((resolve, reject) => {
     window.webContents.once("did-finish-load", resolve);
@@ -146,6 +164,7 @@ async function runSmoke(window) {
       statusRowPresent: Boolean(document.querySelector(".header-status-row"))
     };
   })()`);
+  const sideChatLayout = await window.webContents.executeJavaScript(`(${inspectSideChatScrollLayout.toString()})()`);
   const renderer = await window.webContents.executeJavaScript(`({
     bridge: Boolean(window.biodesignDesktop),
     bridgeKeys: Object.keys(window.biodesignDesktop || {}),
@@ -160,10 +179,7 @@ async function runSmoke(window) {
     retrievalProfileValue: document.getElementById("retrievalProfileSelect")?.value,
     retrievalProfileOptions: [...(document.getElementById("retrievalProfileSelect")?.options || [])]
       .map((option) => option.value),
-    sideChatScrollable:
-      getComputedStyle(document.getElementById("sideChatHistory")).overflowY === "auto" &&
-      getComputedStyle(document.querySelector(".side-chat-panel")).overflow === "hidden" &&
-      getComputedStyle(document.querySelector(".side-chat-panel")).maxHeight !== "none"
+    sideChatScrollable: ${sideChatLayout.bounded}
   })`);
   const acceptedSmokeTitles = new Set([
     "BioDesign Workbench",
@@ -184,6 +200,7 @@ async function runSmoke(window) {
       headerLayout.statusRowPresent,
     renderer,
     headerLayout,
+    sideChatLayout,
     runtime,
     security: { nodeIntegration: false, contextIsolation: true, sandbox: true },
   };
