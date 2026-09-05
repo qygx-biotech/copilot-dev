@@ -11,6 +11,7 @@ const {
   compactSideChatAgentMessages,
   createSideChatKnowledgeBase,
   executeSideChatTool,
+  normalizeToolCalls,
   runSideChatAgent
 } = require("../side-chat-agent");
 
@@ -74,6 +75,129 @@ function makeWorkspaceContext() {
   };
 }
 
+function makePaperResolutionContext({ selectedPaperIds = [] } = {}) {
+  const sources = [
+    {
+      sourceId: "source-a-uuid",
+      sourceKind: "paper",
+      path: "literature/a.pdf",
+      displayName: "Alpha EctD study.pdf",
+      catalogStatus: "present",
+      parseStatus: "ready",
+      indexStatus: "ready"
+    },
+    {
+      sourceId: "source-b-uuid",
+      sourceKind: "paper",
+      path: "literature/b.pdf",
+      displayName: "Beta inventory only.pdf",
+      catalogStatus: "present",
+      parseStatus: "not_started",
+      indexStatus: "not_started"
+    },
+    {
+      sourceId: "source-c-uuid",
+      sourceKind: "paper",
+      path: "literature/c.pdf",
+      displayName: "Gamma scoped study.pdf",
+      catalogStatus: "present",
+      parseStatus: "ready",
+      indexStatus: "ready"
+    }
+  ];
+  return {
+    localWorkspaceContext: {
+      scope: selectedPaperIds.length
+        ? { type: "files", files: ["literature/a.pdf"] }
+        : { type: "project", files: [] },
+      sourceMap: {
+        selectedPaperIds,
+        paperSources: sources,
+        sourceCounts: { papersDiscovered: 3, papersSearchable: 2 }
+      },
+      inventory: [
+        {
+          paperId: "source-a-uuid",
+          sourceId: "source-a-uuid",
+          sourceKind: "paper",
+          name: "Alpha EctD study.pdf",
+          relativePath: "literature/a.pdf",
+          extension: "pdf",
+          processor: "pdf",
+          parseStatus: "ready",
+          indexStatus: "ready"
+        },
+        {
+          paperId: "source-c-uuid",
+          sourceId: "source-c-uuid",
+          sourceKind: "paper",
+          name: "Gamma scoped study.pdf",
+          relativePath: "literature/c.pdf",
+          extension: "pdf",
+          processor: "pdf",
+          parseStatus: "ready",
+          indexStatus: "ready"
+        }
+      ],
+      files: [
+        {
+          paperId: "source-a-uuid",
+          sourceId: "source-a-uuid",
+          name: "Alpha EctD study.pdf",
+          relativePath: "literature/a.pdf",
+          analysisStatus: "processed",
+          evidenceType: "parsed-paper-evidence",
+          content: "Alpha evidence reports EctD A163V activity."
+        },
+        {
+          paperId: "source-c-uuid",
+          sourceId: "source-c-uuid",
+          name: "Gamma scoped study.pdf",
+          relativePath: "literature/c.pdf",
+          analysisStatus: "processed",
+          evidenceType: "parsed-paper-evidence",
+          content: "Gamma evidence reports a different enzyme."
+        }
+      ]
+    }
+  };
+}
+
+function makeParallelPaperContext() {
+  const paperSources = Array.from({ length: 4 }, (_, index) => ({
+    sourceId: `parallel-${index + 1}`,
+    sourceKind: "paper",
+    path: `literature/parallel-${index + 1}.pdf`,
+    displayName: `Parallel paper ${index + 1}.pdf`,
+    catalogStatus: "present",
+    parseStatus: "ready",
+    indexStatus: "ready"
+  }));
+  return {
+    localWorkspaceContext: {
+      sourceMap: { paperSources, selectedPaperIds: [] },
+      inventory: paperSources.map((source) => ({
+        paperId: source.sourceId,
+        sourceId: source.sourceId,
+        sourceKind: "paper",
+        name: source.displayName,
+        relativePath: source.path,
+        extension: "pdf",
+        processor: "pdf"
+      })),
+      files: paperSources.map((source, index) => ({
+        paperId: source.sourceId,
+        sourceId: source.sourceId,
+        name: source.displayName,
+        relativePath: source.path,
+        analysisStatus: "processed",
+        evidenceType: "parsed-paper-evidence",
+        content: `Unique evidence marker ${index + 1}.`
+      }))
+    }
+  };
+}
+
 test("the backend loop exposes internal-state tools with centralized effects", () => {
   const names = SIDE_CHAT_TOOL_DEFINITIONS.map((tool) => tool.function.name);
   assert.deepEqual(names, [
@@ -99,6 +223,12 @@ test("the backend loop exposes internal-state tools with centralized effects", (
   assert.equal(authorizeTool("side_chat", "update_project_memory").allowed, true);
   assert.equal(authorizeTool("side_chat", "update_recommendation").allowed, false);
   assert.equal(authorizeTool("agent_command", "update_recommendation").allowed, true);
+  assert.match(
+    SIDE_CHAT_TOOL_DEFINITIONS.find(
+      (tool) => tool.function.name === "search_papers"
+    ).function.description,
+    /content_available.*only when content_available is true/i
+  );
 });
 
 test("durable project context becomes system guidance without duplicating the goal", () => {
@@ -238,6 +368,135 @@ test("source-specific tools enforce explicit paper and experiment scopes", () =>
     )
   );
   assert.equal(outsideExperiment.returned, 0);
+});
+
+test("search_papers returns one canonical readable id accepted by read_paper_evidence", () => {
+  const knowledgeBase = createSideChatKnowledgeBase(makePaperResolutionContext());
+  const search = JSON.parse(executeSideChatTool(
+    toolCall("search_papers", { query: "A163V activity" }, "search-a"),
+    knowledgeBase
+  ));
+  assert.equal(search.returned, 1);
+  assert.deepEqual(
+    {
+      paper_id: search.results[0].paper_id,
+      item_id: search.results[0].item_id,
+      content_available: search.results[0].content_available,
+      status: search.results[0].status
+    },
+    {
+      paper_id: "source-a-uuid",
+      item_id: "local:1",
+      content_available: true,
+      status: "processed"
+    }
+  );
+  const read = JSON.parse(executeSideChatTool(
+    toolCall(
+      "read_paper_evidence",
+      { item_id: search.results[0].item_id },
+      "read-a"
+    ),
+    knowledgeBase
+  ));
+  assert.equal(read.paper_id, "source-a-uuid");
+  assert.equal(read.item_id, "local:1");
+  assert.equal(read.content_available, true);
+  assert.match(read.content, /EctD A163V activity/);
+});
+
+test("registry, paper alias, raw source id, and local catalog id resolve to one paper", () => {
+  const knowledgeBase = createSideChatKnowledgeBase(makePaperResolutionContext());
+  const listed = JSON.parse(executeSideChatTool(
+    toolCall("list_papers", {}, "list-papers"),
+    knowledgeBase
+  ));
+  const alpha = listed.items.find((item) => item.paper_id === "source-a-uuid");
+  assert.equal(alpha.item_id, "local:1");
+
+  const requests = [
+    { item_id: "local:1" },
+    { item_id: "paper:source-a-uuid" },
+    { item_id: "source-a-uuid" },
+    { paper_id: "source-a-uuid" }
+  ];
+  const reads = requests.map((args, index) => JSON.parse(executeSideChatTool(
+    toolCall("read_paper_evidence", args, `alias-${index + 1}`),
+    knowledgeBase
+  )));
+  assert.ok(reads.every((read) => read.paper_id === "source-a-uuid"));
+  assert.ok(reads.every((read) => read.item_id === "local:1"));
+  assert.ok(reads.every((read) => /Alpha evidence/.test(read.content)));
+});
+
+test("registry-only paper resolves to an explicit unavailable result", () => {
+  const knowledgeBase = createSideChatKnowledgeBase(makePaperResolutionContext());
+  const searched = JSON.parse(executeSideChatTool(
+    toolCall("search_papers", { query: "Beta inventory" }, "search-b"),
+    knowledgeBase
+  ));
+  assert.equal(searched.returned, 1);
+  assert.equal(searched.results[0].paper_id, "source-b-uuid");
+  assert.equal(searched.results[0].item_id, "paper:source-b-uuid");
+  assert.equal(searched.results[0].content_available, false);
+  assert.equal(searched.results[0].snippet, "");
+
+  const read = JSON.parse(executeSideChatTool(
+    toolCall(
+      "read_paper_evidence",
+      { item_id: searched.results[0].item_id },
+      "read-b"
+    ),
+    knowledgeBase
+  ));
+  assert.equal(read.error, "PAPER_EVIDENCE_NOT_AVAILABLE");
+  assert.equal(read.paper_id, "source-b-uuid");
+  assert.equal(read.item_id, "paper:source-b-uuid");
+  assert.equal(read.content_available, false);
+  assert.equal(Object.hasOwn(read, "content"), false);
+});
+
+test("paper resolver distinguishes selected-scope, unknown, path, and mismatched identifiers", () => {
+  const knowledgeBase = createSideChatKnowledgeBase(
+    makePaperResolutionContext({ selectedPaperIds: ["source-a-uuid"] })
+  );
+  const listed = JSON.parse(executeSideChatTool(
+    toolCall("list_papers", {}, "selected-list"),
+    knowledgeBase
+  ));
+  assert.deepEqual(listed.items.map((item) => item.paper_id), ["source-a-uuid"]);
+
+  const outside = JSON.parse(executeSideChatTool(
+    toolCall(
+      "read_paper_evidence",
+      { item_id: "paper:source-c-uuid" },
+      "outside"
+    ),
+    knowledgeBase
+  ));
+  assert.equal(outside.error, "PAPER_OUTSIDE_SELECTED_SCOPE");
+  assert.equal(outside.paper_id, "source-c-uuid");
+  assert.equal(outside.item_id, "paper:source-c-uuid");
+  assert.equal(outside.attempted_identifier, "paper:source-c-uuid");
+
+  for (const attempted of ["unknown-paper", "../../literature/a.pdf", "/tmp/a.pdf"]) {
+    const rejected = JSON.parse(executeSideChatTool(
+      toolCall("read_paper_evidence", { item_id: attempted }, `reject-${attempted}`),
+      knowledgeBase
+    ));
+    assert.equal(rejected.error, "PAPER_NOT_FOUND_IN_SCOPE");
+    assert.equal(rejected.item_id, attempted);
+    assert.equal(rejected.attempted_identifier, attempted);
+  }
+
+  const mismatched = JSON.parse(executeSideChatTool(
+    toolCall("read_paper_evidence", {
+      paper_id: "source-a-uuid",
+      item_id: "paper:source-c-uuid"
+    }, "mismatch"),
+    createSideChatKnowledgeBase(makePaperResolutionContext())
+  ));
+  assert.equal(mismatched.error, "PAPER_IDENTIFIER_MISMATCH");
 });
 
 test("corpus failure status reports map diagnostics without inventing a preparation cause", async () => {
@@ -653,6 +912,151 @@ test("the agent loop keeps inspection private and returns only the final answer"
     true
   );
   assert.equal(Object.hasOwn(result.data, "tool_calls"), false);
+});
+
+test("four parallel paper reads keep unique normalized IDs and independently associated results", async () => {
+  const requests = [];
+  const rawCalls = [
+    toolCall("read_paper_evidence", { item_id: "local:1" }, "duplicate-id"),
+    toolCall("read_paper_evidence", { item_id: "local:2" }, "duplicate-id"),
+    toolCall("read_paper_evidence", { item_id: "local:3" }, ""),
+    toolCall("read_paper_evidence", { item_id: "local:4" }, null)
+  ];
+  const result = await runSideChatAgent({
+    conversationMessages: [{ role: "user", content: "Read all four papers." }],
+    workspaceContext: makeParallelPaperContext(),
+    systemPrompt: "Read each requested paper independently, then answer.",
+    parseFinalAnswer: (content) => ({ reply: content }),
+    requestTurn: async (request) => {
+      requests.push(request);
+      return requests.length === 1
+        ? { ok: true, message: { content: null, tool_calls: rawCalls } }
+        : { ok: true, message: { content: "All four reads completed." } };
+    }
+  });
+  assert.equal(result.ok, true);
+  const assistant = requests[1].messages.find(
+    (message) => message.role === "assistant" && message.tool_calls?.length === 4
+  );
+  const results = requests[1].messages.filter((message) => message.role === "tool");
+  assert.equal(new Set(assistant.tool_calls.map((call) => call.id)).size, 4);
+  assert.equal(new Set(results.map((message) => message.tool_call_id)).size, 4);
+  for (const call of assistant.tool_calls) {
+    const args = JSON.parse(call.function.arguments);
+    const expectedIndex = Number(args.item_id.split(":")[1]);
+    const resultMessage = results.find(
+      (message) => message.tool_call_id === call.id
+    );
+    const payload = JSON.parse(resultMessage.content);
+    assert.equal(payload.requested_item_id, args.item_id);
+    assert.equal(payload.paper_id, `parallel-${expectedIndex}`);
+    assert.match(payload.content, new RegExp(`Unique evidence marker ${expectedIndex}`));
+  }
+});
+
+test("parallel paper-resolution errors echo each call's exact item id", async () => {
+  const requests = [];
+  const attemptedIds = Array.from({ length: 4 }, (_, index) =>
+    `paper:missing-${index + 1}`
+  );
+  await runSideChatAgent({
+    conversationMessages: [{ role: "user", content: "Inspect four references." }],
+    workspaceContext: makePaperResolutionContext(),
+    systemPrompt: "State when requested evidence is unavailable.",
+    parseFinalAnswer: (content) => ({ reply: content }),
+    requestTurn: async (request) => {
+      requests.push(request);
+      return requests.length === 1
+        ? {
+            ok: true,
+            message: {
+              content: null,
+              tool_calls: attemptedIds.map((itemId) =>
+                toolCall("read_paper_evidence", { item_id: itemId }, "duplicate")
+              )
+            }
+          }
+        : { ok: true, message: { content: "Those four IDs are unavailable." } };
+    }
+  });
+  const assistant = requests[1].messages.find(
+    (message) => message.role === "assistant" && message.tool_calls?.length === 4
+  );
+  const resultsById = new Map(
+    requests[1].messages
+      .filter((message) => message.role === "tool")
+      .map((message) => [message.tool_call_id, JSON.parse(message.content)])
+  );
+  for (const call of assistant.tool_calls) {
+    const attempted = JSON.parse(call.function.arguments).item_id;
+    const output = resultsById.get(call.id);
+    assert.equal(output.error, "PAPER_NOT_FOUND_IN_SCOPE");
+    assert.equal(output.item_id, attempted);
+    assert.equal(output.attempted_identifier, attempted);
+    assert.equal(output.paper_id, null);
+  }
+});
+
+test("normalizeToolCalls replaces missing, duplicate, and oversized provider IDs deterministically", () => {
+  const oversized = "x".repeat(300);
+  const normalized = normalizeToolCalls({
+    tool_calls: [
+      toolCall("read_paper_evidence", { item_id: "local:1" }, "same"),
+      toolCall("read_paper_evidence", { item_id: "local:2" }, "same"),
+      toolCall("read_paper_evidence", { item_id: "local:3" }, ""),
+      toolCall("read_paper_evidence", { item_id: "local:4" }, oversized),
+      toolCall("read_paper_evidence", { item_id: "local:5" }, oversized)
+    ]
+  });
+  assert.deepEqual(normalized.map((call) => call.id), [
+    "same",
+    "side-chat-tool-2",
+    "side-chat-tool-3",
+    oversized.slice(0, 160),
+    "side-chat-tool-5"
+  ]);
+  assert.equal(new Set(normalized.map((call) => call.id)).size, normalized.length);
+  assert.ok(normalized.every((call) => call.id.length <= 160));
+  const usedAcrossTurns = new Set(normalized.map((call) => call.id));
+  const laterTurn = normalizeToolCalls({
+    tool_calls: [toolCall("read_paper_evidence", { item_id: "local:6" }, "same")]
+  }, usedAcrossTurns);
+  assert.equal(laterTurn[0].id, "side-chat-tool-1");
+  assert.equal(usedAcrossTurns.size, 6);
+});
+
+test("message compaction preserves normalized parallel tool-call/result pairing", () => {
+  const calls = normalizeToolCalls({
+    tool_calls: [
+      toolCall("read_paper_evidence", { item_id: "local:1" }, "duplicate"),
+      toolCall("read_paper_evidence", { item_id: "local:2" }, "duplicate"),
+      toolCall("read_paper_evidence", { item_id: "local:3" }, "")
+    ]
+  });
+  const messages = [
+    { role: "system", content: "answer-only" },
+    { role: "user", content: "Read the selected papers." },
+    { role: "assistant", content: null, tool_calls: calls },
+    ...calls.map((call, index) => ({
+      role: "tool",
+      tool_call_id: call.id,
+      name: call.function.name,
+      content: `Result ${index + 1} ${"evidence ".repeat(1200)}`
+    }))
+  ];
+  const compacted = compactSideChatAgentMessages(
+    messages,
+    "Read the selected papers.",
+    5000
+  );
+  const assistantIds = compacted
+    .flatMap((message) => message.tool_calls || [])
+    .map((call) => call.id);
+  const resultIds = compacted
+    .filter((message) => message.role === "tool")
+    .map((message) => message.tool_call_id);
+  assert.deepEqual(resultIds, assistantIds);
+  assert.equal(new Set(resultIds).size, 3);
 });
 
 test("context compaction keeps the active request and complete tool pairs", () => {

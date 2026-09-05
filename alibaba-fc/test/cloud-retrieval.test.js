@@ -75,18 +75,64 @@ test("Chinese search planning uses the dedicated Requesty model and returns stri
   const result = await invoke("POST", "/api/knowledge/plan-search", {
     query: "哪个 EctD 突变提高热稳定性？",
     intent: "retrieve exact mutation evidence",
+    callContext: {
+      turnId: "turn-zh-plan",
+      workflowId: "workflow-zh-plan",
+      callRole: "search_planner",
+      paperId: "",
+      profile: "high",
+    },
   });
   assert.equal(result.status, 200);
   assert.deepEqual(result.body.plan.identifiers, ["A163V", "EctD"]);
   assert.match(result.body.plan.queries[0], /thermostability/);
   assert.equal(providerRequests.length, 1);
   assert.equal(providerRequests[0].body.model, process.env.REQUESTY_SEARCH_PLANNER_MODEL);
+  assert.deepEqual(providerRequests[0].body.requesty, {
+    tags: ["biodesign:search_planner", "profile:high"],
+    trace_id: "workflow-zh-plan",
+    extra: {
+      call_role: "search_planner",
+      profile: "high",
+      turn_id: "turn-zh-plan",
+      workflow_id: "workflow-zh-plan",
+    },
+  });
   assert.deepEqual(
     JSON.parse(providerRequests[0].body.messages[1].content),
     { query: "哪个 EctD 突变提高热稳定性？", intent: "retrieve exact mutation evidence" }
   );
   assert.equal(providerRequests[0].headers.Authorization, `Bearer ${process.env.REQUESTY_API_KEY}`);
   assert.doesNotMatch(JSON.stringify(result.body), /fc-only-requesty-key/);
+});
+
+test("JSON-object planner fallback receives the exact host schema instead of guessing field names", async () => {
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
+  try {
+    providerResponses.push({
+      queries: ["research objective", "major findings"],
+      identifiers: [],
+      sourceLanguage: "zh",
+      reasoningSummary: "Use a cross-language corpus evidence rubric.",
+    });
+    const result = await invoke("POST", "/api/knowledge/plan-search", {
+      query: "帮我总结所有文献，写一个综述。",
+      intent: "corpus scientific evidence extraction",
+    });
+
+    assert.equal(result.status, 200);
+    assert.equal(providerRequests[0].body.response_format.type, "json_object");
+    assert.match(
+      providerRequests[0].body.messages[0].content,
+      /exact JSON Schema.*"queries".*"identifiers".*"sourceLanguage".*"reasoningSummary"/s
+    );
+    assert.match(
+      providerRequests[0].body.messages[0].content,
+      /Never search papers for those task phrases/i
+    );
+  } finally {
+    process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  }
 });
 
 test("planner rejects unknown keys, malformed output, and output beyond shared project limits", async () => {
@@ -96,6 +142,20 @@ test("planner rejects unknown keys, malformed output, and output beyond shared p
     directoryHandle: "/Users/private/project",
   });
   assert.equal(unknownInput.status, 400);
+  assert.equal(providerRequests.length, 0);
+
+  const arbitraryContext = await invoke("POST", "/api/knowledge/plan-search", {
+    query: "EctD",
+    intent: "retrieve evidence",
+    callContext: {
+      turnId: "turn-a",
+      workflowId: "workflow-a",
+      callRole: "corpus_mapper",
+      paperId: "",
+      profile: "high",
+    },
+  });
+  assert.equal(arbitraryContext.status, 400);
   assert.equal(providerRequests.length, 0);
 
   providerResponses.push({

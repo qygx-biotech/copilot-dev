@@ -112,6 +112,22 @@
     }
   }
 
+  function boundedCallContext(value = {}, callRole, paperId = "") {
+    const boundedId = (input) => {
+      const text = String(input || "").trim();
+      return /^[A-Za-z0-9._:-]{1,200}$/.test(text) ? text : "";
+    };
+    return {
+      turnId: boundedId(value?.turnId),
+      workflowId: boundedId(value?.workflowId),
+      callRole,
+      paperId: boundedId(paperId || value?.paperId),
+      profile: ["light", "medium", "high"].includes(value?.profile)
+        ? value.profile
+        : "light",
+    };
+  }
+
   function classifyPdfError(error) {
     if (error instanceof LiteratureError) return error;
     if (error?.name === "PasswordException" || /password|encrypted/i.test(error?.message || "")) {
@@ -348,6 +364,11 @@
           mapAttempt: Math.max(1, Number(payload.mapAttempt) || 1),
           fallback: payload.fallback === true,
           language: payload.language === "zh" ? "zh" : "en",
+          callContext: boundedCallContext(
+            payload.callContext,
+            "corpus_mapper",
+            payload.paperId
+          ),
         },
         signal
       );
@@ -377,6 +398,11 @@
             : []).slice(0, 100),
           fileData,
           language: payload.language === "zh" ? "zh" : "en",
+          callContext: boundedCallContext(
+            payload.callContext,
+            "native_pdf",
+            payload.paperId
+          ),
         },
         signal
       );
@@ -430,6 +456,7 @@
         {
           query: payload.query,
           intent: payload.intent,
+          callContext: boundedCallContext(payload.callContext, "search_planner"),
         },
         signal
       );
@@ -442,6 +469,11 @@
           query: payload.query,
           intent: payload.intent,
           candidates: payload.candidates,
+          callContext: boundedCallContext(
+            payload.callContext,
+            "reranker",
+            payload.callContext?.paperId
+          ),
         },
         signal
       );
@@ -530,6 +562,12 @@
                     ...payload,
                     mapAttempt: workerOptions?.attempt,
                     language: this.getLanguage(),
+                    callContext: {
+                      turnId: workerOptions?.turnId,
+                      workflowId: workerOptions?.workflowId,
+                      paperId: workerOptions?.paperId || payload.paperId,
+                      profile: workerOptions?.profile,
+                    },
                   },
                   workerOptions?.signal
                 )
@@ -543,6 +581,12 @@
                     mapAttempt: workerOptions?.attempt,
                     fallback: true,
                     language: this.getLanguage(),
+                    callContext: {
+                      turnId: workerOptions?.turnId,
+                      workflowId: workerOptions?.workflowId,
+                      paperId: workerOptions?.paperId || payload.paperId,
+                      profile: workerOptions?.profile,
+                    },
                   },
                   workerOptions?.signal
                 )

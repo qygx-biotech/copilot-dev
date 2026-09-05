@@ -2544,7 +2544,16 @@ function renderSideChatContext() {
           verify: "Verifying claims",
           answer: "Preparing answer",
         };
-    progress.textContent = `${phaseLabels[activeCorpusProgress.phase] || activeCorpusProgress.phase} · ${activeCorpusProgress.completed || 0}/${activeCorpusProgress.total || 0}`;
+    const stageLabels = currentLanguage === "zh"
+      ? {
+          "corpus-plan": "正在规划语料库检索",
+          "corpus-plan-ready": "语料库检索计划已就绪",
+        }
+      : {
+          "corpus-plan": "Planning corpus retrieval",
+          "corpus-plan-ready": "Corpus retrieval plan ready",
+        };
+    progress.textContent = `${stageLabels[activeCorpusProgress.stage] || phaseLabels[activeCorpusProgress.phase] || activeCorpusProgress.phase} · ${activeCorpusProgress.completed || 0}/${activeCorpusProgress.total || 0}`;
     sideChatContextChips.appendChild(progress);
   }
   if (lastSourceUsage) {
@@ -3285,6 +3294,7 @@ async function runAgentInstruction(panelId) {
       try {
         localWorkspaceContext = await projectContextService.buildContext({
           surface: "agent_command",
+          turnId: panel.id,
           question: instruction,
           retrievalProfile,
           selectedPaths: [...selectedWorkspacePaths],
@@ -3316,6 +3326,12 @@ async function runAgentInstruction(panelId) {
       mode: "agent_instruction",
       messages: buildAgentMessages(instruction),
       localWorkspaceContext,
+      callContext: {
+        turnId: panel.id,
+        workflowId: localWorkspaceContext?.literature?.corpusWorkflowId || "",
+        callRole: "answer",
+        profile: retrievalProfile,
+      },
     });
 
     panel.recommendation = normalizeAgentResponse(response, instruction);
@@ -3358,7 +3374,12 @@ function setAgentBusy(isBusy, panelId = "") {
 // the Current Recommendation panel.
 // side_chat mode may update derived internal knowledge/metadata through the
 // shared source system, but it must never mutate the Current Recommendation.
-async function sendWorkbenchRequest({ mode, messages, localWorkspaceContext = null }) {
+async function sendWorkbenchRequest({
+  mode,
+  messages,
+  localWorkspaceContext = null,
+  callContext = null,
+}) {
   const isSideChat = mode === "side_chat";
   const includeLegacyExperimentEvidence = experimentModuleCards.length > 0;
   const experimentModulesPayload = buildExperimentModulesForRequest();
@@ -3390,6 +3411,7 @@ async function sendWorkbenchRequest({ mode, messages, localWorkspaceContext = nu
     storedDocuments: isSideChat ? [] : collectStoredDocumentsForRequest(),
     selectedDocumentKeys: isSideChat ? [] : selectedDocumentKeys,
     ...(localWorkspaceContext ? { localWorkspaceContext } : {}),
+    ...(callContext ? { callContext } : {}),
   };
 
   const response = await fetch(backendUrl("/chat"), {
@@ -4351,6 +4373,7 @@ async function askSideChat(question) {
     userMessage.context = contextSnapshot;
     const localWorkspaceContext = await projectContextService.buildContext({
       surface: "side_chat",
+      turnId: userMessage.id,
       question,
       retrievalProfile,
       selectedPaths: contextSnapshot.files,
@@ -4408,6 +4431,12 @@ async function askSideChat(question) {
         mode: "side_chat",
         messages: messagesForBackend,
         localWorkspaceContext,
+        callContext: {
+          turnId: userMessage.id,
+          workflowId: localWorkspaceContext?.literature?.corpusWorkflowId || "",
+          callRole: "answer",
+          profile: retrievalProfile,
+        },
       });
       reply = appendCorpusCoverage(
         response.reply || t("sideChatNoAnswer"),
@@ -4486,6 +4515,11 @@ function sideChatProgressText(progress = {}) {
   if (progress.stage === "model-request") return t("generatingAnswer");
   if (progress.stage === "answer-ready") return t("answerReady");
   if (progress.stage === "local-fallback") return t("localFallbackActivity");
+  if (progress.stage === "paper-card-cache-hit") {
+    return currentLanguage === "zh"
+      ? "正在复用已缓存的论文卡片"
+      : "Reusing cached Paper Card";
+  }
   if (progress.stage?.startsWith("knowledge-")) {
     return progress.message || (currentLanguage === "zh"
       ? "正在搜索本地知识..."
@@ -4498,6 +4532,8 @@ function sideChatProgressText(progress = {}) {
           "corpus-snapshot": "正在确定论文范围",
           "corpus-diff": "正在比对前后文献库",
           "corpus-prepare": incremental ? "正在准备新增/变更论文" : "正在准备论文",
+          "corpus-plan": "正在规划语料库检索",
+          "corpus-plan-ready": "语料库检索计划已就绪",
           "corpus-map": incremental ? "正在分析新增/变更论文" : "正在分析论文",
           "corpus-group": "正在归纳主题",
           "corpus-reduce": incremental ? "正在更新综述" : "正在综合主题",
@@ -4508,6 +4544,8 @@ function sideChatProgressText(progress = {}) {
           "corpus-snapshot": "Selecting paper scope",
           "corpus-diff": "Comparing corpus versions",
           "corpus-prepare": incremental ? "Preparing new/changed papers" : "Preparing papers",
+          "corpus-plan": "Planning corpus retrieval",
+          "corpus-plan-ready": "Corpus retrieval plan ready",
           "corpus-map": incremental ? "Analyzing new/changed papers" : "Analyzing papers",
           "corpus-group": "Grouping themes",
           "corpus-reduce": incremental ? "Updating review" : "Synthesizing themes",
@@ -4608,6 +4646,7 @@ function knowledgeProgressText(event = {}) {
         "planning-expanded-queries": "正在规划扩展查询...",
         "reranking-evidence": "正在重排证据...",
         "retrieval-cache-hit": "正在复用已缓存的检索结果...",
+        "paper-card-cache-hit": "正在复用已缓存的论文卡片...",
         "retrieval-local-fallback": "云端检索暂不可用，正在回退到本地证据...",
         "cloud-retrieval": "正在通过云端规划与重排搜索本地证据...",
         "initializing-search-model": "正在初始化本地语义搜索模型...",
@@ -4626,6 +4665,7 @@ function knowledgeProgressText(event = {}) {
         "planning-expanded-queries": "Planning expanded queries...",
         "reranking-evidence": "Reranking evidence...",
         "retrieval-cache-hit": "Reusing cached retrieval...",
+        "paper-card-cache-hit": "Reusing cached Paper Card...",
         "retrieval-local-fallback": "Falling back to local evidence...",
         "cloud-retrieval": "Planning and reranking local evidence through the cloud...",
         "initializing-search-model": "Initializing the local semantic search model...",

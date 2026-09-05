@@ -25,12 +25,156 @@
     projectMemory: "project-memory",
   });
 
+  const CORPUS_SHARED_PLAN_VERSION = 1;
+  const CORPUS_SCIENTIFIC_DIMENSIONS = Object.freeze([
+    "research question objective",
+    "organism biological system",
+    "engineering strategy",
+    "genes proteins pathways",
+    "experimental methods conditions",
+    "measurements quantitative results",
+    "major findings",
+    "limitations",
+    "connections themes",
+  ]);
+  const CORPUS_TASK_ONLY_QUERY_PATTERN = /^(?:literature review|systematic review|scientific synthesis|meta-analysis|review writing|write (?:a )?review|文献综述|综述写作|系统综述|荟萃分析)$/iu;
+  const CORPUS_TASK_WORD_PATTERN = /\b(?:help|me|please|summari[sz]e|review|survey|synthesis|write|all|every|papers?|literature|corpus|project|a|an|the)\b|帮我|请|一下|一个|一篇|总结|综述|撰写|写|所有|全部|文献|论文|语料库|项目/giu;
+
   function stableJson(value) {
     if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
     if (value && typeof value === "object") {
       return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(",")}}`;
     }
     return JSON.stringify(value);
+  }
+
+  function normalizePlannerIdentityText(value) {
+    return String(value || "").normalize("NFKC").replace(/\s+/g, " ").trim();
+  }
+
+  function normalizePlannerIntent(value) {
+    return normalizePlannerIdentityText(value).toLocaleLowerCase("en-US");
+  }
+
+  function isGenericCorpusReviewQuestion(value) {
+    const remainder = normalizePlannerIdentityText(value)
+      .replace(CORPUS_TASK_WORD_PATTERN, " ")
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+    return !remainder;
+  }
+
+  function boundedUniqueStrings(values, maximum, characterLimit) {
+    const seen = new Set();
+    const result = [];
+    for (const value of Array.isArray(values) ? values : []) {
+      const text = normalizePlannerIdentityText(value).slice(0, characterLimit);
+      const key = text.toLocaleLowerCase("en-US");
+      if (!text || seen.has(key)) continue;
+      seen.add(key);
+      result.push(text);
+      if (result.length >= maximum) break;
+    }
+    return result;
+  }
+
+  function normalizeCallContext(value = {}, expectedRole = "") {
+    const allowedRoles = new Set([
+      "search_planner",
+      "reranker",
+      "corpus_mapper",
+      "corpus_reduce",
+      "claim_verification",
+      "answer",
+      "native_pdf",
+    ]);
+    const boundedId = (input) => {
+      const text = String(input || "").trim();
+      return /^[A-Za-z0-9._:-]{1,200}$/.test(text) ? text : "";
+    };
+    const callRole = allowedRoles.has(expectedRole)
+      ? expectedRole
+      : allowedRoles.has(value?.callRole)
+        ? value.callRole
+        : "";
+    const profile = ["light", "medium", "high"].includes(value?.profile)
+      ? value.profile
+      : "light";
+    return Object.freeze({
+      turnId: boundedId(value?.turnId),
+      workflowId: boundedId(value?.workflowId),
+      callRole,
+      paperId: boundedId(value?.paperId),
+      profile,
+    });
+  }
+
+  function createSearchPlanCacheIdentity(query, intent, configurationSignature, versions = {}) {
+    return {
+      normalizedQuery: normalizePlannerIdentityText(query),
+      retrievalIntent: normalizePlannerIntent(intent),
+      configurationSignature: String(configurationSignature || ""),
+      schemaVersion: Number(
+        versions.schemaVersion ?? CLOUD_RETRIEVAL.schemaVersion
+      ),
+      promptVersion: String(
+        versions.promptVersion ?? CLOUD_RETRIEVAL.searchPlanPromptVersion
+      ),
+      validation: {
+        queryItems: Number(RETRIEVAL_LIMITS.resultMaximum),
+        identifierItems: Number(RETRIEVAL_LIMITS.resultMaximum),
+        combinedItems: Number(RETRIEVAL_LIMITS.candidateMaximum),
+        queryCharacters: Number(RETRIEVAL_LIMITS.outputTextCharacters),
+        identifierCharacters: Number(RETRIEVAL_LIMITS.paperIdCharacters),
+        sourceLanguageCharacters: Number(RETRIEVAL_LIMITS.paperIdCharacters),
+        reasoningCharacters: Number(RETRIEVAL_LIMITS.outputTextCharacters),
+      },
+    };
+  }
+
+  function corpusQueriesFromPlan(query, plan) {
+    const generic = isGenericCorpusReviewQuestion(query);
+    const planned = boundedUniqueStrings(
+      plan?.queries,
+      RETRIEVAL_LIMITS.resultMaximum,
+      RETRIEVAL_LIMITS.outputTextCharacters
+    ).filter((value) => !CORPUS_TASK_ONLY_QUERY_PATTERN.test(value));
+    return {
+      generic,
+      queries: boundedUniqueStrings(
+        generic ? [...CORPUS_SCIENTIFIC_DIMENSIONS] : planned,
+        RETRIEVAL_LIMITS.resultMaximum,
+        RETRIEVAL_LIMITS.outputTextCharacters
+      ),
+    };
+  }
+
+  function freezeSharedCorpusPlan(record) {
+    return Object.freeze({
+      ...record,
+      queries: Object.freeze([...(record.queries || [])]),
+      identifiers: Object.freeze([...(record.identifiers || [])]),
+      scientificDimensions: Object.freeze([...(record.scientificDimensions || [])]),
+    });
+  }
+
+  function operationAbortedError() {
+    return new KnowledgeServiceError(
+      "OPERATION_ABORTED",
+      "The retrieval operation was stopped."
+    );
+  }
+
+  function awaitSharedRequest(promise, signal) {
+    if (!signal?.addEventListener) return promise;
+    if (signal.aborted) return Promise.reject(operationAbortedError());
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(operationAbortedError());
+      signal.addEventListener("abort", onAbort, { once: true });
+      promise.then(resolve, reject).finally(() => {
+        signal.removeEventListener("abort", onAbort);
+      });
+    });
   }
 
   async function hashText(value, cryptoProvider = root?.crypto) {
@@ -469,6 +613,8 @@
       this.lastStatus = null;
       this.lastError = null;
       this.listeners = new Set();
+      this.searchPlanInFlight = new Map();
+      this.resolvedSearchPlans = new Map();
       this.stopProgress = this.desktop?.knowledge?.onProgress?.((event) => this.emit(event)) || null;
     }
 
@@ -567,15 +713,25 @@
     }
 
     async writeCache(kind, cacheKey, configurationSignature, value) {
-      if (!this.workspace?.writeJson) return;
+      if (!this.workspace?.writeJson) return false;
       const path = `${CLOUD_RETRIEVAL.cacheDirectory}/${kind}-${cacheKey}.json`;
-      await this.workspace.writeJson(path, {
-        schemaVersion: CLOUD_RETRIEVAL.schemaVersion,
-        kind,
-        cacheKey,
-        configurationSignature,
-        value,
-      }).catch(() => {});
+      try {
+        await this.workspace.writeJson(path, {
+          schemaVersion: CLOUD_RETRIEVAL.schemaVersion,
+          kind,
+          cacheKey,
+          configurationSignature,
+          value,
+        });
+        return true;
+      } catch (error) {
+        console.info("knowledge_cache_write_failed", {
+          kind,
+          cacheKey,
+          code: String(error?.code || error?.name || "CACHE_WRITE_FAILED").slice(0, 120),
+        });
+        return false;
+      }
     }
 
     validateCloudConfig(config) {
@@ -634,24 +790,323 @@
       };
     }
 
-    async getSearchPlan(query, intent, options, config) {
-      const identity = {
-        normalizedQuery: query.normalize("NFKC").replace(/\s+/g, " ").trim(),
-        retrievalIntent: intent,
-        paperScope: [...new Set(options.paperIds || [])].sort(),
-        collectionScope: [...new Set(options.collections || [])].sort(),
-        retrieval: resolveRetrievalLimits(options),
-        modelSignature: config.plannerSignature,
+    async getSearchPlan(query, intent, options = {}, config) {
+      const identity = createSearchPlanCacheIdentity(
+        query,
+        intent,
+        config.plannerSignature
+      );
+      const cacheKey = await hashText(stableJson(identity), this.cryptoProvider);
+      const inFlightKey = `${config.plannerSignature}:${cacheKey}`;
+      const callContext = normalizeCallContext(options.callContext, "search_planner");
+      if (options.forceRefresh === true) {
+        this.resolvedSearchPlans.delete(inFlightKey);
+      }
+      const resolved = this.resolvedSearchPlans.get(inFlightKey);
+      if (resolved) {
+        console.info("knowledge_plan_cache", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          cacheKey,
+          cache: "memory-hit",
+        });
+        return { ...resolved, cached: true, cacheSource: "memory" };
+      }
+      const alreadyInFlight = this.searchPlanInFlight.get(inFlightKey);
+      if (alreadyInFlight) {
+        console.info("knowledge_plan_cache", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          cacheKey,
+          cache: "in-flight-hit",
+        });
+        return {
+          ...(await awaitSharedRequest(alreadyInFlight, options.signal)),
+          shared: true,
+        };
+      }
+      const cached = options.forceRefresh === true
+        ? null
+        : await this.readCache("search-plan", cacheKey, config.plannerSignature);
+      const startedWhileReadingCache = this.searchPlanInFlight.get(inFlightKey);
+      if (startedWhileReadingCache) {
+        return {
+          ...(await awaitSharedRequest(startedWhileReadingCache, options.signal)),
+          shared: true,
+        };
+      }
+      if (cached) {
+        const result = {
+          plan: this.validateSearchPlan({ ok: true, plan: cached, configurationSignature: config.plannerSignature }, config.plannerSignature),
+          cached: true,
+          cacheSource: "workspace",
+        };
+        this.resolvedSearchPlans.set(inFlightKey, result);
+        console.info("knowledge_plan_cache", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          cacheKey,
+          cache: "workspace-hit",
+        });
+        return result;
+      }
+      console.info("knowledge_plan_cache", {
+        workflowId: callContext.workflowId,
+        callRole: callContext.callRole,
+        cacheKey,
+        cache: "miss",
+      });
+      const sharedRequest = (async () => {
+        const response = await this.cloudApi.planKnowledgeSearch({
+          query,
+          intent,
+          callContext,
+        });
+        const plan = this.validateSearchPlan(response, config.plannerSignature);
+        const result = {
+          plan,
+          cached: false,
+          usage: response.usage || null,
+          attempts: response.attempts || null,
+          cacheKey,
+        };
+        this.resolvedSearchPlans.set(inFlightKey, result);
+        result.persisted = await this.writeCache(
+          "search-plan",
+          cacheKey,
+          config.plannerSignature,
+          plan
+        );
+        return result;
+      })();
+      this.searchPlanInFlight.set(inFlightKey, sharedRequest);
+      void sharedRequest.finally(() => {
+        if (this.searchPlanInFlight.get(inFlightKey) === sharedRequest) {
+          this.searchPlanInFlight.delete(inFlightKey);
+        }
+      }).catch(() => {});
+      return awaitSharedRequest(sharedRequest, options.signal);
+    }
+
+    validateSharedCorpusPlan(record, query, intent, config = null) {
+      if (!record || typeof record !== "object" || Array.isArray(record)) return null;
+      const normalizedQuery = normalizePlannerIdentityText(query);
+      const normalizedIntent = normalizePlannerIntent(intent);
+      const validStatus = ["ready", "local-fallback"].includes(record.status);
+      const safeKeys = [
+        "recordVersion",
+        "status",
+        "cacheKey",
+        "normalizedQuery",
+        "normalizedIntent",
+        "configurationSignature",
+        "rerankerConfigurationSignature",
+        "schemaVersion",
+        "promptVersion",
+        "rerankPromptVersion",
+        "queries",
+        "identifiers",
+        "sourceLanguage",
+        "crossLanguage",
+        "scientificDimensions",
+        "useOriginalQuery",
+        "fallbackReason",
+        "createdAt",
+      ];
+      if (
+        Object.keys(record).some((key) => !safeKeys.includes(key)) ||
+        Number(record.recordVersion) !== CORPUS_SHARED_PLAN_VERSION ||
+        record.normalizedQuery !== normalizedQuery ||
+        record.normalizedIntent !== normalizedIntent ||
+        Number(record.schemaVersion) !== CLOUD_RETRIEVAL.schemaVersion ||
+        record.promptVersion !== CLOUD_RETRIEVAL.searchPlanPromptVersion ||
+        !validStatus ||
+        !Array.isArray(record.queries) ||
+        !Array.isArray(record.identifiers) ||
+        !Array.isArray(record.scientificDimensions) ||
+        record.queries.length > RETRIEVAL_LIMITS.resultMaximum ||
+        record.identifiers.length > RETRIEVAL_LIMITS.resultMaximum ||
+        record.scientificDimensions.length > RETRIEVAL_LIMITS.resultMaximum ||
+        record.queries.some((value) => typeof value !== "string" || !value.trim() || value.length > RETRIEVAL_LIMITS.outputTextCharacters) ||
+        record.identifiers.some((value) => typeof value !== "string" || !value.trim() || value.length > RETRIEVAL_LIMITS.paperIdCharacters) ||
+        record.scientificDimensions.some((value) => typeof value !== "string" || !value.trim() || value.length > RETRIEVAL_LIMITS.outputTextCharacters) ||
+        typeof record.sourceLanguage !== "string" ||
+        !record.sourceLanguage.trim() ||
+        record.sourceLanguage.length > RETRIEVAL_LIMITS.paperIdCharacters ||
+        typeof record.crossLanguage !== "boolean" ||
+        typeof record.useOriginalQuery !== "boolean" ||
+        typeof record.configurationSignature !== "string" ||
+        typeof record.rerankerConfigurationSignature !== "string" ||
+        (record.status === "ready" &&
+          (!/^[a-f0-9]{64}$/.test(record.configurationSignature) ||
+            !/^[a-f0-9]{64}$/.test(record.rerankerConfigurationSignature))) ||
+        typeof record.rerankPromptVersion !== "string" ||
+        record.rerankPromptVersion !== CLOUD_RETRIEVAL.rerankPromptVersion ||
+        typeof record.fallbackReason !== "string" ||
+        record.fallbackReason.length > 120 ||
+        typeof record.createdAt !== "string" ||
+        !record.createdAt ||
+        record.createdAt.length > 100 ||
+        typeof record.cacheKey !== "string" ||
+        !/^[a-f0-9]{16,64}$/.test(record.cacheKey)
+      ) return null;
+      if (config && (
+        record.configurationSignature !== config.plannerSignature ||
+        record.rerankerConfigurationSignature !== config.rerankerSignature ||
+        record.rerankPromptVersion !== config.rerankPromptVersion
+      )) return null;
+      return freezeSharedCorpusPlan(Object.fromEntries(
+        safeKeys.map((key) => [key, record[key]])
+      ));
+    }
+
+    async createLocalCorpusFallbackPlan(query, intent, config = null, reason = "planner-unavailable") {
+      const identity = createSearchPlanCacheIdentity(
+        query,
+        intent,
+        config?.plannerSignature || "local-fallback"
+      );
+      const cacheKey = await hashText(stableJson(identity), this.cryptoProvider);
+      const normalized = corpusQueriesFromPlan(query, { queries: [] });
+      return freezeSharedCorpusPlan({
+        recordVersion: CORPUS_SHARED_PLAN_VERSION,
+        status: "local-fallback",
+        cacheKey,
+        normalizedQuery: identity.normalizedQuery,
+        normalizedIntent: identity.retrievalIntent,
+        configurationSignature: config?.plannerSignature || "",
+        rerankerConfigurationSignature: config?.rerankerSignature || "",
         schemaVersion: CLOUD_RETRIEVAL.schemaVersion,
         promptVersion: CLOUD_RETRIEVAL.searchPlanPromptVersion,
-      };
-      const cacheKey = await hashText(stableJson(identity), this.cryptoProvider);
-      const cached = await this.readCache("search-plan", cacheKey, config.plannerSignature);
-      if (cached) return { plan: this.validateSearchPlan({ ok: true, plan: cached, configurationSignature: config.plannerSignature }, config.plannerSignature), cached: true };
-      const response = await this.cloudApi.planKnowledgeSearch({ query, intent }, options.signal);
-      const plan = this.validateSearchPlan(response, config.plannerSignature);
-      await this.writeCache("search-plan", cacheKey, config.plannerSignature, plan);
-      return { plan, cached: false, usage: response.usage || null, attempts: response.attempts || null };
+        rerankPromptVersion: CLOUD_RETRIEVAL.rerankPromptVersion,
+        queries: normalized.queries.length ? normalized.queries : [identity.normalizedQuery],
+        identifiers: [],
+        sourceLanguage: /[\u3400-\u9fff]/u.test(query) ? "zh" : "en",
+        crossLanguage: /[^\x00-\x7f]/u.test(query),
+        scientificDimensions: normalized.generic ? [...CORPUS_SCIENTIFIC_DIMENSIONS] : [],
+        useOriginalQuery: !normalized.generic,
+        fallbackReason: String(reason || "planner-unavailable").slice(0, 120),
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    async prepareCorpusSearchPlan(query, intent, options = {}) {
+      const normalizedQuery = normalizePlannerIdentityText(query);
+      const normalizedIntent = normalizePlannerIntent(intent);
+      if (!normalizedQuery || !normalizedIntent) {
+        throw new KnowledgeServiceError(
+          "INVALID_RETRIEVAL_INPUT",
+          "Corpus planning requires a normalized question and intent."
+        );
+      }
+      const callContext = normalizeCallContext(options.callContext, "search_planner");
+      const persisted = options.forceRefresh === true
+        ? null
+        : this.validateSharedCorpusPlan(options.persistedPlan, query, intent);
+      if (persisted?.status === "local-fallback") {
+        console.info("corpus_shared_plan", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          cacheKey: persisted.cacheKey,
+          state: "workflow-fallback-reuse",
+        });
+        return persisted;
+      }
+
+      let config;
+      try {
+        config = this.validateCloudConfig(
+          await this.cloudApi.getKnowledgeRetrievalConfig(options.signal)
+        );
+      } catch (error) {
+        if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") {
+          throw error?.code === "OPERATION_ABORTED" ? error : operationAbortedError();
+        }
+        return this.createLocalCorpusFallbackPlan(
+          query,
+          intent,
+          null,
+          error?.code || error?.name || "configuration-unavailable"
+        );
+      }
+
+      const compatiblePersisted = persisted
+        ? this.validateSharedCorpusPlan(persisted, query, intent, config)
+        : null;
+      if (compatiblePersisted) {
+        console.info("corpus_shared_plan", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          cacheKey: compatiblePersisted.cacheKey,
+          state: "workflow-plan-reuse",
+        });
+        return compatiblePersisted;
+      }
+
+      try {
+        const planned = await this.getSearchPlan(query, intent, {
+          signal: options.signal,
+          callContext,
+          forceRefresh: options.forceRefresh === true,
+        }, config);
+        const normalized = corpusQueriesFromPlan(query, planned.plan);
+        const identity = createSearchPlanCacheIdentity(
+          query,
+          intent,
+          config.plannerSignature
+        );
+        const cacheKey = planned.cacheKey || await hashText(
+          stableJson(identity),
+          this.cryptoProvider
+        );
+        const record = freezeSharedCorpusPlan({
+          recordVersion: CORPUS_SHARED_PLAN_VERSION,
+          status: "ready",
+          cacheKey,
+          normalizedQuery: identity.normalizedQuery,
+          normalizedIntent: identity.retrievalIntent,
+          configurationSignature: config.plannerSignature,
+          rerankerConfigurationSignature: config.rerankerSignature,
+          schemaVersion: config.schemaVersion,
+          promptVersion: config.searchPlanPromptVersion,
+          rerankPromptVersion: config.rerankPromptVersion,
+          queries: normalized.queries,
+          identifiers: normalized.generic
+            ? []
+            : boundedUniqueStrings(
+                planned.plan.identifiers,
+                RETRIEVAL_LIMITS.resultMaximum,
+                RETRIEVAL_LIMITS.paperIdCharacters
+              ),
+          sourceLanguage: planned.plan.sourceLanguage,
+          crossLanguage: /[^\x00-\x7f]/u.test(query),
+          scientificDimensions: normalized.generic ? [...CORPUS_SCIENTIFIC_DIMENSIONS] : [],
+          useOriginalQuery: !normalized.generic,
+          fallbackReason: "",
+          createdAt: new Date().toISOString(),
+        });
+        console.info("corpus_shared_plan", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          cacheKey,
+          state: planned.cached ? "planner-cache-hit" : "planner-created",
+        });
+        return record;
+      } catch (error) {
+        if (error?.code === "OPERATION_ABORTED") throw error;
+        console.info("corpus_shared_plan", {
+          workflowId: callContext.workflowId,
+          callRole: callContext.callRole,
+          state: "local-fallback",
+          code: String(error?.code || error?.name || "PLANNER_FAILED").slice(0, 120),
+        });
+        return this.createLocalCorpusFallbackPlan(
+          query,
+          intent,
+          config,
+          error?.code || error?.name || "planner-failed"
+        );
+      }
     }
 
     async fuseLexicalQueries(queries, options) {
@@ -785,6 +1240,7 @@
         query,
         intent,
         candidates: submitted.map((candidate) => candidate.cloud),
+        callContext: normalizeCallContext(options.callContext, "reranker"),
       }, options.signal);
       const ranked = this.validateRanking(response, config.rerankerSignature, submitted);
       await this.writeCache("rerank", cacheKey, config.rerankerSignature, ranked);
@@ -804,13 +1260,46 @@
         );
       }
       const diagnostics = { mode: "deep", planner: null, reranker: null };
+      const sharedPlanQuery = String(options.sharedPlanQuery || query);
+      const sharedCorpusPlan = options.sharedRetrievalPlan
+        ? this.validateSharedCorpusPlan(
+            options.sharedRetrievalPlan,
+            sharedPlanQuery,
+            intent
+          )
+        : null;
+      if (options.sharedRetrievalPlan && !sharedCorpusPlan) {
+        throw new KnowledgeServiceError(
+          "INVALID_SHARED_CORPUS_PLAN",
+          "The shared corpus retrieval plan is invalid or belongs to another question."
+        );
+      }
       let config;
       try {
-        if (!this.cloudApi?.getKnowledgeRetrievalConfig || !this.cloudApi?.planKnowledgeSearch || !this.cloudApi?.rerankKnowledgeCandidates) {
+        if (
+          !sharedCorpusPlan &&
+          (!this.cloudApi?.getKnowledgeRetrievalConfig ||
+            !this.cloudApi?.planKnowledgeSearch ||
+            !this.cloudApi?.rerankKnowledgeCandidates)
+        ) {
           throw new KnowledgeServiceError("CLOUD_RETRIEVAL_UNAVAILABLE", "The authenticated Function Compute retrieval client is unavailable.");
         }
-        config = this.validateCloudConfig(await this.cloudApi.getKnowledgeRetrievalConfig(options.signal));
+        config = sharedCorpusPlan?.status === "ready"
+          ? this.validateCloudConfig({
+              ok: true,
+              schemaVersion: sharedCorpusPlan.schemaVersion,
+              searchPlanPromptVersion: sharedCorpusPlan.promptVersion,
+              rerankPromptVersion: sharedCorpusPlan.rerankPromptVersion,
+              plannerSignature: sharedCorpusPlan.configurationSignature,
+              rerankerSignature: sharedCorpusPlan.rerankerConfigurationSignature,
+            })
+          : sharedCorpusPlan
+            ? null
+            : this.validateCloudConfig(await this.cloudApi.getKnowledgeRetrievalConfig(options.signal));
       } catch (error) {
+        if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") {
+          throw error?.code === "OPERATION_ABORTED" ? error : operationAbortedError();
+        }
         this.emit({ stage: "retrieval-local-fallback" });
         const local = await this.searchLocal(query, { ...options, mode: "fast" });
         return {
@@ -828,19 +1317,36 @@
 
       let plan = null;
       try {
-        this.emit({ stage: "planning-expanded-queries" });
-        const planned = await this.getSearchPlan(query, intent, options, config);
-        plan = planned.plan;
-        if (planned.cached) this.emit({ stage: "retrieval-cache-hit" });
-        diagnostics.planner = {
-          status: "succeeded",
-          cached: planned.cached,
-          sourceLanguage: plan.sourceLanguage,
-          reasoningSummary: plan.reasoningSummary,
-          usage: planned.usage || null,
-          attempts: planned.attempts || null,
-        };
+        if (sharedCorpusPlan) {
+          plan = {
+            queries: [...sharedCorpusPlan.queries],
+            identifiers: [...sharedCorpusPlan.identifiers],
+            sourceLanguage: sharedCorpusPlan.sourceLanguage,
+            reasoningSummary: "Validated workflow-shared corpus retrieval plan.",
+          };
+          diagnostics.planner = {
+            status: sharedCorpusPlan.status,
+            cached: true,
+            shared: true,
+            cacheKey: sharedCorpusPlan.cacheKey,
+            sourceLanguage: sharedCorpusPlan.sourceLanguage,
+          };
+        } else {
+          this.emit({ stage: "planning-expanded-queries" });
+          const planned = await this.getSearchPlan(query, intent, options, config);
+          plan = planned.plan;
+          if (planned.cached) this.emit({ stage: "retrieval-cache-hit" });
+          diagnostics.planner = {
+            status: "succeeded",
+            cached: planned.cached,
+            sourceLanguage: plan.sourceLanguage,
+            reasoningSummary: plan.reasoningSummary,
+            usage: planned.usage || null,
+            attempts: planned.attempts || null,
+          };
+        }
       } catch (error) {
+        if (error?.code === "OPERATION_ABORTED") throw error;
         this.emit({ stage: "retrieval-local-fallback" });
         diagnostics.planner = {
           status: "failed",
@@ -850,13 +1356,29 @@
 
       const searchQueries = [];
       const seenQueries = new Set();
-      for (const value of [query, ...(plan?.queries || []), ...(plan?.identifiers || [])]) {
+      for (const value of [
+        ...(sharedCorpusPlan?.useOriginalQuery === false ? [] : [query]),
+        ...(plan?.queries || []),
+        ...(plan?.identifiers || []),
+      ]) {
         const candidate = String(value || "").trim();
         if (!candidate || seenQueries.has(candidate)) continue;
         seenQueries.add(candidate);
         searchQueries.push(candidate);
       }
       const fused = await this.fuseLexicalQueries(searchQueries, options);
+      if (sharedCorpusPlan?.status === "local-fallback") {
+        return {
+          mode: "deep",
+          collections: options.collections || [],
+          results: fused.slice(0, limit).map((entry) => entry.result),
+          diagnostics: {
+            ...diagnostics,
+            fallback: "local-lexical-fusion",
+            reranker: { status: "not-attempted", reason: "workflow-planner-fallback" },
+          },
+        };
+      }
       const built = await this.buildCloudCandidates(fused, query, intent);
       if (!built.submitted.length) {
         return {
@@ -906,6 +1428,9 @@
           diagnostics,
         };
       } catch (error) {
+        if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") {
+          throw error?.code === "OPERATION_ABORTED" ? error : operationAbortedError();
+        }
         this.emit({ stage: "retrieval-local-fallback" });
         return {
           mode: "deep",
@@ -1004,6 +1529,8 @@
       this.available = false;
       this.stopProgress?.();
       this.stopProgress = null;
+      this.searchPlanInFlight.clear();
+      this.resolvedSearchPlans.clear();
       this.listeners.clear();
     }
   }
@@ -1020,6 +1547,11 @@
     KnowledgeServiceError,
     ElectronQmdKnowledgeService,
     LocalQmdKnowledgeService,
+    CORPUS_SHARED_PLAN_VERSION,
+    CORPUS_SCIENTIFIC_DIMENSIONS,
+    createSearchPlanCacheIdentity,
+    isGenericCorpusReviewQuestion,
+    normalizeCallContext,
     createKnowledgeService,
   };
 });

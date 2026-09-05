@@ -2,6 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { webcrypto } = require("node:crypto");
 
 const {
   SourceRegistry,
@@ -17,7 +18,14 @@ const {
   TOOL_EFFECTS,
   ToolEffect,
   authorizeTool,
+  paperCardCacheKey,
 } = require("../../docs/source-system.js");
+const {
+  ElectronQmdKnowledgeService,
+} = require("../../docs/knowledge-service.js");
+const {
+  CLOUD_RETRIEVAL,
+} = require("../../shared/retrieval-contract.js");
 const {
   ProjectContextService,
   detectCorpusWideLiteratureIntent,
@@ -122,6 +130,7 @@ async function makeSystem(workspace, options = {}) {
     preparation,
     results,
     nativePdfAnalyzer: options.nativePdfAnalyzer,
+    knowledgeService: options.knowledgeService,
   });
   const experimentTools = new ExperimentTools({ registry, preparation, results });
   const corpusWorkflows = new CorpusWorkflowService({
@@ -133,6 +142,7 @@ async function makeSystem(workspace, options = {}) {
     mapWorker: options.mapWorker,
     fallbackMapWorker: options.fallbackMapWorker,
     nativePdfAnalyzer: options.nativePdfAnalyzer,
+    knowledgeService: options.knowledgeService,
     mapAttempts: options.mapAttempts,
   });
   return {
@@ -206,6 +216,262 @@ function validMapFor(input, theme = "recovered theme") {
     limitations: [],
     connectionsToOtherTopics: [],
   };
+}
+
+const FC_ROUTES = Object.freeze({
+  config: "/api/knowledge/config",
+  plan: "/api/knowledge/plan-search",
+  rerank: "/api/knowledge/rerank",
+  map: "/api/corpus/map-paper",
+  summarize: "/api/literature/summarize-chunk",
+  paperCardSynthesize: "/api/literature/synthesize",
+  nativePdf: "/api/literature/analyze-pdf-native",
+  global: "final/global synthesis or answer",
+});
+
+function makeRouteCounters() {
+  const counts = Object.fromEntries(Object.values(FC_ROUTES).map((route) => [route, 0]));
+  return {
+    counts,
+    hit(route) {
+      assert.ok(Object.hasOwn(counts, route), `Unknown FC test route: ${route}`);
+      counts[route] += 1;
+    },
+    reset() {
+      for (const route of Object.keys(counts)) counts[route] = 0;
+    },
+  };
+}
+
+function assertRouteCounts(counters, expected) {
+  assert.deepEqual(counters.counts, {
+    [FC_ROUTES.config]: expected.config || 0,
+    [FC_ROUTES.plan]: expected.plan || 0,
+    [FC_ROUTES.rerank]: expected.rerank || 0,
+    [FC_ROUTES.map]: expected.map || 0,
+    [FC_ROUTES.summarize]: expected.summarize || 0,
+    [FC_ROUTES.paperCardSynthesize]: expected.paperCardSynthesize || 0,
+    [FC_ROUTES.nativePdf]: expected.nativePdf || 0,
+    [FC_ROUTES.global]: expected.global || 0,
+  });
+}
+
+function validCanonicalPaperCard(source, contentHash) {
+  const descriptor = {
+    contentHash,
+    schemaVersion: 1,
+    model: "paper-card-test-model",
+    promptVersion: 1,
+  };
+  const finding = `EctD finding from ${source.displayName}.`;
+  return {
+    schemaVersion: 1,
+    paperCardVersion: 1,
+    paperId: source.sourceId,
+    documentId: source.sourceId,
+    fileName: source.displayName,
+    generatedAt: "2026-09-04T00:00:00.000Z",
+    source: {
+      filename: source.displayName,
+      relativePath: source.path,
+      hash: contentHash,
+    },
+    model: descriptor.model,
+    promptVersion: descriptor.promptVersion,
+    cacheKey: paperCardCacheKey(descriptor),
+    title: `Card for ${source.displayName}`,
+    authors: ["Test Author"],
+    year: 2026,
+    abstractSummary: "",
+    researchQuestion: "What did this paper report?",
+    mainFindings: [finding],
+    methods: ["bounded local analysis"],
+    methodsSummary: "",
+    organisms: [],
+    genes: ["ectD"],
+    proteins: ["EctD"],
+    pathways: [],
+    metabolites: [],
+    experimentalConditions: [],
+    measurements: [],
+    importantResults: [finding],
+    limitations: [],
+    keywords: ["EctD"],
+    topics: ["enzyme analysis"],
+    shortSummary: finding,
+    summary: finding,
+    keyResults: [finding],
+    mainConclusion: finding,
+  };
+}
+
+function paperCardGenerator(workspace, counters) {
+  return async ({ source, contentHash }) => {
+    counters?.hit(FC_ROUTES.summarize);
+    counters?.hit(FC_ROUTES.paperCardSynthesize);
+    const card = validCanonicalPaperCard(source, contentHash);
+    const path = `.biodesign/literature/summaries/${source.sourceId}.json`;
+    await workspace.writeJson(path, card);
+    return {
+      path,
+      card,
+      schemaVersion: 1,
+      model: card.model,
+      promptVersion: card.promptVersion,
+      contentHash,
+    };
+  };
+}
+
+async function makeRouteCountedDeepKnowledgeService(workspace, counters, trace) {
+  const plannerSignature = "a".repeat(64);
+  const rerankerSignature = "b".repeat(64);
+  const desktop = {
+    knowledge: {
+      onProgress: () => () => {},
+      initialize: async () => ({ available: true }),
+      search: async (payload) => {
+        trace.localSearches.push(clone(payload));
+        return {
+          mode: "fast",
+          diagnostics: { mode: "fast" },
+          results: (payload.paperIds || []).map((paperId) => ({
+            paperId,
+            title: paperId,
+            score: 1,
+            matchedSections: [{
+              snippet: `Page 1 EctD finding from ${paperId}.`,
+              qmdDoc: `${paperId}-P1-C1`,
+              score: 1,
+            }],
+          })),
+        };
+      },
+      update: async () => ({}),
+      embed: async () => [],
+      status: async () => ({ available: true }),
+      document: async () => null,
+    },
+  };
+  const service = new ElectronQmdKnowledgeService({
+    desktop,
+    workspace,
+    cryptoProvider: webcrypto,
+    cloudApi: {
+      async getKnowledgeRetrievalConfig() {
+        counters.hit(FC_ROUTES.config);
+        return {
+          ok: true,
+          schemaVersion: CLOUD_RETRIEVAL.schemaVersion,
+          searchPlanPromptVersion: CLOUD_RETRIEVAL.searchPlanPromptVersion,
+          rerankPromptVersion: CLOUD_RETRIEVAL.rerankPromptVersion,
+          plannerSignature,
+          rerankerSignature,
+        };
+      },
+      async planKnowledgeSearch(payload) {
+        counters.hit(FC_ROUTES.plan);
+        trace.plannerPayloads.push(clone(payload));
+        await new Promise((resolve) => setTimeout(resolve, trace.plannerDelayMs));
+        if (trace.failPlanner) throw new Error("controlled planner outage");
+        return {
+          ok: true,
+          configurationSignature: plannerSignature,
+          plan: {
+            queries: [],
+            identifiers: [],
+            sourceLanguage: /[\u3400-\u9fff]/u.test(payload.query) ? "zh" : "en",
+            reasoningSummary: "The common corpus question needs no expansion.",
+          },
+        };
+      },
+      async rerankKnowledgeCandidates(payload) {
+        counters.hit(FC_ROUTES.rerank);
+        trace.rerankPayloads.push(clone(payload));
+        return {
+          ok: true,
+          configurationSignature: rerankerSignature,
+          ranked: payload.candidates.map((candidate) => ({
+            candidateId: candidate.candidateId,
+            score: 1,
+            reason: "Paper-scoped evidence.",
+          })),
+        };
+      },
+    },
+  });
+  await service.initialize({ workspaceId: "corpus-route-counter-test" });
+  return service;
+}
+
+async function createCorpusScenario(paperCount, cardIndexes = [], options = {}) {
+  const workspace = new MemoryWorkspace();
+  for (let index = 0; index < paperCount; index += 1) {
+    workspace.setFile(
+      `literature/paper-${index + 1}.pdf`,
+      `EctD finding from paper-${index + 1}.pdf.`,
+      1000
+    );
+  }
+  const counters = makeRouteCounters();
+  const trace = {
+    failPlanner: options.failPlanner === true,
+    plannerDelayMs: Math.max(0, Number(options.plannerDelayMs) || 5),
+    plannerPayloads: [],
+    rerankPayloads: [],
+    localSearches: [],
+    retrievalOperations: [],
+    mapperInputs: [],
+    mapperOptions: [],
+  };
+  const knowledgeService = await makeRouteCountedDeepKnowledgeService(
+    workspace,
+    counters,
+    trace
+  );
+  const system = await makeSystem(workspace, {
+    knowledgeService,
+    generatePaperCard: paperCardGenerator(workspace, counters),
+    async mapWorker(input, workerOptions) {
+      counters.hit(FC_ROUTES.map);
+      trace.mapperInputs.push(clone(input));
+      trace.mapperOptions.push(clone({
+        attempt: workerOptions?.attempt,
+        turnId: workerOptions?.turnId,
+        workflowId: workerOptions?.workflowId,
+        paperId: workerOptions?.paperId,
+        profile: workerOptions?.profile,
+      }));
+      return validMapFor(input, "provider-mapped");
+    },
+    nativePdfAnalyzer: {
+      async analyze() {
+        counters.hit(FC_ROUTES.nativePdf);
+        throw new Error("Native PDF must not be called by this fixture.");
+      },
+    },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperIds = system.registry.list({ sourceKind: "paper" }).map((source) => source.sourceId);
+  for (const index of cardIndexes) {
+    await system.preparation.ensureSourceReady([paperIds[index]], "paper_card");
+  }
+  const searchPaperContent = system.literatureTools.searchPaperContent.bind(
+    system.literatureTools
+  );
+  system.literatureTools.searchPaperContent = async (paperId, query, searchOptions) => {
+    trace.retrievalOperations.push({
+      paperId,
+      query,
+      paperIds: [paperId],
+      sharedPlanCacheKey: searchOptions?.sharedRetrievalPlan?.cacheKey || "",
+      sharedPlan: searchOptions?.sharedRetrievalPlan || null,
+      callContext: clone(searchOptions?.callContext || {}),
+    });
+    return searchPaperContent(paperId, query, searchOptions);
+  };
+  counters.reset();
+  return { workspace, counters, knowledgeService, system, paperIds, trace };
 }
 
 function invalidMapperError() {
@@ -956,6 +1222,418 @@ test("TEST I: a paper without a Paper Card still participates in corpus analysis
   assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 1);
   assert.equal(journal.maps[sourceId].usedPaperCard, false);
   assert.equal(system.registry.get(sourceId).paperCardStatus, "absent");
+});
+
+test("all-uncached corpus shares one planner while retaining scoped rerank and mapper calls", async () => {
+  const { counters, system, paperIds, trace } = await createCorpusScenario(4);
+  const result = await system.corpusWorkflows.run(
+    "Compare all papers in the corpus",
+    { retrievalProfile: "high", mapConcurrency: 2, turnId: "turn-corpus-4" }
+  );
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 4);
+  assert.ok(Object.values(journal.maps).every((mapped) =>
+    mapped.generationMode === "structured-map"
+  ));
+  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 4, map: 4 });
+  assert.deepEqual(
+    trace.retrievalOperations.map((operation) => operation.paperId).sort(),
+    [...paperIds].sort()
+  );
+  assert.equal(
+    new Set(trace.retrievalOperations.map((operation) => operation.sharedPlanCacheKey)).size,
+    1
+  );
+  assert.ok(trace.retrievalOperations.every((operation) =>
+    operation.paperIds.length === 1 && operation.paperIds[0] === operation.paperId
+  ));
+  assert.ok(trace.plannerPayloads.every((payload) =>
+    payload.callContext.callRole === "search_planner" &&
+    payload.callContext.turnId === "turn-corpus-4"
+  ));
+  assert.ok(trace.rerankPayloads.every((payload) =>
+    payload.callContext.callRole === "reranker" &&
+    paperIds.includes(payload.callContext.paperId)
+  ));
+  assert.ok(trace.mapperOptions.every((worker) =>
+    worker.workflowId === journal.workflowId &&
+    worker.paperId &&
+    worker.profile === "high"
+  ));
+});
+
+test("32-paper multilingual corpus plans once before concurrency-2 paper retrieval and mapping", async () => {
+  const { counters, system, paperIds, trace } = await createCorpusScenario(32);
+  const progress = [];
+  const question = "帮我总结所有文献，写一个综述。";
+  const result = await system.corpusWorkflows.run(question, {
+    retrievalProfile: "high",
+    mapConcurrency: 2,
+    language: "zh",
+    turnId: "turn-corpus-32-zh",
+    onProgress: (event) => progress.push(clone(event)),
+  });
+  const journal = await resolveWorkflowResult(system, result);
+
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 32);
+  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 32, map: 32 });
+  assert.equal(trace.retrievalOperations.length, 32);
+  assert.deepEqual(
+    new Set(trace.retrievalOperations.map((operation) => operation.paperId)),
+    new Set(paperIds)
+  );
+  assert.equal(new Set(trace.retrievalOperations.map(
+    (operation) => operation.sharedPlanCacheKey
+  )).size, 1);
+  assert.ok(trace.retrievalOperations.every((operation) =>
+    operation.sharedPlan === trace.retrievalOperations[0].sharedPlan
+  ));
+  assert.ok(trace.localSearches.every((search) =>
+    search.paperIds.length === 1 && paperIds.includes(search.paperIds[0])
+  ));
+  assert.equal(journal.sharedRetrievalPlan.crossLanguage, true);
+  assert.equal(journal.sharedRetrievalPlan.sourceLanguage, "zh");
+  assert.deepEqual(
+    journal.sharedRetrievalPlan.scientificDimensions,
+    journal.sharedRetrievalPlan.queries
+  );
+  assert.doesNotMatch(
+    journal.sharedRetrievalPlan.queries.join(" "),
+    /literature review|systematic review|meta-analysis|文献综述|综述写作/iu
+  );
+  assert.equal(progress.filter((event) => event.stage === "corpus-plan").length, 1);
+  assert.equal(progress.filter((event) => event.stage === "corpus-plan-ready").length, 1);
+  assert.ok(
+    progress.findIndex((event) => event.stage === "corpus-plan-ready") <
+    progress.findIndex((event) => event.stage === "corpus-map")
+  );
+});
+
+test("planner cache persists across a compatible new corpus workflow", async () => {
+  const scenario = await createCorpusScenario(2);
+  const { workspace, counters, system, trace } = scenario;
+  const question = "Across all papers, compare EctD stability.";
+  await system.corpusWorkflows.run(question, {
+    retrievalProfile: "high",
+    mapConcurrency: 2,
+  });
+  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 2, map: 2 });
+
+  counters.reset();
+  trace.plannerPayloads.length = 0;
+  trace.rerankPayloads.length = 0;
+  trace.localSearches.length = 0;
+  trace.retrievalOperations.length = 0;
+  trace.mapperInputs.length = 0;
+  const restartedKnowledgeService = await makeRouteCountedDeepKnowledgeService(
+    workspace,
+    counters,
+    trace
+  );
+  system.literatureTools.knowledgeService = restartedKnowledgeService;
+  system.corpusWorkflows.knowledgeService = restartedKnowledgeService;
+  workspace.setFile("literature/paper-3.pdf", "EctD finding from paper-3.pdf.", 1000);
+  await system.registry.reconcile(treeFor(workspace));
+
+  const second = await system.corpusWorkflows.run(question, {
+    retrievalProfile: "high",
+    mapConcurrency: 2,
+  });
+  const secondJournal = await resolveWorkflowResult(system, second);
+  assert.equal(secondJournal.coverage.papersSuccessfullyAnalyzed, 3);
+  assertRouteCounts(counters, { config: 1, plan: 0, rerank: 1, map: 1 });
+  assert.equal(trace.plannerPayloads.length, 0);
+  assert.equal(trace.retrievalOperations.length, 1);
+});
+
+test("a resumed workflow validates and reuses its journaled shared plan", async () => {
+  const { workspace, counters, system, paperIds, trace } = await createCorpusScenario(2);
+  const question = "Summarize all papers about EctD.";
+  const first = await system.corpusWorkflows.run(question, {
+    retrievalProfile: "high",
+    mapConcurrency: 2,
+  });
+  const firstJournal = await resolveWorkflowResult(system, first);
+  const remapPaperId = paperIds[1];
+  const journalPath = `.biodesign/workflows/${firstJournal.workflowId}.json`;
+  const paused = await workspace.readJson(journalPath);
+  paused.status = "paused";
+  paused.phase = "map";
+  delete paused.maps[remapPaperId];
+  await workspace.writeJson(journalPath, paused);
+  for (const path of [...workspace.json.keys()]) {
+    if (path.includes(`/maps/${remapPaperId}/`)) workspace.json.delete(path);
+  }
+
+  counters.reset();
+  trace.plannerPayloads.length = 0;
+  trace.rerankPayloads.length = 0;
+  trace.retrievalOperations.length = 0;
+  trace.mapperInputs.length = 0;
+  const restartedKnowledgeService = await makeRouteCountedDeepKnowledgeService(
+    workspace,
+    counters,
+    trace
+  );
+  system.literatureTools.knowledgeService = restartedKnowledgeService;
+  const resumedCorpusWorkflows = new CorpusWorkflowService({
+    workspace,
+    registry: system.registry,
+    preparation: system.preparation,
+    literatureTools: system.literatureTools,
+    results: system.results,
+    mapWorker: async (input) => {
+      counters.hit(FC_ROUTES.map);
+      trace.mapperInputs.push(clone(input));
+      return validMapFor(input, "resumed-map");
+    },
+    knowledgeService: restartedKnowledgeService,
+  });
+  const resumed = await resumedCorpusWorkflows.run(question, {
+    workflowId: firstJournal.workflowId,
+    paperIds,
+    retrievalProfile: "high",
+    mapConcurrency: 2,
+  });
+  const resumedJournal = resumed.resultHandle
+    ? await system.results.read(resumed.resultHandle)
+    : resumed;
+
+  assert.equal(resumedJournal.coverage.papersSuccessfullyAnalyzed, 2);
+  assert.equal(resumedJournal.sharedRetrievalPlan.cacheKey, firstJournal.sharedRetrievalPlan.cacheKey);
+  assertRouteCounts(counters, { config: 1, plan: 0, rerank: 0, map: 1 });
+});
+
+test("materially different corpus questions receive different shared plans", async () => {
+  const { counters, system, trace } = await createCorpusScenario(2);
+  await system.corpusWorkflows.run("Summarize all papers.", {
+    retrievalProfile: "high",
+  });
+  const first = await system.corpusWorkflows.getWorkflowStatus("");
+  await system.corpusWorkflows.run(
+    "Across all papers, focus specifically on fermentation conditions.",
+    { retrievalProfile: "high" }
+  );
+  const second = await system.corpusWorkflows.getWorkflowStatus("");
+
+  assert.equal(counters.counts[FC_ROUTES.plan], 2);
+  assert.equal(trace.plannerPayloads.length, 2);
+  assert.notEqual(first.workflowId, second.workflowId);
+  assert.notEqual(
+    trace.plannerPayloads[0].query,
+    trace.plannerPayloads[1].query
+  );
+});
+
+test("planner failure occurs once at workflow scope and all papers use local fallback", async () => {
+  const { counters, system, trace } = await createCorpusScenario(4, [], {
+    failPlanner: true,
+  });
+  const result = await system.corpusWorkflows.run(
+    "帮我总结所有文献，写一个综述。",
+    { retrievalProfile: "high", mapConcurrency: 2 }
+  );
+  const journal = await resolveWorkflowResult(system, result);
+
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 4);
+  assert.equal(journal.sharedRetrievalPlan.status, "local-fallback");
+  assert.equal(trace.retrievalOperations.length, 4);
+  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 0, map: 4 });
+});
+
+test("shared planning never leaks one paper's evidence into another mapper", async () => {
+  const { system, paperIds, trace } = await createCorpusScenario(2);
+  await system.corpusWorkflows.run("Review all papers about EctD A163V.", {
+    retrievalProfile: "high",
+    mapConcurrency: 2,
+  });
+
+  for (const input of trace.mapperInputs) {
+    const otherPaperIds = paperIds.filter((paperId) => paperId !== input.paperId);
+    assert.ok(input.evidence.length > 0);
+    assert.ok(input.evidence.every((item) =>
+      item.evidenceRef.startsWith(`${input.paperId}:`) &&
+      !otherPaperIds.some((paperId) => item.claimCandidate.includes(paperId))
+    ));
+  }
+});
+
+test("cancelling one shared-plan consumer does not cancel the workflow plan", async () => {
+  let plannerCalls = 0;
+  let releasePlan;
+  const plan = {
+    recordVersion: 1,
+    status: "ready",
+    cacheKey: "a".repeat(64),
+    normalizedQuery: "Summarize all papers.",
+    normalizedIntent: "corpus scientific evidence extraction",
+    configurationSignature: "b".repeat(64),
+    rerankerConfigurationSignature: "c".repeat(64),
+    schemaVersion: CLOUD_RETRIEVAL.schemaVersion,
+    promptVersion: CLOUD_RETRIEVAL.searchPlanPromptVersion,
+    rerankPromptVersion: CLOUD_RETRIEVAL.rerankPromptVersion,
+    queries: ["major findings"],
+    identifiers: [],
+    sourceLanguage: "en",
+    crossLanguage: false,
+    scientificDimensions: ["major findings"],
+    useOriginalQuery: false,
+    fallbackReason: "",
+    createdAt: "2026-09-04T00:00:00.000Z",
+  };
+  const workflow = new CorpusWorkflowService({
+    workspace: new MemoryWorkspace(),
+    registry: {},
+    preparation: { results: {} },
+    literatureTools: {},
+    knowledgeService: {
+      available: true,
+      prepareCorpusSearchPlan() {
+        plannerCalls += 1;
+        return new Promise((resolve) => { releasePlan = () => resolve(plan); });
+      },
+    },
+  });
+  const journal = {
+    workflowId: "workflow-cancel-test",
+    question: "Summarize all papers.",
+    sharedRetrievalPlan: null,
+  };
+  const aborted = new AbortController();
+  const cancelled = workflow.getWorkflowSharedRetrievalPlan(journal, {
+    retrievalProfile: "high",
+    signal: aborted.signal,
+  });
+  const retained = workflow.getWorkflowSharedRetrievalPlan(journal, {
+    retrievalProfile: "high",
+  });
+  aborted.abort();
+  await assert.rejects(cancelled, (error) => error.code === "OPERATION_ABORTED");
+  assert.equal(workflow.workflowSharedPlanPromises.size, 1);
+  releasePlan();
+  assert.equal(await retained, plan);
+  assert.equal(plannerCalls, 1);
+  assert.equal(workflow.workflowSharedPlanPromises.size, 0);
+});
+
+test("all-Paper-Card corpus performs zero per-paper provider calls", async () => {
+  const { counters, system } = await createCorpusScenario(4, [0, 1, 2, 3]);
+  const progress = [];
+  const result = await system.corpusWorkflows.run(
+    "Compare all papers in the corpus",
+    {
+      retrievalProfile: "high",
+      mapConcurrency: 4,
+      onProgress: (event) => progress.push(event),
+    }
+  );
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 4);
+  assert.ok(Object.values(journal.maps).every((mapped) =>
+    mapped.generationMode === "paper-card-cache" &&
+    typeof mapped.paperCardContentIdentity === "string" &&
+    mapped.paperCardContentIdentity.length > 0
+  ));
+  assert.equal(
+    progress.filter((event) => event.stage === "paper-card-cache-hit").length,
+    4
+  );
+  assertRouteCounts(counters, {});
+});
+
+test("a changed valid Paper Card invalidates only its local card-derived map", async () => {
+  const { workspace, counters, system, paperIds } = await createCorpusScenario(1, [0]);
+  const question = "Compare all papers in the corpus";
+  const first = await system.corpusWorkflows.run(question, { retrievalProfile: "high" });
+  const firstJournal = first.resultHandle ? await system.results.read(first.resultHandle) : first;
+  const firstIdentity = firstJournal.maps[paperIds[0]].paperCardContentIdentity;
+
+  const source = system.registry.get(paperIds[0]);
+  const card = await workspace.readJson(source.artifacts.paperCard.path);
+  const changedFinding = "A corrected bounded finding already present in the Paper Card.";
+  card.mainFindings = [changedFinding];
+  card.importantResults = [changedFinding];
+  card.keyResults = [changedFinding];
+  card.shortSummary = changedFinding;
+  card.summary = changedFinding;
+  await workspace.writeJson(source.artifacts.paperCard.path, card);
+  counters.reset();
+
+  const second = await system.corpusWorkflows.run(question, { retrievalProfile: "high" });
+  const secondJournal = second.resultHandle ? await system.results.read(second.resultHandle) : second;
+  const remapped = secondJournal.maps[paperIds[0]];
+  assert.equal(remapped.generationMode, "paper-card-cache");
+  assert.notEqual(remapped.paperCardContentIdentity, firstIdentity);
+  assert.equal(remapped.findings[0].claim, changedFinding);
+  assertRouteCounts(counters, {});
+});
+
+test("mixed corpus uses Paper Cards locally and calls per-paper providers only for uncovered papers", async () => {
+  const { counters, system, paperIds } = await createCorpusScenario(4, [0, 2]);
+  const result = await system.corpusWorkflows.run(
+    "Compare all papers in the corpus",
+    { retrievalProfile: "high", mapConcurrency: 4 }
+  );
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.equal(journal.maps[paperIds[0]].generationMode, "paper-card-cache");
+  assert.equal(journal.maps[paperIds[2]].generationMode, "paper-card-cache");
+  assert.equal(journal.maps[paperIds[1]].generationMode, "structured-map");
+  assert.equal(journal.maps[paperIds[3]].generationMode, "structured-map");
+  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 2, map: 2 });
+});
+
+test("stale, missing, malformed, and content-mismatched Paper Cards use the existing provider path", async () => {
+  const { workspace, counters, system, paperIds } = await createCorpusScenario(
+    4,
+    [0, 1, 2, 3]
+  );
+  const stale = system.registry.get(paperIds[0]);
+  stale.paperCardStatus = "stale";
+
+  const missing = system.registry.get(paperIds[1]);
+  workspace.json.delete(missing.artifacts.paperCard.path);
+
+  const malformed = system.registry.get(paperIds[2]);
+  workspace.json.set(malformed.artifacts.paperCard.path, { schemaVersion: 1 });
+
+  const mismatched = system.registry.get(paperIds[3]);
+  const mismatchedCard = await workspace.readJson(mismatched.artifacts.paperCard.path);
+  mismatchedCard.source.hash = "sha256:older-source-revision";
+  await workspace.writeJson(mismatched.artifacts.paperCard.path, mismatchedCard);
+
+  const result = await system.corpusWorkflows.run(
+    "Compare all papers in the corpus",
+    { retrievalProfile: "high", mapConcurrency: 4 }
+  );
+  const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
+
+  assert.ok(Object.values(journal.maps).every((mapped) =>
+    mapped.generationMode === "structured-map"
+  ));
+  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 4, map: 4 });
+});
+
+test("an existing valid corpus map takes precedence over a newly available Paper Card", async () => {
+  const { counters, system, paperIds } = await createCorpusScenario(1);
+  const question = "Compare all papers in the corpus";
+  const first = await system.corpusWorkflows.run(question, {
+    retrievalProfile: "high",
+  });
+  const firstJournal = first.resultHandle ? await system.results.read(first.resultHandle) : first;
+  assert.equal(firstJournal.maps[paperIds[0]].generationMode, "structured-map");
+
+  await system.preparation.ensureSourceReady([paperIds[0]], "paper_card");
+  counters.reset();
+  const second = await system.corpusWorkflows.run(question, {
+    retrievalProfile: "high",
+  });
+  const secondJournal = second.resultHandle ? await system.results.read(second.resultHandle) : second;
+
+  assert.equal(secondJournal.maps[paperIds[0]].generationMode, "structured-map");
+  assertRouteCounts(counters, {});
 });
 
 test("corpus membership changes stale the old synthesis and reuse unchanged maps", async () => {

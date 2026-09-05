@@ -104,6 +104,78 @@ test("invalid local workspace context is ignored rather than trusted", () => {
   assert.equal(buildLocalWorkspaceContext(null), null);
 });
 
+test("host paper source IDs and bounded evidence survive FC sanitization as one readable catalog paper", () => {
+  const sourceId = "source-uuid-5";
+  const sanitized = sanitizeLocalWorkspaceContext({
+    scope: { type: "project", files: [] },
+    sourceMap: {
+      selectedPaperIds: [],
+      paperSources: [{
+        sourceId,
+        sourceKind: "paper",
+        path: "literature/paper-five.pdf",
+        displayName: "paper-five.pdf",
+        catalogStatus: "present",
+        parseStatus: "ready",
+        indexStatus: "ready",
+      }],
+    },
+    inventory: [{
+      paperId: sourceId,
+      sourceId,
+      sourceKind: "paper",
+      name: "paper-five.pdf",
+      relativePath: "literature/paper-five.pdf",
+      extension: "pdf",
+      processor: "pdf",
+    }],
+    files: [{
+      paperId: sourceId,
+      sourceId,
+      name: "paper-five.pdf",
+      relativePath: "literature/paper-five.pdf",
+      extension: "pdf",
+      analysisStatus: "processed",
+      evidenceType: "parsed-paper-evidence",
+      content: "Bounded evidence marker five.",
+    }],
+  });
+  assert.equal(sanitized.sourceMap.paperSources[0].sourceId, sourceId);
+  assert.equal(sanitized.inventory[0].sourceId, sourceId);
+  assert.equal(sanitized.files[0].sourceId, sourceId);
+
+  const knowledgeBase = createSideChatKnowledgeBase({
+    localWorkspaceContext: sanitized,
+  });
+  const search = JSON.parse(executeSideChatTool(
+    {
+      id: "search-five",
+      type: "function",
+      function: {
+        name: "search_papers",
+        arguments: JSON.stringify({ query: "marker five" }),
+      },
+    },
+    knowledgeBase
+  ));
+  assert.equal(search.results[0].paper_id, sourceId);
+  assert.equal(search.results[0].item_id, "local:1");
+  assert.equal(search.results[0].content_available, true);
+  const read = JSON.parse(executeSideChatTool(
+    {
+      id: "read-five",
+      type: "function",
+      function: {
+        name: "read_paper_evidence",
+        arguments: JSON.stringify({ item_id: search.results[0].item_id }),
+      },
+    },
+    knowledgeBase
+  ));
+  assert.equal(read.paper_id, sourceId);
+  assert.match(read.content, /Bounded evidence marker five/);
+});
+
 test("local workspace chat accepts 100 papers plus experiment evidence", () => {
   const paperIds = Array.from({ length: 100 }, (_, index) => `paper-${index + 1}`);
   const files = [
@@ -314,7 +386,10 @@ test("retrieval quality is a compact validated workspace setting, not a preload 
   assert.match(appSource, /ui:\s*\{[\s\S]*retrievalProfile,[\s\S]*\}/);
   assert.match(appSource, /surface:\s*"side_chat"[\s\S]*retrievalProfile,/);
   assert.match(appSource, /surface:\s*"agent_command"[\s\S]*retrievalProfile,/);
-  assert.doesNotMatch(preloadSource, /retrievalProfile|setRetrieval|providerConfig|setFeedURL/);
+  assert.doesNotMatch(
+    preloadSource,
+    /retrievalProfile|setRetrieval|providerConfig|setFeedURL|searchPlan|planner|rerank|cacheKey|promptVersion|providerEndpoint/i
+  );
   assert.doesNotMatch(appSource, /retrievalProfile\s*=\s*(?:response|reply|tool|model)/);
 });
 

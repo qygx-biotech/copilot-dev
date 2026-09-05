@@ -38,7 +38,7 @@
 
   const CLOUD_RETRIEVAL = Object.freeze({
     schemaVersion: 1,
-    searchPlanPromptVersion: "cloud-search-plan-v1",
+    searchPlanPromptVersion: "cloud-search-plan-v2",
     rerankPromptVersion: "cloud-rerank-v1",
     cacheDirectory: ".biodesign/cache/cloud-retrieval",
   });

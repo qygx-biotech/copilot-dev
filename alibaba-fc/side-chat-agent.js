@@ -15,6 +15,7 @@ const MAX_CATALOG_CHARACTERS = 60000;
 const MAX_DURABLE_PROJECT_CONTEXT_CHARACTERS = 24000;
 const AGENT_CONTEXT_CHARACTER_LIMIT = 220000;
 const KEEP_RECENT_TOOL_RESULTS = 3;
+const MAX_TOOL_CALL_ID_CHARACTERS = 160;
 const ToolEffect = Object.freeze({
   INFORMATIONAL: "informational",
   INTERNAL_STATE: "internal_state",
@@ -121,7 +122,7 @@ const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
     function: {
       name: "search_papers",
       description:
-        "Search prepared paper evidence and paper metadata in the current scope. Returns compact evidence previews and stable item IDs.",
+        "Search prepared paper evidence and paper metadata in the current hard scope. Each result includes paper_id, a canonical item_id, and content_available. Call read_paper_evidence only when content_available is true; inventory-only metadata is not original-paper evidence.",
       parameters: {
         type: "object",
         properties: {
@@ -138,7 +139,7 @@ const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
     function: {
       name: "read_paper_evidence",
       description:
-        "Read bounded original-paper evidence for one exact paper ID or catalog item ID. Paper Cards are routing aids and are not treated as the sole evidence for precise claims.",
+        "Read bounded original-paper evidence for one exact paper_id or readable item_id returned by search_papers. Do not call this for content_available=false results. Paper Cards and inventory metadata are routing aids, not original-paper evidence.",
       parameters: {
         type: "object",
         properties: {
@@ -342,6 +343,160 @@ function makeUniqueId(prefix, usedIds) {
   }
   usedIds.add(candidate);
   return candidate;
+}
+
+function paperSourceId(item) {
+  const sourceId = String(
+    item?.metadata?.sourceId || item?.metadata?.paperId || ""
+  ).trim();
+  return sourceId.slice(0, 120);
+}
+
+function isRegisteredPaperItem(item) {
+  if (!item || item.category !== "reference") return false;
+  const metadata = item.metadata || {};
+  const extension = String(
+    metadata.extension || String(item.path || "").split(".").at(-1) || ""
+  )
+    .replace(/^\./, "")
+    .toLowerCase();
+  return metadata.sourceKind === "paper" || (
+    Boolean(metadata.paperId || metadata.sourceId) &&
+    (metadata.processor === "pdf" || extension === "pdf")
+  );
+}
+
+function preferredPaperItem(items) {
+  return [...items].sort((left, right) =>
+    Number(Boolean(right.content)) - Number(Boolean(left.content)) ||
+    Number(right.source === "local-workspace") -
+      Number(left.source === "local-workspace") ||
+    String(left.id).localeCompare(String(right.id))
+  )[0] || null;
+}
+
+function addPaperAlias(map, alias, record) {
+  const normalized = String(alias || "").trim().slice(0, 160);
+  if (!normalized) return;
+  if (!map.has(normalized)) {
+    map.set(normalized, record);
+    return;
+  }
+  const existing = map.get(normalized);
+  if (existing && existing.paperId !== record.paperId) {
+    // An ambiguous alias is never resolved by choosing one paper implicitly.
+    map.set(normalized, null);
+  }
+}
+
+function createRequestScopedPaperLookup(items, sourceMap = {}) {
+  const catalogItems = Array.isArray(items) ? items : [];
+  const registrySourceIds = new Set();
+  const registryPapers = (Array.isArray(sourceMap.paperSources)
+    ? sourceMap.paperSources
+    : [])
+    .filter((source) => {
+      const sourceId = String(source?.sourceId || "").trim().slice(0, 120);
+      if (!isPlainObject(source) || !sourceId || registrySourceIds.has(sourceId)) {
+        return false;
+      }
+      registrySourceIds.add(sourceId);
+      return true;
+    })
+    .map((source) => ({
+      ...source,
+      sourceId: String(source.sourceId).trim().slice(0, 120),
+      path: normalizePath(source.path)
+    }));
+  const itemsByPath = new Map();
+  for (const item of catalogItems) {
+    const path = normalizePath(item.path);
+    if (!path) continue;
+    const matches = itemsByPath.get(path) || [];
+    matches.push(item);
+    itemsByPath.set(path, matches);
+  }
+
+  const records = [];
+  if (registryPapers.length) {
+    for (const source of registryPapers) {
+      const candidates = catalogItems.filter(
+        (item) => item.category === "reference" && paperSourceId(item) === source.sourceId
+      );
+      for (const item of itemsByPath.get(source.path) || []) {
+        if (item.category !== "reference") continue;
+        if (!candidates.includes(item)) candidates.push(item);
+      }
+      const canonical = preferredPaperItem(candidates);
+      const canonicalId = canonical?.id || `paper:${source.sourceId}`;
+      const item = {
+        ...(canonical || {
+          id: canonicalId,
+          name: String(source.displayName || source.path || "paper").slice(0, 180),
+          path: source.path,
+          category: "reference",
+          source: "source-registry",
+          status: source.indexStatus || source.catalogStatus || "discovered",
+          evidenceType: "inventory-only",
+          content: "",
+          metadata: {}
+        }),
+        metadata: {
+          ...(canonical?.metadata || {}),
+          ...source,
+          paperId: source.sourceId,
+          sourceId: source.sourceId
+        }
+      };
+      records.push({
+        paperId: source.sourceId,
+        itemId: canonicalId,
+        item,
+        contentAvailable: Boolean(item.content),
+        aliases: [
+          source.sourceId,
+          `paper:${source.sourceId}`,
+          canonicalId,
+          ...candidates.map((candidate) => candidate.id)
+        ]
+      });
+    }
+  } else {
+    for (const item of catalogItems.filter(isRegisteredPaperItem)) {
+      const sourceId = paperSourceId(item);
+      if (!sourceId) continue;
+      records.push({
+        paperId: sourceId,
+        itemId: item.id,
+        item: {
+          ...item,
+          metadata: {
+            ...item.metadata,
+            paperId: sourceId,
+            sourceId
+          }
+        },
+        contentAvailable: Boolean(item.content),
+        aliases: [sourceId, `paper:${sourceId}`, item.id]
+      });
+    }
+  }
+
+  const selectedPaperIds = new Set(
+    Array.isArray(sourceMap.selectedPaperIds)
+      ? sourceMap.selectedPaperIds.map((value) => String(value || "").trim())
+      : []
+  );
+  const allByAlias = new Map();
+  const byAlias = new Map();
+  const papers = [];
+  for (const record of records) {
+    for (const alias of record.aliases) addPaperAlias(allByAlias, alias, record);
+    if (selectedPaperIds.size && !selectedPaperIds.has(record.paperId)) continue;
+    papers.push(record);
+    for (const alias of record.aliases) addPaperAlias(byAlias, alias, record);
+  }
+  return { papers, allPapers: records, byAlias, allByAlias, selectedPaperIds };
 }
 
 function buildDurableProjectSystemMessage(workspaceContext = {}) {
@@ -654,13 +809,16 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
     }
   }
 
+  const sourceMap = isPlainObject(local?.sourceMap) ? local.sourceMap : {};
+  const paperLookup = createRequestScopedPaperLookup(items, sourceMap);
   return {
     items,
     itemsById,
+    paperLookup,
     projectContext,
     scope: local?.scope || null,
     notices: Array.isArray(local?.notices) ? local.notices.slice(0, 40) : [],
-    sourceMap: isPlainObject(local?.sourceMap) ? local.sourceMap : {},
+    sourceMap,
     literature: isPlainObject(local?.literature) ? local.literature : {},
     experiments: isPlainObject(local?.experiments) ? local.experiments : {},
     corpusWorkflowStatus: isPlainObject(local?.corpusWorkflowStatus)
@@ -688,6 +846,11 @@ function itemCatalogEntry(item) {
 
 function singleLineCatalogText(value, limit = 600) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function diagnosticIdentifier(value, limit) {
+  const identifier = singleLineCatalogText(value, limit);
+  return /[/\\]/.test(identifier) ? "[path-like-identifier]" : identifier;
 }
 
 function buildSideChatCatalog(knowledgeBase) {
@@ -926,119 +1089,185 @@ function sourceScopedItems(knowledgeBase, category, selectionKey) {
   );
 }
 
-function registeredPaperItems(knowledgeBase) {
-  const registryPapers = Array.isArray(knowledgeBase.sourceMap?.paperSources)
-    ? knowledgeBase.sourceMap.paperSources
-    : [];
-  const bySourceId = new Map(
-    knowledgeBase.items
-      .filter((item) => item.metadata?.sourceId || item.metadata?.paperId)
-      .map((item) => [item.metadata?.sourceId || item.metadata?.paperId, item])
-  );
-  const papers = registryPapers.length
-    ? registryPapers.map((source) => {
-        const existing = bySourceId.get(source.sourceId);
-        if (existing) {
-          return {
-            ...existing,
-            metadata: { ...existing.metadata, ...source }
-          };
-        }
-        return {
-          id: `paper:${String(source.sourceId || "").slice(0, 120)}`,
-          name: String(source.displayName || source.path || "paper").slice(0, 180),
-          path: normalizePath(source.path),
-          category: "reference",
-          source: "source-registry",
-          status: String(source.indexStatus || source.catalogStatus || "discovered").slice(0, 80),
-          evidenceType: "inventory-only",
-          content: "",
-          metadata: { ...source, paperId: source.sourceId }
-        };
-      })
-    : knowledgeBase.items.filter((item) => {
-        const metadata = item.metadata || {};
-        const extension = String(metadata.extension || item.path.split(".").at(-1) || "")
-          .replace(/^\./, "")
-          .toLowerCase();
-        return item.category === "reference" && (
-          metadata.sourceKind === "paper" ||
-          (Boolean(metadata.paperId || metadata.sourceId) &&
-            (metadata.processor === "pdf" || extension === "pdf"))
-        );
-      });
-  const selected = new Set(
-    Array.isArray(knowledgeBase.sourceMap?.selectedPaperIds)
-      ? knowledgeBase.sourceMap.selectedPaperIds
-      : []
-  );
-  return papers.filter((item) =>
-    !selected.size ||
-    selected.has(item.metadata?.paperId) ||
-    selected.has(item.metadata?.sourceId)
-  );
+function paperCatalogEntry(record) {
+  const item = record.item;
+  return {
+    paper_id: record.paperId,
+    item_id: record.itemId,
+    id: record.itemId,
+    name: item.name,
+    path: item.path || item.name,
+    status: item.status,
+    evidence_type: item.evidenceType,
+    content_available: record.contentAvailable
+  };
 }
 
 function listPapers(args, knowledgeBase) {
-  return listWorkspaceItems(
-    { category: "reference", limit: args.limit || MAX_LIST_RESULTS },
+  const records = knowledgeBase.paperLookup?.papers || [];
+  const limit = boundedInteger(args.limit, MAX_LIST_RESULTS, 1, MAX_LIST_RESULTS);
+  return JSON.stringify(
     {
-      ...knowledgeBase,
-      items: registeredPaperItems(knowledgeBase)
-    }
+      items: records.slice(0, limit).map(paperCatalogEntry),
+      returned: Math.min(records.length, limit),
+      total_matches: records.length,
+      truncated: records.length > limit
+    },
+    null,
+    2
   );
 }
 
 function searchPapers(args, knowledgeBase) {
-  return searchWorkspaceItems(
-    { query: args.query, category: "reference", limit: args.limit || 8 },
-    {
-      ...knowledgeBase,
-      items: registeredPaperItems(knowledgeBase)
+  const query = String(args.query || "").trim().slice(0, 1000);
+  if (!query) return JSON.stringify({ error: "query is required" });
+  const tokens = searchTokens(query);
+  const limit = boundedInteger(args.limit, 8, 1, MAX_SEARCH_RESULTS);
+  const results = (knowledgeBase.paperLookup?.papers || [])
+    .map((record) => {
+      const item = record.item;
+      const metadata = `${record.paperId} ${item.name} ${item.path} ${item.source} ${JSON.stringify(item.metadata)}`.toLowerCase();
+      const evidence = String(item.content || "").toLowerCase();
+      const metadataMatches = tokens.filter((token) => metadata.includes(token));
+      const evidenceMatches = tokens.filter((token) => evidence.includes(token));
+      return {
+        record,
+        score: metadataMatches.length * 8 + evidenceMatches.length * 3,
+        matchedTokens: [...new Set([...metadataMatches, ...evidenceMatches])]
+      };
+    })
+    .filter((result) => result.score > 0)
+    .sort((left, right) =>
+      right.score - left.score ||
+      String(left.record.item.path || left.record.item.name).localeCompare(
+        String(right.record.item.path || right.record.item.name)
+      )
+    )
+    .slice(0, limit)
+    .map((result) => ({
+      ...paperCatalogEntry(result.record),
+      matched_terms: result.matchedTokens,
+      snippet: result.record.contentAvailable
+        ? evidenceSnippet(result.record.item.content, result.matchedTokens)
+        : ""
+    }));
+  return JSON.stringify({ query, results, returned: results.length }, null, 2);
+}
+
+function resolvePaperReference(args, knowledgeBase) {
+  const itemId = String(args.item_id || "").trim();
+  const paperId = String(args.paper_id || "").trim();
+  const attempted = [itemId, paperId].filter(Boolean);
+  const lookup = knowledgeBase.paperLookup;
+  if (!attempted.length || !lookup) {
+    return { status: "unknown", itemId, paperId, record: null };
+  }
+  const records = [];
+  for (const identifier of attempted) {
+    if (!lookup.allByAlias.has(identifier)) {
+      return { status: "unknown", itemId, paperId, record: null };
     }
+    const record = lookup.allByAlias.get(identifier);
+    if (!record) {
+      return { status: "ambiguous", itemId, paperId, record: null };
+    }
+    records.push(record);
+  }
+  if (records.some((record) => record.paperId !== records[0].paperId)) {
+    return { status: "mismatch", itemId, paperId, record: null };
+  }
+  const record = records[0];
+  const allowed = attempted.every(
+    (identifier) => lookup.byAlias.get(identifier)?.paperId === record.paperId
   );
+  return {
+    status: allowed ? "resolved" : "outside-scope",
+    itemId,
+    paperId,
+    record
+  };
+}
+
+function paperResolutionError(resolution) {
+  const attemptedIdentifier = resolution.itemId || resolution.paperId || null;
+  const common = {
+    paper_id: resolution.record?.paperId || resolution.paperId || null,
+    item_id: resolution.itemId || resolution.record?.itemId || null,
+    attempted_identifier: attemptedIdentifier,
+    content_available: false
+  };
+  if (resolution.status === "outside-scope") {
+    return JSON.stringify({
+      ...common,
+      error: "PAPER_OUTSIDE_SELECTED_SCOPE",
+      message: "The paper exists but is outside the current hard selected-paper scope."
+    }, null, 2);
+  }
+  if (resolution.status === "mismatch") {
+    return JSON.stringify({
+      ...common,
+      error: "PAPER_IDENTIFIER_MISMATCH",
+      message: "paper_id and item_id resolve to different papers."
+    }, null, 2);
+  }
+  if (resolution.status === "ambiguous") {
+    return JSON.stringify({
+      ...common,
+      error: "PAPER_IDENTIFIER_AMBIGUOUS",
+      message: "The supplied identifier is not unique in this request scope."
+    }, null, 2);
+  }
+  return JSON.stringify({
+    ...common,
+    error: "PAPER_NOT_FOUND_IN_SCOPE",
+    message: "Unknown paper or catalog item ID in the current request scope."
+  }, null, 2);
 }
 
 function readPaperEvidence(args, knowledgeBase) {
-  const itemId = String(args.item_id || "").trim();
-  const paperId = String(args.paper_id || "").trim();
-  let item = itemId ? knowledgeBase.itemsById.get(itemId) : null;
-  if (!item && paperId) {
-    item = knowledgeBase.items.find(
-      (candidate) =>
-        candidate.category === "reference" &&
-        (candidate.metadata?.paperId === paperId ||
-          candidate.metadata?.sourceId === paperId)
-    );
+  const resolution = resolvePaperReference(args, knowledgeBase);
+  if (resolution.status !== "resolved") {
+    return paperResolutionError(resolution);
   }
-  const selectedPaperIds = new Set(
-    Array.isArray(knowledgeBase.sourceMap?.selectedPaperIds)
-      ? knowledgeBase.sourceMap.selectedPaperIds
-      : []
-  );
-  if (
-    item &&
-    selectedPaperIds.size &&
-    !selectedPaperIds.has(item.metadata?.paperId) &&
-    !selectedPaperIds.has(item.metadata?.sourceId)
-  ) {
-    item = null;
-  }
-  if (!item) {
+  const record = resolution.record;
+  const item = record.item;
+  if (!record.contentAvailable) {
     return JSON.stringify({
-      error: "Unknown paper or catalog item ID in the current request scope.",
-      paper_id: paperId || null,
-      item_id: itemId || null
-    });
+      paper_id: record.paperId,
+      item_id: record.itemId,
+      requested_item_id: resolution.itemId || null,
+      requested_paper_id: resolution.paperId || null,
+      content_available: false,
+      status: item.status,
+      evidence_type: item.evidenceType,
+      error: "PAPER_EVIDENCE_NOT_AVAILABLE",
+      message: "The paper is registered in this request, but bounded original-paper evidence is unavailable."
+    }, null, 2);
   }
-  return readWorkspaceItem(
-    {
-      item_id: item.id,
-      offset: args.offset,
-      max_characters: args.max_characters
-    },
-    knowledgeBase
+  const offset = boundedInteger(
+    args.offset,
+    0,
+    0,
+    Math.max(0, item.content.length)
   );
+  const maxCharacters = boundedInteger(
+    args.max_characters,
+    12000,
+    200,
+    MAX_READ_CHARACTERS
+  );
+  const content = item.content.slice(offset, offset + maxCharacters);
+  return JSON.stringify({
+    ...paperCatalogEntry(record),
+    requested_item_id: resolution.itemId || null,
+    requested_paper_id: resolution.paperId || null,
+    offset,
+    content,
+    next_offset: offset + content.length < item.content.length
+      ? offset + content.length
+      : null,
+    total_characters: item.content.length
+  }, null, 2);
 }
 
 function listExperimentSources(args, knowledgeBase) {
@@ -1254,6 +1483,24 @@ function executeSideChatTool(toolCall, knowledgeBase, surface = "side_chat") {
   } catch (error) {
     output = `Error: ${String(error?.message || error).slice(0, 500)}`;
   }
+  if (toolCall.function.name === "read_paper_evidence") {
+    let result = {};
+    try {
+      result = JSON.parse(String(output));
+    } catch {
+      result = {};
+    }
+    console.info("side_chat_paper_resolution", {
+      toolName: "read_paper_evidence",
+      toolCallId: diagnosticIdentifier(toolCall.id, MAX_TOOL_CALL_ID_CHARACTERS),
+      paperId: diagnosticIdentifier(result.paper_id || args.paper_id, 120),
+      itemId: diagnosticIdentifier(args.item_id || result.item_id, 160),
+      resolutionStatus: singleLineCatalogText(
+        result.error || (result.content_available ? "readable" : "unavailable"),
+        120
+      )
+    });
+  }
   return String(
     triggerSideChatHooks("PostToolUse", toolCall, output) ?? output
   );
@@ -1360,20 +1607,37 @@ function compactSideChatAgentMessages(
   return compacted;
 }
 
-function normalizeToolCalls(message) {
+function normalizeToolCalls(message, usedIds = new Set()) {
   return (Array.isArray(message?.tool_calls) ? message.tool_calls : [])
     .filter((toolCall) => toolCall && toolCall.type === "function")
-    .map((toolCall, index) => ({
-      id: String(toolCall.id || `side-chat-tool-${index + 1}`),
-      type: "function",
-      function: {
-        name: String(toolCall.function?.name || ""),
-        arguments:
-          typeof toolCall.function?.arguments === "string"
-            ? toolCall.function.arguments
-            : JSON.stringify(toolCall.function?.arguments || {})
+    .map((toolCall, index) => {
+      const providerId = String(toolCall.id || "").trim().slice(
+        0,
+        MAX_TOOL_CALL_ID_CHARACTERS
+      );
+      let id = providerId || `side-chat-tool-${index + 1}`;
+      if (usedIds.has(id)) {
+        const prefix = `side-chat-tool-${index + 1}`;
+        id = prefix;
+        let suffix = 1;
+        while (usedIds.has(id)) {
+          suffix += 1;
+          id = `${prefix}:${suffix}`.slice(0, MAX_TOOL_CALL_ID_CHARACTERS);
+        }
       }
-    }));
+      usedIds.add(id);
+      return {
+        id,
+        type: "function",
+        function: {
+          name: String(toolCall.function?.name || "").slice(0, 120),
+          arguments:
+            typeof toolCall.function?.arguments === "string"
+              ? toolCall.function.arguments
+              : JSON.stringify(toolCall.function?.arguments || {})
+        }
+      };
+    });
 }
 
 function latestUserRequest(messages) {
@@ -1419,6 +1683,7 @@ async function runSideChatAgent({
   ];
   let totalToolCalls = 0;
   let reactiveCompactionRetries = 0;
+  const normalizedToolCallIds = new Set();
 
   for (let step = 0; step < MAX_AGENT_STEPS; step += 1) {
     agentMessages = compactSideChatAgentMessages(
@@ -1447,7 +1712,7 @@ async function runSideChatAgent({
       return turn;
     }
 
-    const toolCalls = normalizeToolCalls(turn.message);
+    const toolCalls = normalizeToolCalls(turn.message, normalizedToolCallIds);
     if (!toolCalls.length) {
       const parsed = parseFinalAnswer(turn.message?.content);
       if (!parsed) {
@@ -1521,5 +1786,6 @@ module.exports = {
   compactSideChatAgentMessages,
   createSideChatKnowledgeBase,
   executeSideChatTool,
+  normalizeToolCalls,
   runSideChatAgent
 };

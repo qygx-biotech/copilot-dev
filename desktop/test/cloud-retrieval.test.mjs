@@ -51,6 +51,19 @@ function configuration() {
   };
 }
 
+function validPlan(signature = plannerSignature, query = "expanded evidence query") {
+  return {
+    ok: true,
+    configurationSignature: signature,
+    plan: {
+      queries: [query],
+      identifiers: [],
+      sourceLanguage: "en",
+      reasoningSummary: "Use one bounded lexical expansion.",
+    },
+  };
+}
+
 test("Fast retrieval is offline lexical-only and default semantic mode does not initialize a model", async () => {
   const desktop = makeDesktop(() => ({
     mode: "fast",
@@ -118,7 +131,8 @@ test("Deep retrieval uses authenticated FC planning/reranking, budgeted snippets
     async getKnowledgeRetrievalConfig() { calls.config += 1; return configuration(); },
     async planKnowledgeSearch(payload) {
       calls.plan += 1;
-      assert.deepEqual(Object.keys(payload).sort(), ["intent", "query"]);
+      assert.deepEqual(Object.keys(payload).sort(), ["callContext", "intent", "query"]);
+      assert.equal(payload.callContext.callRole, "search_planner");
       return {
         ok: true,
         configurationSignature: plannerSignature,
@@ -245,4 +259,377 @@ test("invalid cloud IDs and FC failures preserve deterministic local lexical fus
       assert.equal(result.diagnostics.planner.status, "failed");
     }
   }
+});
+
+test("equivalent planner inputs share one concurrent request across paper and collection scopes", async () => {
+  const workspace = makeWorkspace();
+  let releasePlan;
+  let plannerCalls = 0;
+  let markPlanStarted;
+  const planStarted = new Promise((resolve) => { markPlanStarted = resolve; });
+  const cloudApi = {
+    planKnowledgeSearch() {
+      plannerCalls += 1;
+      markPlanStarted();
+      return new Promise((resolve) => { releasePlan = resolve; });
+    },
+  };
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi,
+    workspace,
+    cryptoProvider: webcrypto,
+  });
+  const config = configuration();
+  const first = service.getSearchPlan(
+    "  EctD\tstability  ",
+    " corpus   evidence ",
+    { paperIds: ["paper-a"], collections: ["literature-evidence"], limit: 5 },
+    config
+  );
+  const second = service.getSearchPlan(
+    "EctD stability",
+    "corpus evidence",
+    { paperIds: ["paper-b"], collections: ["paper-cards"], limit: 25 },
+    config
+  );
+  await planStarted;
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(plannerCalls, 1);
+  assert.equal(service.searchPlanInFlight.size, 1);
+  releasePlan(validPlan());
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  assert.deepEqual(firstResult.plan, secondResult.plan);
+  assert.equal(firstResult.shared === true || secondResult.shared === true, true);
+  assert.equal(
+    [...workspace.files.keys()].filter((path) => path.includes("search-plan-")).length,
+    1
+  );
+});
+
+test("planner identity changes only for material query, intent, signature, prompt, schema, or validation inputs", () => {
+  const base = knowledgeApi.createSearchPlanCacheIdentity(
+    " EctD  stability ",
+    " corpus evidence ",
+    plannerSignature
+  );
+  assert.deepEqual(
+    base,
+    knowledgeApi.createSearchPlanCacheIdentity(
+      "EctD stability",
+      "corpus evidence",
+      plannerSignature
+    )
+  );
+  assert.notDeepEqual(
+    base,
+    knowledgeApi.createSearchPlanCacheIdentity("different query", "corpus evidence", plannerSignature)
+  );
+  assert.notDeepEqual(
+    base,
+    knowledgeApi.createSearchPlanCacheIdentity("EctD stability", "different intent", plannerSignature)
+  );
+  assert.notDeepEqual(
+    base,
+    knowledgeApi.createSearchPlanCacheIdentity("EctD stability", "corpus evidence", "c".repeat(64))
+  );
+  assert.notDeepEqual(
+    base,
+    knowledgeApi.createSearchPlanCacheIdentity(
+      "EctD stability",
+      "corpus evidence",
+      plannerSignature,
+      { promptVersion: "cloud-search-plan-v999-test" }
+    )
+  );
+  assert.notDeepEqual(
+    base,
+    knowledgeApi.createSearchPlanCacheIdentity(
+      "EctD stability",
+      "corpus evidence",
+      plannerSignature,
+      { schemaVersion: CLOUD_RETRIEVAL.schemaVersion + 1 }
+    )
+  );
+  assert.deepEqual(Object.keys(base).sort(), [
+    "configurationSignature",
+    "normalizedQuery",
+    "promptVersion",
+    "retrievalIntent",
+    "schemaVersion",
+    "validation",
+  ]);
+  assert.equal(JSON.stringify(base).includes("paper-a"), false);
+  assert.equal(JSON.stringify(base).includes("literature-evidence"), false);
+});
+
+test("different normalized queries or intents produce separate cloud plans", async () => {
+  let plannerCalls = 0;
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: {
+      async planKnowledgeSearch(payload) {
+        plannerCalls += 1;
+        return validPlan(plannerSignature, `${payload.query} expanded`);
+      },
+    },
+    workspace: makeWorkspace(),
+    cryptoProvider: webcrypto,
+  });
+  const config = configuration();
+  await service.getSearchPlan("query A", "intent A", {}, config);
+  await service.getSearchPlan("query B", "intent A", {}, config);
+  await service.getSearchPlan("query A", "intent B", {}, config);
+  assert.equal(plannerCalls, 3);
+});
+
+test("planner signature and cached schema changes cannot reuse an older plan", async () => {
+  const workspace = makeWorkspace();
+  let activeSignature = plannerSignature;
+  let plannerCalls = 0;
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: {
+      async planKnowledgeSearch() {
+        plannerCalls += 1;
+        return validPlan(activeSignature, `plan-${plannerCalls}`);
+      },
+    },
+    workspace,
+    cryptoProvider: webcrypto,
+  });
+  const configA = configuration();
+  await service.getSearchPlan("EctD", "corpus evidence", {}, configA);
+  const firstCachePath = [...workspace.files.keys()].find((path) =>
+    path.includes("search-plan-")
+  );
+  workspace.files.get(firstCachePath).schemaVersion = CLOUD_RETRIEVAL.schemaVersion + 1;
+  const restarted = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: service.cloudApi,
+    workspace,
+    cryptoProvider: webcrypto,
+  });
+  await restarted.getSearchPlan("EctD", "corpus evidence", {}, configA);
+
+  activeSignature = "c".repeat(64);
+  await restarted.getSearchPlan(
+    "EctD",
+    "corpus evidence",
+    {},
+    { ...configA, plannerSignature: activeSignature }
+  );
+  assert.equal(plannerCalls, 3);
+  assert.equal(
+    [...workspace.files.keys()].filter((path) => path.includes("search-plan-")).length,
+    2
+  );
+});
+
+test("failed shared planner requests leave the in-flight registry and retry normally", async () => {
+  let plannerCalls = 0;
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: {
+      async planKnowledgeSearch() {
+        plannerCalls += 1;
+        if (plannerCalls === 1) throw new Error("temporary planner outage");
+        return validPlan();
+      },
+    },
+    workspace: makeWorkspace(),
+    cryptoProvider: webcrypto,
+  });
+  const config = configuration();
+  await assert.rejects(
+    service.getSearchPlan("EctD", "corpus evidence", {}, config),
+    /temporary planner outage/
+  );
+  assert.equal(service.searchPlanInFlight.size, 0);
+  const retried = await service.getSearchPlan("EctD", "corpus evidence", {}, config);
+  assert.equal(retried.plan.queries[0], "expanded evidence query");
+  assert.equal(plannerCalls, 2);
+});
+
+test("one cancelled planner consumer does not cancel or evict another consumer", async () => {
+  let releasePlan;
+  let plannerCalls = 0;
+  let markPlanStarted;
+  const planStarted = new Promise((resolve) => { markPlanStarted = resolve; });
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: {
+      planKnowledgeSearch() {
+        plannerCalls += 1;
+        markPlanStarted();
+        return new Promise((resolve) => { releasePlan = resolve; });
+      },
+    },
+    workspace: makeWorkspace(),
+    cryptoProvider: webcrypto,
+  });
+  const config = configuration();
+  const abortController = new AbortController();
+  const cancelled = service.getSearchPlan(
+    "EctD",
+    "corpus evidence",
+    { signal: abortController.signal, paperIds: ["paper-a"] },
+    config
+  );
+  const retained = service.getSearchPlan(
+    "EctD",
+    "corpus evidence",
+    { paperIds: ["paper-b"] },
+    config
+  );
+  await planStarted;
+  abortController.abort();
+  await assert.rejects(cancelled, (error) => error.code === "OPERATION_ABORTED");
+  assert.equal(service.searchPlanInFlight.size, 1);
+  releasePlan(validPlan());
+  const retainedResult = await retained;
+  assert.equal(retainedResult.plan.queries[0], "expanded evidence query");
+  assert.equal(plannerCalls, 1);
+  assert.equal(service.searchPlanInFlight.size, 0);
+});
+
+test("shared planning does not weaken paper scope in local search or cloud reranking", async () => {
+  const desktop = makeDesktop((payload) => ({
+    mode: "fast",
+    diagnostics: { mode: "fast" },
+    results: payload.paperIds.map((paperId) => ({
+      paperId,
+      title: paperId,
+      score: 1,
+      matchedSections: [{ snippet: `${paperId} evidence`, score: 1 }],
+    })),
+  }));
+  const rerankScopes = [];
+  let plannerCalls = 0;
+  const cloudApi = {
+    async getKnowledgeRetrievalConfig() { return configuration(); },
+    async planKnowledgeSearch() {
+      plannerCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return validPlan(plannerSignature, "shared expansion");
+    },
+    async rerankKnowledgeCandidates(payload) {
+      rerankScopes.push(payload.candidates.map((candidate) => candidate.title));
+      return {
+        ok: true,
+        configurationSignature: rerankerSignature,
+        ranked: payload.candidates.map((candidate) => ({
+          candidateId: candidate.candidateId,
+          score: 1,
+          reason: "Scoped evidence.",
+        })),
+      };
+    },
+  };
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: desktop.bridge,
+    cloudApi,
+    workspace: makeWorkspace(),
+    cryptoProvider: webcrypto,
+  });
+  await service.initialize({ workspaceId: "scoped-planning" });
+  await Promise.all([
+    service.searchLiterature({
+      query: "common corpus question",
+      intent: "scientific paper evidence",
+      mode: "deep",
+      paperIds: ["paper-a"],
+    }),
+    service.searchLiterature({
+      query: "common corpus question",
+      intent: "scientific paper evidence",
+      mode: "deep",
+      paperIds: ["paper-b"],
+    }),
+  ]);
+  assert.equal(plannerCalls, 1);
+  assert.deepEqual(
+    new Set(desktop.calls.searches.flatMap((call) => call.paperIds)),
+    new Set(["paper-a", "paper-b"])
+  );
+  assert.deepEqual(rerankScopes.map((scope) => scope.sort()).sort(), [["paper-a"], ["paper-b"]]);
+});
+
+test("generic corpus reviews use the bounded scientific rubric and persist no provider reasoning", async () => {
+  let plannerCalls = 0;
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: {
+      async getKnowledgeRetrievalConfig() { return configuration(); },
+      async planKnowledgeSearch() {
+        plannerCalls += 1;
+        return {
+          ok: true,
+          configurationSignature: plannerSignature,
+          plan: {
+            queries: ["literature review", "systematic review", "meta-analysis"],
+            identifiers: ["hallucinated-identifier"],
+            sourceLanguage: "zh",
+            reasoningSummary: "Private provider interpretation must not enter the journal.",
+          },
+        };
+      },
+      async rerankKnowledgeCandidates() { throw new Error("not reached"); },
+    },
+    workspace: makeWorkspace(),
+    cryptoProvider: webcrypto,
+  });
+  await service.initialize({ workspaceId: "generic-corpus-plan" });
+  const question = "帮我总结所有文献，写一个综述。";
+  const intent = "corpus scientific evidence extraction";
+  const plan = await service.prepareCorpusSearchPlan(question, intent, {
+    callContext: {
+      turnId: "turn-generic-plan",
+      workflowId: "workflow-generic-plan",
+      callRole: "search_planner",
+      profile: "high",
+    },
+  });
+
+  assert.equal(plannerCalls, 1);
+  assert.equal(plan.useOriginalQuery, false);
+  assert.equal(plan.crossLanguage, true);
+  assert.deepEqual(plan.queries, [...knowledgeApi.CORPUS_SCIENTIFIC_DIMENSIONS]);
+  assert.deepEqual(plan.identifiers, []);
+  assert.equal(Object.hasOwn(plan, "reasoningSummary"), false);
+  assert.equal(
+    service.validateSharedCorpusPlan(
+      { ...plan, providerReasoning: "must not persist" },
+      question,
+      intent,
+      configuration()
+    ),
+    null
+  );
+});
+
+test("an explicit planner refresh bypasses compatible resolved and workspace cache entries", async () => {
+  let plannerCalls = 0;
+  const service = new knowledgeApi.ElectronQmdKnowledgeService({
+    desktop: makeDesktop(() => ({ results: [] })).bridge,
+    cloudApi: {
+      async planKnowledgeSearch() {
+        plannerCalls += 1;
+        return validPlan(plannerSignature, `expanded plan ${plannerCalls}`);
+      },
+    },
+    workspace: makeWorkspace(),
+    cryptoProvider: webcrypto,
+  });
+  const config = configuration();
+  await service.getSearchPlan("EctD", "corpus evidence", {}, config);
+  await service.getSearchPlan("EctD", "corpus evidence", {}, config);
+  const refreshed = await service.getSearchPlan(
+    "EctD",
+    "corpus evidence",
+    { forceRefresh: true },
+    config
+  );
+  assert.equal(plannerCalls, 2);
+  assert.equal(refreshed.plan.queries[0], "expanded plan 2");
 });
