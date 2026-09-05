@@ -40,11 +40,32 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Install locked Alibaba FC dependencies
+        run: npm --prefix alibaba-fc ci
+
+      - name: Check desktop source syntax
+        run: npm run check
+
+      - name: Check Alibaba FC and renderer source syntax
+        run: npm --prefix alibaba-fc run check
+
+      - name: Run complete regression suite
+        run: npm test
+
       - name: Run updater and security tests
         run: npm run desktop:test
 
-      - name: Build the full packaged BioDesign application
-        run: npm run desktop:package -- --platform=win32 --arch=x64
+      - name: Audit desktop production dependencies
+        run: npm audit --omit=dev
+
+      - name: Audit Alibaba FC production dependencies
+        run: npm --prefix alibaba-fc audit --omit=dev
+
+      - name: Audit QMD production dependencies
+        run: npm --prefix local-backend audit --omit=dev
+
+      - name: Build Windows x64 Squirrel and ZIP artifacts
+        run: npm run desktop:build:windows
 
       - name: Audit the full package, ASAR, fuses, and packaged content
         run: npm run desktop:audit:package
@@ -56,6 +77,11 @@ jobs:
           ALL_PROXY: http://127.0.0.1:9
           NO_PROXY: ""
         run: npm run desktop:smoke:packaged
+
+      - name: Verify Windows release artifacts before tagging
+        env:
+          BIODESIGN_ALLOW_PRERELEASE: "1"
+        run: npm run desktop:verify:windows
 
       - name: Build versions A and B with one Squirrel identity
         run: node desktop/scripts/build-windows-update-smoke.mjs

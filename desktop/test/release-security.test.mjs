@@ -84,7 +84,9 @@ test("beta workflow stays draft-only until manual publication and preserves stab
 
 test("Windows update smoke audits and starts the full package before two-version fixtures", async () => {
   const workflow = await readFile(path.join(repositoryRoot, ".github/workflows/windows-update-smoke.yml"), "utf8");
-  assert.match(workflow, /desktop:package -- --platform=win32 --arch=x64/);
+  assert.match(workflow, /desktop:build:windows/);
+  assert.match(workflow, /run: npm test/);
+  assert.match(workflow, /desktop:verify:windows/);
   assert.match(workflow, /desktop:audit:package/);
   assert.match(workflow, /desktop:smoke:packaged/);
   assert.match(workflow, /HTTPS_PROXY: http:\/\/127\.0\.0\.1:9/);
