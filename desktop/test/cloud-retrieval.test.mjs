@@ -493,7 +493,7 @@ test("one cancelled planner consumer does not cancel or evict another consumer",
   assert.equal(service.searchPlanInFlight.size, 0);
 });
 
-test("shared planning does not weaken paper scope in local search or cloud reranking", async () => {
+test("shared planning preserves paper scope while single candidates bypass cloud reranking", async () => {
   const desktop = makeDesktop((payload) => ({
     mode: "fast",
     diagnostics: { mode: "fast" },
@@ -533,7 +533,7 @@ test("shared planning does not weaken paper scope in local search or cloud reran
     cryptoProvider: webcrypto,
   });
   await service.initialize({ workspaceId: "scoped-planning" });
-  await Promise.all([
+  const scopedResults = await Promise.all([
     service.searchLiterature({
       query: "common corpus question",
       intent: "scientific paper evidence",
@@ -552,7 +552,12 @@ test("shared planning does not weaken paper scope in local search or cloud reran
     new Set(desktop.calls.searches.flatMap((call) => call.paperIds)),
     new Set(["paper-a", "paper-b"])
   );
-  assert.deepEqual(rerankScopes.map((scope) => scope.sort()).sort(), [["paper-a"], ["paper-b"]]);
+  assert.deepEqual(rerankScopes, []);
+  assert.ok(scopedResults.every((result) =>
+    result.diagnostics?.reranker?.status === "not-attempted" &&
+    result.diagnostics?.reranker?.reason === "single-candidate" &&
+    result.diagnostics?.reranker?.submittedCandidates === 1
+  ));
 });
 
 test("generic corpus reviews use the bounded scientific rubric and persist no provider reasoning", async () => {

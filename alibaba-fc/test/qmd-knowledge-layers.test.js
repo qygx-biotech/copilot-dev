@@ -12,6 +12,7 @@ const {
   SourceRegistry,
   SourceResultStore,
   TopicKnowledgeService,
+  paperCardCacheKey,
   renderExperimentNoteMarkdown,
   renderPaperCardMarkdown,
   renderPaperEvidenceMarkdown,
@@ -329,20 +330,70 @@ test("a lazy Paper Card keeps canonical JSON and indexes a separate Layer 2 mirr
     },
     async generatePaperCard({ source, contentHash }) {
       const path = `.biodesign/literature/summaries/${source.sourceId}.json`;
+      const descriptor = {
+        sourceId: source.sourceId,
+        contentHash,
+        schemaVersion: 2,
+        modelSignature: "test-model",
+        promptVersion: "test-canonical-card-v2",
+        sourceArtifactSchemaVersion: 1,
+        extractorVersion: "local-source-v1",
+      };
       const card = {
+        schemaVersion: 2,
         paperCardVersion: 2,
+        paperId: source.sourceId,
+        documentId: source.sourceId,
+        fileName: source.displayName,
+        generatedAt: "2026-09-05T00:00:00.000Z",
+        source: {
+          filename: source.displayName,
+          relativePath: source.path,
+          hash: contentHash,
+          artifactSchemaVersion: 1,
+          extractorVersion: "local-source-v1",
+        },
+        model: "test-model",
+        modelSignature: descriptor.modelSignature,
+        promptVersion: descriptor.promptVersion,
+        cacheKey: paperCardCacheKey(descriptor),
         title: "EctD engineering",
+        authors: [],
+        year: null,
+        abstractSummary: "",
         researchQuestion: "Which variant is more stable?",
         mainFindings: ["A163V improved stability."],
+        methods: [],
+        methodsSummary: "",
+        organisms: [],
         proteins: ["EctD"],
         genes: ["ectD"],
+        pathways: [],
+        metabolites: [],
+        experimentalConditions: [],
+        measurements: [],
+        importantResults: ["A163V improved stability."],
+        limitations: [],
+        keywords: [],
         topics: ["enzyme engineering", "thermostability"],
-        evidenceRefs: [`${source.sourceId}:p1:${source.sourceId}-P1-C1`],
-        contentHash,
-        model: "test-model",
+        shortSummary: "A163V improved stability.",
+        summary: "A163V improved stability.",
+        keyResults: ["A163V improved stability."],
+        mainConclusion: "A163V improved stability.",
+        evidenceFindings: [{
+          claim: "A163V improved stability.",
+          evidenceRefs: [`${source.sourceId}:p1:${source.sourceId}-P1-C1`],
+        }],
       };
       await workspace.writeJson(path, card);
-      return { card, path, schemaVersion: 2, model: "test-model", promptVersion: 3 };
+      return {
+        card,
+        path,
+        schemaVersion: 2,
+        model: "test-model",
+        modelSignature: descriptor.modelSignature,
+        promptVersion: descriptor.promptVersion,
+      };
     },
   });
   const source = registry.list({ sourceKind: "paper" })[0];

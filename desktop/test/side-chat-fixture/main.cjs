@@ -19,7 +19,7 @@ function actualFunction(name) {
 }
 const functions = [
   "persistSideChatConversation", "renderSideChatConversation", "beginSideChatMessageEdit", "showSideChatEditError", "reviseLatestSideChatMessage",
-  "setSideChatBusy", "askSideChat", "addSideChatThinking", "updateSideChatThinking", "getSideChatActivitySteps", "sideChatProgressText",
+  "setSideChatBusy", "askSideChat", "addSideChatThinking", "updateSideChatThinking", "getSideChatActivitySteps", "sideChatProgressText", "formatCorpusPaperProgress",
   "setSideChatEmptyState", "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
   "getSideChatCitationContext", "navigateSideChatCitation", "createSideChatActivitySummary", "addSideChatMessage",
 ].map(actualFunction).join("\n");

@@ -24,10 +24,16 @@ const {
   ElectronQmdKnowledgeService,
 } = require("../../docs/knowledge-service.js");
 const {
+  LiteratureApiClient,
+  LiteratureModule,
+  chunkLiteratureText,
+} = require("../../docs/literature-module.js");
+const {
   CLOUD_RETRIEVAL,
 } = require("../../shared/retrieval-contract.js");
 const {
   ProjectContextService,
+  WorkspaceChatStore,
   detectCorpusWideLiteratureIntent,
   detectCorpusUpdateIntent,
 } = require("../../docs/project-context-service.js");
@@ -86,6 +92,13 @@ class MemoryWorkspace {
     this.json.set(path, clone(value));
     return value;
   }
+
+  async ensureDirectory() {}
+
+  async removeFile(path) {
+    this.files.delete(path);
+    this.json.delete(path);
+  }
 }
 
 function treeFor(workspace) {
@@ -117,6 +130,7 @@ async function makeSystem(workspace, options = {}) {
     cryptoProvider: {},
     debounceMilliseconds: 1,
     spreadsheetProvider: options.spreadsheetProvider,
+    getPaperCardConfiguration: options.getPaperCardConfiguration,
     async parsePaper(input) {
       parseCalls += 1;
       if (options.parsePaper) return options.parsePaper(input);
@@ -220,6 +234,7 @@ function validMapFor(input, theme = "recovered theme") {
 
 const FC_ROUTES = Object.freeze({
   config: "/api/knowledge/config",
+  paperCardConfig: "/api/literature/config",
   plan: "/api/knowledge/plan-search",
   rerank: "/api/knowledge/rerank",
   map: "/api/corpus/map-paper",
@@ -246,6 +261,7 @@ function makeRouteCounters() {
 function assertRouteCounts(counters, expected) {
   assert.deepEqual(counters.counts, {
     [FC_ROUTES.config]: expected.config || 0,
+    [FC_ROUTES.paperCardConfig]: expected.paperCardConfig || 0,
     [FC_ROUTES.plan]: expected.plan || 0,
     [FC_ROUTES.rerank]: expected.rerank || 0,
     [FC_ROUTES.map]: expected.map || 0,
@@ -256,17 +272,47 @@ function assertRouteCounts(counters, expected) {
   });
 }
 
-function validCanonicalPaperCard(source, contentHash) {
+const TEST_PAPER_CARD_CONTRACT = Object.freeze({
+  schemaVersion: 2,
+  promptVersion: "canonical-paper-card-v2",
+  modelSignature: "d".repeat(64),
+});
+
+const TEST_NATIVE_PAPER_CARD_CONTRACT = Object.freeze({
+  ...TEST_PAPER_CARD_CONTRACT,
+  generationStrategy: "native-pdf-preferred-v1",
+  nativePdfSupported: true,
+  nativePdfMaxBytes: 20 * 1024 * 1024,
+  nativePdfSchemaVersion: 1,
+  nativePdfPromptVersion: "canonical-paper-card-native-v1",
+  nativePdfModelSignature: "e".repeat(64),
+});
+
+function validCanonicalPaperCard(
+  source,
+  contentHash,
+  contract = TEST_PAPER_CARD_CONTRACT
+) {
   const descriptor = {
+    sourceId: source.sourceId,
     contentHash,
-    schemaVersion: 1,
+    schemaVersion: contract.schemaVersion,
     model: "paper-card-test-model",
-    promptVersion: 1,
+    modelSignature: contract.modelSignature,
+    promptVersion: contract.promptVersion,
+    generationStrategy: contract.generationStrategy || "text-map-reduce-v1",
+    nativePdfSchemaVersion: Number(contract.nativePdfSchemaVersion) || 0,
+    nativePdfPromptVersion:
+      contract.nativePdfPromptVersion || "not-applicable",
+    nativePdfModelSignature:
+      contract.nativePdfModelSignature || "not-applicable",
+    sourceArtifactSchemaVersion: 1,
+    extractorVersion: "local-source-v1",
   };
   const finding = `EctD finding from ${source.displayName}.`;
   return {
-    schemaVersion: 1,
-    paperCardVersion: 1,
+    schemaVersion: contract.schemaVersion,
+    paperCardVersion: contract.schemaVersion,
     paperId: source.sourceId,
     documentId: source.sourceId,
     fileName: source.displayName,
@@ -275,9 +321,18 @@ function validCanonicalPaperCard(source, contentHash) {
       filename: source.displayName,
       relativePath: source.path,
       hash: contentHash,
+      artifactSchemaVersion: 1,
+      extractorVersion: "local-source-v1",
     },
     model: descriptor.model,
+    modelSignature: descriptor.modelSignature,
     promptVersion: descriptor.promptVersion,
+    generationStrategy: descriptor.generationStrategy,
+    generationMode: "text-map-reduce",
+    fallbackReason: null,
+    nativePdfSchemaVersion: descriptor.nativePdfSchemaVersion,
+    nativePdfPromptVersion: descriptor.nativePdfPromptVersion,
+    nativePdfModelSignature: descriptor.nativePdfModelSignature,
     cacheKey: paperCardCacheKey(descriptor),
     title: `Card for ${source.displayName}`,
     authors: ["Test Author"],
@@ -302,25 +357,176 @@ function validCanonicalPaperCard(source, contentHash) {
     summary: finding,
     keyResults: [finding],
     mainConclusion: finding,
+    evidenceFindings: [{
+      claim: finding,
+      evidenceRefs: [`${source.sourceId}:p1:${source.sourceId}-P1-C1`],
+    }],
   };
 }
 
-function paperCardGenerator(workspace, counters) {
-  return async ({ source, contentHash }) => {
+function paperCardGenerator(workspace, counters, options = {}) {
+  return async ({ source, contentHash, paperCardContract, onProgress }) => {
+    if (options.failPaperCards === true) {
+      throw new Error("controlled canonical Paper Card failure");
+    }
     counters?.hit(FC_ROUTES.summarize);
     counters?.hit(FC_ROUTES.paperCardSynthesize);
-    const card = validCanonicalPaperCard(source, contentHash);
+    if (options.emitFallbackProgress === true) {
+      onProgress?.({
+        stage: "paper-card-fallback",
+        completed: 0,
+        total: 1,
+        fallbackReason: "native-provider-failure",
+        providerAttempts: 1,
+      });
+      onProgress?.({
+        stage: "summarizing",
+        completed: 2,
+        total: 5,
+        fallbackReason: "native-provider-failure",
+      });
+    }
+    const contract = paperCardContract || TEST_PAPER_CARD_CONTRACT;
+    const card = validCanonicalPaperCard(source, contentHash, contract);
     const path = `.biodesign/literature/summaries/${source.sourceId}.json`;
     await workspace.writeJson(path, card);
     return {
       path,
       card,
-      schemaVersion: 1,
+      schemaVersion: contract.schemaVersion,
       model: card.model,
+      modelSignature: contract.modelSignature,
       promptVersion: card.promptVersion,
       contentHash,
     };
   };
+}
+
+function nativePaperCardAnalysis(sourceId, contentHash) {
+  return {
+    sourceIdentity: { paperId: sourceId, contentHash },
+    title: "Native analysis",
+    authors: ["Test Author"],
+    year: 2025,
+    abstractSummary: "The study evaluates EctD activity.",
+    researchQuestion: "How does the variant affect EctD activity?",
+    majorFindings: [{
+      claim: "The tested variant improved EctD activity.",
+      citations: [{ page: 1, quote: "variant improved EctD activity" }],
+    }, {
+      claim: "A claim with an invalid citation remains uncited.",
+      citations: [{ page: 99, quote: "not in the local PDF" }],
+    }, {
+      claim: "A claim with a fabricated quotation remains uncited.",
+      citations: [{ page: 1, quote: "fabricated quotation absent from the PDF" }],
+    }],
+    methods: ["activity assay"],
+    methodsSummary: "A controlled activity assay was used.",
+    organisms: ["Escherichia coli"],
+    genes: ["ectD"],
+    proteins: ["EctD"],
+    pathways: ["hydroxyectoine biosynthesis"],
+    metabolites: ["hydroxyectoine"],
+    experimentalConditions: ["30 degrees C"],
+    measurements: ["specific activity"],
+    importantResults: [],
+    limitations: ["One condition was tested."],
+    keywords: ["EctD"],
+    topics: ["enzyme engineering"],
+    shortSummary: "The paper characterizes an EctD variant.",
+    mainConclusion: "The variant improved activity under the tested condition.",
+  };
+}
+
+function makeNativePaperCardGenerator(workspace, calls, options = {}) {
+  const api = {
+    async analyzePdfNative(payload) {
+      calls.nativePdf += 1;
+      calls.nativePayloads.push(clone({
+        paperId: payload.paperId,
+        filename: payload.filename,
+        contentHash: payload.contentHash,
+        byteLength: payload.bytes?.byteLength,
+        task: payload.task,
+        purpose: payload.purpose,
+        responseSchema: payload.responseSchema,
+      }));
+      if (options.failNative === true) {
+        const error = new Error("controlled native failure");
+        error.attempts = 1;
+        error.fallbackReason = "native-provider-failure";
+        throw error;
+      }
+      const analysis = nativePaperCardAnalysis(payload.paperId, payload.contentHash);
+      if (options.invalidNative === true) {
+        analysis.sourceIdentity.paperId = "stale-paper-id";
+      }
+      return {
+        analysis,
+        paperId: payload.paperId,
+        contentHash: payload.contentHash,
+        model: "native-test-model",
+        modelSignature: TEST_NATIVE_PAPER_CARD_CONTRACT.nativePdfModelSignature,
+        schemaVersion: TEST_NATIVE_PAPER_CARD_CONTRACT.nativePdfSchemaVersion,
+        promptVersion: TEST_NATIVE_PAPER_CARD_CONTRACT.nativePdfPromptVersion,
+        attempts: 1,
+      };
+    },
+    async summarizeChunk() {
+      calls.summarize += 1;
+      return {
+        summary: "Parsed-text evidence.",
+        mainFindings: ["The tested variant improved EctD activity."],
+      };
+    },
+    async synthesize() {
+      calls.synthesize += 1;
+      return {
+        title: "Text fallback",
+        authors: [],
+        year: null,
+        abstractSummary: null,
+        researchQuestion: "How does the variant affect activity?",
+        mainFindings: ["The tested variant improved EctD activity."],
+        methods: ["activity assay"],
+        methodsSummary: null,
+        organisms: [],
+        genes: ["ectD"],
+        proteins: ["EctD"],
+        pathways: [],
+        metabolites: [],
+        experimentalConditions: [],
+        measurements: ["specific activity"],
+        importantResults: [],
+        limitations: [],
+        keywords: ["EctD"],
+        topics: ["enzyme engineering"],
+        shortSummary: "Parsed-text Paper Card.",
+        summary: "Parsed-text Paper Card.",
+        keyResults: [],
+        mainConclusion: "The variant improved activity.",
+        model: "text-test-model",
+        modelSignature: TEST_NATIVE_PAPER_CARD_CONTRACT.modelSignature,
+        schemaVersion: TEST_NATIVE_PAPER_CARD_CONTRACT.schemaVersion,
+        promptVersion: TEST_NATIVE_PAPER_CARD_CONTRACT.promptVersion,
+      };
+    },
+  };
+  const generatorContext = {
+    api,
+    workspace,
+    now: () => new Date("2026-09-06T00:00:00.000Z"),
+    config: {
+      chunkCharacters: options.chunkCharacters || 30,
+      chunkOverlap: 0,
+      chunkConcurrency: 2,
+      maxExtractedCharacters: 180000,
+      maxChunks: 48,
+    },
+  };
+  return LiteratureModule.prototype.generatePaperCardFromPrepared.bind(
+    generatorContext
+  );
 }
 
 async function makeRouteCountedDeepKnowledgeService(workspace, counters, trace) {
@@ -388,6 +594,7 @@ async function makeRouteCountedDeepKnowledgeService(workspace, counters, trace) 
       async rerankKnowledgeCandidates(payload) {
         counters.hit(FC_ROUTES.rerank);
         trace.rerankPayloads.push(clone(payload));
+        if (trace.failReranker) throw new Error("controlled reranker outage");
         return {
           ok: true,
           configurationSignature: rerankerSignature,
@@ -416,6 +623,7 @@ async function createCorpusScenario(paperCount, cardIndexes = [], options = {}) 
   const counters = makeRouteCounters();
   const trace = {
     failPlanner: options.failPlanner === true,
+    failReranker: options.failReranker === true,
     plannerDelayMs: Math.max(0, Number(options.plannerDelayMs) || 5),
     plannerPayloads: [],
     rerankPayloads: [],
@@ -431,7 +639,11 @@ async function createCorpusScenario(paperCount, cardIndexes = [], options = {}) 
   );
   const system = await makeSystem(workspace, {
     knowledgeService,
-    generatePaperCard: paperCardGenerator(workspace, counters),
+    getPaperCardConfiguration: async () => {
+      counters.hit(FC_ROUTES.paperCardConfig);
+      return options.paperCardContract || TEST_PAPER_CARD_CONTRACT;
+    },
+    generatePaperCard: paperCardGenerator(workspace, counters, options),
     async mapWorker(input, workerOptions) {
       counters.hit(FC_ROUTES.map);
       trace.mapperInputs.push(clone(input));
@@ -473,6 +685,450 @@ async function createCorpusScenario(paperCount, cardIndexes = [], options = {}) 
   counters.reset();
   return { workspace, counters, knowledgeService, system, paperIds, trace };
 }
+
+test("one paper-level candidate bypasses rerank cache and provider without changing local evidence", async () => {
+  const { counters, knowledgeService, paperIds, trace } = await createCorpusScenario(1);
+  const events = [];
+  knowledgeService.subscribe((event) => events.push(clone(event)));
+  const originalReadCache = knowledgeService.readCache.bind(knowledgeService);
+  let rerankCacheReads = 0;
+  knowledgeService.readCache = async (kind, ...args) => {
+    if (kind === "rerank") rerankCacheReads += 1;
+    return originalReadCache(kind, ...args);
+  };
+
+  const result = await knowledgeService.search("EctD evidence", {
+    mode: "deep",
+    paperIds,
+    collections: ["literature-evidence"],
+    intent: "scientific paper evidence",
+  });
+
+  assert.equal(result.results.length, 1);
+  assert.equal(result.results[0].paperId, paperIds[0]);
+  assert.equal(result.results[0].score, 1);
+  assert.match(result.results[0].matchedSections[0].snippet, /EctD finding/);
+  assert.equal(result.results[0].cloudRerank, undefined);
+  assert.deepEqual(result.diagnostics.reranker, {
+    status: "not-attempted",
+    reason: "single-candidate",
+    submittedCandidates: 1,
+    omittedCandidates: 0,
+    evidenceCharacters: result.diagnostics.reranker.evidenceCharacters,
+  });
+  assert.ok(result.diagnostics.reranker.evidenceCharacters > 0);
+  assert.equal(rerankCacheReads, 0);
+  assert.equal(counters.counts[FC_ROUTES.rerank], 0);
+  assert.equal(trace.rerankPayloads.length, 0);
+  assert.equal(events.some((event) => event.stage === "reranking-evidence"), false);
+});
+
+test("native Paper Cards use one PDF call per cold paper and survive warm reuse, restart, and one modification", async () => {
+  const workspace = new MemoryWorkspace();
+  const paths = [
+    "literature/team-a/paper.pdf",
+    "literature/team-b/paper.pdf",
+    "literature/中文/论文.pdf",
+  ];
+  for (const path of paths) {
+    workspace.setFile(
+      path,
+      `%PDF-1.4\n${
+        "The tested variant improved EctD activity. ".repeat(10).slice(0, 105)
+      }`,
+      1000
+    );
+  }
+  const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+  const generator = makeNativePaperCardGenerator(workspace, calls);
+  const options = {
+    getPaperCardConfiguration: async () => TEST_NATIVE_PAPER_CARD_CONTRACT,
+    generatePaperCard: generator,
+  };
+  let system = await makeSystem(workspace, options);
+  await system.registry.reconcile(treeFor(workspace));
+  let paperIds = system.registry.list({ sourceKind: "paper" })
+    .map((source) => source.sourceId);
+
+  const cold = await system.preparation.ensureSourceReady(
+    paperIds,
+    "paper_card"
+  );
+  assert.equal(cold.failures.length, 0);
+  assert.equal(calls.nativePdf, 3);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+  assert.ok(calls.nativePayloads.every((payload) =>
+    payload.responseSchema === "canonical_paper_card" &&
+    payload.purpose === "canonical-paper-card" &&
+    !payload.filename.includes("/") &&
+    payload.byteLength > 0
+  ));
+  const firstSource = system.registry.get(paperIds[0]);
+  const firstPaperArtifact = await workspace.readJson(
+    firstSource.artifacts.paperText.path
+  );
+  assert.equal(
+    chunkLiteratureText(
+      firstPaperArtifact.pages
+        .map((page) => `# Page ${page.page}\n${page.text}`)
+        .join("\n\n"),
+      {
+        chunkCharacters: 30,
+        chunkOverlap: 0,
+        maxExtractedCharacters: 180000,
+        maxChunks: 48,
+      }
+    ).chunks.length,
+    5
+  );
+  const firstCard = await workspace.readJson(firstSource.artifacts.paperCard.path);
+  assert.equal(firstCard.generationMode, "native-pdf");
+  assert.equal(firstCard.generationDiagnostics.nativePdfEndpointCalls, 1);
+  assert.equal(firstCard.generationDiagnostics.textFallbackOperations, 0);
+  assert.equal(firstCard.generationDiagnostics.nativeEvidenceCitationsSubmitted, 3);
+  assert.equal(firstCard.generationDiagnostics.nativeEvidenceCitationsVerified, 1);
+  assert.equal(firstCard.generationDiagnostics.nativeEvidenceCitationsDropped, 2);
+  assert.deepEqual(firstCard.evidenceFindings[0].evidenceRefs, [
+    `${paperIds[0]}:p1:${paperIds[0]}-P1-C1`,
+  ]);
+  assert.deepEqual(firstCard.evidenceFindings[1].evidenceRefs, []);
+  assert.deepEqual(firstCard.evidenceFindings[2].evidenceRefs, []);
+  assert.match(firstCard.cacheKey, /canonical-paper-card-native-v1/);
+
+  const warm = await system.preparation.ensureSourceReady(paperIds, "paper_card");
+  assert.ok(warm.sources.every((source) => source.cached === true));
+  assert.equal(calls.nativePdf, 3);
+
+  system = await makeSystem(workspace, options);
+  await system.registry.reconcile(treeFor(workspace));
+  paperIds = system.registry.list({ sourceKind: "paper" })
+    .map((source) => source.sourceId);
+  const restarted = await system.preparation.ensureSourceReady(paperIds, "paper_card");
+  assert.ok(restarted.sources.every((source) => source.cached === true));
+  assert.equal(calls.nativePdf, 3);
+
+  workspace.setFile(
+    paths[2],
+    "%PDF-1.4\nThe tested variant improved EctD activity after modification.",
+    2000
+  );
+  await system.registry.reconcile(treeFor(workspace));
+  await system.preparation.ensureSourceReady(paperIds, "paper_card");
+  assert.equal(calls.nativePdf, 4);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+});
+
+test("mixed 41-paper corpus uses one native call per cold paper and keeps x/41 progress", async () => {
+  const workspace = new MemoryWorkspace();
+  for (let index = 0; index < 41; index += 1) {
+    workspace.setFile(
+      `literature/set-${index % 3}/论文-${index + 1}.pdf`,
+      `%PDF-1.4\nThe tested variant improved EctD activity in paper ${index + 1}.`,
+      1000
+    );
+  }
+  const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+  const system = await makeSystem(workspace, {
+    getPaperCardConfiguration: async () => TEST_NATIVE_PAPER_CARD_CONTRACT,
+    generatePaperCard: makeNativePaperCardGenerator(workspace, calls),
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperIds = system.registry.list({ sourceKind: "paper" })
+    .map((source) => source.sourceId);
+  await system.preparation.ensureSourceReady(
+    paperIds.slice(0, 17),
+    "paper_card"
+  );
+  calls.nativePdf = 0;
+  calls.nativePayloads.length = 0;
+  const progress = [];
+
+  const coldResult = await system.corpusWorkflows.run(
+    "Compare every paper in this corpus.",
+    { onProgress: (event) => progress.push(clone(event)) }
+  );
+  const cold = await resolveWorkflowResult(system, coldResult);
+  assert.equal(calls.nativePdf, 24);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+  assert.equal(cold.processingAccounting.logicalPaperCardGenerations, 24);
+  assert.equal(cold.processingAccounting.paperCardCacheHits, 17);
+  assert.equal(cold.processingAccounting.nativePdfEndpointCalls, 24);
+  assert.equal(cold.processingAccounting.nativePdfProviderAttempts, 24);
+  assert.equal(cold.processingAccounting.nativePaperCardSuccesses, 24);
+  assert.equal(cold.processingAccounting.textFallbackOperations, 0);
+  const paperProgress = progress.filter((event) =>
+    event.stage === "canonical-paper-artifact-create" ||
+    event.stage === "canonical-paper-artifact-created" ||
+    event.stage === "canonical-paper-artifact-cache-hit"
+  );
+  assert.ok(paperProgress.length > 0);
+  assert.ok(paperProgress.every((event) =>
+    event.papersTotal === 41 &&
+    event.total === 41 &&
+    event.papersCompleted >= 0 &&
+    event.papersCompleted <= 41 &&
+    event.chunksTotal === undefined
+  ));
+  assert.ok(paperProgress.every((event, index) =>
+    index === 0 ||
+    event.papersCompleted >= paperProgress[index - 1].papersCompleted
+  ));
+
+  const warmResult = await system.corpusWorkflows.run(
+    "这些论文中反复出现了哪些方法和生物？",
+    { language: "zh" }
+  );
+  const warm = await resolveWorkflowResult(system, warmResult);
+  assert.equal(calls.nativePdf, 24);
+  assert.equal(warm.processingAccounting.paperCardCacheHits, 41);
+  assert.equal(warm.processingAccounting.logicalPaperCardGenerations, 0);
+  assert.equal(warm.processingAccounting.nativePdfEndpointCalls, 0);
+
+  workspace.setFile(
+    "literature/set-0/论文-1.pdf",
+    "%PDF-1.4\nThe tested variant improved EctD activity after one modification.",
+    2000
+  );
+  await system.registry.reconcile(treeFor(workspace));
+  const modifiedResult = await system.corpusWorkflows.run(
+    "What limitations and measurements are reported?"
+  );
+  const modified = await resolveWorkflowResult(system, modifiedResult);
+  assert.equal(calls.nativePdf, 25);
+  assert.equal(modified.processingAccounting.canonicalArtifactsCreated, 1);
+  assert.equal(modified.processingAccounting.canonicalArtifactsReused, 40);
+  assert.equal(modified.processingAccounting.nativePdfEndpointCalls, 1);
+  assert.equal(modified.processingAccounting.nativePaperCardSuccesses, 1);
+});
+
+test("native Paper Card failure runs the parsed-text fallback once with explicit chunk progress", async () => {
+  const workspace = new MemoryWorkspace();
+  const fallbackPdfText = `%PDF-1.4\n${
+    "The tested variant improved EctD activity. ".repeat(10).slice(0, 100)
+  }`;
+  workspace.setFile(
+    "literature/fallback.pdf",
+    fallbackPdfText,
+    1000
+  );
+  const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+  const progress = [];
+  const system = await makeSystem(workspace, {
+    getPaperCardConfiguration: async () => TEST_NATIVE_PAPER_CARD_CONTRACT,
+    generatePaperCard: makeNativePaperCardGenerator(workspace, calls, {
+      failNative: true,
+      chunkCharacters: 28,
+    }),
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+
+  await system.preparation.ensureSourceReady([paperId], "paper_card", {
+    onProgress: (event) => progress.push(clone(event)),
+  });
+  const card = await workspace.readJson(
+    system.registry.get(paperId).artifacts.paperCard.path
+  );
+  assert.equal(calls.nativePdf, 1);
+  assert.equal(calls.summarize, 5);
+  assert.equal(calls.synthesize, 1);
+  assert.equal(card.generationMode, "text-map-reduce");
+  assert.equal(card.fallbackReason, "native-provider-failure");
+  assert.equal(card.generationDiagnostics.nativePdfProviderAttempts, 1);
+  assert.equal(card.generationDiagnostics.textFallbackOperations, 1);
+  assert.ok(progress.some((event) =>
+    event.stage === "paper-card-fallback" &&
+    event.fallbackReason === "native-provider-failure"
+  ));
+  assert.ok(progress.some((event) =>
+    event.stage === "summarizing" && event.total === 5
+  ));
+});
+
+test("oversized native Paper Card input skips the native endpoint and records the text fallback reason", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile(
+    "literature/too-large.pdf",
+    "%PDF-1.4\nThe tested variant improved EctD activity in an oversized fixture.",
+    1000
+  );
+  const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+  const system = await makeSystem(workspace, {
+    getPaperCardConfiguration: async () => ({
+      ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+      nativePdfMaxBytes: 10,
+    }),
+    generatePaperCard: makeNativePaperCardGenerator(workspace, calls),
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+  await system.preparation.ensureSourceReady([paperId], "paper_card");
+  const card = await workspace.readJson(
+    system.registry.get(paperId).artifacts.paperCard.path
+  );
+
+  assert.equal(calls.nativePdf, 0);
+  assert.ok(calls.summarize > 0);
+  assert.equal(calls.synthesize, 1);
+  assert.equal(card.generationMode, "text-map-reduce");
+  assert.equal(card.fallbackReason, "native-pdf-too-large");
+  assert.equal(card.generationDiagnostics.nativePdfEndpointCalls, 0);
+});
+
+test("unsupported and malformed native Paper Cards each use exactly one text fallback", async () => {
+  const cases = [
+    {
+      name: "unsupported",
+      contract: {
+        ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+        nativePdfSupported: false,
+        nativePdfModelSignature: "not-applicable",
+      },
+      generatorOptions: {},
+      expectedNativeCalls: 0,
+      expectedReason: "native-structured-output-unsupported",
+    },
+    {
+      name: "malformed",
+      contract: TEST_NATIVE_PAPER_CARD_CONTRACT,
+      generatorOptions: { invalidNative: true },
+      expectedNativeCalls: 1,
+      expectedReason: "native-schema-or-provenance-invalid",
+    },
+  ];
+  for (const fixture of cases) {
+    const workspace = new MemoryWorkspace();
+    workspace.setFile(
+      `literature/${fixture.name}.pdf`,
+      "%PDF-1.4\nThe tested variant improved EctD activity.",
+      1000
+    );
+    const calls = {
+      nativePdf: 0,
+      summarize: 0,
+      synthesize: 0,
+      nativePayloads: [],
+    };
+    const system = await makeSystem(workspace, {
+      getPaperCardConfiguration: async () => fixture.contract,
+      generatePaperCard: makeNativePaperCardGenerator(
+        workspace,
+        calls,
+        fixture.generatorOptions
+      ),
+    });
+    await system.registry.reconcile(treeFor(workspace));
+    const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+    await system.preparation.ensureSourceReady([paperId], "paper_card");
+    const card = await workspace.readJson(
+      system.registry.get(paperId).artifacts.paperCard.path
+    );
+
+    assert.equal(calls.nativePdf, fixture.expectedNativeCalls, fixture.name);
+    assert.ok(calls.summarize > 0, fixture.name);
+    assert.equal(calls.synthesize, 1, fixture.name);
+    assert.equal(card.generationMode, "text-map-reduce", fixture.name);
+    assert.equal(card.fallbackReason, fixture.expectedReason, fixture.name);
+    assert.equal(card.generationDiagnostics.textFallbackOperations, 1, fixture.name);
+  }
+});
+
+test("two paper-level candidates still use validated cloud reranking", async () => {
+  const { counters, knowledgeService, paperIds, trace } = await createCorpusScenario(2);
+  const result = await knowledgeService.search("Compare EctD evidence", {
+    mode: "deep",
+    paperIds,
+    collections: ["literature-evidence"],
+    intent: "scientific paper evidence",
+  });
+
+  assert.equal(result.results.length, 2);
+  assert.equal(result.diagnostics.reranker.status, "succeeded");
+  assert.equal(result.diagnostics.reranker.submittedCandidates, 2);
+  assert.equal(counters.counts[FC_ROUTES.rerank], 1);
+  assert.equal(trace.rerankPayloads.length, 1);
+});
+
+test("multi-candidate reranker failure preserves the existing local fallback", async () => {
+  const { counters, knowledgeService, paperIds } = await createCorpusScenario(2, [], {
+    failReranker: true,
+  });
+  const result = await knowledgeService.search("Compare EctD evidence", {
+    mode: "deep",
+    paperIds,
+    collections: ["literature-evidence"],
+    intent: "scientific paper evidence",
+  });
+
+  assert.equal(counters.counts[FC_ROUTES.rerank], 1);
+  assert.equal(result.diagnostics.reranker.status, "failed");
+  assert.equal(result.diagnostics.fallback, "local-lexical-fusion");
+  assert.deepEqual(result.results.map((entry) => entry.score), [1, 1]);
+  assert.ok(result.results.every((entry) => entry.cloudRerank === undefined));
+});
+
+test("client accounting separates logical endpoints, transport attempts, provider attempts, and cache hits", async () => {
+  const api = new LiteratureApiClient({
+    baseUrl: "https://example.invalid",
+    getHeaders: () => ({ Authorization: "Bearer fixture" }),
+    fetch: async (url) => {
+      const path = new URL(url).pathname;
+      if (path === FC_ROUTES.paperCardConfig) {
+        return new Response(JSON.stringify({
+          ok: true,
+          ...TEST_PAPER_CARD_CONTRACT,
+        }), { status: 200 });
+      }
+      if (path === FC_ROUTES.plan) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "ProviderFailure",
+          message: "Controlled provider failure.",
+          attempts: 1,
+        }), { status: 502 });
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        configurationSignature: "b".repeat(64),
+        ranked: [],
+        attempts: 2,
+        cached: true,
+      }), { status: 200 });
+    },
+  });
+
+  await api.getPaperCardConfiguration();
+  await api.rerankKnowledgeCandidates({
+    query: "EctD",
+    intent: "evidence",
+    candidates: [],
+    callContext: {},
+  });
+  await assert.rejects(
+    api.planKnowledgeSearch({ query: "EctD", intent: "evidence", callContext: {} }),
+    (error) => error.code === "ProviderFailure"
+  );
+  const accounting = api.getEndpointAccounting();
+  assert.deepEqual(accounting.logicalEndpointCalls, {
+    [FC_ROUTES.paperCardConfig]: 1,
+    [FC_ROUTES.rerank]: 1,
+    [FC_ROUTES.plan]: 1,
+  });
+  assert.deepEqual(accounting.transportAttempts, {
+    [FC_ROUTES.paperCardConfig]: 1,
+    [FC_ROUTES.rerank]: 1,
+    [FC_ROUTES.plan]: 1,
+  });
+  assert.deepEqual(accounting.providerAttempts, {
+    [FC_ROUTES.paperCardConfig]: 0,
+    [FC_ROUTES.rerank]: 2,
+    [FC_ROUTES.plan]: 1,
+  });
+  assert.deepEqual(accounting.cacheHits, { [FC_ROUTES.rerank]: 1 });
+});
 
 function invalidMapperError() {
   const error = new Error("The corpus mapper did not return valid structured JSON.");
@@ -844,11 +1500,16 @@ test("different concurrent readiness requests serialize on the same source", asy
     async generatePaperCard({ source, contentHash }) {
       cardCalls += 1;
       const path = `.biodesign/literature/summaries/${source.sourceId}.json`;
-      await workspace.writeJson(path, {
-        paperId: source.sourceId,
-        contentHash,
-      });
-      return { path, schemaVersion: 1, model: "test-model", promptVersion: 1 };
+      const card = validCanonicalPaperCard(source, contentHash);
+      await workspace.writeJson(path, card);
+      return {
+        path,
+        card,
+        schemaVersion: card.schemaVersion,
+        model: card.model,
+        modelSignature: card.modelSignature,
+        promptVersion: card.promptVersion,
+      };
     },
   });
   await system.registry.reconcile(treeFor(workspace));
@@ -1153,30 +1814,30 @@ test("TEST F: parse failures produce truthful 30/32 corpus coverage", async () =
 test("TEST H: a valid Paper Card may assist mapping while original evidence remains verifiable", async () => {
   const workspace = new MemoryWorkspace();
   workspace.setFile("literature/card-ready.pdf", "Exact finding 12.4 with original evidence.", 1000);
-  let workerInput = null;
   const system = await makeSystem(workspace, {
     async generatePaperCard({ source, contentHash }) {
       const path = `.biodesign/cards/${source.sourceId}.json`;
-      await workspace.writeJson(path, {
-        title: "Cached card title",
-        researchQuestion: "What is the exact finding?",
-        topics: ["enzyme kinetics"],
-        methods: ["kinetic assay"],
-      });
-      return { path, schemaVersion: 1, model: "card-model", promptVersion: 1, contentHash };
-    },
-    async mapWorker(input) {
-      workerInput = input;
+      const card = validCanonicalPaperCard(source, contentHash);
+      const finding = "Exact finding 12.4 with original evidence.";
+      card.title = "Cached card title";
+      card.researchQuestion = "What is the exact finding?";
+      card.topics = ["enzyme kinetics"];
+      card.methods = ["kinetic assay"];
+      card.mainFindings = [finding];
+      card.importantResults = [finding];
+      card.keyResults = [finding];
+      card.evidenceFindings = [{
+        claim: finding,
+        evidenceRefs: [`${source.sourceId}:p1:${source.sourceId}-P1-C1`],
+      }];
+      await workspace.writeJson(path, card);
       return {
-        title: input.paperCard?.title,
-        relevance: "high",
-        themes: input.paperCard?.themes || [],
-        majorFindings: input.evidence.slice(0, 1).map((item) => ({
-          claim: item.claimCandidate,
-          evidenceRefs: [item.evidenceRef],
-        })),
-        methods: input.paperCard?.methods || [],
-        limitations: [],
+        path,
+        card,
+        schemaVersion: card.schemaVersion,
+        model: card.model,
+        modelSignature: card.modelSignature,
+        promptVersion: card.promptVersion,
       };
     },
   });
@@ -1187,8 +1848,9 @@ test("TEST H: a valid Paper Card may assist mapping while original evidence rema
   const result = await system.corpusWorkflows.run("Summarize all papers");
   const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
 
-  assert.equal(workerInput.paperCard.title, "Cached card title");
+  assert.equal(journal.maps[sourceId].title, "Cached card title");
   assert.equal(journal.maps[sourceId].usedPaperCard, true);
+  assert.equal(journal.maps[sourceId].generationMode, "paper-card-cache");
   assert.equal(journal.verification[0].status, "original-evidence-located");
   assert.deepEqual(journal.verification[0].supportingPaperIds, [sourceId]);
 });
@@ -1224,7 +1886,7 @@ test("TEST I: a paper without a Paper Card still participates in corpus analysis
   assert.equal(system.registry.get(sourceId).paperCardStatus, "absent");
 });
 
-test("all-uncached corpus shares one planner while retaining scoped rerank and mapper calls", async () => {
+test("cold corpus creates canonical artifacts without per-paper retrieval, rerank, or mapping", async () => {
   const { counters, system, paperIds, trace } = await createCorpusScenario(4);
   const result = await system.corpusWorkflows.run(
     "Compare all papers in the corpus",
@@ -1234,83 +1896,272 @@ test("all-uncached corpus shares one planner while retaining scoped rerank and m
 
   assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 4);
   assert.ok(Object.values(journal.maps).every((mapped) =>
-    mapped.generationMode === "structured-map"
+    mapped.generationMode === "paper-card-cache" &&
+    mapped.projectionMode === "local-deterministic"
   ));
-  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 4, map: 4 });
-  assert.deepEqual(
-    trace.retrievalOperations.map((operation) => operation.paperId).sort(),
-    [...paperIds].sort()
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 4,
+    paperCardSynthesize: 4,
+  });
+  assert.equal(trace.retrievalOperations.length, 0);
+  assert.equal(trace.plannerPayloads.length, 0);
+  assert.equal(trace.rerankPayloads.length, 0);
+  assert.equal(trace.mapperInputs.length, 0);
+  assert.equal(journal.processingAccounting.canonicalArtifactsCreated, paperIds.length);
+  assert.equal(journal.processingAccounting.localQuestionProjections, paperIds.length);
+
+  counters.reset();
+  const warmResult = await system.corpusWorkflows.run(
+    "Compare all papers in the corpus",
+    { retrievalProfile: "high", mapConcurrency: 2, turnId: "turn-corpus-4-warm" }
   );
-  assert.equal(
-    new Set(trace.retrievalOperations.map((operation) => operation.sharedPlanCacheKey)).size,
-    1
-  );
-  assert.ok(trace.retrievalOperations.every((operation) =>
-    operation.paperIds.length === 1 && operation.paperIds[0] === operation.paperId
-  ));
-  assert.ok(trace.plannerPayloads.every((payload) =>
-    payload.callContext.callRole === "search_planner" &&
-    payload.callContext.turnId === "turn-corpus-4"
-  ));
-  assert.ok(trace.rerankPayloads.every((payload) =>
-    payload.callContext.callRole === "reranker" &&
-    paperIds.includes(payload.callContext.paperId)
-  ));
-  assert.ok(trace.mapperOptions.every((worker) =>
-    worker.workflowId === journal.workflowId &&
-    worker.paperId &&
-    worker.profile === "high"
-  ));
+  const warmJournal = warmResult.resultHandle
+    ? await system.results.read(warmResult.resultHandle)
+    : warmResult;
+  assertRouteCounts(counters, { paperCardConfig: 1 });
+  assert.equal(warmJournal.processingAccounting.canonicalArtifactsCreated, 0);
+  assert.equal(warmJournal.processingAccounting.canonicalArtifactsReused, paperIds.length);
+  assert.equal(warmJournal.processingAccounting.localQuestionProjections, 0);
+  assert.equal(warmJournal.processingAccounting.providerMapRequests, 0);
+  assert.equal(trace.plannerPayloads.length, 0);
+  assert.equal(trace.rerankPayloads.length, 0);
+  assert.equal(trace.mapperInputs.length, 0);
 });
 
-test("32-paper multilingual corpus plans once before concurrency-2 paper retrieval and mapping", async () => {
-  const { counters, system, paperIds, trace } = await createCorpusScenario(32);
+test("canonical artifacts survive chats, paraphrases, renames, restart, and rebuild only modified papers", async () => {
+  const workspace = new MemoryWorkspace();
+  const paths = [
+    "literature/team-a/paper.pdf",
+    "literature/team-b/paper.pdf",
+    "literature/中文/酶工程研究.pdf",
+  ];
+  for (const path of paths) {
+    workspace.setFile(
+      path,
+      `EctD stability and fermentation conditions from ${path}.`,
+      1000
+    );
+  }
+  const fileIds = new Map(paths.map((path, index) => [path, `file-${index + 1}`]));
+  const treeWithFileIds = () => {
+    const tree = treeFor(workspace);
+    for (const entry of tree.children) {
+      entry.filesystemFileId = fileIds.get(entry.relativePath) || null;
+    }
+    return tree;
+  };
+  const counters = makeRouteCounters();
+  const trace = {
+    failPlanner: false,
+    failReranker: false,
+    plannerDelayMs: 0,
+    plannerPayloads: [],
+    rerankPayloads: [],
+    localSearches: [],
+    retrievalOperations: [],
+    mapperInputs: [],
+    mapperOptions: [],
+  };
+  const knowledgeService = await makeRouteCountedDeepKnowledgeService(
+    workspace,
+    counters,
+    trace
+  );
+  const systemOptions = {
+    knowledgeService,
+    getPaperCardConfiguration: async () => {
+      counters.hit(FC_ROUTES.paperCardConfig);
+      return TEST_PAPER_CARD_CONTRACT;
+    },
+    generatePaperCard: paperCardGenerator(workspace, counters),
+    async mapWorker(input) {
+      counters.hit(FC_ROUTES.map);
+      trace.mapperInputs.push(clone(input));
+      return validMapFor(input, "unexpected-provider-map");
+    },
+  };
+  let system = await makeSystem(workspace, systemOptions);
+  await system.registry.reconcile(treeWithFileIds());
+  const ask = async (activeSystem, question, language = "en") => {
+    const result = await activeSystem.corpusWorkflows.run(question, {
+      retrievalProfile: "high",
+      language,
+    });
+    counters.hit(FC_ROUTES.global);
+    return resolveWorkflowResult(activeSystem, result);
+  };
+
+  const cold = await ask(system, "Compare stability across every paper.");
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 3,
+    paperCardSynthesize: 3,
+    global: 1,
+  });
+  assert.equal(cold.processingAccounting.canonicalArtifactsCreated, 3);
+  const sourceIdsByPath = new Map(
+    system.registry.list({ sourceKind: "paper" }).map((source) => [source.path, source.sourceId])
+  );
+  assert.equal(new Set(sourceIdsByPath.values()).size, 3);
+
+  const chatStore = new WorkspaceChatStore({ workspace });
+  const firstChat = await chatStore.loadActiveConversation();
+  firstChat.messages.push({
+    id: workspace.createId(),
+    role: "user",
+    content: "Compare stability across every paper.",
+    createdAt: "2026-09-05T00:00:00.000Z",
+  });
+  await chatStore.saveConversation(firstChat);
+  const durableArtifacts = [
+    ".biodesign/knowledge/qmd-index.json",
+    ".biodesign/retrieval/cache.json",
+    ".biodesign/workflows/maps/provider-map.json",
+    ".biodesign/corpus/journal.json",
+  ];
+  for (const path of durableArtifacts) {
+    await workspace.writeJson(path, { retained: true });
+  }
+  const clearedChat = await chatStore.clearActiveConversation();
+  assert.notEqual(clearedChat.id, firstChat.id);
+  assert.equal(
+    await workspace.fileExists(`.biodesign/chat/conversations/${firstChat.id}.json`),
+    false
+  );
+  for (const path of durableArtifacts) {
+    assert.equal(await workspace.fileExists(path), true);
+  }
+  for (const source of system.registry.list({ sourceKind: "paper" })) {
+    assert.equal(await workspace.fileExists(source.artifacts.paperCard.path), true);
+  }
+
+  counters.reset();
+  const chinese = await ask(system, "请用中文比较这些论文中的发酵条件。", "zh");
+  assertRouteCounts(counters, { paperCardConfig: 1, global: 1 });
+  assert.equal(chinese.processingAccounting.canonicalArtifactsReused, 3);
+  assert.equal(chinese.processingAccounting.canonicalArtifactsCreated, 0);
+  assert.equal(chinese.processingAccounting.localQuestionProjections, 3);
+  assert.ok(Object.values(chinese.maps).every((map) =>
+    map.generationMode === "paper-card-cache" &&
+    map.findings.every((finding) => !finding.claim.includes("请用中文"))
+  ));
+
+  const oldPath = "literature/team-a/paper.pdf";
+  const renamedPath = "literature/team-a/renamed-paper.pdf";
+  const oldFile = workspace.files.get(oldPath);
+  workspace.files.delete(oldPath);
+  workspace.files.set(renamedPath, makeFile("renamed-paper.pdf", await oldFile.text(), 1000));
+  const stableFileId = fileIds.get(oldPath);
+  fileIds.delete(oldPath);
+  fileIds.set(renamedPath, stableFileId);
+  counters.reset();
+  const renameResult = await system.registry.reconcile(treeWithFileIds());
+  const renamedSourceId = sourceIdsByPath.get(oldPath);
+  assert.deepEqual(renameResult.changes.renamed, [{
+    sourceId: renamedSourceId,
+    from: oldPath,
+    to: renamedPath,
+  }]);
+  const renamed = await ask(system, "Summarize methods in all papers.");
+  assert.equal(system.registry.get(renamedSourceId).path, renamedPath);
+  assertRouteCounts(counters, { paperCardConfig: 1, global: 1 });
+  const renamedCard = await workspace.readJson(
+    system.registry.get(renamedSourceId).artifacts.paperCard.path
+  );
+  assert.equal(renamedCard.source.relativePath, renamedPath);
+  assert.equal(renamed.maps[renamedSourceId].paperId, renamedSourceId);
+
+  counters.reset();
+  const restartedKnowledgeService = await makeRouteCountedDeepKnowledgeService(
+    workspace,
+    counters,
+    trace
+  );
+  system = await makeSystem(workspace, {
+    ...systemOptions,
+    knowledgeService: restartedKnowledgeService,
+  });
+  await system.registry.reconcile(treeWithFileIds());
+  const restarted = await ask(system, "Which organisms and pathways are reported?");
+  assertRouteCounts(counters, { paperCardConfig: 1, global: 1 });
+  assert.equal(restarted.processingAccounting.canonicalArtifactsReused, 3);
+  assert.equal(restarted.processingAccounting.canonicalArtifactsCreated, 0);
+
+  const modifiedPath = "literature/中文/酶工程研究.pdf";
+  workspace.setFile(modifiedPath, "Modified EctD measurements and limitations.", 2000);
+  counters.reset();
+  await system.registry.reconcile(treeWithFileIds());
+  const modified = await ask(system, "Compare measurements and limitations.");
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 1,
+    paperCardSynthesize: 1,
+    global: 1,
+  });
+  assert.equal(modified.processingAccounting.canonicalArtifactsReused, 2);
+  assert.equal(modified.processingAccounting.canonicalArtifactsCreated, 1);
+  assert.equal(modified.processingAccounting.providerMapRequests, 0);
+});
+
+test("41-paper corpus progress keeps paper totals separate from fallback chunks", async () => {
+  const { counters, system, paperIds, trace } = await createCorpusScenario(
+    41,
+    [],
+    { emitFallbackProgress: true }
+  );
   const progress = [];
   const question = "帮我总结所有文献，写一个综述。";
   const result = await system.corpusWorkflows.run(question, {
     retrievalProfile: "high",
     mapConcurrency: 2,
     language: "zh",
-    turnId: "turn-corpus-32-zh",
+    turnId: "turn-corpus-41-zh",
     onProgress: (event) => progress.push(clone(event)),
   });
   const journal = await resolveWorkflowResult(system, result);
 
-  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 32);
-  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 32, map: 32 });
-  assert.equal(trace.retrievalOperations.length, 32);
-  assert.deepEqual(
-    new Set(trace.retrievalOperations.map((operation) => operation.paperId)),
-    new Set(paperIds)
+  assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 41);
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 41,
+    paperCardSynthesize: 41,
+  });
+  assert.equal(trace.retrievalOperations.length, 0);
+  assert.equal(trace.plannerPayloads.length, 0);
+  assert.equal(trace.rerankPayloads.length, 0);
+  assert.equal(trace.mapperInputs.length, 0);
+  assert.equal(journal.sharedRetrievalPlan, null);
+  assert.equal(
+    progress.filter((event) => event.stage === "canonical-paper-artifact-created").length,
+    paperIds.length
   );
-  assert.equal(new Set(trace.retrievalOperations.map(
-    (operation) => operation.sharedPlanCacheKey
-  )).size, 1);
-  assert.ok(trace.retrievalOperations.every((operation) =>
-    operation.sharedPlan === trace.retrievalOperations[0].sharedPlan
+  assert.equal(
+    progress.filter((event) => event.stage === "canonical-paper-projection").length,
+    paperIds.length
+  );
+  assert.equal(progress.some((event) => event.stage === "reranking-evidence"), false);
+  const fallbackChunkEvents = progress.filter((event) =>
+    event.stage === "canonical-paper-artifact-create" &&
+    event.sourceStage === "summarizing"
+  );
+  assert.equal(fallbackChunkEvents.length, paperIds.length);
+  assert.ok(fallbackChunkEvents.every((event) =>
+    event.total === 41 &&
+    event.papersTotal === 41 &&
+    event.completed <= 41 &&
+    event.chunksCompleted === 2 &&
+    event.chunksTotal === 5
   ));
-  assert.ok(trace.localSearches.every((search) =>
-    search.paperIds.length === 1 && paperIds.includes(search.paperIds[0])
-  ));
-  assert.equal(journal.sharedRetrievalPlan.crossLanguage, true);
-  assert.equal(journal.sharedRetrievalPlan.sourceLanguage, "zh");
-  assert.deepEqual(
-    journal.sharedRetrievalPlan.scientificDimensions,
-    journal.sharedRetrievalPlan.queries
-  );
-  assert.doesNotMatch(
-    journal.sharedRetrievalPlan.queries.join(" "),
-    /literature review|systematic review|meta-analysis|文献综述|综述写作/iu
-  );
-  assert.equal(progress.filter((event) => event.stage === "corpus-plan").length, 1);
-  assert.equal(progress.filter((event) => event.stage === "corpus-plan-ready").length, 1);
-  assert.ok(
-    progress.findIndex((event) => event.stage === "corpus-plan-ready") <
-    progress.findIndex((event) => event.stage === "corpus-map")
+  assert.equal(journal.processingAccounting.logicalPaperCardGenerations, 41);
+  assert.equal(journal.processingAccounting.textFallbackOperations, 41);
+  assert.equal(
+    journal.processingAccounting.textFallbackReasons["native-provider-failure"],
+    41
   );
 });
 
-test("planner cache persists across a compatible new corpus workflow", async () => {
+test("restart and one newly added paper reuse canonical artifacts and process only the new source", async () => {
   const scenario = await createCorpusScenario(2);
   const { workspace, counters, system, trace } = scenario;
   const question = "Across all papers, compare EctD stability.";
@@ -1318,7 +2169,11 @@ test("planner cache persists across a compatible new corpus workflow", async () 
     retrievalProfile: "high",
     mapConcurrency: 2,
   });
-  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 2, map: 2 });
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 2,
+    paperCardSynthesize: 2,
+  });
 
   counters.reset();
   trace.plannerPayloads.length = 0;
@@ -1342,12 +2197,18 @@ test("planner cache persists across a compatible new corpus workflow", async () 
   });
   const secondJournal = await resolveWorkflowResult(system, second);
   assert.equal(secondJournal.coverage.papersSuccessfullyAnalyzed, 3);
-  assertRouteCounts(counters, { config: 1, plan: 0, rerank: 1, map: 1 });
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 1,
+    paperCardSynthesize: 1,
+  });
   assert.equal(trace.plannerPayloads.length, 0);
-  assert.equal(trace.retrievalOperations.length, 1);
+  assert.equal(trace.retrievalOperations.length, 0);
+  assert.equal(secondJournal.processingAccounting.canonicalArtifactsReused, 2);
+  assert.equal(secondJournal.processingAccounting.canonicalArtifactsCreated, 1);
 });
 
-test("a resumed workflow validates and reuses its journaled shared plan", async () => {
+test("a resumed workflow reuses canonical artifacts and locally rebuilds a missing projection", async () => {
   const { workspace, counters, system, paperIds, trace } = await createCorpusScenario(2);
   const question = "Summarize all papers about EctD.";
   const first = await system.corpusWorkflows.run(question, {
@@ -1401,34 +2262,41 @@ test("a resumed workflow validates and reuses its journaled shared plan", async 
     : resumed;
 
   assert.equal(resumedJournal.coverage.papersSuccessfullyAnalyzed, 2);
-  assert.equal(resumedJournal.sharedRetrievalPlan.cacheKey, firstJournal.sharedRetrievalPlan.cacheKey);
-  assertRouteCounts(counters, { config: 1, plan: 0, rerank: 0, map: 1 });
+  assert.equal(resumedJournal.sharedRetrievalPlan, null);
+  assertRouteCounts(counters, { paperCardConfig: 1 });
+  assert.equal(resumedJournal.processingAccounting.canonicalArtifactsReused, 2);
+  assert.equal(resumedJournal.processingAccounting.localQuestionProjections, 1);
 });
 
-test("materially different corpus questions receive different shared plans", async () => {
+test("materially different corpus questions reuse cards and create distinct local projections", async () => {
   const { counters, system, trace } = await createCorpusScenario(2);
-  await system.corpusWorkflows.run("Summarize all papers.", {
+  const firstResult = await system.corpusWorkflows.run("Summarize all papers.", {
     retrievalProfile: "high",
   });
-  const first = await system.corpusWorkflows.getWorkflowStatus("");
-  await system.corpusWorkflows.run(
+  const first = await resolveWorkflowResult(system, firstResult);
+  const secondResult = await system.corpusWorkflows.run(
     "Across all papers, focus specifically on fermentation conditions.",
     { retrievalProfile: "high" }
   );
-  const second = await system.corpusWorkflows.getWorkflowStatus("");
+  const second = await resolveWorkflowResult(system, secondResult);
 
-  assert.equal(counters.counts[FC_ROUTES.plan], 2);
-  assert.equal(trace.plannerPayloads.length, 2);
+  assert.equal(counters.counts[FC_ROUTES.plan], 0);
+  assert.equal(trace.plannerPayloads.length, 0);
   assert.notEqual(first.workflowId, second.workflowId);
-  assert.notEqual(
-    trace.plannerPayloads[0].query,
-    trace.plannerPayloads[1].query
-  );
+  assert.equal(second.processingAccounting.canonicalArtifactsReused, 2);
+  assert.equal(second.processingAccounting.canonicalArtifactsCreated, 0);
+  assert.equal(second.processingAccounting.localQuestionProjections, 2);
+  assertRouteCounts(counters, {
+    paperCardConfig: 2,
+    summarize: 2,
+    paperCardSynthesize: 2,
+  });
 });
 
 test("planner failure occurs once at workflow scope and all papers use local fallback", async () => {
   const { counters, system, trace } = await createCorpusScenario(4, [], {
     failPlanner: true,
+    failPaperCards: true,
   });
   const result = await system.corpusWorkflows.run(
     "帮我总结所有文献，写一个综述。",
@@ -1439,11 +2307,19 @@ test("planner failure occurs once at workflow scope and all papers use local fal
   assert.equal(journal.coverage.papersSuccessfullyAnalyzed, 4);
   assert.equal(journal.sharedRetrievalPlan.status, "local-fallback");
   assert.equal(trace.retrievalOperations.length, 4);
-  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 0, map: 4 });
+  assertRouteCounts(counters, {
+    config: 1,
+    paperCardConfig: 1,
+    plan: 1,
+    rerank: 0,
+    map: 4,
+  });
 });
 
 test("shared planning never leaks one paper's evidence into another mapper", async () => {
-  const { system, paperIds, trace } = await createCorpusScenario(2);
+  const { system, paperIds, trace } = await createCorpusScenario(2, [], {
+    failPaperCards: true,
+  });
   await system.corpusWorkflows.run("Review all papers about EctD A163V.", {
     retrievalProfile: "high",
     mapConcurrency: 2,
@@ -1537,10 +2413,10 @@ test("all-Paper-Card corpus performs zero per-paper provider calls", async () =>
     mapped.paperCardContentIdentity.length > 0
   ));
   assert.equal(
-    progress.filter((event) => event.stage === "paper-card-cache-hit").length,
+    progress.filter((event) => event.stage === "canonical-paper-artifact-cache-hit").length,
     4
   );
-  assertRouteCounts(counters, {});
+  assertRouteCounts(counters, { paperCardConfig: 1 });
 });
 
 test("a changed valid Paper Card invalidates only its local card-derived map", async () => {
@@ -1567,10 +2443,10 @@ test("a changed valid Paper Card invalidates only its local card-derived map", a
   assert.equal(remapped.generationMode, "paper-card-cache");
   assert.notEqual(remapped.paperCardContentIdentity, firstIdentity);
   assert.equal(remapped.findings[0].claim, changedFinding);
-  assertRouteCounts(counters, {});
+  assertRouteCounts(counters, { paperCardConfig: 1 });
 });
 
-test("mixed corpus uses Paper Cards locally and calls per-paper providers only for uncovered papers", async () => {
+test("mixed warm and cold corpus creates only missing canonical artifacts", async () => {
   const { counters, system, paperIds } = await createCorpusScenario(4, [0, 2]);
   const result = await system.corpusWorkflows.run(
     "Compare all papers in the corpus",
@@ -1580,12 +2456,18 @@ test("mixed corpus uses Paper Cards locally and calls per-paper providers only f
 
   assert.equal(journal.maps[paperIds[0]].generationMode, "paper-card-cache");
   assert.equal(journal.maps[paperIds[2]].generationMode, "paper-card-cache");
-  assert.equal(journal.maps[paperIds[1]].generationMode, "structured-map");
-  assert.equal(journal.maps[paperIds[3]].generationMode, "structured-map");
-  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 2, map: 2 });
+  assert.equal(journal.maps[paperIds[1]].generationMode, "paper-card-cache");
+  assert.equal(journal.maps[paperIds[3]].generationMode, "paper-card-cache");
+  assert.equal(journal.processingAccounting.canonicalArtifactsReused, 2);
+  assert.equal(journal.processingAccounting.canonicalArtifactsCreated, 2);
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 2,
+    paperCardSynthesize: 2,
+  });
 });
 
-test("stale, missing, malformed, and content-mismatched Paper Cards use the existing provider path", async () => {
+test("stale, missing, malformed, and content-mismatched Paper Cards are rebuilt", async () => {
   const { workspace, counters, system, paperIds } = await createCorpusScenario(
     4,
     [0, 1, 2, 3]
@@ -1611,13 +2493,69 @@ test("stale, missing, malformed, and content-mismatched Paper Cards use the exis
   const journal = result.resultHandle ? await system.results.read(result.resultHandle) : result;
 
   assert.ok(Object.values(journal.maps).every((mapped) =>
-    mapped.generationMode === "structured-map"
+    mapped.generationMode === "paper-card-cache"
   ));
-  assertRouteCounts(counters, { config: 1, plan: 1, rerank: 4, map: 4 });
+  assert.equal(journal.processingAccounting.canonicalArtifactsCreated, 4);
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 4,
+    paperCardSynthesize: 4,
+  });
+});
+
+test("canonical cache invalidates on strategy, model, prompt, schema, native, and parsing changes", async () => {
+  const contract = {
+    ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+  };
+  const { counters, system, paperIds } = await createCorpusScenario(1, [], {
+    paperCardContract: contract,
+  });
+  await system.corpusWorkflows.run("First corpus question.", { retrievalProfile: "high" });
+  assertRouteCounts(counters, {
+    paperCardConfig: 1,
+    summarize: 1,
+    paperCardSynthesize: 1,
+  });
+
+  const assertRebuilt = async (question) => {
+    counters.reset();
+    const result = await system.corpusWorkflows.run(question, { retrievalProfile: "high" });
+    const journal = await resolveWorkflowResult(system, result);
+    assert.equal(journal.processingAccounting.canonicalArtifactsCreated, 1);
+    assert.equal(journal.processingAccounting.canonicalArtifactsReused, 0);
+    assertRouteCounts(counters, {
+      paperCardConfig: 1,
+      summarize: 1,
+      paperCardSynthesize: 1,
+    });
+  };
+
+  contract.modelSignature = "e".repeat(64);
+  await assertRebuilt("Question after model change.");
+  contract.promptVersion = "canonical-paper-card-v3";
+  await assertRebuilt("Question after prompt change.");
+  contract.schemaVersion = 3;
+  await assertRebuilt("Question after schema change.");
+  contract.generationStrategy = "native-pdf-preferred-v2";
+  await assertRebuilt("Question after generation strategy change.");
+  contract.nativePdfPromptVersion = "canonical-paper-card-native-v2";
+  await assertRebuilt("Question after native prompt change.");
+  contract.nativePdfModelSignature = "f".repeat(64);
+  await assertRebuilt("Question after native model change.");
+  contract.nativePdfSchemaVersion = 2;
+  await assertRebuilt("Question after native schema change.");
+
+  const source = system.registry.get(paperIds[0]);
+  source.artifacts.paperCard.sourceArtifactSchemaVersion = 0;
+  await assertRebuilt("Question after parsing contract change.");
+  source.artifacts.paperCard.extractorVersion = "older-local-parser";
+  await assertRebuilt("Question after parser version change.");
 });
 
 test("an existing valid corpus map takes precedence over a newly available Paper Card", async () => {
-  const { counters, system, paperIds } = await createCorpusScenario(1);
+  const { workspace, counters, system, paperIds } = await createCorpusScenario(1, [], {
+    failPaperCards: true,
+  });
   const question = "Compare all papers in the corpus";
   const first = await system.corpusWorkflows.run(question, {
     retrievalProfile: "high",
@@ -1625,6 +2563,7 @@ test("an existing valid corpus map takes precedence over a newly available Paper
   const firstJournal = first.resultHandle ? await system.results.read(first.resultHandle) : first;
   assert.equal(firstJournal.maps[paperIds[0]].generationMode, "structured-map");
 
+  system.preparation.setPaperCardGenerator(paperCardGenerator(workspace, counters));
   await system.preparation.ensureSourceReady([paperIds[0]], "paper_card");
   counters.reset();
   const second = await system.corpusWorkflows.run(question, {
@@ -1633,7 +2572,7 @@ test("an existing valid corpus map takes precedence over a newly available Paper
   const secondJournal = second.resultHandle ? await system.results.read(second.resultHandle) : second;
 
   assert.equal(secondJournal.maps[paperIds[0]].generationMode, "structured-map");
-  assertRouteCounts(counters, {});
+  assertRouteCounts(counters, { paperCardConfig: 1 });
 });
 
 test("corpus membership changes stale the old synthesis and reuse unchanged maps", async () => {

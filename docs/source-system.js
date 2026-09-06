@@ -21,12 +21,13 @@
   const SOURCE_EXTRACTOR_VERSION = "local-source-v1";
   const EXPERIMENT_NORMALIZER_VERSION = "canonical-tabular-v2";
   const CORPUS_WORKFLOW_VERSION = 2;
-  const CORPUS_MAP_SCHEMA_VERSION = 2;
+  const CORPUS_MAP_SCHEMA_VERSION = 3;
   const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
-  const PAPER_CARD_CORPUS_MAP_VERSION = "paper-card-map-v1";
+  const PAPER_CARD_CORPUS_MAP_VERSION = "canonical-paper-projection-v2";
   const CORPUS_RETRIEVAL_INTENT = "corpus scientific evidence extraction";
   const NATIVE_PDF_PROMPT_VERSION = "requesty-native-pdf-v1";
-  const PAPER_CARD_CACHE_KEY_VERSION = 1;
+  const PAPER_CARD_CACHE_KEY_VERSION = 3;
+  const PAPER_CARD_GENERATION_STRATEGY = "native-pdf-preferred-v1";
   const DEFAULT_CORPUS_PREPARE_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_ATTEMPTS = 3;
@@ -78,11 +79,62 @@
   function paperCardCacheKey(input = {}) {
     return JSON.stringify({
       version: PAPER_CARD_CACHE_KEY_VERSION,
+      sourceId: String(input.sourceId || ""),
       contentHash: String(input.contentHash || ""),
       schemaVersion: Number(input.schemaVersion) || 0,
-      model: String(input.model || "unspecified"),
+      modelSignature: String(input.modelSignature || input.configurationSignature || input.model || "unspecified"),
       promptVersion: String(input.promptVersion || "unspecified"),
+      generationStrategy: String(
+        input.generationStrategy || "text-map-reduce-v1"
+      ),
+      nativePdfSchemaVersion: Number(input.nativePdfSchemaVersion) || 0,
+      nativePdfPromptVersion: String(
+        input.nativePdfPromptVersion || "not-applicable"
+      ),
+      nativePdfModelSignature: String(
+        input.nativePdfModelSignature || "not-applicable"
+      ),
+      sourceArtifactSchemaVersion: Number(input.sourceArtifactSchemaVersion) || 0,
+      extractorVersion: String(input.extractorVersion || "unspecified"),
     });
+  }
+
+  function normalizePaperCardContract(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const contract = {
+      schemaVersion: Number(value.schemaVersion) || 0,
+      promptVersion: String(value.promptVersion || ""),
+      modelSignature: String(value.modelSignature || value.configurationSignature || ""),
+      generationStrategy: String(
+        value.generationStrategy || "text-map-reduce-v1"
+      ),
+      nativePdfSupported: value.nativePdfSupported === true,
+      nativePdfMaxBytes: Math.max(0, Number(value.nativePdfMaxBytes) || 0),
+      nativePdfSchemaVersion: Math.max(0, Number(value.nativePdfSchemaVersion) || 0),
+      nativePdfPromptVersion: String(
+        value.nativePdfPromptVersion || "not-applicable"
+      ),
+      nativePdfModelSignature: String(
+        value.nativePdfModelSignature || "not-applicable"
+      ),
+    };
+    const nativeContractValid =
+      contract.generationStrategy !== PAPER_CARD_GENERATION_STRATEGY ||
+      (
+        contract.nativePdfSchemaVersion > 0 &&
+        contract.nativePdfPromptVersion &&
+        contract.nativePdfPromptVersion !== "not-applicable" &&
+        (!contract.nativePdfSupported || (
+          contract.nativePdfMaxBytes > 0 &&
+          /^[a-f0-9]{32,128}$/i.test(contract.nativePdfModelSignature)
+        ))
+      );
+    return contract.schemaVersion > 0 &&
+      contract.promptVersion &&
+      /^[a-f0-9]{32,128}$/i.test(contract.modelSignature) &&
+      nativeContractValid
+      ? contract
+      : null;
   }
   const ToolEffect = Object.freeze({
     INFORMATIONAL: "informational",
@@ -999,6 +1051,11 @@
       genes: uniqueStrings(asList(mapped?.genes), 30),
       proteins: uniqueStrings(asList(mapped?.proteins), 30),
       pathways: uniqueStrings(asList(mapped?.pathways), 30),
+      experimentalConditions: uniqueStrings(
+        asList(mapped?.experimentalConditions || mapped?.experimental_conditions),
+        30
+      ),
+      measurements: uniqueStrings(asList(mapped?.measurements), 30),
       experimentalStrategies: uniqueStrings(
         asList(mapped?.experimentalStrategies || mapped?.experimental_strategies),
         30
@@ -1016,8 +1073,23 @@
     };
   }
 
-  function reusablePaperCardHasRequiredContent(card, source) {
+  function reusablePaperCardHasRequiredContent(card, source, contract = null) {
     if (!card || typeof card !== "object" || Array.isArray(card)) return false;
+    const cardContract = normalizePaperCardContract(card);
+    const expectedContract = normalizePaperCardContract(contract);
+    const expectedCacheKey = paperCardCacheKey({
+      sourceId: card.paperId,
+      contentHash: card.source?.hash,
+      schemaVersion: card.schemaVersion,
+      modelSignature: card.modelSignature,
+      promptVersion: card.promptVersion,
+      generationStrategy: card.generationStrategy,
+      nativePdfSchemaVersion: card.nativePdfSchemaVersion,
+      nativePdfPromptVersion: card.nativePdfPromptVersion,
+      nativePdfModelSignature: card.nativePdfModelSignature,
+      sourceArtifactSchemaVersion: card.source?.artifactSchemaVersion,
+      extractorVersion: card.source?.extractorVersion,
+    });
     const requiredArrayFields = [
       "authors",
       "mainFindings",
@@ -1036,11 +1108,24 @@
       "keyResults",
     ];
     if (
-      Number(card.schemaVersion) !== 1 ||
-      Number(card.paperCardVersion) !== 1 ||
+      Number(card.schemaVersion) !== Number(contract?.schemaVersion || 2) ||
+      Number(card.paperCardVersion) !== Number(contract?.schemaVersion || 2) ||
+      (expectedContract && (
+        !cardContract ||
+        cardContract.schemaVersion !== expectedContract.schemaVersion ||
+        cardContract.promptVersion !== expectedContract.promptVersion ||
+        cardContract.modelSignature !== expectedContract.modelSignature ||
+        cardContract.generationStrategy !== expectedContract.generationStrategy ||
+        cardContract.nativePdfSchemaVersion !== expectedContract.nativePdfSchemaVersion ||
+        cardContract.nativePdfPromptVersion !== expectedContract.nativePdfPromptVersion ||
+        cardContract.nativePdfModelSignature !== expectedContract.nativePdfModelSignature
+      )) ||
       card.paperId !== source?.sourceId ||
       card.documentId !== source?.sourceId ||
       card.source?.hash !== source?.contentHash ||
+      Number(card.source?.artifactSchemaVersion) !== SOURCE_ARTIFACT_SCHEMA_VERSION ||
+      card.source?.extractorVersion !== SOURCE_EXTRACTOR_VERSION ||
+      card.cacheKey !== expectedCacheKey ||
       typeof card.source?.filename !== "string" ||
       typeof card.source?.relativePath !== "string" ||
       typeof card.generatedAt !== "string" ||
@@ -1049,6 +1134,20 @@
       !card.fileName ||
       typeof card.shortSummary !== "string" ||
       typeof card.summary !== "string" ||
+      !Array.isArray(card.evidenceFindings) ||
+      !card.evidenceFindings.every((finding) =>
+        finding &&
+        typeof finding === "object" &&
+        !Array.isArray(finding) &&
+        typeof finding.claim === "string" &&
+        Array.isArray(finding.evidenceRefs) &&
+        finding.evidenceRefs.every((reference) =>
+          typeof reference === "string" &&
+          reference.startsWith(`${source.sourceId}:p`) &&
+          reference.length <= 500 &&
+          !/[\r\n]/.test(reference)
+        )
+      ) ||
       (card.year !== null && !Number.isInteger(card.year)) ||
       !requiredArrayFields.every((key) =>
         Array.isArray(card[key]) && card[key].every((item) => typeof item === "string")
@@ -1088,6 +1187,8 @@
       genes: uniqueStrings(asList(card?.genes), 30),
       proteins: uniqueStrings(asList(card?.proteins), 30),
       pathways: uniqueStrings(asList(card?.pathways), 30),
+      experimentalConditions: uniqueStrings(asList(card?.experimentalConditions), 30),
+      measurements: uniqueStrings(asList(card?.measurements), 30),
       limitations: uniqueStrings(asList(card?.limitations), 30),
     };
   }
@@ -1126,17 +1227,42 @@
     const chunks = Array.isArray(paperArtifact?.chunks)
       ? paperArtifact.chunks.slice(0, 2000)
       : [];
+    const validEvidenceRefs = new Set(chunks
+      .filter((chunk) =>
+        Number.isInteger(Number(chunk?.page)) &&
+        Number(chunk.page) > 0 &&
+        String(chunk?.chunkId || "").trim()
+      )
+      .map((chunk) =>
+        `${sourceId}:p${Number(chunk.page)}:${String(chunk.chunkId).slice(0, 256)}`
+      ));
     return entries.map((entry) => {
-      if (entry.evidenceRefs.length) return entry;
+      const verifiedReferences = entry.evidenceRefs.filter((reference) =>
+        validEvidenceRefs.has(reference)
+      );
+      if (verifiedReferences.length) {
+        return { ...entry, evidenceRefs: verifiedReferences };
+      }
+      const normalizedClaim = entry.claim.toLowerCase().replace(/\s+/g, " ").trim();
       const best = chunks
-        .map((chunk) => ({ chunk, score: scoreText(chunk?.text, entry.claim) }))
-        .filter((candidate) => candidate.score > 0)
+        .map((chunk) => ({
+          chunk,
+          containsClaim: String(chunk?.text || "")
+            .toLowerCase()
+            .replace(/\s+/g, " ")
+            .includes(normalizedClaim),
+        }))
+        .filter((candidate) =>
+          normalizedClaim &&
+          candidate.containsClaim &&
+          Number.isInteger(Number(candidate.chunk?.page)) &&
+          Number(candidate.chunk.page) > 0
+        )
         .sort((left, right) =>
-          right.score - left.score ||
           Number(left.chunk?.page || 0) - Number(right.chunk?.page || 0) ||
           String(left.chunk?.chunkId || "").localeCompare(String(right.chunk?.chunkId || ""))
         )[0];
-      if (!best?.chunk?.chunkId) return entry;
+      if (!best?.chunk?.chunkId) return { ...entry, evidenceRefs: [] };
       return {
         ...entry,
         evidenceRefs: [
@@ -1146,13 +1272,22 @@
     });
   }
 
-  function corpusMapFromPaperCard(source, reusableCard, paperArtifact) {
+  function corpusMapFromPaperCard(source, reusableCard, paperArtifact, question = "") {
     const card = reusableCard.card;
     const claimEntries = paperCardEvidenceForClaims(
       paperCardClaimEntries(card, source.sourceId),
       paperArtifact,
       source.sourceId
-    );
+    )
+      .map((entry, index) => ({
+        ...entry,
+        projectionScore: scoreText(entry.claim, question),
+        canonicalOrder: index,
+      }))
+      .sort((left, right) =>
+        right.projectionScore - left.projectionScore ||
+        left.canonicalOrder - right.canonicalOrder
+      );
     const workerInput = {
       paperId: source.sourceId,
       contentHash: source.contentHash,
@@ -1179,6 +1314,8 @@
       genes: card.genes,
       proteins: card.proteins,
       pathways: card.pathways,
+      experimentalConditions: card.experimentalConditions,
+      measurements: card.measurements,
       limitations: card.limitations,
       experimentalStrategies: [],
       connectionsToOtherTopics: [],
@@ -1188,6 +1325,7 @@
     return {
       ...normalizeCorpusMapResult(mapped, workerInput),
       generationMode: "paper-card-cache",
+      projectionMode: "local-deterministic",
       paperCardContentIdentity: reusableCard.contentIdentity,
     };
   }
@@ -1231,6 +1369,8 @@
       "genes",
       "proteins",
       "pathways",
+      "experimentalConditions",
+      "measurements",
       "limitations",
     ]) {
       if (mapped[key] !== undefined && !Array.isArray(mapped[key])) {
@@ -1479,7 +1619,9 @@
           if (source.indexStatus === "ready") source.indexStatus = "stale";
           if (source.qmdLexStatus === "ready") source.qmdLexStatus = "stale";
           if (source.qmdVectorStatus === "ready") source.qmdVectorStatus = "stale";
-          if (source.paperCardStatus === "ready") source.paperCardStatus = "stale";
+          // Canonical Paper Cards are keyed by source identity and content hash.
+          // A path or timestamp change is validated by the next content hash and
+          // does not itself make the question-independent analysis stale.
           if (source.structuredDataStatus === "ready") source.structuredDataStatus = "stale";
           changes.dirty.push(source.sourceId);
         } else {
@@ -2057,6 +2199,7 @@
         ? new experimentSemantics.SchemaMappingService({ workspace: this.workspace, schemaMapper: options.schemaMapper })
         : null);
       this.generatePaperCard = options.generatePaperCard || null;
+      this.getPaperCardConfiguration = options.getPaperCardConfiguration || null;
       this.knowledgeService = options.knowledgeService || null;
       this.topicService = options.topicService || null;
       this.knowledgeLifecycle = options.knowledgeLifecycle || null;
@@ -2073,6 +2216,9 @@
         indexDurationMs: 0,
         paperCardCalls: 0,
         paperCardDurationMs: 0,
+        nativePaperCardSuccesses: 0,
+        textPaperCardFallbacks: 0,
+        textPaperCardFallbackReasons: {},
         cacheHits: 0,
         cacheMisses: 0,
       };
@@ -2083,23 +2229,58 @@
       this.generatePaperCard = generator;
     }
 
-    capabilitySatisfied(source, capability) {
+    paperCardArtifactMatches(source, artifact, contract = null) {
+      const expectedContract = normalizePaperCardContract(contract);
+      return Boolean(
+        artifact?.contentHash &&
+        artifact.contentHash === source?.contentHash &&
+        artifact.sourceId === source?.sourceId &&
+        Number(artifact.sourceArtifactSchemaVersion) === SOURCE_ARTIFACT_SCHEMA_VERSION &&
+        artifact.extractorVersion === SOURCE_EXTRACTOR_VERSION &&
+        artifact.cacheKey === paperCardCacheKey(artifact) &&
+        (!expectedContract || (
+          Number(artifact.schemaVersion) === expectedContract.schemaVersion &&
+          artifact.promptVersion === expectedContract.promptVersion &&
+          artifact.modelSignature === expectedContract.modelSignature &&
+          String(artifact.generationStrategy || "text-map-reduce-v1") ===
+            expectedContract.generationStrategy &&
+          Number(artifact.nativePdfSchemaVersion) ===
+            expectedContract.nativePdfSchemaVersion &&
+          String(artifact.nativePdfPromptVersion || "not-applicable") ===
+            expectedContract.nativePdfPromptVersion &&
+          String(artifact.nativePdfModelSignature || "not-applicable") ===
+            expectedContract.nativePdfModelSignature
+        ))
+      );
+    }
+
+    paperTextArtifactMatches(source, artifact) {
+      return Boolean(
+        artifact?.contentHash &&
+        artifact.contentHash === source?.contentHash &&
+        Number(artifact.schemaVersion) === SOURCE_ARTIFACT_SCHEMA_VERSION &&
+        artifact.extractorVersion === SOURCE_EXTRACTOR_VERSION
+      );
+    }
+
+    capabilitySatisfied(source, capability, requestContext = {}) {
       if (source.catalogStatus === "missing" || source.catalogStatus === "dirty") return false;
       if (capability === "catalog") return true;
       if (capability === "stable_snapshot") return source.hashStatus === "ready";
       if (capability === "full_text") {
-        return source.hashStatus === "ready" && source.parseStatus === "ready";
+        return source.hashStatus === "ready" && source.parseStatus === "ready" &&
+          this.paperTextArtifactMatches(source, source.artifacts?.paperText);
       }
       if (capability === "search") {
-        return source.hashStatus === "ready" && source.indexStatus === "ready";
+        return source.hashStatus === "ready" && source.indexStatus === "ready" &&
+          this.paperTextArtifactMatches(source, source.artifacts?.paperText);
       }
       if (capability === "paper_card") {
         const artifact = source.artifacts?.paperCard;
         return (
           source.hashStatus === "ready" &&
           source.paperCardStatus === "ready" &&
-          artifact?.contentHash === source.contentHash &&
-          artifact.cacheKey === paperCardCacheKey(artifact)
+          this.paperCardArtifactMatches(source, artifact, requestContext.paperCardContract)
         );
       }
       if (capability === "experiment_data") {
@@ -2108,7 +2289,7 @@
       return false;
     }
 
-    async cachedCapabilityAvailable(source, capability) {
+    async cachedCapabilityAvailable(source, capability, requestContext = {}) {
       const artifact =
         ["full_text", "search"].includes(capability)
           ? source.artifacts?.paperText
@@ -2118,12 +2299,27 @@
               ? source.artifacts?.experimentData
               : null;
       if (!artifact) return ["catalog", "stable_snapshot"].includes(capability);
-      return Boolean(
+      const descriptorValid = Boolean(
         artifact.path &&
-        artifact.contentHash === source.contentHash &&
-        (capability !== "paper_card" || artifact.cacheKey === paperCardCacheKey(artifact)) &&
+        (capability === "paper_card"
+          ? this.paperCardArtifactMatches(source, artifact, requestContext.paperCardContract)
+          : capability === "full_text" || capability === "search"
+            ? this.paperTextArtifactMatches(source, artifact)
+            : artifact.contentHash === source.contentHash) &&
         (await this.workspace.fileExists(artifact.path))
       );
+      if (!descriptorValid) return false;
+      if (capability !== "paper_card") return true;
+      try {
+        const card = await this.workspace.readJson(artifact.path);
+        return reusablePaperCardHasRequiredContent(
+          card,
+          source,
+          requestContext.paperCardContract
+        ) && card.cacheKey === artifact.cacheKey;
+      } catch {
+        return false;
+      }
     }
 
     invalidateMissingCapabilityArtifact(source, capability) {
@@ -2146,14 +2342,46 @@
         throw new SourceSystemError("UNKNOWN_CAPABILITY", `Unknown source capability: ${capability}`);
       }
       const ids = uniqueStrings(Array.isArray(sourceIds) ? sourceIds : [sourceIds]);
+      let paperCardContract = normalizePaperCardContract(requestContext.paperCardContract);
+      if (
+        capability === "paper_card" &&
+        !paperCardContract &&
+        typeof this.getPaperCardConfiguration === "function"
+      ) {
+        paperCardContract = normalizePaperCardContract(
+          await this.getPaperCardConfiguration(requestContext.signal)
+        );
+        if (!paperCardContract) {
+          throw new SourceSystemError(
+            "PAPER_CARD_CONFIGURATION_INVALID",
+            "The canonical Paper Card configuration could not be validated."
+          );
+        }
+      }
+      const effectiveRequestContext = {
+        ...requestContext,
+        ...(paperCardContract ? { paperCardContract } : {}),
+      };
       const results = await runBounded(
         ids,
         Math.min(2, Number(requestContext.concurrency) || 2),
         async (sourceId) => {
+          const sourceRequestContext = {
+            ...effectiveRequestContext,
+            onProgress: typeof effectiveRequestContext.onProgress === "function"
+              ? (event = {}) => effectiveRequestContext.onProgress({
+                  ...event,
+                  sourceId,
+                })
+              : undefined,
+          };
           try {
-            return await this.ensureOne(sourceId, capability, requestContext);
+            return await this.ensureOne(sourceId, capability, sourceRequestContext);
           } catch (error) {
-            if (ids.length === 1 || requestContext.failFast === true) throw error;
+            if (
+              (ids.length === 1 && requestContext.collectFailures !== true) ||
+              requestContext.failFast === true
+            ) throw error;
             return {
               sourceId,
               capability,
@@ -2167,6 +2395,7 @@
         capability,
         sources: results,
         failures: results.filter((result) => result?.failed === true),
+        ...(paperCardContract ? { paperCardContract } : {}),
         metrics: { ...this.metrics },
       };
     }
@@ -2189,8 +2418,21 @@
           "experiment_data is only available for experiment sources."
         );
       }
-      if (this.capabilitySatisfied(source, capability)) {
-        if (await this.cachedCapabilityAvailable(source, capability)) {
+      if (this.capabilitySatisfied(source, capability, requestContext)) {
+        if (await this.cachedCapabilityAvailable(source, capability, requestContext)) {
+          if (capability === "paper_card" && source.artifacts?.paperCard?.path) {
+            const card = await this.workspace.readJson(source.artifacts.paperCard.path);
+            if (card?.source && (
+              card.fileName !== source.displayName ||
+              card.source.filename !== source.displayName ||
+              card.source.relativePath !== source.path
+            )) {
+              card.fileName = source.displayName;
+              card.source.filename = source.displayName;
+              card.source.relativePath = source.path;
+              await this.workspace.writeJson(source.artifacts.paperCard.path, card);
+            }
+          }
           if (this.knowledgeService?.available) {
             if (["full_text", "search"].includes(capability) &&
               source.qmdLexStatus !== "ready") {
@@ -2263,7 +2505,10 @@
               failed.parseStatus = "failed";
               failed.indexStatus = "failed";
             }
-            if (capability === "paper_card") failed.paperCardStatus = "failed";
+            if (
+              capability === "paper_card" &&
+              error?.code !== "PAPER_CARD_GENERATOR_MISSING"
+            ) failed.paperCardStatus = "failed";
             if (capability === "experiment_data") {
               failed.structuredDataStatus = "failed";
             }
@@ -2374,6 +2619,27 @@
         for (const artifact of Object.values(source.artifacts || {})) {
           if (artifact && !artifact.contentHash) artifact.contentHash = contentHash;
           if (artifact) artifact.validationStatus = "validated";
+        }
+        const paperCardPath = source.artifacts?.paperCard?.path;
+        if (
+          source.paperCardStatus === "ready" &&
+          paperCardPath &&
+          await this.workspace.fileExists(paperCardPath)
+        ) {
+          try {
+            const card = await this.workspace.readJson(paperCardPath);
+            if (
+              card?.paperId === source.sourceId &&
+              card?.source?.hash === contentHash
+            ) {
+              card.fileName = source.displayName;
+              card.source.filename = source.displayName;
+              card.source.relativePath = source.path;
+              await this.workspace.writeJson(paperCardPath, card);
+            }
+          } catch {
+            // Malformed cards remain subject to the normal validation/rebuild path.
+          }
         }
       }
       const finalFile = await this.readCurrentFile(source);
@@ -2575,12 +2841,18 @@
       const needsExperiment = source.sourceKind === "experiment" && capability === "experiment_data";
       const artifactMatches = (artifact) =>
         artifact?.contentHash && artifact.contentHash === source.contentHash;
+      const paperArtifactMatches = (artifact) =>
+        this.paperTextArtifactMatches(source, artifact);
       const paperCardArtifactMatches = (artifact) =>
-        artifactMatches(artifact) &&
-        artifact.cacheKey === paperCardCacheKey(artifact);
+        source.paperCardStatus !== "stale" &&
+        this.paperCardArtifactMatches(
+          source,
+          artifact,
+          requestContext.paperCardContract
+        );
 
       if (!needsHash) {
-        if (needsPaper && artifactMatches(source.artifacts?.paperText)) {
+        if (needsPaper && paperArtifactMatches(source.artifacts?.paperText)) {
           source.parseStatus = "ready";
           source.indexStatus = "ready";
         }
@@ -2593,7 +2865,7 @@
         ) {
           source.paperCardStatus = "ready";
         }
-        if (this.capabilitySatisfied(source, capability)) {
+        if (this.capabilitySatisfied(source, capability, requestContext)) {
           source.lastUsedAt = nowIso(this.now);
           await this.registry.persist();
           return source;
@@ -2610,10 +2882,14 @@
         );
       }
 
-      const needsPaperBytes = needsPaper && !artifactMatches(source.artifacts?.paperText);
+      const needsPaperBytes = needsPaper && !paperArtifactMatches(source.artifacts?.paperText);
       const needsExperimentBytes =
         needsExperiment && !artifactMatches(source.artifacts?.experimentData);
-      const needsBytes = needsHash || needsPaperBytes || needsExperimentBytes;
+      const needsPaperCardBytes =
+        capability === "paper_card" &&
+        !paperCardArtifactMatches(source.artifacts?.paperCard);
+      const needsBytes =
+        needsHash || needsPaperBytes || needsExperimentBytes || needsPaperCardBytes;
       const bytes = needsBytes
         ? new Uint8Array(await firstFile.arrayBuffer())
         : null;
@@ -2661,7 +2937,7 @@
       let experimentArtifact = null;
       let generatedPaperCard = null;
       if (needsPaper) {
-        if (artifactMatches(source.artifacts?.paperText)) {
+        if (paperArtifactMatches(source.artifacts?.paperText)) {
           paperArtifact = await this.workspace.readJson(source.artifacts.paperText.path);
         } else {
           if (typeof this.parsePaper !== "function") {
@@ -2729,22 +3005,81 @@
           const generated = await this.generatePaperCard({
             source,
             paperArtifact,
+            bytes,
             contentHash,
+            paperCardContract: requestContext.paperCardContract || null,
             signal: requestContext.signal,
             onProgress: requestContext.onProgress,
+            callContext: {
+              turnId: requestContext.turnId,
+              workflowId: requestContext.workflowId,
+              paperId: source.sourceId,
+              profile: requestContext.retrievalProfile,
+            },
           });
           this.metrics.paperCardDurationMs += Date.now() - cardStarted;
           generatedPaperCard = generated.card || null;
           const paperCardArtifact = {
             path: generated.path,
+            sourceId: source.sourceId,
             contentHash,
-            schemaVersion: generated.schemaVersion || 1,
+            schemaVersion: generated.schemaVersion || requestContext.paperCardContract?.schemaVersion || 0,
             model: generated.model || null,
-            promptVersion: generated.promptVersion || 1,
+            modelSignature:
+              generated.modelSignature ||
+              generated.configurationSignature ||
+              requestContext.paperCardContract?.modelSignature ||
+              generated.model ||
+              "unspecified",
+            promptVersion:
+              generated.promptVersion ||
+              requestContext.paperCardContract?.promptVersion ||
+              "unspecified",
+            generationStrategy:
+              generated.generationStrategy ||
+              requestContext.paperCardContract?.generationStrategy ||
+              "text-map-reduce-v1",
+            generationMode: generated.generationMode || "text-map-reduce",
+            fallbackReason: generated.fallbackReason || null,
+            nativePdfSchemaVersion: Number(
+              generated.nativePdfSchemaVersion ||
+              requestContext.paperCardContract?.nativePdfSchemaVersion
+            ) || 0,
+            nativePdfPromptVersion:
+              generated.nativePdfPromptVersion ||
+              requestContext.paperCardContract?.nativePdfPromptVersion ||
+              "not-applicable",
+            nativePdfModelSignature:
+              generated.nativePdfModelSignature ||
+              requestContext.paperCardContract?.nativePdfModelSignature ||
+              "not-applicable",
+            sourceArtifactSchemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
+            extractorVersion: SOURCE_EXTRACTOR_VERSION,
             validationStatus: "validated",
           };
           paperCardArtifact.cacheKey = paperCardCacheKey(paperCardArtifact);
+          if (
+            !reusablePaperCardHasRequiredContent(
+              generatedPaperCard,
+              source,
+              requestContext.paperCardContract
+            ) ||
+            generatedPaperCard.cacheKey !== paperCardArtifact.cacheKey
+          ) {
+            throw new SourceSystemError(
+              "PAPER_CARD_ARTIFACT_INVALID",
+              "The generated canonical Paper Card failed local validation."
+            );
+          }
           source.artifacts.paperCard = paperCardArtifact;
+          if (paperCardArtifact.generationMode === "native-pdf") {
+            this.metrics.nativePaperCardSuccesses += 1;
+          } else if (paperCardArtifact.generationMode === "text-map-reduce") {
+            this.metrics.textPaperCardFallbacks += 1;
+            const reason = paperCardArtifact.fallbackReason || "not-attempted";
+            this.metrics.textPaperCardFallbackReasons[reason] =
+              (this.metrics.textPaperCardFallbackReasons[reason] || 0) + 1;
+          }
         } else if (source.artifacts?.paperCard?.path) {
           generatedPaperCard = await this.workspace.readJson(
             source.artifacts.paperCard.path
@@ -4566,7 +4901,7 @@
       }
     }
 
-    async readValidPaperCardForCorpusMap(source) {
+    async readValidPaperCardForCorpusMap(source, paperCardContract = null) {
       const artifact = source?.artifacts?.paperCard;
       if (
         !source ||
@@ -4575,15 +4910,23 @@
         source.paperCardStatus !== "ready" ||
         !artifact?.path ||
         artifact.contentHash !== source.contentHash ||
-        artifact.cacheKey !== paperCardCacheKey(artifact) ||
+        !this.preparation.paperCardArtifactMatches(
+          source,
+          artifact,
+          paperCardContract
+        ) ||
         (artifact.validationStatus && artifact.validationStatus !== "validated") ||
-        !this.preparation.capabilitySatisfied(source, "paper_card") ||
-        !(await this.preparation.cachedCapabilityAvailable(source, "paper_card"))
+        !this.preparation.capabilitySatisfied(source, "paper_card", {
+          paperCardContract,
+        }) ||
+        !(await this.preparation.cachedCapabilityAvailable(source, "paper_card", {
+          paperCardContract,
+        }))
       ) return null;
       try {
         const rawCard = await this.workspace.readJson(artifact.path);
         if (
-          !reusablePaperCardHasRequiredContent(rawCard, source) ||
+          !reusablePaperCardHasRequiredContent(rawCard, source, paperCardContract) ||
           rawCard.cacheKey !== artifact.cacheKey
         ) return null;
         const card = boundedPaperCardForCorpus(rawCard);
@@ -4771,9 +5114,26 @@
           ),
           prepareCompleted: adoptedPrepareCompleted,
           prepareFailures: {},
+          canonicalArtifacts: {},
           maps: adoptedMaps,
           mapFailures: {},
           mapAttemptDiagnostics: adoptedMapAttemptDiagnostics,
+          retrievalDiagnostics: {},
+          processingAccounting: {
+            canonicalSourcesValidated: 0,
+            canonicalArtifactsReused: 0,
+            canonicalArtifactsCreated: 0,
+            canonicalArtifactFailures: 0,
+            logicalPaperCardGenerations: 0,
+            paperCardCacheHits: 0,
+            nativePdfEndpointCalls: 0,
+            nativePdfProviderAttempts: 0,
+            nativePaperCardSuccesses: 0,
+            textFallbackOperations: 0,
+            textFallbackReasons: {},
+            localQuestionProjections: 0,
+            providerMapRequests: 0,
+          },
           sharedRetrievalPlan: seedJournal?.sharedRetrievalPlan || null,
           failures: {},
           groups: seedJournal ? [...(seedJournal.groups || [])] : [],
@@ -4813,9 +5173,26 @@
         : "entire-project";
       journal.prepareCompleted ||= {};
       journal.prepareFailures ||= {};
+      journal.canonicalArtifacts ||= {};
       journal.maps ||= {};
       journal.mapFailures ||= {};
       journal.mapAttemptDiagnostics ||= {};
+      journal.retrievalDiagnostics ||= {};
+      journal.processingAccounting = {
+        canonicalSourcesValidated: 0,
+        canonicalArtifactsReused: 0,
+        canonicalArtifactsCreated: 0,
+        canonicalArtifactFailures: 0,
+        logicalPaperCardGenerations: 0,
+        paperCardCacheHits: 0,
+        nativePdfEndpointCalls: 0,
+        nativePdfProviderAttempts: 0,
+        nativePaperCardSuccesses: 0,
+        textFallbackOperations: 0,
+        textFallbackReasons: {},
+        localQuestionProjections: 0,
+        providerMapRequests: 0,
+      };
       journal.sharedRetrievalPlan ||= null;
       journal.verificationByClaim ||= {};
       journal.concurrency = {
@@ -4850,9 +5227,11 @@
       for (const state of [
         journal.prepareCompleted,
         journal.prepareFailures,
+        journal.canonicalArtifacts,
         journal.maps,
         journal.mapFailures,
         journal.mapAttemptDiagnostics,
+        journal.retrievalDiagnostics,
       ]) {
         for (const sourceId of Object.keys(state)) {
           if (!sourceIds.includes(sourceId)) delete state[sourceId];
@@ -4999,12 +5378,184 @@
       const readySourceIds = sourceIds.filter(
         (sourceId) => journal.prepareCompleted[sourceId]
       );
+      let paperCardContract = null;
+      const canonicalArtifactsAvailable = readySourceIds.some((sourceId) =>
+        Boolean(this.registry.get(sourceId)?.artifacts?.paperCard?.path)
+      );
+      if (
+        readySourceIds.length &&
+        (typeof this.preparation.generatePaperCard === "function" ||
+          canonicalArtifactsAvailable)
+      ) {
+        await persist({
+          stage: "canonical-paper-validation",
+          message: "Validating cached paper analyses",
+          completed: 0,
+          total: readySourceIds.length,
+          incremental: incrementalMode,
+        });
+        try {
+          const canonicalPaperProgressIds = new Set();
+          const logicalGenerationIds = new Set();
+          const nativeRequestIds = new Set();
+          const nativeSuccessIds = new Set();
+          const textFallbackIds = new Set();
+          const canonicalReadiness = await this.preparation.ensureSourceReady(
+            readySourceIds,
+            "paper_card",
+            {
+              ...options,
+              collectFailures: true,
+              concurrency: prepareConcurrency,
+              onProgress: (event = {}) => {
+                const sourceId = String(event.sourceId || "");
+                const creating = [
+                  "paper-card",
+                  "native-paper-card",
+                  "native-paper-card-request",
+                  "native-paper-card-success",
+                  "paper-card-fallback",
+                  "summarizing",
+                  "synthesizing",
+                  "complete",
+                ]
+                  .includes(event.stage);
+                if (sourceId && event.stage === "paper-card") {
+                  logicalGenerationIds.add(sourceId);
+                }
+                if (sourceId && event.stage === "native-paper-card-request") {
+                  nativeRequestIds.add(sourceId);
+                }
+                if (sourceId && event.stage === "native-paper-card-success") {
+                  nativeSuccessIds.add(sourceId);
+                  journal.processingAccounting.nativePdfProviderAttempts +=
+                    Math.max(0, Number(event.providerAttempts) || 0);
+                }
+                if (sourceId && event.stage === "paper-card-fallback") {
+                  textFallbackIds.add(sourceId);
+                  const reason = String(event.fallbackReason || "unknown").slice(0, 120);
+                  journal.processingAccounting.textFallbackReasons[reason] =
+                    (journal.processingAccounting.textFallbackReasons[reason] || 0) + 1;
+                  journal.processingAccounting.nativePdfProviderAttempts +=
+                    Math.max(0, Number(event.providerAttempts) || 0);
+                }
+                if (sourceId && event.stage === "complete") {
+                  canonicalPaperProgressIds.add(sourceId);
+                }
+                journal.processingAccounting.logicalPaperCardGenerations =
+                  logicalGenerationIds.size;
+                journal.processingAccounting.nativePdfEndpointCalls =
+                  nativeRequestIds.size;
+                journal.processingAccounting.nativePaperCardSuccesses =
+                  nativeSuccessIds.size;
+                journal.processingAccounting.textFallbackOperations =
+                  textFallbackIds.size;
+                const fallbackChunkProgress = event.stage === "summarizing"
+                  ? {
+                      chunksCompleted: Math.max(0, Number(event.completed) || 0),
+                      chunksTotal: Math.max(0, Number(event.total) || 0),
+                    }
+                  : {};
+                return Promise.resolve(options.onProgress?.({
+                  ...event,
+                  workflowId,
+                  phase: "map",
+                  stage: creating
+                    ? "canonical-paper-artifact-create"
+                    : "canonical-paper-validation",
+                  sourceStage: event.stage,
+                  message: creating
+                    ? event.stage === "paper-card-fallback"
+                      ? "Falling back to parsed-text paper analysis"
+                      : event.stage === "summarizing"
+                        ? "Creating paper analysis from parsed text"
+                        : "Creating paper analysis"
+                    : "Validating cached paper analysis",
+                  completed: canonicalPaperProgressIds.size,
+                  total: readySourceIds.length,
+                  papersCompleted: canonicalPaperProgressIds.size,
+                  papersTotal: readySourceIds.length,
+                  ...fallbackChunkProgress,
+                  providerRequest: [
+                    "native-paper-card-request",
+                    "summarizing",
+                    "synthesizing",
+                  ].includes(event.stage),
+                }));
+              },
+            }
+          );
+          paperCardContract = canonicalReadiness.paperCardContract || null;
+          for (const readiness of canonicalReadiness.sources || []) {
+            const sourceId = readiness?.sourceId;
+            if (!sourceId) continue;
+            journal.processingAccounting.canonicalSourcesValidated += 1;
+            canonicalPaperProgressIds.add(sourceId);
+            if (readiness.failed === true) {
+              journal.processingAccounting.canonicalArtifactFailures += 1;
+              journal.canonicalArtifacts[sourceId] = {
+                status: "failed",
+                error: readiness.error || null,
+              };
+              continue;
+            }
+            const source = this.registry.get(sourceId);
+            const reused = readiness.cached === true;
+            if (reused) {
+              journal.processingAccounting.canonicalArtifactsReused += 1;
+              journal.processingAccounting.paperCardCacheHits += 1;
+            } else journal.processingAccounting.canonicalArtifactsCreated += 1;
+            journal.canonicalArtifacts[sourceId] = {
+              status: reused ? "reused" : "created",
+              cached: reused,
+              contentHash: source?.contentHash || "",
+              cacheKey: source?.artifacts?.paperCard?.cacheKey || "",
+            };
+            await Promise.resolve(options.onProgress?.({
+              workflowId,
+              phase: "map",
+              stage: reused
+                ? "canonical-paper-artifact-cache-hit"
+                : "canonical-paper-artifact-created",
+              message: reused
+                ? "Reusing cached paper analysis"
+                : "Created canonical paper analysis",
+              paperId: sourceId,
+              completed: canonicalPaperProgressIds.size,
+              total: readySourceIds.length,
+              papersCompleted: canonicalPaperProgressIds.size,
+              papersTotal: readySourceIds.length,
+              providerRequest: false,
+            }));
+          }
+        } catch (error) {
+          if (error?.code === "OPERATION_ABORTED") throw error;
+          for (const sourceId of readySourceIds) {
+            journal.processingAccounting.canonicalSourcesValidated += 1;
+            journal.processingAccounting.canonicalArtifactFailures += 1;
+            journal.canonicalArtifacts[sourceId] = {
+              status: "failed",
+              error: compactError(error),
+            };
+          }
+        }
+        await persist({
+          stage: "canonical-paper-validation",
+          message: "Validated cached paper analyses",
+          completed: readySourceIds.length,
+          total: readySourceIds.length,
+          incremental: incrementalMode,
+        });
+      }
       const reusablePaperCards = new Map();
       await Promise.all(readySourceIds.map(async (sourceId) => {
         const mapped = journal.maps[sourceId];
         if (mapped && mapped.generationMode !== "paper-card-cache") return;
         const source = this.registry.get(sourceId);
-        const reusableCard = await this.readValidPaperCardForCorpusMap(source);
+        const reusableCard = await this.readValidPaperCardForCorpusMap(
+          source,
+          paperCardContract
+        );
         if (reusableCard) reusablePaperCards.set(sourceId, reusableCard);
       }));
 
@@ -5141,7 +5692,10 @@
           }
           if (!journal.maps[sourceId] || journal.maps[sourceId].contentHash !== readySource.contentHash) {
             const reusableCard = reusablePaperCards.get(sourceId) ||
-              await this.readValidPaperCardForCorpusMap(readySource);
+              await this.readValidPaperCardForCorpusMap(
+                readySource,
+                paperCardContract
+              );
             if (reusableCard) {
               const paperCardMapCacheSignature = stableStringHash([
                 normalizedQuestion,
@@ -5174,11 +5728,25 @@
                 !journal.maps[sourceId] ||
                 journal.maps[sourceId].contentHash !== readySource.contentHash
               ) {
+                await Promise.resolve(options.onProgress?.({
+                  workflowId,
+                  phase: "map",
+                  stage: "canonical-paper-projection",
+                  message: "Selecting relevant cached evidence",
+                  paperId: sourceId,
+                  providerRequest: false,
+                }));
                 const paperArtifact = await this.preparation.readPaperArtifact(sourceId);
                 journal.maps[sourceId] = {
-                  ...corpusMapFromPaperCard(readySource, reusableCard, paperArtifact),
+                  ...corpusMapFromPaperCard(
+                    readySource,
+                    reusableCard,
+                    paperArtifact,
+                    journal.question
+                  ),
                   statSignature: readySource.statSignature,
                 };
+                journal.processingAccounting.localQuestionProjections += 1;
                 await this.workspace.writeJson(paperCardMapCachePath, {
                   schemaVersion: 1,
                   workflowVersion: CORPUS_WORKFLOW_VERSION,
@@ -5194,18 +5762,11 @@
               }
               journal.mapAttemptDiagnostics[sourceId] = [{
                 attempt: 0,
-                mode: "paper-card-cache",
+                mode: "canonical-paper-local-projection",
                 status: "valid",
                 schemaValidationDetails: [],
               }];
               delete journal.mapFailures[sourceId];
-              await Promise.resolve(options.onProgress?.({
-                workflowId,
-                phase: "map",
-                stage: "paper-card-cache-hit",
-                message: "Reusing cached Paper Card",
-                paperId: sourceId,
-              }));
             }
           }
           if (!journal.maps[sourceId] || journal.maps[sourceId].contentHash !== readySource.contentHash) {
@@ -5236,6 +5797,7 @@
                 },
               }
             );
+            journal.retrievalDiagnostics[sourceId] = search?.diagnostics || null;
             let evidence = search?.resultHandle ? await this.results.read(search.resultHandle) : search;
             if (!Array.isArray(evidence) || !evidence.length) {
               const fallbackEvidence = await this.literatureTools.readPaperEvidence(
@@ -5266,15 +5828,25 @@
             };
             // Each mapper receives only this bounded object: no parent conversation or
             // accumulated tool history enters the worker context.
-            console.info("corpus_mapper", {
-              workflowId,
-              callRole: "corpus_mapper",
-              paperId: sourceId,
-              profile: retrievalProfile,
-              state: "started",
-            });
-            const mappedExecution = this.mapWorker
-              ? await this.executeMapWorker(workerInput, {
+            let mappedExecution = null;
+            if (this.mapWorker) {
+              console.info("corpus_mapper", {
+                workflowId,
+                callRole: "corpus_mapper",
+                paperId: sourceId,
+                profile: retrievalProfile,
+                state: "started",
+              });
+              journal.processingAccounting.providerMapRequests += 1;
+              await Promise.resolve(options.onProgress?.({
+                workflowId,
+                phase: "map",
+                stage: "corpus-provider-map",
+                message: "Mapping paper with provider",
+                paperId: sourceId,
+                providerRequest: true,
+              }));
+              mappedExecution = await this.executeMapWorker(workerInput, {
                   signal: options.signal,
                   surface: options.surface,
                   language: options.language,
@@ -5287,8 +5859,8 @@
                   )
                     ? options.qualityMode
                     : "balanced",
-                })
-              : null;
+                });
+            }
             const mapped = mappedExecution?.mapped || {
                   paperId: readySource.sourceId,
                   contentHash: readySource.contentHash,

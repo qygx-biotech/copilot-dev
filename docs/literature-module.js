@@ -21,15 +21,34 @@
     maxRouterPapers: 100,
     maxRouterQueryCharacters: 24000,
   });
-  const PAPER_CARD_VERSION = 1;
-  const PAPER_CARD_PROMPT_VERSION = 1;
+  const PAPER_CARD_VERSION = 2;
+  const PAPER_CARD_PROMPT_VERSION = "canonical-paper-card-v2";
+  const PAPER_CARD_GENERATION_STRATEGY = "native-pdf-preferred-v1";
+  const NATIVE_PAPER_CARD_SCHEMA_VERSION = 1;
+  const NATIVE_PAPER_CARD_PROMPT_VERSION = "canonical-paper-card-native-v1";
+  const DEFAULT_NATIVE_PDF_MAX_BYTES = 20 * 1024 * 1024;
+  const SOURCE_ARTIFACT_SCHEMA_VERSION = 1;
+  const SOURCE_EXTRACTOR_VERSION = "local-source-v1";
   const makePaperCardCacheKey = sourceSystemApi.paperCardCacheKey || ((input = {}) =>
     JSON.stringify({
-      version: 1,
+      version: 3,
+      sourceId: String(input.sourceId || ""),
       contentHash: String(input.contentHash || ""),
       schemaVersion: Number(input.schemaVersion) || 0,
-      model: String(input.model || "unspecified"),
+      modelSignature: String(input.modelSignature || input.configurationSignature || input.model || "unspecified"),
       promptVersion: String(input.promptVersion || "unspecified"),
+      generationStrategy: String(
+        input.generationStrategy || "text-map-reduce-v1"
+      ),
+      nativePdfSchemaVersion: Number(input.nativePdfSchemaVersion) || 0,
+      nativePdfPromptVersion: String(
+        input.nativePdfPromptVersion || "not-applicable"
+      ),
+      nativePdfModelSignature: String(
+        input.nativePdfModelSignature || "not-applicable"
+      ),
+      sourceArtifactSchemaVersion: Number(input.sourceArtifactSchemaVersion) || 0,
+      extractorVersion: String(input.extractorVersion || "unspecified"),
     }));
 
   class LiteratureError extends Error {
@@ -255,6 +274,189 @@
     )].slice(0, limit);
   }
 
+  function canonicalEvidenceFindings(claims, paperArtifact, sourceId) {
+    const chunks = Array.isArray(paperArtifact?.chunks) ? paperArtifact.chunks : [];
+    const seen = new Set();
+    return normalizeCardList(claims, 20).map((claim) => {
+      const normalizedClaim = claim.toLowerCase().replace(/\s+/g, " ").trim();
+      const matches = chunks
+        .filter((chunk) => {
+          const page = Number(chunk?.page);
+          const chunkId = String(chunk?.chunkId || "");
+          return normalizedClaim &&
+            Number.isInteger(page) &&
+            page > 0 &&
+            chunkId &&
+            String(chunk.text || "").toLowerCase().replace(/\s+/g, " ")
+              .includes(normalizedClaim);
+        })
+        .sort((left, right) =>
+          Number(left.page) - Number(right.page) ||
+          String(left.chunkId).localeCompare(String(right.chunkId))
+        )
+        .map((chunk) =>
+          `${sourceId}:p${Number(chunk.page)}:${String(chunk.chunkId).slice(0, 256)}`
+        )
+        .filter((reference) => {
+          if (seen.has(`${claim}\n${reference}`)) return false;
+          seen.add(`${claim}\n${reference}`);
+          return true;
+        })
+        .slice(0, 3);
+      return { claim, evidenceRefs: matches };
+    });
+  }
+
+  function normalizeEvidenceQuote(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/[\u2010-\u2015]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLocaleLowerCase("en-US");
+  }
+
+  function validatedNativeEvidenceFindings(findings, paperArtifact, sourceId) {
+    const pages = new Map(
+      (Array.isArray(paperArtifact?.pages) ? paperArtifact.pages : [])
+        .filter((page) => Number.isInteger(Number(page?.page)) && Number(page.page) > 0)
+        .map((page) => [Number(page.page), normalizeEvidenceQuote(page.text)])
+    );
+    const chunks = Array.isArray(paperArtifact?.chunks) ? paperArtifact.chunks : [];
+    let submittedCitations = 0;
+    let verifiedCitations = 0;
+    const validatedFindings = (Array.isArray(findings) ? findings : [])
+      .slice(0, 30)
+      .map((finding) => {
+        const claim = String(finding?.claim || "").trim().slice(0, 1600);
+        if (!claim) return null;
+        const evidenceRefs = [];
+        const seen = new Set();
+        for (const citation of (Array.isArray(finding?.citations) ? finding.citations : [])) {
+          submittedCitations += 1;
+          const page = Number(citation?.page);
+          const quote = normalizeEvidenceQuote(citation?.quote);
+          if (!Number.isInteger(page) || page < 1 || quote.length < 4) continue;
+          if (!pages.get(page)?.includes(quote)) continue;
+          const matchingChunk = chunks
+            .filter((chunk) => Number(chunk?.page) === page && String(chunk?.chunkId || ""))
+            .sort((left, right) =>
+              String(left.chunkId).localeCompare(String(right.chunkId))
+            )
+            .find((chunk) => normalizeEvidenceQuote(chunk.text).includes(quote));
+          if (!matchingChunk) continue;
+          const reference = `${sourceId}:p${page}:${String(matchingChunk.chunkId).slice(0, 256)}`;
+          if (!seen.has(reference)) {
+            seen.add(reference);
+            evidenceRefs.push(reference);
+            verifiedCitations += 1;
+          }
+          if (evidenceRefs.length >= 3) break;
+        }
+        return { claim, evidenceRefs };
+      })
+      .filter(Boolean);
+    return {
+      findings: validatedFindings,
+      submittedCitations,
+      verifiedCitations,
+      droppedCitations: submittedCitations - verifiedCitations,
+    };
+  }
+
+  function nativePaperCardValidationErrors(result, expected = {}) {
+    const errors = [];
+    const analysis = result?.analysis;
+    if (!analysis || typeof analysis !== "object" || Array.isArray(analysis)) {
+      return ["analysis is missing"];
+    }
+    if (result.paperId !== expected.paperId) errors.push("paperId mismatch");
+    if (result.contentHash !== expected.contentHash) errors.push("contentHash mismatch");
+    if (analysis.sourceIdentity?.paperId !== expected.paperId) {
+      errors.push("source identity paperId mismatch");
+    }
+    if (analysis.sourceIdentity?.contentHash !== expected.contentHash) {
+      errors.push("source identity contentHash mismatch");
+    }
+    if (Number(result.schemaVersion) !== Number(expected.schemaVersion)) {
+      errors.push("native schema version mismatch");
+    }
+    if (result.promptVersion !== expected.promptVersion) {
+      errors.push("native prompt version mismatch");
+    }
+    if (result.modelSignature !== expected.modelSignature) {
+      errors.push("native model signature mismatch");
+    }
+    const requiredLists = [
+      "authors",
+      "majorFindings",
+      "methods",
+      "organisms",
+      "genes",
+      "proteins",
+      "pathways",
+      "metabolites",
+      "experimentalConditions",
+      "measurements",
+      "importantResults",
+      "limitations",
+      "keywords",
+      "topics",
+    ];
+    for (const key of requiredLists) {
+      if (!Array.isArray(analysis[key])) {
+        errors.push(`${key} is missing`);
+      } else if (
+        !["majorFindings", "importantResults"].includes(key) &&
+        analysis[key].some((item) => typeof item !== "string")
+      ) {
+        errors.push(`${key} contains a non-string value`);
+      }
+    }
+    for (const key of ["majorFindings", "importantResults"]) {
+      for (const finding of (Array.isArray(analysis[key]) ? analysis[key] : [])) {
+        if (
+          !finding ||
+          typeof finding !== "object" ||
+          Array.isArray(finding) ||
+          typeof finding.claim !== "string" ||
+          !finding.claim.trim() ||
+          !Array.isArray(finding.citations)
+        ) {
+          errors.push(`${key} contains an invalid finding`);
+          continue;
+        }
+        if (finding.citations.some((citation) =>
+          !citation ||
+          typeof citation !== "object" ||
+          Array.isArray(citation) ||
+          !Number.isInteger(Number(citation.page)) ||
+          Number(citation.page) < 1 ||
+          typeof citation.quote !== "string" ||
+          !citation.quote.trim()
+        )) errors.push(`${key} contains an invalid citation`);
+      }
+    }
+    if (
+      analysis.year !== null &&
+      (!Number.isInteger(Number(analysis.year)) ||
+        Number(analysis.year) < 1800 ||
+        Number(analysis.year) > 2100)
+    ) errors.push("year is invalid");
+    if (
+      !String(
+        analysis.shortSummary ||
+        analysis.researchQuestion ||
+        analysis.mainConclusion ||
+        analysis.majorFindings?.[0]?.claim ||
+        ""
+      ).trim()
+    ) errors.push("canonical content is empty");
+    return errors;
+  }
+
   function createPaperDiscoveryRecord(card, filename) {
     const source = card && typeof card === "object" ? card : {};
     const year = Number(source.year);
@@ -312,6 +514,38 @@
       this.onUnauthorized = options.onUnauthorized || (() => {});
       this.fetch = options.fetch || root.fetch.bind(root);
       this.turnCallCounts = new Map();
+      this.endpointAccounting = {
+        logicalEndpointCalls: {},
+        transportAttempts: {},
+        providerAttempts: {},
+        cacheHits: {},
+      };
+    }
+
+    async getPaperCardConfiguration(signal) {
+      const data = await this.request(
+        "/api/literature/config",
+        undefined,
+        signal,
+        "GET"
+      );
+      return {
+        schemaVersion: data.schemaVersion,
+        promptVersion: data.promptVersion,
+        modelSignature: data.modelSignature,
+        generationStrategy:
+          data.generationStrategy || PAPER_CARD_GENERATION_STRATEGY,
+        nativePdfSupported: data.nativePdfSupported === true,
+        nativePdfMaxBytes:
+          Math.max(0, Number(data.nativePdfMaxBytes) || 0) ||
+          DEFAULT_NATIVE_PDF_MAX_BYTES,
+        nativePdfSchemaVersion:
+          Math.max(0, Number(data.nativePdfSchemaVersion) || 0),
+        nativePdfPromptVersion:
+          String(data.nativePdfPromptVersion || "not-applicable"),
+        nativePdfModelSignature:
+          String(data.nativePdfModelSignature || "not-applicable"),
+      };
     }
 
     async summarizeChunk(payload, signal) {
@@ -343,7 +577,13 @@
         },
         signal
       );
-      return { ...data.summary, model: data.model || null };
+      return {
+        ...data.summary,
+        model: data.model || null,
+        modelSignature: data.modelSignature || "",
+        promptVersion: data.promptVersion || "",
+        schemaVersion: Number(data.schemaVersion) || 0,
+      };
     }
 
     async mapCorpusPaper(payload, signal) {
@@ -393,7 +633,9 @@
           responseSchema:
             payload.responseSchema === "corpus_map"
               ? "corpus_map"
-              : "paper_analysis",
+              : payload.responseSchema === "canonical_paper_card"
+                ? "canonical_paper_card"
+                : "paper_analysis",
           evidenceRefs: (Array.isArray(payload.evidenceRefs)
             ? payload.evidenceRefs
             : []).slice(0, 100),
@@ -409,7 +651,13 @@
       );
       return {
         analysis: data.analysis,
+        paperId: data.paperId || null,
+        contentHash: data.contentHash || null,
         model: data.model || null,
+        modelSignature: data.modelSignature || "",
+        schemaVersion: Number(data.schemaVersion) || 0,
+        promptVersion: data.promptVersion || "",
+        attempts: Math.max(0, Number(data.attempts) || 0),
         diagnostics: data.diagnostics || null,
       };
     }
@@ -442,6 +690,10 @@
 
     getTurnCallCounts(turnId) {
       return { ...(this.turnCallCounts.get(turnId) || {}) };
+    }
+
+    getEndpointAccounting() {
+      return structuredClone(this.endpointAccounting);
     }
 
     async routeContext(payload, signal) {
@@ -513,11 +765,15 @@
     async request(path, body, signal, method = "POST") {
       const roles = { "/api/semantic/interpret": "semantic_parser", "/api/semantic/map-schema": "schema_mapper", "/api/knowledge/plan-search": "search_planner", "/api/knowledge/rerank": "reranker", "/api/corpus/map-paper": "corpus_mapper", "/api/literature/analyze-pdf-native": "native_pdf" };
       this.recordTurnCall(body?.callContext?.turnId, roles[path]);
+      this.endpointAccounting.logicalEndpointCalls[path] =
+        (this.endpointAccounting.logicalEndpointCalls[path] || 0) + 1;
       // Semantic parsing is one logical FC call. A failure returns to the local IR.
       const maximumAttempts = path.startsWith("/api/semantic/") ? 1 : 2;
       let lastError;
       for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
         assertNotAborted(signal);
+        this.endpointAccounting.transportAttempts[path] =
+          (this.endpointAccounting.transportAttempts[path] || 0) + 1;
         try {
           const response = await this.fetch(`${this.baseUrl}${path}`, {
             method,
@@ -533,11 +789,23 @@
             throw new LiteratureError("AUTH_REQUIRED", "Your login session has expired.");
           }
           const data = await response.json().catch(() => ({}));
-          if (response.ok && data.ok) return data;
+          this.endpointAccounting.providerAttempts[path] =
+            (this.endpointAccounting.providerAttempts[path] || 0) +
+            Math.max(0, Number(data.attempts) || 0);
+          if (data.cached === true) {
+            this.endpointAccounting.cacheHits[path] =
+              (this.endpointAccounting.cacheHits[path] || 0) + 1;
+          }
+          if (response.ok && data.ok) {
+            return data;
+          }
           const error = new LiteratureError(
             data.error || "LLM_REQUEST_FAILED",
             data.message || `Function Compute returned HTTP ${response.status}.`
           );
+          error.status = response.status;
+          error.attempts = Math.max(0, Number(data.attempts) || 0);
+          error.fallbackReason = String(data.fallbackReason || "").slice(0, 120);
           // Function Compute already performs its own short provider retry. The
           // browser retries only throttling/timeouts (plus network exceptions)
           // to avoid multiplying model calls.
@@ -589,6 +857,10 @@
             signal,
           }),
         generatePaperCard: (payload) => this.generatePaperCardFromPrepared(payload),
+        getPaperCardConfiguration:
+          typeof this.api?.getPaperCardConfiguration === "function"
+            ? (signal) => this.api.getPaperCardConfiguration(signal)
+            : null,
         schemaMapper: typeof this.api?.mapExperimentSchema === "function"
           ? (payload, mapperOptions) => this.api.mapExperimentSchema({
               ...payload,
@@ -1018,9 +1290,12 @@
     async generatePaperCardFromPrepared({
       source,
       paperArtifact,
+      bytes,
       contentHash,
+      paperCardContract,
       signal,
       onProgress,
+      callContext,
     }) {
       assertNotAborted(signal);
       const sourceText = (paperArtifact.pages || [])
@@ -1030,51 +1305,194 @@
       if (!chunkResult.chunks.length) {
         throw new LiteratureError("NO_TEXT_CHUNKS", "No usable text chunks were produced from this PDF.");
       }
-      const language = this.getLanguage() === "zh" ? "zh" : "en";
-      onProgress?.({
-        stage: "summarizing",
-        completed: 0,
-        total: chunkResult.chunks.length,
-      });
-      let completed = 0;
-      const chunkSummaries = await runWithConcurrency(
-        chunkResult.chunks,
-        this.config.chunkConcurrency,
-        async (text, index) => {
-          const result = await this.api.summarizeChunk(
+      // Canonical cards must not vary with the language of the chat that first
+      // causes processing. Question-level synthesis can localize the answer.
+      const language = "en";
+      let synthesized = null;
+      let generationMode = "text-map-reduce";
+      let fallbackReason =
+        paperCardContract?.generationStrategy !== PAPER_CARD_GENERATION_STRATEGY
+          ? "native-not-configured"
+          : paperCardContract?.nativePdfSupported !== true
+            ? "native-structured-output-unsupported"
+            : typeof this.api?.analyzePdfNative !== "function"
+              ? "native-api-unavailable"
+              : "native-provider-failure";
+      let nativeEvidenceValidation = null;
+      let nativeProviderAttempts = 0;
+      const nativeBytes = bytes instanceof Uint8Array ? bytes : null;
+      const nativeConfigured = Boolean(
+        paperCardContract?.generationStrategy === PAPER_CARD_GENERATION_STRATEGY &&
+        paperCardContract?.nativePdfSupported === true &&
+        typeof this.api?.analyzePdfNative === "function"
+      );
+      const nativeByteLimit = Math.max(
+        1,
+        Number(paperCardContract?.nativePdfMaxBytes) || DEFAULT_NATIVE_PDF_MAX_BYTES
+      );
+      if (nativeConfigured && !nativeBytes?.byteLength) {
+        fallbackReason = "native-pdf-bytes-unavailable";
+      } else if (nativeConfigured && nativeBytes.byteLength > nativeByteLimit) {
+        fallbackReason = "native-pdf-too-large";
+      } else if (nativeConfigured) {
+        onProgress?.({
+          stage: "native-paper-card-request",
+          completed: 0,
+          total: 1,
+          providerRequest: true,
+        });
+        try {
+          const nativeResult = await this.api.analyzePdfNative(
             {
+              paperId: source.sourceId,
               filename: source.displayName,
-              chunkIndex: index,
-              totalChunks: chunkResult.chunks.length,
-              text,
+              contentHash,
+              bytes: nativeBytes,
+              task:
+                "Create one comprehensive, question-independent canonical Paper Card for later local evidence selection.",
+              purpose: "canonical-paper-card",
+              responseSchema: "canonical_paper_card",
               language,
+              callContext,
             },
             signal
           );
-          completed += 1;
-          onProgress?.({
-            stage: "summarizing",
-            completed,
-            total: chunkResult.chunks.length,
+          nativeProviderAttempts = Math.max(0, Number(nativeResult.attempts) || 0);
+          const validationErrors = nativePaperCardValidationErrors(nativeResult, {
+            paperId: source.sourceId,
+            contentHash,
+            schemaVersion:
+              paperCardContract.nativePdfSchemaVersion ||
+              NATIVE_PAPER_CARD_SCHEMA_VERSION,
+            promptVersion:
+              paperCardContract.nativePdfPromptVersion ||
+              NATIVE_PAPER_CARD_PROMPT_VERSION,
+            modelSignature: paperCardContract.nativePdfModelSignature,
           });
-          return result;
+          if (validationErrors.length) {
+            fallbackReason = "native-schema-or-provenance-invalid";
+          } else {
+            const analysis = nativeResult.analysis;
+            const allNativeFindings = [
+              ...(analysis.majorFindings || []),
+              ...(analysis.importantResults || []),
+            ];
+            nativeEvidenceValidation = validatedNativeEvidenceFindings(
+              allNativeFindings,
+              paperArtifact,
+              source.sourceId
+            );
+            synthesized = {
+              ...analysis,
+              mainFindings: (analysis.majorFindings || []).map((item) => item.claim),
+              importantResults: (analysis.importantResults || []).map((item) => item.claim),
+              keyResults: allNativeFindings.map((item) => item.claim),
+              summary: analysis.shortSummary,
+              model: nativeResult.model || null,
+            };
+            generationMode = "native-pdf";
+            fallbackReason = null;
+            onProgress?.({
+              stage: "native-paper-card-success",
+              completed: 1,
+              total: 1,
+              providerRequest: false,
+              providerAttempts: nativeProviderAttempts,
+            });
+          }
+        } catch (error) {
+          nativeProviderAttempts = Math.max(0, Number(error?.attempts) || 0);
+          fallbackReason = error?.fallbackReason ||
+            (error?.code === "NativePaperCardUnsupported"
+              ? "native-structured-output-unsupported"
+              : "native-provider-failure");
         }
-      );
+      }
+      if (!synthesized) {
+        onProgress?.({
+          stage: "paper-card-fallback",
+          completed: 0,
+          total: 1,
+          fallbackReason,
+          providerAttempts: nativeProviderAttempts,
+          providerRequest: false,
+        });
+        onProgress?.({
+          stage: "summarizing",
+          completed: 0,
+          total: chunkResult.chunks.length,
+          fallbackReason,
+        });
+        let completed = 0;
+        const chunkSummaries = await runWithConcurrency(
+          chunkResult.chunks,
+          this.config.chunkConcurrency,
+          async (text, index) => {
+            const result = await this.api.summarizeChunk(
+              {
+                filename: source.displayName,
+                chunkIndex: index,
+                totalChunks: chunkResult.chunks.length,
+                text,
+                language,
+              },
+              signal
+            );
+            completed += 1;
+            onProgress?.({
+              stage: "summarizing",
+              completed,
+              total: chunkResult.chunks.length,
+              fallbackReason,
+            });
+            return result;
+          }
+        );
 
-      assertNotAborted(signal);
-      onProgress?.({ stage: "synthesizing", completed: 0, total: 1 });
-      const synthesized = await this.api.synthesize(
-        {
-          filename: source.displayName,
-          size: source.sizeBytes,
-          lastModified: source.mtimeNs,
-          pageCount: paperArtifact.pageCount,
-          extractionTruncated: paperArtifact.truncated || chunkResult.truncated,
-          chunkSummaries,
-          language,
-        },
-        signal
+        assertNotAborted(signal);
+        onProgress?.({
+          stage: "synthesizing",
+          completed: 0,
+          total: 1,
+          fallbackReason,
+        });
+        synthesized = await this.api.synthesize(
+          {
+            filename: source.displayName,
+            size: source.sizeBytes,
+            lastModified: source.mtimeNs,
+            pageCount: paperArtifact.pageCount,
+            extractionTruncated: paperArtifact.truncated || chunkResult.truncated,
+            chunkSummaries,
+            language,
+          },
+          signal
+        );
+      }
+      const effectiveModelSignature = String(
+        paperCardContract?.modelSignature ||
+        synthesized.modelSignature ||
+        synthesized.model ||
+        "unspecified"
       );
+      if (
+        paperCardContract &&
+        (
+          Number(paperCardContract.schemaVersion) !== PAPER_CARD_VERSION ||
+          paperCardContract.promptVersion !== PAPER_CARD_PROMPT_VERSION ||
+          (generationMode === "text-map-reduce" && synthesized.modelSignature &&
+            synthesized.modelSignature !== paperCardContract.modelSignature) ||
+          (synthesized.promptVersion &&
+            synthesized.promptVersion !== paperCardContract.promptVersion) ||
+          (synthesized.schemaVersion &&
+            Number(synthesized.schemaVersion) !== Number(paperCardContract.schemaVersion))
+        )
+      ) {
+        throw new LiteratureError(
+          "PAPER_CARD_CONFIGURATION_CHANGED",
+          "The Paper Card provider configuration changed during generation."
+        );
+      }
       const generatedAt = this.now().toISOString();
       const methods = normalizeCardList(synthesized.methods);
       const methodsSummary =
@@ -1095,7 +1513,7 @@
         normalizeCardText(synthesized.summary) ||
         "";
       const card = {
-        schemaVersion: 1,
+        schemaVersion: PAPER_CARD_VERSION,
         paperCardVersion: PAPER_CARD_VERSION,
         paperId: source.sourceId,
         documentId: source.sourceId,
@@ -1110,14 +1528,60 @@
           pageCount: paperArtifact.pageCount,
           processedCharacters: chunkResult.processedCharacters,
           truncated: paperArtifact.truncated || chunkResult.truncated,
+          artifactSchemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
+          extractorVersion: SOURCE_EXTRACTOR_VERSION,
         },
         model: synthesized.model || null,
+        modelSignature: effectiveModelSignature,
         promptVersion: PAPER_CARD_PROMPT_VERSION,
+        generationStrategy:
+          paperCardContract?.generationStrategy ||
+          (generationMode === "native-pdf"
+            ? PAPER_CARD_GENERATION_STRATEGY
+            : "text-map-reduce-v1"),
+        generationMode,
+        fallbackReason,
+        nativePdfSchemaVersion:
+          Number(paperCardContract?.nativePdfSchemaVersion) || 0,
+        nativePdfPromptVersion:
+          paperCardContract?.nativePdfPromptVersion || "not-applicable",
+        nativePdfModelSignature:
+          paperCardContract?.nativePdfModelSignature || "not-applicable",
+        generationDiagnostics: {
+          mode: generationMode,
+          fallbackReason,
+          nativePdfEndpointCalls: nativeConfigured && nativeBytes?.byteLength &&
+            nativeBytes.byteLength <= nativeByteLimit
+            ? 1
+            : 0,
+          nativePdfProviderAttempts: nativeProviderAttempts,
+          nativeEvidenceCitationsSubmitted:
+            nativeEvidenceValidation?.submittedCitations || 0,
+          nativeEvidenceCitationsVerified:
+            nativeEvidenceValidation?.verifiedCitations || 0,
+          nativeEvidenceCitationsDropped:
+            nativeEvidenceValidation?.droppedCitations || 0,
+          textFallbackOperations: generationMode === "text-map-reduce" ? 1 : 0,
+        },
         cacheKey: makePaperCardCacheKey({
+          sourceId: source.sourceId,
           contentHash,
           schemaVersion: PAPER_CARD_VERSION,
-          model: synthesized.model || null,
+          modelSignature: effectiveModelSignature,
           promptVersion: PAPER_CARD_PROMPT_VERSION,
+          generationStrategy:
+            paperCardContract?.generationStrategy ||
+            (generationMode === "native-pdf"
+              ? PAPER_CARD_GENERATION_STRATEGY
+              : "text-map-reduce-v1"),
+          nativePdfSchemaVersion:
+            Number(paperCardContract?.nativePdfSchemaVersion) || 0,
+          nativePdfPromptVersion:
+            paperCardContract?.nativePdfPromptVersion || "not-applicable",
+          nativePdfModelSignature:
+            paperCardContract?.nativePdfModelSignature || "not-applicable",
+          sourceArtifactSchemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
+          extractorVersion: SOURCE_EXTRACTOR_VERSION,
         }),
         title:
           paperArtifact.metadataTitle || normalizeCardText(synthesized.title) || null,
@@ -1155,6 +1619,16 @@
         ]),
         mainConclusion: normalizeCardText(synthesized.mainConclusion),
       };
+      card.evidenceFindings = nativeEvidenceValidation?.findings ||
+        canonicalEvidenceFindings(
+          [
+            ...card.mainFindings,
+            ...card.importantResults,
+            ...card.keyResults,
+          ],
+          paperArtifact,
+          source.sourceId
+        );
       assertNotAborted(signal);
       const path =
         source.legacy?.paperCardPath ||
@@ -1173,22 +1647,20 @@
         path,
         schemaVersion: PAPER_CARD_VERSION,
         model: synthesized.model || null,
+        modelSignature: effectiveModelSignature,
         promptVersion: PAPER_CARD_PROMPT_VERSION,
+        generationStrategy: card.generationStrategy,
+        generationMode,
+        fallbackReason,
+        nativePdfSchemaVersion: card.nativePdfSchemaVersion,
+        nativePdfPromptVersion: card.nativePdfPromptVersion,
+        nativePdfModelSignature: card.nativePdfModelSignature,
         cacheKey: card.cacheKey,
       };
     }
 
     async createPaperCard(documentId, options = {}) {
       const document = this.findDocument(documentId);
-      const existing = await this.getPaperCard(documentId).catch(() => null);
-      if (!options.force && existing) {
-        return {
-          summary: existing,
-          card: existing,
-          cached: true,
-          sourceText: "",
-        };
-      }
       if (options.force) {
         const source = this.sourceRegistry.get(documentId, { includeMissing: true });
         if (source) {
@@ -1200,14 +1672,23 @@
       }
       assertNotAborted(options.signal);
       options.onProgress?.({ stage: "extracting", completed: 0, total: 1 });
-      await this.preparation.ensureSourceReady([documentId], "paper_card", options);
+      const readiness = await this.preparation.ensureSourceReady(
+        [documentId],
+        "paper_card",
+        options
+      );
       await this.scan();
       const current = this.findDocument(documentId);
       const card = await this.workspace.readJson(current.paperCardPath);
       const sourceText = options.includeSourceText
         ? (await this.extractText(documentId, options)).text
         : "";
-      return { summary: card, card, cached: false, sourceText };
+      return {
+        summary: card,
+        card,
+        cached: readiness.sources?.[0]?.cached === true,
+        sourceText,
+      };
     }
 
     async summarize(documentId, options = {}) {

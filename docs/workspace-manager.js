@@ -164,7 +164,7 @@
         (document.paperCardError !== undefined &&
           typeof document.paperCardError !== "string") ||
         (document.paperCardVersion !== undefined &&
-          ![0, 1].includes(Number(document.paperCardVersion))) ||
+          ![0, 1, 2].includes(Number(document.paperCardVersion))) ||
         (document.paperCardPath !== undefined &&
           (typeof document.paperCardPath !== "string" ||
             !document.paperCardPath.startsWith(".biodesign/literature/summaries/"))) ||
@@ -196,7 +196,7 @@
   function assertLiteratureSummary(value) {
     if (
       !isPlainObject(value) ||
-      value.schemaVersion !== WORKSPACE_SCHEMA_VERSION ||
+      ![WORKSPACE_SCHEMA_VERSION, 2].includes(Number(value.schemaVersion)) ||
       typeof value.documentId !== "string" ||
       !value.documentId ||
       (value.paperId !== undefined && value.paperId !== value.documentId) ||
@@ -234,7 +234,7 @@
           value[key].every((item) => typeof item === "string")
       );
       if (
-        value.paperCardVersion !== 1 ||
+        ![1, 2].includes(Number(value.paperCardVersion)) ||
         value.paperId !== value.documentId ||
         typeof value.fileName !== "string" ||
         !value.fileName ||
@@ -249,6 +249,37 @@
           "INVALID_LITERATURE_SUMMARY",
           "The Paper Card does not match the supported schema."
         );
+      }
+      if (Number(value.paperCardVersion) >= 2) {
+        const validEvidenceFindings = Array.isArray(value.evidenceFindings) &&
+          value.evidenceFindings.every((finding) =>
+            isPlainObject(finding) &&
+            typeof finding.claim === "string" &&
+            Array.isArray(finding.evidenceRefs) &&
+            finding.evidenceRefs.every((reference) =>
+              typeof reference === "string" &&
+              reference.startsWith(`${value.paperId}:p`) &&
+              reference.length <= 500 &&
+              !/[\r\n]/.test(reference)
+            )
+          );
+        if (
+          typeof value.modelSignature !== "string" ||
+          !value.modelSignature ||
+          typeof value.promptVersion !== "string" ||
+          !value.promptVersion ||
+          typeof value.cacheKey !== "string" ||
+          !value.cacheKey ||
+          Number(value.source.artifactSchemaVersion) < 1 ||
+          typeof value.source.extractorVersion !== "string" ||
+          !value.source.extractorVersion ||
+          !validEvidenceFindings
+        ) {
+          throw new WorkspaceError(
+            "INVALID_LITERATURE_SUMMARY",
+            "The canonical Paper Card does not match the supported schema."
+          );
+        }
       }
     }
     return value;

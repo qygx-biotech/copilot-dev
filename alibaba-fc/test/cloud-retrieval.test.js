@@ -63,6 +63,35 @@ test("knowledge retrieval configuration and model calls require existing bearer 
   assert.match(config.body.plannerSignature, /^[a-f0-9]{64}$/);
   assert.match(config.body.rerankerSignature, /^[a-f0-9]{64}$/);
   assert.doesNotMatch(JSON.stringify(config.body), /requesty\/(?:search-planner|reranker)|fc-only-requesty-key/i);
+
+  const unauthenticatedPaperCardConfig = await invoke(
+    "GET",
+    "/api/literature/config",
+    undefined,
+    false
+  );
+  assert.equal(unauthenticatedPaperCardConfig.status, 401);
+  const paperCardConfig = await invoke("GET", "/api/literature/config");
+  assert.equal(paperCardConfig.status, 200);
+  assert.equal(paperCardConfig.body.schemaVersion, 2);
+  assert.equal(paperCardConfig.body.promptVersion, "canonical-paper-card-v2");
+  assert.match(paperCardConfig.body.modelSignature, /^[a-f0-9]{64}$/);
+  assert.equal(
+    paperCardConfig.body.generationStrategy,
+    "native-pdf-preferred-v1"
+  );
+  assert.equal(typeof paperCardConfig.body.nativePdfSupported, "boolean");
+  assert.equal(paperCardConfig.body.nativePdfMaxBytes, 20 * 1024 * 1024);
+  assert.equal(paperCardConfig.body.nativePdfSchemaVersion, 1);
+  assert.equal(
+    paperCardConfig.body.nativePdfPromptVersion,
+    "canonical-paper-card-native-v1"
+  );
+  assert.doesNotMatch(
+    JSON.stringify(paperCardConfig.body),
+    /requesty\/general-model|fc-only-requesty-key/i
+  );
+  assert.equal(providerRequests.length, 0);
 });
 
 test("Chinese search planning uses the dedicated Requesty model and returns strictly validated English expansions", async () => {

@@ -73,6 +73,28 @@ async function runScenarios() {
       ok(button.getBoundingClientRect().width > 0 && !button.disabled, "Action unavailable");
     }
   });
+  await scenario("Corpus activity keeps 41-paper progress separate from fallback chunks", async () => {
+    equal(
+      sideChatProgressText({
+        stage: "canonical-paper-artifact-create",
+        papersCompleted: 3,
+        papersTotal: 41,
+        completed: 0,
+        total: 5,
+      }),
+      "Creating paper analysis · 3/41"
+    );
+    equal(
+      sideChatProgressText({
+        stage: "canonical-paper-artifact-create",
+        papersCompleted: 3,
+        papersTotal: 41,
+        chunksCompleted: 2,
+        chunksTotal: 5,
+      }),
+      "Creating paper analysis · 3/41 · fallback chunk 2/5"
+    );
+  });
   await scenario("Click Save reads changed textarea value and replaces exactly one turn", async () => { edit(); input().value = "  Edited question  "; save().click(); await idle(); checkReplacement("Edited question"); });
   await scenario("Unchanged text intentionally regenerates", async () => { edit(); save().click(); await idle(); checkReplacement(oldMessages[2].content); });
   for (const modifier of ["ctrlKey", "metaKey"]) await scenario(modifier + "+Enter uses the Save path", async () => {

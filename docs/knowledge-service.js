@@ -1392,6 +1392,26 @@
           },
         };
       }
+      if (built.submitted.length === 1) {
+        return {
+          mode: "deep",
+          collections: options.collections || [],
+          // A single paper-level candidate cannot be reordered. Preserve the
+          // deterministic local fusion, including its score and evidence, and
+          // do not consult either the rerank cache or the provider.
+          results: fused.slice(0, limit).map((entry) => entry.result),
+          diagnostics: {
+            ...diagnostics,
+            reranker: {
+              status: "not-attempted",
+              reason: "single-candidate",
+              submittedCandidates: 1,
+              omittedCandidates: built.candidates.length - 1,
+              evidenceCharacters: built.evidenceCharacters,
+            },
+          },
+        };
+      }
 
       try {
         this.emit({ stage: "reranking-evidence" });

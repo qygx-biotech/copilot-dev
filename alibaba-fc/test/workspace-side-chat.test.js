@@ -256,7 +256,10 @@ test("corpus coverage survives sanitization and is rendered explicitly", () => {
     "utf8"
   );
   assert.match(appSource, /Preparing papers/);
-  assert.match(appSource, /Analyzing papers/);
+  assert.match(appSource, /Validating cached paper analyses/);
+  assert.match(appSource, /Reusing cached paper analysis/);
+  assert.match(appSource, /Selecting relevant cached evidence/);
+  assert.match(appSource, /Mapping paper with provider/);
   assert.match(appSource, /Synthesizing themes/);
   assert.match(appSource, /Verifying claims/);
   assert.match(appSource, /appendCorpusCoverage/);
@@ -562,6 +565,21 @@ test("Side Chat stays bounded, edits only the latest user turn, and retains safe
   assert.match(appSource, /dataset\.sideChatAction = "edit"/);
   assert.match(appSource, /activity: getSideChatActivitySteps\(thinkingMessage\)/);
   assert.match(appSource, /processingSummaryNote: "High-level activity only; private model reasoning is not shown\."/);
+});
+
+test("corpus progress keeps paper totals primary and shows fallback chunk totals separately", () => {
+  const appSource = fs.readFileSync(
+    path.join(__dirname, "../../docs/app.js"),
+    "utf8"
+  );
+
+  assert.match(appSource, /function formatCorpusPaperProgress\(label, progress = \{\}\)/);
+  assert.match(appSource, /progress\.papersCompleted/);
+  assert.match(appSource, /progress\.papersTotal/);
+  assert.match(appSource, /progress\.chunksCompleted/);
+  assert.match(appSource, /progress\.chunksTotal/);
+  assert.match(appSource, /fallback chunk \$\{chunksCompleted\}\/\$\{chunksTotal\}/);
+  assert.match(appSource, /"canonical-paper-artifact-create": "Creating paper analysis"/);
 });
 
 test("Side Chat hides empty-state prompts and renders safe Markdown with math", () => {

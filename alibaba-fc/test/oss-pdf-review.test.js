@@ -252,6 +252,40 @@ function validNativePaperAnalysis() {
   };
 }
 
+function validNativePaperCard(overrides = {}) {
+  return {
+    source_identity: {
+      paper_id: "paper-card-native",
+      content_hash: "sha256:paper-card-native"
+    },
+    title: "Native Paper Card",
+    authors: ["Test Author"],
+    year: 2025,
+    abstract_summary: "A whole-paper summary.",
+    research_question: "How does EctD activity change?",
+    major_findings: [{
+      claim: "The tested variant improved EctD activity.",
+      citations: [{ page: 4, quote: "variant improved EctD activity" }]
+    }],
+    methods: ["activity assay"],
+    methods_summary: "EctD activity was measured with a controlled assay.",
+    organisms: ["Escherichia coli"],
+    genes: ["ectD"],
+    proteins: ["EctD"],
+    pathways: ["hydroxyectoine biosynthesis"],
+    metabolites: ["hydroxyectoine"],
+    experimental_conditions: ["30 degrees C"],
+    measurements: ["specific activity"],
+    important_results: [],
+    limitations: ["One assay condition was reported."],
+    keywords: ["EctD"],
+    topics: ["enzyme engineering"],
+    short_summary: "The paper characterizes an EctD variant.",
+    main_conclusion: "The variant improved activity under the tested condition.",
+    ...overrides
+  };
+}
+
 function validCorpusMapJson(evidenceRef = "paper-a:p8:paper-a-P8-C2") {
   return {
     title: "Selected EctD study",
@@ -624,6 +658,155 @@ test("Requesty native PDF uses private base64 input and strict schema when the m
     assert.ok(filePart.file_data.startsWith("data:application/pdf;base64,"));
     assert.equal(Object.hasOwn(filePart, "file_url"), false);
     assert.equal(JSON.stringify(requests[0]).includes("/private/research"), false);
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_PDF_ENABLED: previous.pdf,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+test("canonical Paper Card uses one direct native PDF request with its narrow strict schema", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    pdf: process.env.REQUESTY_PDF_ENABLED,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "openai/gpt-4.1";
+  process.env.REQUESTY_PDF_ENABLED = "true";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "true";
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard()));
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-card-native",
+        filename: "/private/workspace/literature/中文论文.pdf",
+        contentHash: "sha256:paper-card-native",
+        task: "Create a comprehensive question-independent Paper Card.",
+        purpose: "canonical-paper-card",
+        responseSchema: "canonical_paper_card",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nnative-paper-card").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    const requests = capturedLlmRequests.slice(requestStart);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.analysis.sourceIdentity.paperId, "paper-card-native");
+    assert.equal(body.analysis.majorFindings[0].citations[0].page, 4);
+    assert.equal(body.diagnostics.generationMode, "native-pdf");
+    assert.equal(body.attempts, 1);
+    assert.match(body.modelSignature, /^[a-f0-9]{64}$/);
+    assert.equal(body.schemaVersion, 1);
+    assert.equal(body.promptVersion, "canonical-paper-card-native-v1");
+    assert.equal(requests.length, 1);
+    assert.equal(
+      requests[0].response_format.json_schema.name,
+      "canonical_native_pdf_paper_card"
+    );
+    assert.equal(requests[0].response_format.json_schema.strict, true);
+    assert.equal(JSON.stringify(requests[0]).includes("/private/workspace"), false);
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_PDF_ENABLED: previous.pdf,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+test("canonical Paper Card rejects mismatched provenance without repair or a second provider call", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    pdf: process.env.REQUESTY_PDF_ENABLED,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "openai/gpt-4.1";
+  process.env.REQUESTY_PDF_ENABLED = "true";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "true";
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard({
+    source_identity: {
+      paper_id: "wrong-paper",
+      content_hash: "sha256:paper-card-native"
+    }
+  })));
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-card-native",
+        filename: "paper.pdf",
+        contentHash: "sha256:paper-card-native",
+        task: "Create a comprehensive question-independent Paper Card.",
+        purpose: "canonical-paper-card",
+        responseSchema: "canonical_paper_card",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\ninvalid-provenance").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    assert.equal(response.statusCode, 502);
+    assert.equal(body.fallbackReason, "native-schema-or-provenance-invalid");
+    assert.equal(body.attempts, 1);
+    assert.equal(capturedLlmRequests.slice(requestStart).length, 1);
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_PDF_ENABLED: previous.pdf,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+test("canonical Paper Card makes no provider request when direct PDF structured output is unsupported", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    pdf: process.env.REQUESTY_PDF_ENABLED,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "anthropic/claude-sonnet-4";
+  process.env.REQUESTY_PDF_ENABLED = "true";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "false";
+  const requestStart = capturedLlmRequests.length;
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-card-native",
+        filename: "paper.pdf",
+        contentHash: "sha256:paper-card-native",
+        task: "Create a comprehensive question-independent Paper Card.",
+        purpose: "canonical-paper-card",
+        responseSchema: "canonical_paper_card",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nunsupported").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    assert.equal(response.statusCode, 422);
+    assert.equal(body.fallbackReason, "native-structured-output-unsupported");
+    assert.equal(body.attempts, 0);
+    assert.equal(capturedLlmRequests.slice(requestStart).length, 0);
   } finally {
     for (const [name, value] of Object.entries({
       REQUESTY_PDF_MODEL: previous.model,

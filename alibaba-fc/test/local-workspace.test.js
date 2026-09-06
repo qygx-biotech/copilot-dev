@@ -333,6 +333,60 @@ test("Side Chat conversations persist locally and clear without touching project
   );
   conversation = await store.saveConversation(conversation);
   const originalId = conversation.id;
+  const durableCachePaths = [
+    ".biodesign/artifacts/paper-1/hash/paper-text.json",
+    ".biodesign/knowledge/literature-evidence/paper-1.md",
+    ".biodesign/literature/summaries/paper-1.json",
+    ".biodesign/workflows/corpus-1.json",
+    ".biodesign/workflows/maps/paper-1/query.json",
+    ".biodesign/retrieval/rerank/cache.json",
+  ];
+  for (const path of durableCachePaths) {
+    await manager.writeJson(path, path.includes("/literature/summaries/")
+      ? {
+          schemaVersion: 2,
+          paperCardVersion: 2,
+          paperId: "paper-1",
+          documentId: "paper-1",
+          fileName: "paper1.pdf",
+          generatedAt: "2026-08-20T06:00:00.000Z",
+          source: {
+            filename: "paper1.pdf",
+            relativePath: "literature/paper1.pdf",
+            hash: "sha256:paper-1",
+            artifactSchemaVersion: 1,
+            extractorVersion: "local-source-v1",
+          },
+          modelSignature: "fixture-model-signature",
+          promptVersion: "canonical-paper-card-v2",
+          cacheKey: "fixture-cache-key",
+          title: "Paper 1",
+          authors: [],
+          year: null,
+          abstractSummary: "",
+          researchQuestion: "",
+          mainFindings: ["Retained finding."],
+          methods: [],
+          methodsSummary: "",
+          organisms: [],
+          genes: [],
+          proteins: [],
+          pathways: [],
+          metabolites: [],
+          experimentalConditions: [],
+          measurements: [],
+          importantResults: [],
+          limitations: [],
+          keywords: [],
+          topics: [],
+          shortSummary: "Retained finding.",
+          summary: "Retained finding.",
+          keyResults: [],
+          mainConclusion: "",
+          evidenceFindings: [],
+        }
+      : { retained: true });
+  }
 
   const restoredStore = new WorkspaceChatStore({ workspace: manager });
   const restored = await restoredStore.loadActiveConversation();
@@ -359,6 +413,9 @@ test("Side Chat conversations persist locally and clear without touching project
     false
   );
   assert.equal(await (await manager.readFile("notes.txt")).text(), "keep me");
+  for (const path of durableCachePaths) {
+    assert.equal(await manager.fileExists(path), true);
+  }
 });
 
 test("editing the latest Side Chat question removes its old turn before regeneration", () => {
@@ -640,6 +697,7 @@ test("local PDF map-reduce sends text only to FC and restores the local cache", 
       syntheses += 1;
       assert.equal(payload.filename, "review.pdf");
       assert.equal(payload.relativePath, undefined);
+      assert.equal(payload.language, "en");
       return {
         model: "test-model",
         title: "Local Review",
@@ -675,6 +733,7 @@ test("local PDF map-reduce sends text only to FC and restores the local cache", 
     workspace: manager,
     api,
     pdfjsLib,
+    getLanguage: () => "zh",
     config: { chunkCharacters: 4000, chunkOverlap: 100, maxChunks: 12 },
   });
   const [document] = await module.scan();
@@ -685,6 +744,7 @@ test("local PDF map-reduce sends text only to FC and restores the local cache", 
   assert.ok(capturedChunks.length > 1);
   assert.ok(capturedChunks.every((payload) => typeof payload.text === "string"));
   assert.ok(capturedChunks.every((payload) => payload.relativePath === undefined));
+  assert.ok(capturedChunks.every((payload) => payload.language === "en"));
   assert.equal(syntheses, 1);
   assert.equal(await manager.fileExists(document.summaryPath), true);
 

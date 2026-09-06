@@ -2534,7 +2534,7 @@ function renderSideChatContext() {
       ? {
           snapshot: incremental ? "正在比对文献库" : "正在确定论文范围",
           prepare: incremental ? "正在准备新增/变更论文" : "正在准备论文",
-          map: incremental ? "正在分析新增/变更论文" : "正在分析论文",
+          map: incremental ? "正在选择新增/变更论文的相关证据" : "正在选择相关论文证据",
           group: "正在归纳主题",
           reduce: incremental ? "正在更新综述" : "正在综合主题",
           verify: "正在核验论断",
@@ -2543,7 +2543,7 @@ function renderSideChatContext() {
       : {
           snapshot: incremental ? "Comparing corpus versions" : "Selecting paper scope",
           prepare: incremental ? "Preparing new/changed papers" : "Preparing papers",
-          map: incremental ? "Analyzing new/changed papers" : "Analyzing papers",
+          map: incremental ? "Selecting evidence from new/changed papers" : "Selecting relevant paper evidence",
           group: "Grouping themes",
           reduce: incremental ? "Updating review" : "Synthesizing themes",
           verify: "Verifying claims",
@@ -2553,12 +2553,29 @@ function renderSideChatContext() {
       ? {
           "corpus-plan": "正在规划语料库检索",
           "corpus-plan-ready": "语料库检索计划已就绪",
+          "canonical-paper-validation": "正在验证已缓存的论文分析",
+          "canonical-paper-artifact-create": "正在创建论文分析",
+          "canonical-paper-artifact-created": "规范论文分析已创建",
+          "canonical-paper-artifact-cache-hit": "正在复用已缓存的论文分析",
+          "canonical-paper-projection": "正在选择相关的缓存证据",
+          "corpus-provider-map": "正在通过服务分析论文",
         }
       : {
           "corpus-plan": "Planning corpus retrieval",
           "corpus-plan-ready": "Corpus retrieval plan ready",
+          "canonical-paper-validation": "Validating cached paper analyses",
+          "canonical-paper-artifact-create": "Creating paper analysis",
+          "canonical-paper-artifact-created": "Canonical paper analysis created",
+          "canonical-paper-artifact-cache-hit": "Reusing cached paper analysis",
+          "canonical-paper-projection": "Selecting relevant cached evidence",
+          "corpus-provider-map": "Mapping paper with provider",
         };
-    progress.textContent = `${stageLabels[activeCorpusProgress.stage] || phaseLabels[activeCorpusProgress.phase] || activeCorpusProgress.phase} · ${activeCorpusProgress.completed || 0}/${activeCorpusProgress.total || 0}`;
+    progress.textContent = formatCorpusPaperProgress(
+      stageLabels[activeCorpusProgress.stage] ||
+        phaseLabels[activeCorpusProgress.phase] ||
+        activeCorpusProgress.phase,
+      activeCorpusProgress
+    );
     sideChatContextChips.appendChild(progress);
   }
   if (lastSourceUsage) {
@@ -4576,6 +4593,27 @@ function sideChatProgressText(progress = {}) {
       ? "正在复用已缓存的论文卡片"
       : "Reusing cached Paper Card";
   }
+  const canonicalStageLabels = currentLanguage === "zh"
+    ? {
+        "canonical-paper-validation": "正在验证已缓存的论文分析",
+        "canonical-paper-artifact-create": "正在创建论文分析",
+        "canonical-paper-artifact-created": "规范论文分析已创建",
+        "canonical-paper-artifact-cache-hit": "正在复用已缓存的论文分析",
+        "canonical-paper-projection": "正在选择相关的缓存证据",
+      }
+    : {
+        "canonical-paper-validation": "Validating cached paper analyses",
+        "canonical-paper-artifact-create": "Creating paper analysis",
+        "canonical-paper-artifact-created": "Canonical paper analysis created",
+        "canonical-paper-artifact-cache-hit": "Reusing cached paper analysis",
+        "canonical-paper-projection": "Selecting relevant cached evidence",
+      };
+  if (canonicalStageLabels[progress.stage]) {
+    return formatCorpusPaperProgress(
+      canonicalStageLabels[progress.stage],
+      progress
+    );
+  }
   if (progress.stage?.startsWith("knowledge-")) {
     return progress.message || (currentLanguage === "zh"
       ? "正在搜索本地知识..."
@@ -4590,7 +4628,8 @@ function sideChatProgressText(progress = {}) {
           "corpus-prepare": incremental ? "正在准备新增/变更论文" : "正在准备论文",
           "corpus-plan": "正在规划语料库检索",
           "corpus-plan-ready": "语料库检索计划已就绪",
-          "corpus-map": incremental ? "正在分析新增/变更论文" : "正在分析论文",
+          "corpus-map": incremental ? "正在选择新增/变更论文的相关证据" : "正在选择相关论文证据",
+          "corpus-provider-map": "正在通过服务分析论文",
           "corpus-group": "正在归纳主题",
           "corpus-reduce": incremental ? "正在更新综述" : "正在综合主题",
           "corpus-verify": "正在核验论断",
@@ -4602,13 +4641,17 @@ function sideChatProgressText(progress = {}) {
           "corpus-prepare": incremental ? "Preparing new/changed papers" : "Preparing papers",
           "corpus-plan": "Planning corpus retrieval",
           "corpus-plan-ready": "Corpus retrieval plan ready",
-          "corpus-map": incremental ? "Analyzing new/changed papers" : "Analyzing papers",
+          "corpus-map": incremental ? "Selecting evidence from new/changed papers" : "Selecting relevant paper evidence",
+          "corpus-provider-map": "Mapping paper with provider",
           "corpus-group": "Grouping themes",
           "corpus-reduce": incremental ? "Updating review" : "Synthesizing themes",
           "corpus-verify": "Verifying claims",
           "corpus-answer": "Preparing answer",
         };
-    return `${labels[progress.stage] || progress.phase} · ${progress.completed || 0}/${progress.total || 0}`;
+    return formatCorpusPaperProgress(
+      labels[progress.stage] || progress.phase,
+      progress
+    );
   }
   if (progress.stage === "summarizing") {
     return t("sideChatProcessingPdf", {
@@ -4658,6 +4701,26 @@ function sideChatProgressText(progress = {}) {
       : `Corpus workflow: ${progress.phase} (${progress.completed || 0}/${progress.total || 0})`;
   }
   return String(progress.message || t("thinking")).trim();
+}
+
+function formatCorpusPaperProgress(label, progress = {}) {
+  const papersCompleted = Number.isFinite(Number(progress.papersCompleted))
+    ? Number(progress.papersCompleted)
+    : Math.max(0, Number(progress.completed) || 0);
+  const papersTotal = Number.isFinite(Number(progress.papersTotal))
+    ? Number(progress.papersTotal)
+    : Math.max(0, Number(progress.total) || 0);
+  const chunksCompleted = Math.max(
+    0,
+    Number(progress.chunksCompleted) || 0
+  );
+  const chunksTotal = Math.max(0, Number(progress.chunksTotal) || 0);
+  const fallback = chunksTotal
+    ? currentLanguage === "zh"
+      ? ` · 回退分块 ${chunksCompleted}/${chunksTotal}`
+      : ` · fallback chunk ${chunksCompleted}/${chunksTotal}`
+    : "";
+  return `${label} · ${papersCompleted}/${papersTotal}${fallback}`;
 }
 
 function updateSideChatThinking(activity, progress) {
