@@ -1,6 +1,10 @@
 (function exposeImageComposer(root) {
   "use strict";
   const api = root.BioDesignChatImages;
+  const containsFiles = event => Array.from(event.dataTransfer?.types || []).includes("Files");
+  // Install once: editors are created and disposed each time a message is edited.
+  document.addEventListener("dragover", event => { if (containsFiles(event)) event.preventDefault(); });
+  document.addEventListener("drop", event => { if (containsFiles(event)) event.preventDefault(); });
   const fail = key => Object.assign(new Error(key), { code: "IMAGE_PREPARE", translationKey: key });
   async function prepareImage(file) {
     if (!api.mimeTypes.includes(file.type)) throw fail("imageUnsupported");
@@ -30,9 +34,13 @@
       return { id: crypto.randomUUID(), name: api.safeName(file.name), dataUrl, thumbnail };
     } finally { bitmap.close(); }
   }
-  function create({ form, input, button, previews, status, translate, isBusy, onChange = () => {} }) {
-    let images = [], busy = false, generation = 0, dragDepth = 0;
+  function create({ form, input, button, previews, status, translate, isBusy, initialImages = [], onChange = () => {} }) {
+    let images = initialImages.map(entry => ({ ...entry, id: entry.id || entry.attachmentId }));
+    let busy = false, generation = 0, dragDepth = 0, destroyed = false;
+    const listeners = new AbortController();
+    const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: listeners.signal });
     function render() {
+      if (destroyed) return;
       previews.replaceChildren(); previews.hidden = !images.length;
       for (const entry of images) {
         const item = document.createElement("div"); item.className = "chat-image-preview";
@@ -47,7 +55,7 @@
       onChange({ count: images.length, preparing: busy });
     }
     async function addFiles(files) {
-      if (isBusy() || busy) return;
+      if (destroyed || isBusy() || busy) return;
       const selected = Array.from(files || []);
       if (!selected.length) return;
       status.textContent = "";
@@ -60,18 +68,25 @@
       } catch (error) { if (version === generation) status.textContent = translate(error.translationKey || "imageUnreadable"); }
       finally { if (version === generation) { busy = false; input.value = ""; render(); } }
     }
-    button.addEventListener("click", () => { if (!button.disabled) input.click(); });
-    input.addEventListener("change", () => addFiles(input.files));
-    const containsFiles = event => Array.from(event.dataTransfer?.types || []).includes("Files");
-    form.addEventListener("dragenter", event => { if (containsFiles(event)) { event.preventDefault(); dragDepth++; if (!isBusy()) form.classList.add("image-drop-active"); } });
-    form.addEventListener("dragover", event => { if (containsFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = isBusy() || busy ? "none" : "copy"; } });
-    form.addEventListener("dragleave", event => { if (containsFiles(event) && --dragDepth <= 0) { dragDepth = 0; form.classList.remove("image-drop-active"); } });
-    form.addEventListener("drop", event => { if (!containsFiles(event)) return; event.preventDefault(); event.stopPropagation(); dragDepth = 0; form.classList.remove("image-drop-active"); void addFiles(event.dataTransfer.files); });
-    // Dropping a file outside the composer must not navigate away from the app.
-    document.addEventListener("dragover", event => { if (containsFiles(event)) event.preventDefault(); });
-    document.addEventListener("drop", event => { if (containsFiles(event)) event.preventDefault(); });
+    listen(button, "click", () => { if (!button.disabled) input.click(); });
+    listen(input, "change", () => addFiles(input.files));
+    listen(form, "paste", event => {
+      const clipboard = event.clipboardData;
+      let files = Array.from(clipboard?.items || []).filter(item => item.kind === "file" && item.type.startsWith("image/")).map(item => item.getAsFile()).filter(Boolean);
+      if (!files.length) files = Array.from(clipboard?.files || []).filter(file => file.type.startsWith("image/"));
+      if (!files.length) return;
+      // Keep native text pasting when the clipboard contains both text and images.
+      if (!clipboard.getData("text/plain")) event.preventDefault();
+      event.stopPropagation();
+      void addFiles(files);
+    });
+    listen(form, "dragenter", event => { if (containsFiles(event)) { event.preventDefault(); dragDepth++; if (!isBusy()) form.classList.add("image-drop-active"); } });
+    listen(form, "dragover", event => { if (containsFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = isBusy() || busy ? "none" : "copy"; } });
+    listen(form, "dragleave", event => { if (containsFiles(event) && --dragDepth <= 0) { dragDepth = 0; form.classList.remove("image-drop-active"); } });
+    listen(form, "drop", event => { if (!containsFiles(event)) return; event.preventDefault(); event.stopPropagation(); dragDepth = 0; form.classList.remove("image-drop-active"); void addFiles(event.dataTransfer.files); });
     render();
     return { addFiles, render, get images() { return images.slice(); }, get preparing() { return busy; },
+      destroy() { destroyed = true; generation++; busy = false; images = []; listeners.abort(); },
       clear() { generation++; busy = false; images = []; status.textContent = ""; input.value = ""; form.classList.remove("image-drop-active"); render(); } };
   }
   root.BioDesignChatImageComposer = Object.freeze({ create, prepareImage });

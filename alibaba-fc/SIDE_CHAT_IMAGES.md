@@ -1,6 +1,8 @@
 # Side Chat image understanding
 
-Side Chat accepts up to four PNG, JPEG, or WebP images through **Add images** or a drop onto the message box. Small previews appear before sending, with individual remove buttons. Images can be sent with a question or on their own.
+Side Chat accepts up to four PNG, JPEG, or WebP images through **Add images**, clipboard paste (including Mac screenshots), or a drop onto the message box. Small previews appear before sending, with individual remove buttons. Images can be sent with a question or on their own. Ordinary text paste still works.
+
+When editing the latest message, its images appear with remove buttons. Upload, paste, or drop more images in the editor, then **Save and regenerate**. Cancel discards both text and image changes. These composer changes use the existing image-understanding endpoint and do not require another backend deployment.
 
 The request runs in this order:
 
@@ -25,12 +27,12 @@ Before deployment, the new app displays an actionable error when an image reques
 - Original input: up to 10 MiB and 40 megapixels per image.
 - The app prepares a static image up to 2048 pixels on its longest edge and 700 KiB per image, plus a small thumbnail. Readability of very dense figures may improve if the user crops the relevant area first. Source files are not modified.
 - Prepared image data is stored locally in `.biodesign/chat/attachments/<id>.json`. Conversation records contain attachment references, thumbnails, and the completed interpretation; full image data is not included in subsequent knowledge/answer requests.
-- Editing the latest question reloads its attached images and performs a fresh interpretation for that question. Follow-up messages receive the previous interpretation as conversation context.
+- Editing the latest question interprets only the images retained or added in the editor. Removing all images also removes their previous interpretation from that turn. Follow-up messages receive the previous interpretation as conversation context.
 - A failed, incomplete, rate-limited, or cancelled image call does not start knowledge preparation or a final answer. The saved image remains available for retry. Workspace changes discard pending attachment previews and cancel the active request.
 
 ## Verify
 
-Sign in to the rebuilt Mac app. Add a chart using the upload button, add another by dragging it into Side Chat, remove a preview, and send a question. Observe image reading before knowledge preparation and the final streamed answer. Reopen the workspace and edit the latest question to confirm its attachment remains available.
+Sign in to the rebuilt Mac app. Copy a screenshot to the clipboard with Control–Shift–Command–4, select an area, then click Side Chat and press Command–V. Confirm a small preview appears. Add another image by upload or drop and send a question. Observe image reading before knowledge preparation and the final streamed answer. Edit the latest message, remove an image, paste a replacement, and save. Reopen the workspace to confirm the edited attachments persist.
 
 The automated tests use local image and provider fixtures. A live provider check requires deploying this ZIP and configuring a vision-capable model.
 

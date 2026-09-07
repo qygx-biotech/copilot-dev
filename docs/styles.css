@@ -1583,6 +1583,10 @@ textarea:focus {
 .chat-image-status:empty { display: none; }
 .chat-image-status { color: var(--danger, #a23832); }
 .side-chat-form.image-drop-active { outline: 2px dashed var(--accent); outline-offset: 5px; border-radius: 8px; background: var(--accent-soft); }
+.side-message-edit-composer.image-drop-active { outline: 2px dashed var(--accent-soft); outline-offset: 5px; border-radius: 8px; }
+.side-message-edit-composer { display: grid; gap: 10px; min-width: 0; }
+.side-message-edit-composer > .chat-image-upload { justify-self: start; font-size: 0.8rem; }
+.side-message-edit-composer > .chat-image-hint, .side-message-edit-composer > .chat-image-status { color: #ffffff; }
 .chat-image-previews { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .chat-image-previews[hidden] { display: none; }
 .chat-image-preview { position: relative; width: 64px; height: 64px; flex: 0 0 64px; }

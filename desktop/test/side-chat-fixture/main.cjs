@@ -32,6 +32,7 @@ const setup = `
 const sourceCitationApi = window.BioDesignSourceCitations;
 const chatImageApi = window.BioDesignChatImages, runtimeLog = window.BioDesignRuntimeLog;
 let sideChatImageComposer = null;
+let sideChatMessageEdit = null;
 const sideChatForm = document.querySelector("#composer");
 const prepareLatestSideChatRevision = ${contextApi.prepareLatestSideChatRevision.toString()};
 const sideChatHistory = document.querySelector("#history"), sideChatInput = document.querySelector("#input"), sendSideChatButton = document.querySelector("#send"), clearSideChatButton = document.querySelector("#clear"), sideChatExamples = document.querySelector("#examples"), workspaceTreeContainer = document.querySelector("#tree");
@@ -156,12 +157,27 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
       await sideChatImageComposer.addFiles([await chartImageFile("activity-chart.png"), await chartImageFile("comparison.webp", "image/webp")]);
       if (sendSideChatButton.disabled) throw new Error("The image composer did not re-enable Send");
       sideChatInput.value = "请结合所选论文，解释这两张图中的酶活性变化。";
-      const hint = document.createElement("p"); hint.className = "chat-image-hint"; hint.textContent = "添加或拖入最多 4 张图片 · PNG、JPG、WebP"; sideChatForm.append(hint);
+      const hint = document.createElement("p"); hint.className = "chat-image-hint"; hint.textContent = "添加、粘贴或拖入最多 4 张图片 · PNG、JPG、WebP"; sideChatForm.append(hint);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       })()
     `);
     fs.writeFileSync(imageComposerScreenshot, (await win.webContents.capturePage()).toPNG());
-    console.log("SIDE_CHAT_RESULT " + JSON.stringify({ ...result, screenshot, citationScreenshot, streamingScreenshot, imageComposerScreenshot }));
+    const imageEditorScreenshot = path.join(profile, "image-editor.png");
+    await win.webContents.executeJavaScript(`
+      (async () => {
+        resetConversation();
+        translations.attachChatImages = "Add images";
+        translations.chatImageHint = "Add, paste, or drop up to 4 images · PNG, JPG, WebP";
+        await seedMessageImage(); edit();
+        pasteImages(input(), [await chartImageFile("pasted-comparison.png")]);
+        await imagesReady(sideChatMessageEdit.composer);
+        input().value = "Compare the activity in these two images.";
+        sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      })()
+    `);
+    fs.writeFileSync(imageEditorScreenshot, (await win.webContents.capturePage()).toPNG());
+    console.log("SIDE_CHAT_RESULT " + JSON.stringify({ ...result, screenshot, citationScreenshot, streamingScreenshot, imageComposerScreenshot, imageEditorScreenshot }));
     win.destroy();
     app.exit(0);
   } catch (error) {

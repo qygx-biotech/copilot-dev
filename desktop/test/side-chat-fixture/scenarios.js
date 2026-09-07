@@ -29,6 +29,25 @@ async function chartImageFile(name = "activity.png", type = "image/png") {
   return new File([await new Promise(resolve => canvas.toBlob(resolve, type))], name, { type });
 }
 async function idle() { for (let i = 0; i < 100; i++) { await tick(); if (!sideChatBusy) return; } throw new Error("Side Chat remained busy"); }
+async function imagesReady(composer) {
+  for (let i = 0; i < 200; i++) { await tick(); if (!composer.preparing) return; }
+  throw new Error("Image preparation remained busy");
+}
+function pasteImages(target, files = [], text = "") {
+  const clipboardData = new DataTransfer();
+  for (const file of files) clipboardData.items.add(file);
+  if (text) clipboardData.setData("text/plain", text);
+  const event = new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData });
+  target.dispatchEvent(event);
+  return event;
+}
+async function seedMessageImage() {
+  const image = await window.BioDesignChatImageComposer.prepareImage(await chartImageFile("original.png"));
+  sideChatMessages[2].images = await workspaceChatStore.saveImageAttachments([image]);
+  sideChatMessages[2].imageUnderstanding = { text: "Stale image observations", model: "previous" };
+  renderSideChatConversation();
+  return sideChatMessages[2].images[0];
+}
 const edit = () => sideChatHistory.querySelector('[data-side-chat-action="edit"]').click();
 const input = () => sideChatHistory.querySelector('[data-side-chat-edit-input]');
 const save = () => sideChatHistory.querySelector('[data-side-chat-action="save-edit"]');
@@ -105,6 +124,9 @@ async function runScenarios() {
     ok(contrast(style.color, style.backgroundColor) >= 4.5, "Textarea contrast below 4.5");
     equal(style.caretColor, style.color);
     ok(contrast(selection.color, selection.backgroundColor) >= 4.5, "Selection contrast below 4.5");
+    for (const label of sideChatHistory.querySelectorAll(".editing .chat-image-hint, .editing .chat-image-status")) {
+      ok(contrast(getComputedStyle(label).color, getComputedStyle(label.closest(".side-message")).backgroundColor) >= 4.5, "Image hint or error is unreadable on the message background");
+    }
     for (const button of sideChatHistory.querySelectorAll(".side-message-edit-actions button")) {
       const style = getComputedStyle(button);
       ok(contrast(style.color, style.backgroundColor) >= 4.5, "Action contrast below 4.5: " + button.textContent);
@@ -346,6 +368,99 @@ async function runScenarios() {
     equal(sideChatImageComposer.images.length, 1); equal(imageCalls.length, 0); equal(requests.length, 0);
     setSideChatBusy(true); sideChatInput.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
     equal(sideChatImageComposer.images.length, 1); setSideChatBusy(false);
+  });
+  await scenario("Pasting a screenshot shows a removable preview and sends it through vision", async () => {
+    const event = pasteImages(sideChatInput, [await chartImageFile("Screenshot.png")]);
+    ok(event.defaultPrevented, "Screenshot paste was not handled");
+    await imagesReady(sideChatImageComposer);
+    equal(sideChatImageComposer.images.map(image => image.name), ["Screenshot.png"]);
+    ok(document.querySelector("#sideChatImagePreviews img"), "Screenshot preview missing");
+    equal(imageCalls.length, 0); equal(requests.length, 0);
+    sideChatInput.value = "Explain the screenshot";
+    await submitSideChat();
+    equal(imageCalls[0].images.map(image => image.name), ["Screenshot.png"]);
+    ok(contextCalls[0].includes("25 U/mL"), "Pasted image observations did not reach the normal pipeline");
+  });
+  await scenario("Plain text and mixed clipboard text retain native paste behavior; busy and image limits apply", async () => {
+    ok(!pasteImages(sideChatInput, [], "Keep this text").defaultPrevented, "Plain text paste was swallowed");
+    const file = await chartImageFile();
+    ok(!pasteImages(sideChatInput, [file], "Keep both").defaultPrevented, "Mixed clipboard text was swallowed");
+    await imagesReady(sideChatImageComposer); equal(sideChatImageComposer.images.length, 1);
+    setSideChatBusy(true); pasteImages(sideChatInput, [file]); equal(sideChatImageComposer.images.length, 1);
+    setSideChatBusy(false);
+    pasteImages(sideChatInput, [file, file, file, file]);
+    equal(sideChatImageComposer.images.length, 1);
+    equal(document.querySelector("#sideChatImageStatus").textContent, "imageCountLimit");
+  });
+  await scenario("Removing all images from an edited message regenerates without stale image observations", async () => {
+    await seedMessageImage(); edit();
+    const composer = sideChatMessageEdit.composer;
+    equal(composer.images.length, 1);
+    sideChatHistory.querySelector(".editing .chat-image-preview button").click();
+    equal(composer.images.length, 0);
+    input().value = "Use only my text now"; save().click(); await idle();
+    equal(imageCalls.length, 0);
+    ok(!sideChatMessages.at(-2).images?.length && !sideChatMessages.at(-2).imageUnderstanding, "Removed image or understanding persisted");
+    ok(!JSON.stringify(requests).includes("Stale image observations"), "Removed evidence reached the answer");
+    equal(contextCalls, ["Use only my text now"]);
+  });
+  await scenario("Editing combines retained and newly uploaded images once and preserves the main composer's draft", async () => {
+    const original = await seedMessageImage();
+    await sideChatImageComposer.addFiles([await chartImageFile("next-question.png")]);
+    edit();
+    const editor = sideChatHistory.querySelector(".side-message-edit-composer"), picker = editor.querySelector('input[type="file"]');
+    let opened = false; picker.click = () => { opened = true; };
+    editor.querySelector(".chat-image-upload").click(); ok(opened, "Editor upload did not open picker");
+    const transfer = new DataTransfer(); transfer.items.add(await chartImageFile("added.png"));
+    picker.files = transfer.files; picker.dispatchEvent(new Event("change"));
+    ok(save().disabled, "Save enabled during image preparation");
+    await imagesReady(sideChatMessageEdit.composer);
+    input().value = "Compare both images"; save().click(); await idle();
+    equal(imageCalls.length, 1); equal(imageCalls[0].images.map(image => image.name), ["original.png", "added.png"]);
+    equal(sideChatMessages.at(-2).images.length, 2); equal(sideChatMessages.at(-2).images[0].attachmentId, original.attachmentId);
+    equal(sideChatImageComposer.images.map(image => image.name), ["next-question.png"]);
+    ok(!JSON.stringify(saves).includes('"dataUrl"'), "Full image bytes leaked into saved history");
+  });
+  await scenario("Replacing an edited message's image by pasting sends only the replacement, including an image-only edit", async () => {
+    const original = await seedMessageImage(); edit();
+    sideChatHistory.querySelector(".editing .chat-image-preview button").click();
+    pasteImages(input(), [await chartImageFile("replacement.png")]);
+    await imagesReady(sideChatMessageEdit.composer);
+    input().value = ""; save().click(); await idle();
+    equal(imageCalls.length, 1); equal(imageCalls[0].question, "imageOnlyQuestion");
+    equal(imageCalls[0].images.map(image => image.name), ["replacement.png"]);
+    ok(sideChatMessages.at(-2).images[0].attachmentId !== original.attachmentId, "Old attachment survived replacement");
+  });
+  await scenario("An edited text-only message accepts an image drop; Cancel leaves the saved message intact", async () => {
+    edit(); const transfer = new DataTransfer(); transfer.items.add(await chartImageFile("dropped-edit.png"));
+    const event = new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer });
+    input().dispatchEvent(event); await imagesReady(sideChatMessageEdit.composer);
+    ok(event.defaultPrevented, "Editor drop was not handled"); equal(sideChatMessageEdit.composer.images.length, 1);
+    sideChatHistory.querySelector('[data-side-chat-action="cancel-edit"]').click();
+    equal(sideChatMessages, oldMessages); equal(saves.length, 0); equal(sideChatMessageEdit, null);
+  });
+  await scenario("Cancel preserves original attachments and discards an image still being decoded", async () => {
+    await seedMessageImage(); const before = structuredClone(sideChatMessages); edit();
+    const composer = sideChatMessageEdit.composer, detachedInput = input();
+    sideChatHistory.querySelector(".editing .chat-image-preview button").click();
+    const file = await chartImageFile("discarded.png");
+    const pending = composer.addFiles([file]);
+    sideChatHistory.querySelector('[data-side-chat-action="cancel-edit"]').click(); await pending;
+    equal(sideChatMessages, before); equal(composer.images.length, 0); equal(sideChatMessageEdit, null);
+    pasteImages(detachedInput, [file]); await tick();
+    equal(composer.images.length, 0); equal(saves.length, 0);
+    edit(); equal(sideChatMessageEdit.composer.images.map(image => image.name), ["original.png"]);
+  });
+  await scenario("A failed edit checkpoint restores text and image changes for retry", async () => {
+    await seedMessageImage(); const before = structuredClone(sideChatMessages); edit();
+    sideChatHistory.querySelector(".editing .chat-image-preview button").click();
+    await sideChatMessageEdit.composer.addFiles([await chartImageFile("retry.png")]);
+    input().value = "Retry my new image"; saveFailAt = 1; save().click(); await idle();
+    equal(sideChatMessages, before); equal(input().value, "Retry my new image");
+    equal(sideChatMessageEdit.composer.images.map(image => image.name), ["retry.png"]);
+    equal(imageCalls.length, 0); equal(requests.length, 0);
+    saveFailAt = 0; save().click(); await idle();
+    equal(imageCalls.length, 1); equal(imageCalls[0].images.map(image => image.name), ["retry.png"]);
   });
   await scenario("Clearing or switching workspace during image preparation discards the late preview", async () => {
     const pending = sideChatImageComposer.addFiles([await chartImageFile()]);

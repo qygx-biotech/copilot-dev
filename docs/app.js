@@ -303,7 +303,7 @@ const I18N = {
     sideChatEyebrow: "Side Chat",
     streamingAnswer: "Generating response…",
     attachChatImages: "Add images",
-    chatImageHint: "Add or drop up to 4 images · PNG, JPG, WebP",
+    chatImageHint: "Add, paste, or drop up to 4 images · PNG, JPG, WebP",
     removeChatImage: "Remove {name}",
     imageCountLimit: "You can attach up to 4 images per message.",
     imageUnsupported: "Choose PNG, JPG, or WebP images.",
@@ -680,7 +680,7 @@ const I18N = {
     sideChatEyebrow: "侧边问答",
     streamingAnswer: "正在生成回答…",
     attachChatImages: "添加图片",
-    chatImageHint: "添加或拖入最多 4 张图片 · PNG、JPG、WebP",
+    chatImageHint: "添加、粘贴或拖入最多 4 张图片 · PNG、JPG、WebP",
     removeChatImage: "移除 {name}",
     imageCountLimit: "每条消息最多添加 4 张图片。",
     imageUnsupported: "请选择 PNG、JPG 或 WebP 图片。",
@@ -913,6 +913,7 @@ let activePdfUploads = 0;
 let activeSideChatDocumentKeys = [];
 let sideChatBusy = false;
 let sideChatImageComposer = null;
+let sideChatMessageEdit = null;
 const workspaceManager = createWorkspaceManager();
 const literatureApiClient = new LiteratureApiClient({
   baseUrl: WORKER_URL,
@@ -3713,6 +3714,8 @@ function saveSideChatMessages() {
 }
 
 function renderSideChatConversation() {
+  sideChatMessageEdit?.composer.destroy();
+  sideChatMessageEdit = null;
   sideChatHistory.innerHTML = "";
   const isEmpty = !sideChatMessages.length;
   setSideChatEmptyState(isEmpty);
@@ -3734,7 +3737,7 @@ function renderSideChatConversation() {
   );
 }
 
-function beginSideChatMessageEdit(messageId, draft = null) {
+function beginSideChatMessageEdit(messageId, draft = null, draftImages = null) {
   const original = sideChatMessages.find((message) => message.id === messageId);
   const revision = prepareLatestSideChatRevision(
     sideChatMessages,
@@ -3748,6 +3751,7 @@ function beginSideChatMessageEdit(messageId, draft = null) {
   if (!message) return;
   const body = message.querySelector(".side-message-body");
   message.querySelector('[data-side-chat-action="edit"]')?.remove();
+  message.querySelector(".chat-image-previews")?.remove();
   message.classList.add("editing");
 
   const input = document.createElement("textarea");
@@ -3772,7 +3776,29 @@ function beginSideChatMessageEdit(messageId, draft = null) {
   save.dataset.messageId = messageId;
   save.textContent = t("saveAndRegenerate");
   actions.append(cancel, save);
-  body.replaceChildren(input, actions);
+  const composer = document.createElement("div");
+  composer.className = "side-message-edit-composer";
+  const previews = document.createElement("div");
+  previews.className = "chat-image-previews";
+  const picker = document.createElement("input");
+  picker.type = "file"; picker.accept = chatImageApi.mimeTypes.join(","); picker.multiple = true; picker.hidden = true;
+  const upload = document.createElement("button");
+  upload.type = "button"; upload.className = "secondary-button chat-image-upload"; upload.textContent = t("attachChatImages");
+  const hint = document.createElement("p");
+  hint.className = "chat-image-hint"; hint.textContent = t("chatImageHint");
+  const status = document.createElement("p");
+  status.className = "chat-image-status"; status.setAttribute("role", "status");
+  composer.append(previews, input, picker, upload, hint, status, actions);
+  body.replaceChildren(composer);
+  sideChatMessageEdit = {
+    messageId,
+    composer: window.BioDesignChatImageComposer.create({
+      form: composer, input: picker, button: upload, previews, status, translate: t,
+      initialImages: draftImages ?? chatImageApi.normalizeAttachments(original.images),
+      isBusy: () => sideChatBusy,
+      onChange: ({ preparing }) => { save.disabled = sideChatBusy || preparing; },
+    }),
+  };
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
 }
@@ -3796,16 +3822,22 @@ function showSideChatEditError(messageId, text) {
 
 async function reviseLatestSideChatMessage(messageId, nextContent) {
   if (sideChatBusy) return;
-  if (!String(nextContent || "").trim()) {
+  const editor = sideChatMessageEdit?.messageId === messageId ? sideChatMessageEdit.composer : null;
+  if (editor?.preparing) return;
+  const imageDraft = editor?.images;
+  const hasImages = (imageDraft ?? sideChatMessages.find(message => message.id === messageId)?.images ?? []).length > 0;
+  const question = String(nextContent || "").trim() || (hasImages ? t("imageOnlyQuestion") : "");
+  if (!question) {
     showSideChatEditError(messageId, t("editMessageRequired"));
     return;
   }
   const revision = prepareLatestSideChatRevision(
     sideChatMessages,
     messageId,
-    nextContent
+    question
   );
   if (!revision) return;
+  if (imageDraft) revision.imageDraft = imageDraft;
   // Unchanged text is an intentional regeneration through the same guarded path.
   await askSideChat(revision.question, { revision });
 }
@@ -4523,6 +4555,7 @@ function setSideChatBusy(isBusy) {
   });
   sendSideChatButton.textContent = isBusy ? t("thinking") : t("askButton");
   sideChatImageComposer?.render();
+  sideChatMessageEdit?.composer.render();
 }
 
 function addSideChatThinking() {
@@ -4578,7 +4611,12 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
   const previousMessages = sideChatMessages;
   const previousConversation = sideChatConversation;
   const requestChatStore = workspaceChatStore;
-  const revisionImages = revision ? chatImageApi.normalizeAttachments(previousMessages.find(message => message.id === revision.replacedMessageId)?.images) : [];
+  const originalImages = revision ? chatImageApi.normalizeAttachments(previousMessages.find(message => message.id === revision.replacedMessageId)?.images) : [];
+  // A supplied empty draft explicitly removes every image. Saved references can
+  // only retain attachments from this message; new image bytes are saved below.
+  const revisionImages = revision?.imageDraft ? originalImages.filter(image => revision.imageDraft.some(entry => entry.attachmentId === image.attachmentId)) : originalImages;
+  if (revision?.imageDraft) images = revision.imageDraft.filter(image => !image.attachmentId);
+  if (images.length + revisionImages.length > chatImageApi.limits.count) { showToast(t("imageCountLimit")); return; }
   if ((images.length || revisionImages.length) && question.length > chatImageApi.limits.questionCharacters) { showToast(t("chatImageQuestionLong")); return; }
   let effectiveQuestion = question;
   const requestSignal = workspaceAbortController?.signal;
@@ -4624,7 +4662,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
   try {
     activeLiteratureOperations += 1;
     if (images.length) {
-      userMessage.images = await requestChatStore.saveImageAttachments(images, { signal: requestSignal });
+      userMessage.images = [...revisionImages, ...await requestChatStore.saveImageAttachments(images, { signal: requestSignal })];
       if (requestSignal?.aborted || !isCurrentRequest()) return;
     }
     // Persist the replacement question together with retained history. Never save
@@ -4633,11 +4671,12 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
     checkpointSaved = true;
     userMessage = sideChatMessages.find((message) => message.id === userMessage.id) || userMessage;
     if (userMessage.images?.length) {
-      sideChatImageComposer?.clear();
+      if (!revision) sideChatImageComposer?.clear();
       renderSideChatConversation();
       sideChatHistory.append(thinkingMessage.element);
       updateSideChatThinking(thinkingMessage, { stage: "image-understanding", imageCount: userMessage.images.length });
-      const preparedImages = images.length ? images : await requestChatStore.loadImageAttachments(userMessage.images, { signal: requestSignal });
+      const retainedImages = revisionImages.length ? await requestChatStore.loadImageAttachments(revisionImages, { signal: requestSignal }) : [];
+      const preparedImages = [...retainedImages, ...images];
       if (requestSignal?.aborted || !isCurrentRequest()) return;
       userMessage.imageUnderstanding = await understandSideChatImages(question, preparedImages, { turnId: userMessage.id, signal: requestSignal });
       if (requestSignal?.aborted || !isCurrentRequest()) return;
@@ -4819,7 +4858,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
     setSideChatBusy(false);
     if (restoreEditor) {
       renderSideChatConversation();
-      beginSideChatMessageEdit(revision.replacedMessageId, question);
+      beginSideChatMessageEdit(revision.replacedMessageId, question, revision.imageDraft ?? null);
       showSideChatEditError(revision.replacedMessageId, t("chatPersistenceFailed"));
     } else {
       sideChatInput.focus();
