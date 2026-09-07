@@ -14,7 +14,6 @@
     "data",
     "output",
     ".biodesign/literature/summaries",
-    ".biodesign/literature/cache",
     ".biodesign/experiments",
     ".biodesign/sources/artifacts",
     ".biodesign/jobs",
@@ -392,7 +391,7 @@
   }
 
   function assertSourceRegistry(value) {
-    const allowedKinds = new Set(["paper", "experiment", "protocol", "other"]);
+    const allowedKinds = new Set(["paper", "experiment", "protocol", "document", "other"]);
     const allowedCatalog = new Set(["discovered", "dirty", "missing"]);
     const allowedHash = new Set(["absent", "ready", "dirty", "stale", "failed"]);
     const allowedDerived = new Set([
@@ -1026,10 +1025,12 @@
           this.desktop.files.stat({ relativePath }),
           this.desktop.files.readBinary({ relativePath }),
         ]);
-        return new File([bytes], relativePath.split("/").at(-1), {
+        const file = new File([bytes], relativePath.split("/").at(-1), {
           type: metadata.mimeType || "application/octet-stream",
           lastModified: Number(metadata.lastModified) || Date.now(),
         });
+        Object.defineProperties(file, { mtimeNs: { value: metadata.mtimeNs }, filesystemFileId: { value: metadata.filesystemFileId } });
+        return file;
       } catch (error) {
         throw new WorkspaceError(
           error?.code === "ENOENT" ? "FILE_NOT_FOUND" : "READ_FAILED",

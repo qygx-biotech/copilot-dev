@@ -17,18 +17,18 @@ function result(overrides = {}) {
   };
 }
 
-test("Light exactly preserves the existing Han Deep and non-Han Fast rules", () => {
+test("Light uses lexical retrieval independently of input language", () => {
   assert.deepEqual(profiles.selectRetrievalProfile("light", { query: "EctD A163V" }), {
     profile: "light",
     mode: "fast",
     escalated: false,
-    reason: "light-non-han-fast",
+    reason: "light-lexical",
   });
   assert.deepEqual(profiles.selectRetrievalProfile("light", { query: "比较 EctD 文献" }), {
     profile: "light",
-    mode: "deep",
-    escalated: true,
-    reason: "light-han-deep",
+    mode: "fast",
+    escalated: false,
+    reason: "light-lexical",
   });
 });
 
@@ -51,10 +51,10 @@ test("Medium accepts strong identifier, title, author/year, and kinetic matches 
   }
 });
 
-test("Medium deterministically escalates cross-language and conceptual discovery", () => {
+test("Medium escalates conceptual discovery or insufficient evidence, not language", () => {
   const cases = [
-    ["比较羟基四氢嘧啶合成策略", "medium-cross-language"],
-    ["сравнить стратегии ферментации", "medium-cross-language"],
+    ["比较羟基四氢嘧啶合成策略", "medium-conceptual-discovery"],
+    ["сравнить стратегии ферментации", "medium-insufficient-lexical-coverage"],
     ["compare fermentation strategies", "medium-conceptual-discovery"],
     ["survey the literature landscape", "medium-conceptual-discovery"],
     ["explain the mechanism", "medium-conceptual-discovery"],
@@ -200,7 +200,7 @@ test("Medium serializes Fast-first escalation and avoids duplicate Deep download
 test("Light and High source integrations derive modes only from the profile", async () => {
   for (const [profile, query, expected] of [
     ["light", "EctD A163V", "fast"],
-    ["light", "中文 EctD", "deep"],
+    ["light", "中文 EctD", "fast"],
     ["high", "EctD A163V", "deep"],
   ]) {
     const harness = makeLiteratureTools((input, source) => ({

@@ -78,8 +78,9 @@ test("knowledge retrieval configuration and model calls require existing bearer 
   assert.match(paperCardConfig.body.modelSignature, /^[a-f0-9]{64}$/);
   assert.equal(
     paperCardConfig.body.generationStrategy,
-    "native-pdf-preferred-v1"
+    "native-pdf-combined-text-v2"
   );
+  assert.equal(paperCardConfig.body.generationContractVersion, 2);
   assert.equal(typeof paperCardConfig.body.nativePdfSupported, "boolean");
   assert.equal(paperCardConfig.body.nativePdfMaxBytes, 20 * 1024 * 1024);
   assert.equal(paperCardConfig.body.nativePdfSchemaVersion, 1);
@@ -87,11 +88,31 @@ test("knowledge retrieval configuration and model calls require existing bearer 
     paperCardConfig.body.nativePdfPromptVersion,
     "canonical-paper-card-native-v1"
   );
+  assert.equal(typeof paperCardConfig.body.combinedTextSupported, "boolean");
+  assert.equal(paperCardConfig.body.combinedTextMaxCharacters, 120000);
+  assert.equal(paperCardConfig.body.combinedTextSchemaVersion, 1);
+  assert.equal(
+    paperCardConfig.body.combinedTextPromptVersion,
+    "canonical-paper-card-combined-text-v2"
+  );
   assert.doesNotMatch(
     JSON.stringify(paperCardConfig.body),
     /requesty\/general-model|fc-only-requesty-key/i
   );
   assert.equal(providerRequests.length, 0);
+});
+
+test("Paper Card configuration uses the safe Gemma 4 context budget", async () => {
+  const previousModel = process.env.REQUESTY_MODEL;
+  try {
+    process.env.REQUESTY_MODEL = "google/gemma-4-31b-it";
+    const config = await invoke("GET", "/api/literature/config");
+    assert.equal(config.status, 200);
+    assert.equal(config.body.combinedTextMaxCharacters, 200000);
+    assert.equal(providerRequests.length, 0);
+  } finally {
+    process.env.REQUESTY_MODEL = previousModel;
+  }
 });
 
 test("Chinese search planning uses the dedicated Requesty model and returns strictly validated English expansions", async () => {

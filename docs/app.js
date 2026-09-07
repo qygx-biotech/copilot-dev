@@ -35,6 +35,8 @@ const aboutTriggers = document.querySelectorAll(".about-trigger");
 const aboutAppVersion = document.querySelector("#aboutAppVersion");
 const betaUpdateButton = document.querySelector("#betaUpdateButton");
 const betaUpdateStatus = document.querySelector("#betaUpdateStatus");
+const runtimeLog = window.BioDesignRuntimeLog;
+runtimeLog?.installPanel();
 
 const projectContextInput = document.querySelector("#projectContext");
 const workspaceTreeContainer = document.querySelector("#workspaceTree");
@@ -61,6 +63,7 @@ const retrievalProfileSelect = document.querySelector("#retrievalProfileSelect")
 const retrievalProfileDescription = document.querySelector("#retrievalProfileDescription");
 
 const sourceCitationApi = window.BioDesignSourceCitations;
+const chatImageApi = window.BioDesignChatImages;
 const retrievalProfilePolicy = window.BioDesignRetrievalProfiles || {};
 const isValidRetrievalProfile = retrievalProfilePolicy.isValidRetrievalProfile ||
   ((value) => ["light", "medium", "high"].includes(value));
@@ -298,6 +301,25 @@ const I18N = {
     humanReviewHeading: "Human Review Notes",
     draftSummaryHeading: "Draft Summary",
     sideChatEyebrow: "Side Chat",
+    streamingAnswer: "Generating response…",
+    attachChatImages: "Add images",
+    chatImageHint: "Add or drop up to 4 images · PNG, JPG, WebP",
+    removeChatImage: "Remove {name}",
+    imageCountLimit: "You can attach up to 4 images per message.",
+    imageUnsupported: "Choose PNG, JPG, or WebP images.",
+    imageTooLarge: "Choose images smaller than 10 MB and 40 megapixels each.",
+    imageUnreadable: "This image could not be read. Try another PNG, JPG, or WebP file.",
+    imageOnlyQuestion: "Describe and interpret the attached images.",
+    readingChatImages: "Reading {count} attached images…",
+    chatImagesUnderstood: "Image reading complete; preparing the answer",
+    chatImageFailed: "Could not read the images. Check that the backend model supports vision, then edit the latest message to retry.",
+    chatImageBackendMissing: "Image understanding needs the updated backend. Upload the new backend ZIP, then edit this message to retry.",
+    chatImageMissing: "The saved image is unavailable. Please attach it again in a new message.",
+    chatImageRateLimited: "Image reading was rate-limited. Wait briefly, then edit the latest message to retry.",
+    chatImageTimeout: "Image reading timed out. Edit the latest message to retry.",
+    chatImageQuestionLong: "Keep questions with images under 12,000 characters.",
+    streamInspecting: "Inspecting project evidence…",
+    streamInterrupted: "Response interrupted. This draft is incomplete and has not been saved. Please retry.",
     sideChatTitle: "Side Chat",
     sideChatHelper: "Ask questions without changing the current recommendation.",
     sideChatContextLabel: "Context",
@@ -656,6 +678,25 @@ const I18N = {
     humanReviewHeading: "人工审阅说明",
     draftSummaryHeading: "摘要草稿",
     sideChatEyebrow: "侧边问答",
+    streamingAnswer: "正在生成回答…",
+    attachChatImages: "添加图片",
+    chatImageHint: "添加或拖入最多 4 张图片 · PNG、JPG、WebP",
+    removeChatImage: "移除 {name}",
+    imageCountLimit: "每条消息最多添加 4 张图片。",
+    imageUnsupported: "请选择 PNG、JPG 或 WebP 图片。",
+    imageTooLarge: "每张图片须小于 10 MB，且不超过 4000 万像素。",
+    imageUnreadable: "无法读取这张图片，请尝试其他 PNG、JPG 或 WebP 文件。",
+    imageOnlyQuestion: "请描述并解读所附图片。",
+    readingChatImages: "正在解读 {count} 张图片…",
+    chatImagesUnderstood: "图片解读完成，正在准备回答",
+    chatImageFailed: "图片解读失败。请确认后端模型支持视觉输入，再编辑最后一条消息重试。",
+    chatImageBackendMissing: "图片解读需要新版后端。请上传新的后端 ZIP，再编辑这条消息重试。",
+    chatImageMissing: "已保存的图片不可用，请在新消息中重新添加图片。",
+    chatImageRateLimited: "图片解读触发了限流，请稍等后编辑最后一条消息重试。",
+    chatImageTimeout: "图片解读超时，请编辑最后一条消息重试。",
+    chatImageQuestionLong: "附带图片的问题请控制在 12,000 字符以内。",
+    streamInspecting: "正在查阅项目证据…",
+    streamInterrupted: "回答已中断。此草稿不完整，尚未保存，请重试。",
     sideChatTitle: "侧边问答",
     sideChatHelper: "在不改变当前推荐的情况下提问。",
     sideChatContextLabel: "上下文",
@@ -871,6 +912,7 @@ let activeAgentPanelId = "";
 let activePdfUploads = 0;
 let activeSideChatDocumentKeys = [];
 let sideChatBusy = false;
+let sideChatImageComposer = null;
 const workspaceManager = createWorkspaceManager();
 const literatureApiClient = new LiteratureApiClient({
   baseUrl: WORKER_URL,
@@ -915,6 +957,7 @@ retrievalProfileSelect.addEventListener("change", () => {
   scheduleWorkspaceStateSave();
 });
 
+initializeSideChatImages();
 initializeWorkbench();
 initializeAboutPanel();
 checkCurrentUser();
@@ -1236,19 +1279,34 @@ sideExampleButtons.forEach((button) => {
 
 sideChatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-
-  const question = sideChatInput.value.trim();
-  if (!question || sideChatBusy) return;
-
-  sideChatInput.value = "";
-  await askSideChat(question);
+  await submitSideChat();
 });
+
+function initializeSideChatImages() {
+  sideChatImageComposer = window.BioDesignChatImageComposer.create({
+    form: sideChatForm, input: document.querySelector("#sideChatImageInput"),
+    button: document.querySelector("#attachSideChatImageButton"), previews: document.querySelector("#sideChatImagePreviews"),
+    status: document.querySelector("#sideChatImageStatus"), translate: t, isBusy: () => sideChatBusy,
+    onChange: ({ preparing }) => { sendSideChatButton.disabled = sideChatBusy || preparing; },
+  });
+}
+
+async function submitSideChat() {
+  if (sideChatBusy || sideChatImageComposer?.preparing) return;
+  const images = sideChatImageComposer?.images || [];
+  const question = sideChatInput.value.trim() || (images.length ? t("imageOnlyQuestion") : "");
+  if (!question || !projectContextService || !sideChatConversation || !workspaceTree) return;
+  if (images.length && question.length > chatImageApi.limits.questionCharacters) { showToast(t("chatImageQuestionLong")); return; }
+  sideChatInput.value = "";
+  await askSideChat(question, { images });
+}
 
 clearSideChatButton.addEventListener("click", async () => {
   if (!workspaceChatStore || sideChatBusy) return;
   if (sideChatMessages.length && !window.confirm(t("clearSideChatConfirm"))) return;
   try {
     sideChatConversation = await workspaceChatStore.clearActiveConversation();
+    sideChatImageComposer?.clear();
     sideChatMessages = sideChatConversation.messages;
     renderSideChatConversation();
   } catch (error) {
@@ -1471,6 +1529,7 @@ function setWorkspaceSelectionBusy(isBusy, label = t("waitLabel")) {
 }
 
 async function openSelectedWorkspace(initialize) {
+  workspaceAbortController?.abort();
   const result = initialize
     ? await workspaceManager.initializeWorkspace()
     : await workspaceManager.loadWorkspace();
@@ -1498,6 +1557,7 @@ async function openSelectedWorkspace(initialize) {
     workspace: workspaceManager,
     literature: literatureModule,
     sourceSystem: literatureModule.sourceSystem,
+    workspaceSignal: workspaceAbortController.signal,
   });
   workspaceChatStore = new WorkspaceChatStore({ workspace: workspaceManager });
   sideChatConversation = await workspaceChatStore.loadActiveConversation();
@@ -1573,6 +1633,10 @@ async function refreshLiterature(showMessage = false) {
 async function reconcileCurrentWorkspaceCatalog() {
   const nextTree = await workspaceManager.scanDirectoryTree();
   const documents = await literatureModule.scan({ tree: nextTree });
+  return applyRequestCatalog(nextTree, documents);
+}
+
+function applyRequestCatalog(nextTree, documents) {
   workspaceTree = nextTree;
   applyLiteratureScan(documents);
   const availablePaths = new Set(
@@ -1659,6 +1723,9 @@ async function leaveCurrentWorkspace() {
 function closeWorkspaceInMemory() {
   workspaceAbortController?.abort();
   workspaceAbortController = null;
+  setSideChatBusy(false);
+  activeLiteratureOperations = 0;
+  sideChatImageComposer?.clear();
   literatureModule = null;
   projectContextService = null;
   knowledgeService?.close?.();
@@ -1773,6 +1840,8 @@ function setLanguage(language) {
 
 function applyLanguage() {
   document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+  runtimeLog?.setLanguage(currentLanguage);
+  sideChatImageComposer?.render();
   document.title = t("documentTitle");
 
   languageSelects.forEach((select) => {
@@ -2570,8 +2639,15 @@ function renderSideChatContext() {
           "canonical-paper-projection": "Selecting relevant cached evidence",
           "corpus-provider-map": "Mapping paper with provider",
         };
+    const routeLabel =
+      activeCorpusProgress.stage === "canonical-paper-artifact-create" &&
+      activeCorpusProgress.route === "combined-text"
+        ? currentLanguage === "zh"
+          ? "正在从提取文本创建论文分析"
+          : "Creating paper analysis from extracted text"
+        : null;
     progress.textContent = formatCorpusPaperProgress(
-      stageLabels[activeCorpusProgress.stage] ||
+      routeLabel || stageLabels[activeCorpusProgress.stage] ||
         phaseLabels[activeCorpusProgress.phase] ||
         activeCorpusProgress.phase,
       activeCorpusProgress
@@ -3290,6 +3366,9 @@ async function runAgentInstruction(panelId) {
   }
 
   setAgentBusy(true, panelId);
+  const requestSignal = workspaceAbortController?.signal;
+  let streamingPreview = null;
+  panel.collapsed = false;
   panel.statusKey = "agentReviewing";
   panel.status = "";
   saveAnalysisPanels();
@@ -3303,6 +3382,7 @@ async function runAgentInstruction(panelId) {
       throw new Error(t("backendDisabled"));
     }
 
+    const requestTurnId = makeId();
     let localWorkspaceContext = null;
     if (projectContextService && workspaceTree) {
       activeLiteratureOperations += 1;
@@ -3316,12 +3396,18 @@ async function runAgentInstruction(panelId) {
       try {
         localWorkspaceContext = await projectContextService.buildContext({
           surface: "agent_command",
-          turnId: panel.id,
+          turnId: requestTurnId,
           question: instruction,
           retrievalProfile,
           selectedPaths: [...selectedWorkspacePaths],
           selectedPaperIds: getSelectedPaperIds(),
           workspaceTree,
+          onCatalogUpdated: applyRequestCatalog,
+          onProgress(progress) {
+            panel.statusKey = "";
+            panel.status = sideChatProgressText(progress);
+            renderAnalysisPanels();
+          },
           projectGoal: getProjectContext(),
           language: currentLanguage,
           signal: workspaceAbortController?.signal,
@@ -3345,22 +3431,28 @@ async function runAgentInstruction(panelId) {
       }
     }
 
+    const previewContainer = [...analysisPanelStack.querySelectorAll("[data-panel-id]")]
+      .find(element => element.dataset.panelId === panelId)?.querySelector(".recommendation-sections");
+    if (previewContainer) streamingPreview = createStreamingAnswer(previewContainer);
     response = await sendWorkbenchRequest({
       mode: "agent_instruction",
-      messages: buildAgentMessages(instruction),
+      messages: buildAgentMessages(instruction, localWorkspaceContext?.requestUnderstanding?.answerLanguage),
       localWorkspaceContext,
+      signal: requestSignal,
+      onStream: event => streamingPreview?.update(event),
       callContext: {
-        turnId: panel.id,
+        turnId: requestTurnId,
         workflowId: localWorkspaceContext?.literature?.corpusWorkflowId || "",
         callRole: "answer",
-        profile: retrievalProfile,
+        profile: localWorkspaceContext?.literature?.retrievalProfile || "medium",
       },
     });
 
+    if (requestSignal?.aborted) return;
     panel.semanticTelemetry = normalizeSemanticTelemetry({
       ...localWorkspaceContext?.semantic?.telemetry,
       capabilitiesUsed: [...(localWorkspaceContext?.semantic?.telemetry?.capabilitiesUsed || []), ...(response.semanticTelemetry?.capabilitiesUsed || [])],
-      cloudCalls: { ...literatureModule?.api?.getTurnCallCounts?.(panel.id), ...(response.semanticTelemetry?.cloudCalls || {}) },
+      cloudCalls: { ...literatureModule?.api?.getTurnCallCounts?.(requestTurnId), ...(response.semanticTelemetry?.cloudCalls || {}) },
     });
     panel.recommendation = normalizeAgentResponse(response, instruction);
     panel.statusKey = "recommendationUpdated";
@@ -3372,6 +3464,12 @@ async function runAgentInstruction(panelId) {
     renderAnalysisPanels();
     renderBackendStatus("backendConnected");
   } catch (error) {
+    if (requestSignal?.aborted || error?.code === "OPERATION_ABORTED") return;
+    if (String(error?.code || "").startsWith("STREAM_")) {
+      panel.statusKey = "";
+      panel.status = t("streamInterrupted");
+      return;
+    }
     if (error instanceof AuthRequiredError) {
       console.warn("Backend auth required.", error);
       return;
@@ -3388,6 +3486,7 @@ async function runAgentInstruction(panelId) {
     renderAnalysisPanels();
     renderBackendStatus("backendFallback");
   } finally {
+    streamingPreview?.remove();
     setAgentBusy(false);
     renderAnalysisPanels();
   }
@@ -3407,6 +3506,8 @@ async function sendWorkbenchRequest({
   messages,
   localWorkspaceContext = null,
   callContext = null,
+  onStream = () => {},
+  signal = workspaceAbortController?.signal,
 }) {
   const isSideChat = mode === "side_chat";
   const includeLegacyExperimentEvidence = experimentModuleCards.length > 0;
@@ -3421,6 +3522,7 @@ async function sendWorkbenchRequest({
       : [];
   const requestBody = {
     mode,
+    stream: true,
     messages,
     projectContext: getProjectContext(),
     referenceDocuments: isSideChat || localWorkspaceContext
@@ -3443,36 +3545,141 @@ async function sendWorkbenchRequest({
   };
 
   literatureModule?.api?.recordTurnCall?.(callContext?.turnId, "answer");
-  const response = await fetch(backendUrl("/chat"), {
-    method: "POST",
-    headers: getAuthHeaders({
-      "Content-Type": "application/json",
-    }),
-    body: JSON.stringify(requestBody),
-  });
-
-  requireLoginForUnauthorized(response);
-
-  if (!response.ok) {
-    throw new Error(t("backendReturned", { status: response.status }));
+  const finish = runtimeLog?.begin("main-agent", { agent: isSideChat ? "SideChatAgent" : "WorkbenchAgent",
+    surface: isSideChat ? "side_chat" : "agent_command", turnId: callContext?.turnId, endpoint: "/chat", stage: "awaiting-backend" });
+  try {
+    const response = await fetch(backendUrl("/chat"), {
+      method: "POST",
+      headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(requestBody),
+      signal,
+    });
+    if (!response.ok) finish?.("failed", { status: response.status, code: response.status === 401 ? "AUTH_REQUIRED" : "BACKEND_HTTP_ERROR" });
+    requireLoginForUnauthorized(response);
+    if (!response.ok) throw new Error(t("backendReturned", { status: response.status }));
+    let firstDelta = true, outputLength = 0;
+    const data = await window.BioDesignEventStream.readWorkbenchResponse(response, { signal, onEvent: event => {
+      if (event.type === "delta") {
+        outputLength += String(event.text || "").length;
+        if (firstDelta) runtimeLog?.record("main-agent.first-token", { turnId: callContext?.turnId, stage: "streaming-answer" });
+        firstDelta = false;
+      } else runtimeLog?.record("main-agent.stream-stage", { turnId: callContext?.turnId,
+        stage: event.stage || event.type, capability: event.capability });
+      onStream(event);
+    } });
+    if (firstDelta) runtimeLog?.record("main-agent.buffered-response", { turnId: callContext?.turnId, stage: "answer-received" });
+    if (!data.reply && !data.project) {
+      throw Object.assign(new Error(t("backendMissingPayload")), { code: "BACKEND_MISSING_PAYLOAD" });
+    }
+    // The HTTP response reports these after execution; it is not a live remote
+    // agent/tool stream. Do not label them as newly spawned local workers.
+    for (const capability of (data.semanticTelemetry?.capabilitiesUsed || [])) {
+      runtimeLog?.record("backend.capability-reported", { turnId: callContext?.turnId, capability });
+    }
+    finish?.("completed", { status: response.status, stage: "answer-received", outputLength });
+    return data;
+  } catch (error) {
+    finish?.("failed", { code: error?.code || "BACKEND_REQUEST_FAILED" });
+    throw error;
   }
-
-  const data = await response.json();
-
-  if (!data.reply && !data.project) {
-    throw new Error(t("backendMissingPayload"));
-  }
-
-  return data;
 }
 
-function buildAgentMessages(instruction) {
+function createStreamingAnswer(container, scrollContainer = null) {
+  const element = document.createElement("section");
+  element.className = "side-message assistant streaming-answer";
+  element.hidden = true;
+  element.setAttribute("aria-busy", "true");
+  const label = document.createElement("strong");
+  label.textContent = t("streamingAnswer");
+  const body = document.createElement("div");
+  body.className = "side-message-body";
+  const status = document.createElement("p");
+  status.className = "streaming-status";
+  status.setAttribute("role", "status");
+  element.append(label, body, status);
+  if (scrollContainer) container.appendChild(element);
+  else container.prepend(element);
+  const context = getSideChatCitationContext(true);
+  let text = "", timer = null, removed = false;
+  const paint = () => {
+    timer = null;
+    if (removed) return;
+    const follow = scrollContainer && scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 80;
+    // Wait for an entire bracketed citation before rendering it, including
+    // grouped markers, so partially received UUIDs never flash in the answer.
+    const brackets = [];
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "\\") i++;
+      else if (text[i] === "[") brackets.push(i);
+      else if (text[i] === "]") brackets.pop();
+    }
+    const display = brackets.length ? text.slice(0, brackets[0]) : text;
+    const resolved = sourceCitationApi.resolveForDisplay(display, [], context);
+    renderSideChatMarkdown(body, resolved.reply, resolved.citations);
+    element.hidden = !text;
+    if (follow) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  };
+  return {
+    get hasText() { return Boolean(text); },
+    update(event) {
+      if (removed) return;
+      if (event.type === "reset") { text = ""; clearTimeout(timer); paint(); }
+      if (event.type === "delta" && typeof event.text === "string") {
+        text += event.text;
+        if (timer === null) timer = setTimeout(paint, 40);
+      }
+      if (event.type === "status") status.textContent = event.stage === "tool-running" ? t("streamInspecting") : t("streamingAnswer");
+    },
+    interrupt() {
+      clearTimeout(timer); paint(); element.hidden = false;
+      element.setAttribute("aria-busy", "false");
+      status.textContent = t("streamInterrupted");
+    },
+    remove() { removed = true; clearTimeout(timer); element.remove(); },
+  };
+}
+
+async function understandSideChatImages(question, images, { turnId, signal } = {}) {
+  const finish = runtimeLog?.begin("image-understanding", { turnId, surface: "side_chat", imageCount: images.length, endpoint: "/api/chat/understand-images" });
+  try {
+    literatureModule?.api?.recordTurnCall?.(turnId, "image_understanding");
+    const response = await fetch(backendUrl("/api/chat/understand-images"), {
+      method: "POST", headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(130000)].filter(Boolean)),
+      body: JSON.stringify({ question, images: chatImageApi.validateImages(images),
+        callContext: { turnId, callRole: "image_understanding", profile: retrievalProfile } }),
+    });
+    requireLoginForUnauthorized(response);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const translationKey = response.status === 404 ? "chatImageBackendMissing" : response.status === 429 ? "chatImageRateLimited" : data.error === "IMAGE_TIMEOUT" ? "chatImageTimeout" : "chatImageFailed";
+      throw Object.assign(new Error(translationKey), { code: "IMAGE_UNDERSTANDING_FAILED", translationKey });
+    }
+    const understanding = chatImageApi.normalizeUnderstanding(data.understanding);
+    if (!understanding || data.imageCount !== images.length) throw Object.assign(new Error("Incomplete image understanding."), { code: "IMAGE_INCOMPLETE" });
+    finish?.("completed", { imageCount: images.length, model: understanding.model });
+    return understanding;
+  } catch (error) {
+    finish?.(signal?.aborted ? "cancelled" : "failed", { code: error.code || "IMAGE_PROVIDER_FAILED" });
+    if (signal?.aborted) throw Object.assign(new Error("Cancelled"), { code: "OPERATION_ABORTED" });
+    if (error instanceof AuthRequiredError) throw error;
+    if (!String(error.code || "").startsWith("IMAGE_")) throw Object.assign(new Error("Image understanding failed."), { code: "IMAGE_PROVIDER_FAILED", translationKey: error.name === "TimeoutError" ? "chatImageTimeout" : "chatImageFailed" });
+    throw error;
+  }
+}
+
+function requestLanguageInstruction(query, answerLanguage) {
+  const language = answerLanguage || window.BioDesignSemanticIntent.interpretLocal({ query }).answerLanguage;
+  return `Answer language for the current request: ${language}. Preserve exact scientific identifiers.`;
+}
+
+function buildAgentMessages(instruction, answerLanguage) {
   return [
     {
       role: "user",
       content: [
         "Mode: agent_instruction",
-        t("responseLanguageInstruction"),
+        requestLanguageInstruction(instruction, answerLanguage),
         "Interpret the current synthetic-biology project context, uploaded literature, and experiment evidence grouped into Strain Engineering, Fermentation, and Downstream Processing.",
         "Compare evidence across modules, identify possible explanations, useful next analyses, and human-reviewed next steps.",
         "Do not assume the project is only about production volume or that problems are only in strain engineering.",
@@ -3521,6 +3728,7 @@ function renderSideChatConversation() {
       messageId: message.id,
       activity: message.activity,
       citations: message.citations,
+      images: message.images,
       canEdit: index === latestUserIndex,
     })
   );
@@ -3670,7 +3878,7 @@ function getSelectedPaperIds() {
     .map((document) => document.id);
 }
 
-function buildSideChatMessages(question, conversationContext) {
+function buildSideChatMessages(question, conversationContext, answerLanguage, imageUnderstanding = null) {
   const recentMessages = conversationContext?.recentMessages || [];
   const summary = conversationContext?.summary || "";
 
@@ -3680,13 +3888,15 @@ function buildSideChatMessages(question, conversationContext) {
       role: "user",
       content: [
         "Mode: side_chat",
-        t("responseLanguageInstruction"),
+        // Image labels (for example Greek units or Chinese OCR) must not
+        // change the answer language inferred from the user's own question.
+        requestLanguageInstruction(question, imageUnderstanding ? undefined : answerLanguage),
         "Answer this as a question only. Do not claim to update the current recommendation.",
-        "Use only the supplied local-workspace evidence. File inventory without processed evidence is not file content.",
+        "Use the supplied evidence, including attached image observations when present. Image observations are an uncertain model interpretation, not a verified paper. File inventory without processed evidence is not file content.",
         "Keep the response at design-review and planning level.",
         summary ? `Earlier conversation summary:\n${summary}` : "",
         "",
-        `Question: ${question}`,
+        `Question: ${chatImageApi.combineQuestion(question, imageUnderstanding)}`,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -4312,6 +4522,7 @@ function setSideChatBusy(isBusy) {
     button.disabled = isBusy;
   });
   sendSideChatButton.textContent = isBusy ? t("thinking") : t("askButton");
+  sideChatImageComposer?.render();
 }
 
 function addSideChatThinking() {
@@ -4352,7 +4563,7 @@ function addSideChatThinking() {
   return activity;
 }
 
-async function askSideChat(question, { revision = null } = {}) {
+async function askSideChat(question, { revision = null, images = [] } = {}) {
   if (
     !question ||
     sideChatBusy ||
@@ -4366,6 +4577,14 @@ async function askSideChat(question, { revision = null } = {}) {
   if (revision && !prepareLatestSideChatRevision(sideChatMessages, revision.replacedMessageId, question)) return;
   const previousMessages = sideChatMessages;
   const previousConversation = sideChatConversation;
+  const requestChatStore = workspaceChatStore;
+  const revisionImages = revision ? chatImageApi.normalizeAttachments(previousMessages.find(message => message.id === revision.replacedMessageId)?.images) : [];
+  if ((images.length || revisionImages.length) && question.length > chatImageApi.limits.questionCharacters) { showToast(t("chatImageQuestionLong")); return; }
+  let effectiveQuestion = question;
+  const requestSignal = workspaceAbortController?.signal;
+  const requestWorkspaceId = workspaceManager?.workspace?.workspaceId;
+  const isCurrentRequest = () => workspaceManager?.workspace?.workspaceId === requestWorkspaceId && sideChatConversation?.id === previousConversation.id;
+  let streamingPreview = null, keepStreamingPreview = false;
   setSideChatBusy(true);
   if (revision) {
     sideChatMessages = revision.previousMessages;
@@ -4383,6 +4602,7 @@ async function askSideChat(question, { revision = null } = {}) {
     id: makeId(),
     role: "user",
     content: question,
+    ...(revisionImages.length ? { images: revisionImages } : {}),
     context: contextSnapshot,
     createdAt: new Date().toISOString(),
   };
@@ -4403,21 +4623,35 @@ async function askSideChat(question, { revision = null } = {}) {
 
   try {
     activeLiteratureOperations += 1;
+    if (images.length) {
+      userMessage.images = await requestChatStore.saveImageAttachments(images, { signal: requestSignal });
+      if (requestSignal?.aborted || !isCurrentRequest()) return;
+    }
     // Persist the replacement question together with retained history. Never save
     // a truncated conversation with no replacement turn before regeneration.
     await persistSideChatConversation();
     checkpointSaved = true;
     userMessage = sideChatMessages.find((message) => message.id === userMessage.id) || userMessage;
-    // Directory reconciliation is metadata-only: it discovers newly added or
-    // nested papers without hashing, parsing, indexing, or invoking an LLM.
-    await reconcileCurrentWorkspaceCatalog();
-    renderWorkspaceExplorer();
+    if (userMessage.images?.length) {
+      sideChatImageComposer?.clear();
+      renderSideChatConversation();
+      sideChatHistory.append(thinkingMessage.element);
+      updateSideChatThinking(thinkingMessage, { stage: "image-understanding", imageCount: userMessage.images.length });
+      const preparedImages = images.length ? images : await requestChatStore.loadImageAttachments(userMessage.images, { signal: requestSignal });
+      if (requestSignal?.aborted || !isCurrentRequest()) return;
+      userMessage.imageUnderstanding = await understandSideChatImages(question, preparedImages, { turnId: userMessage.id, signal: requestSignal });
+      if (requestSignal?.aborted || !isCurrentRequest()) return;
+      effectiveQuestion = chatImageApi.combineQuestion(question, userMessage.imageUnderstanding);
+      await persistSideChatConversation();
+      userMessage = sideChatMessages.find(message => message.id === userMessage.id) || userMessage;
+      updateSideChatThinking(thinkingMessage, { stage: "images-understood" });
+    }
     contextSnapshot = getCurrentChatContextSnapshot();
     userMessage.context = contextSnapshot;
     const localWorkspaceContext = await projectContextService.buildContext({
       surface: "side_chat",
       turnId: userMessage.id,
-      question,
+      question: effectiveQuestion,
       retrievalProfile,
       selectedPaths: contextSnapshot.files,
       selectedPaperIds: contextSnapshot.selectedPaperIds,
@@ -4425,10 +4659,13 @@ async function askSideChat(question, { revision = null } = {}) {
       projectGoal: getProjectContext(),
       language: currentLanguage,
       conversation: sideChatConversation,
-      // Only High enables the authenticated context router. The context service
-      // independently derives this again from the validated profile.
-      enableContextRouter: retrievalProfile === "high",
-      signal: workspaceAbortController?.signal,
+      onCatalogUpdated(tree, documents) {
+        applyRequestCatalog(tree, documents);
+        contextSnapshot = getCurrentChatContextSnapshot();
+        userMessage.context = contextSnapshot;
+        renderWorkspaceExplorer();
+      },
+      signal: requestSignal,
       onProgress(progress) {
         if (progress.workflowId) {
           activeCorpusProgress = progress;
@@ -4471,19 +4708,23 @@ async function askSideChat(question, { revision = null } = {}) {
       reply = t("unsupportedSelectedFilesChat");
     } else {
       updateSideChatThinking(thinkingMessage, { stage: "model-request" });
-      const messagesForBackend = buildSideChatMessages(question, conversationContext);
+      const messagesForBackend = buildSideChatMessages(question, conversationContext, localWorkspaceContext.requestUnderstanding?.answerLanguage, userMessage.imageUnderstanding);
       const citationContext = getSideChatCitationContext(true);
+      streamingPreview = createStreamingAnswer(sideChatHistory, sideChatHistory);
       const response = await sendWorkbenchRequest({
         mode: "side_chat",
         messages: messagesForBackend,
         localWorkspaceContext,
+        signal: requestSignal,
+        onStream: event => { if (isCurrentRequest() && !requestSignal?.aborted) streamingPreview.update(event); },
         callContext: {
           turnId: userMessage.id,
           workflowId: localWorkspaceContext?.literature?.corpusWorkflowId || "",
           callRole: "answer",
-          profile: retrievalProfile,
+          profile: localWorkspaceContext?.literature?.retrievalProfile || "medium",
         },
       });
+      if (requestSignal?.aborted || !isCurrentRequest()) return;
       userMessage.context.semanticTelemetry = normalizeSemanticTelemetry({
         ...localWorkspaceContext.semantic?.telemetry,
         capabilitiesUsed: [...(localWorkspaceContext.semantic?.telemetry?.capabilitiesUsed || []), ...(response.semanticTelemetry?.capabilitiesUsed || [])],
@@ -4497,6 +4738,7 @@ async function askSideChat(question, { revision = null } = {}) {
     }
 
     updateSideChatThinking(thinkingMessage, { stage: "answer-ready" });
+    streamingPreview?.remove();
     const assistantMessage = {
       id: makeId(),
       role: "assistant",
@@ -4514,6 +4756,19 @@ async function askSideChat(question, { revision = null } = {}) {
     });
     await persistSideChatConversation();
   } catch (error) {
+    if (requestSignal?.aborted || !isCurrentRequest() || error?.code === "OPERATION_ABORTED") return;
+    if (String(error?.code || "").startsWith("IMAGE_")) {
+      const key = error.translationKey || (error.code === "IMAGE_MISSING" ? "chatImageMissing" : "chatImageFailed");
+      showToast(t(key));
+      if (!checkpointSaved && revision) { sideChatMessages = previousMessages; sideChatConversation = previousConversation; restoreEditor = true; }
+      return;
+    }
+    if (String(error?.code || "").startsWith("STREAM_")) {
+      streamingPreview?.interrupt();
+      keepStreamingPreview = true;
+      showToast(t("streamInterrupted"));
+      return;
+    }
     if (!checkpointSaved && revision) {
       sideChatMessages = previousMessages;
       sideChatConversation = previousConversation;
@@ -4554,7 +4809,9 @@ async function askSideChat(question, { revision = null } = {}) {
     });
     await persistSideChatConversation().catch(() => {});
   } finally {
+    if (!keepStreamingPreview) streamingPreview?.remove();
     unsubscribeKnowledgeStatus?.();
+    if (!isCurrentRequest()) { thinkingMessage.element.remove(); return; }
     activeLiteratureOperations = Math.max(0, activeLiteratureOperations - 1);
     activeCorpusProgress = null;
     renderSideChatContext();
@@ -4584,8 +4841,37 @@ function appendCorpusCoverage(reply, literature) {
 }
 
 function sideChatProgressText(progress = {}) {
+  const debugStageLabels = {
+    "sync-verifying": ["Verifying source", "正在核验来源"],
+    "sync-removing": ["Removing derived artifacts", "正在清理派生文件"],
+    "sync-document": ["Preparing document", "正在准备文档"],
+    "sync-evidence-ready": ["L1 evidence ready", "L1 证据已就绪"],
+    "sync-paper-card-ready": ["L2 Paper Card ready", "L2 论文卡片已就绪"],
+    "sync-topics-ready": ["L3 topics ready", "L3 主题已就绪"],
+    "sync-source-ready": ["Source synchronized", "来源已同步"],
+    "sync-source-failed": ["Source synchronization failed — see Debug Console", "来源同步失败，请查看调试控制台"],
+    "sync-metadata-failed": ["Metadata update failed — see Debug Console", "元数据更新失败，请查看调试控制台"],
+    "interpreting-request": ["Interpreting request", "正在理解请求"],
+    "retrieving-evidence": ["Retrieving evidence", "正在检索证据"],
+  };
+  if (debugStageLabels[progress.stage]) return debugStageLabels[progress.stage][currentLanguage === "zh" ? 1 : 0];
+  const labels = {
+    "preflight-checking": ["Checking project files", "正在检查项目文件"],
+    "preflight-current": ["Knowledge is up to date", "知识库已是最新"],
+    "preflight-changes": [`Found ${progress.total || 0} source changes`, `发现 ${progress.total || 0} 个来源变更`],
+    "sync-evidence": ["Preparing paper evidence", "正在准备论文证据"],
+    "sync-paper-cards": ["Creating Paper Cards", "正在生成论文卡片"],
+    "sync-topics": ["Updating topics", "正在更新主题"],
+    "sync-experiments": ["Normalizing experiment data", "正在规范化实验数据"],
+    "sync-ready": ["Knowledge ready", "知识库已准备就绪"],
+    "sync-partial": ["Knowledge updated with source failures", "知识库已更新，部分来源处理失败"],
+  };
+  if (labels[progress.stage]) return labels[progress.stage][currentLanguage === "zh" ? 1 : 0] +
+    (progress.total && progress.stage.startsWith("sync-") ? ` · ${progress.completed || 0}/${progress.total}` : "");
   if (progress.stage === "preparing-request") return t("preparingRequest");
   if (progress.stage === "model-request") return t("generatingAnswer");
+  if (progress.stage === "image-understanding") return t("readingChatImages", { count: progress.imageCount || 1 });
+  if (progress.stage === "images-understood") return t("chatImagesUnderstood");
   if (progress.stage === "answer-ready") return t("answerReady");
   if (progress.stage === "local-fallback") return t("localFallbackActivity");
   if (progress.stage === "paper-card-cache-hit") {
@@ -4609,8 +4895,15 @@ function sideChatProgressText(progress = {}) {
         "canonical-paper-projection": "Selecting relevant cached evidence",
       };
   if (canonicalStageLabels[progress.stage]) {
+    const routeLabel =
+      progress.stage === "canonical-paper-artifact-create" &&
+      progress.route === "combined-text"
+        ? currentLanguage === "zh"
+          ? "正在从提取文本创建论文分析"
+          : "Creating paper analysis from extracted text"
+        : null;
     return formatCorpusPaperProgress(
-      canonicalStageLabels[progress.stage],
+      routeLabel || canonicalStageLabels[progress.stage],
       progress
     );
   }
@@ -5111,9 +5404,10 @@ function renderSideChatMarkdown(container, content, citations = []) {
   container.querySelectorAll("[data-side-chat-citation]").forEach((button) => {
     const citation = registered.get(button.dataset.sideChatCitation);
     const target = sourceCitationApi.navigationTarget(citation, context);
-    button.textContent = citation
-      ? sourceCitationApi.label(target ? citation : { ...citation, status: "missing" })
-      : t("citationUnavailable");
+    const displayCitation = target ? citation : { ...citation, status: "missing" };
+    button.textContent = citation ? sourceCitationApi.label(displayCitation, { compact: true }) : t("citationUnavailable");
+    button.title = citation ? sourceCitationApi.label(displayCitation) : t("citationUnavailable");
+    button.setAttribute("aria-label", button.title);
     button.disabled = !target;
     if (target) button.addEventListener("click", () => navigateSideChatCitation(citation, button));
   });
@@ -5136,7 +5430,9 @@ async function navigateSideChatCitation(citation, button) {
   const unavailable = () => {
     if (button) {
       button.disabled = true;
-      button.textContent = sourceCitationApi.label({ ...citation, status: "missing" });
+      button.textContent = sourceCitationApi.label({ ...citation, status: "missing" }, { compact: true });
+      button.title = sourceCitationApi.label({ ...citation, status: "missing" });
+      button.setAttribute("aria-label", button.title);
     }
     showToast(t("citationUnavailable"));
   };
@@ -5186,7 +5482,7 @@ function createSideChatActivitySummary(activity) {
 function addSideChatMessage(
   role,
   content,
-  { isIntro = false, messageId = "", activity = [], citations = [], canEdit = false } = {}
+  { isIntro = false, messageId = "", activity = [], citations = [], images = [], canEdit = false } = {}
 ) {
   if (!isIntro) {
     setSideChatEmptyState(false);
@@ -5204,10 +5500,10 @@ function addSideChatMessage(
 
   const body = document.createElement("div");
   body.className = "side-message-body";
-  // Old conversations without registered metadata cannot be resolved using a
-  // later request's local:N catalog; mark explicit legacy references unavailable.
-  const legacy = role === "assistant" && !citations.length
-    ? sourceCitationApi.resolveAnswer(content) : { reply: content, citations };
+  // Repair raw citation syntax in saved replies too, retaining registered link
+  // IDs and source hashes. Mutable local:N aliases are never rebound on display.
+  const legacy = role === "assistant"
+    ? sourceCitationApi.resolveForDisplay(content, citations, getSideChatCitationContext()) : { reply: content, citations };
   renderSideChatMarkdown(body, legacy.reply, legacy.citations);
 
   message.append(label);
@@ -5216,6 +5512,16 @@ function addSideChatMessage(
     : null;
   if (activitySummary) message.append(activitySummary);
   message.append(body);
+  const attachments = role === "user" ? chatImageApi.normalizeAttachments(images) : [];
+  if (attachments.length) {
+    const previews = document.createElement("div"); previews.className = "chat-image-previews";
+    for (const attachment of attachments) {
+      const item = document.createElement("div"); item.className = "chat-image-preview";
+      const image = document.createElement("img"); image.src = attachment.thumbnail; image.alt = attachment.name; image.title = attachment.name;
+      item.append(image); previews.append(item);
+    }
+    message.append(previews);
+  }
   if (role === "user" && canEdit && messageId) {
     const edit = document.createElement("button");
     edit.type = "button";

@@ -1577,6 +1577,19 @@ textarea:focus {
   font-size: 0.76rem;
 }
 
+.side-chat-compose-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.side-chat-compose-actions .chat-image-upload { font-size: 0.8rem; }
+.chat-image-hint, .chat-image-status { margin: 0; color: var(--muted); font-size: 0.72rem; }
+.chat-image-status:empty { display: none; }
+.chat-image-status { color: var(--danger, #a23832); }
+.side-chat-form.image-drop-active { outline: 2px dashed var(--accent); outline-offset: 5px; border-radius: 8px; background: var(--accent-soft); }
+.chat-image-previews { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.chat-image-previews[hidden] { display: none; }
+.chat-image-preview { position: relative; width: 64px; height: 64px; flex: 0 0 64px; }
+.chat-image-preview img { width: 100%; height: 100%; object-fit: contain; border-radius: 7px; border: 1px solid var(--line); background: white; }
+.chat-image-preview button { position: absolute; top: -5px; right: -5px; width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); line-height: 1; }
+.side-message .chat-image-previews { margin-top: 10px; }
+
 .side-message-edit-button {
   position: absolute;
   top: 7px;
@@ -1907,7 +1920,8 @@ textarea:focus {
 }
 
 .side-source-citation {
-  display: inline;
+  display: inline-block;
+  max-width: min(100%, 32ch);
   padding: 0;
   border: 0;
   background: transparent;
@@ -1915,12 +1929,58 @@ textarea:focus {
   font: inherit;
   text-align: left;
   text-decoration: underline;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
   cursor: pointer;
+}
+
+.streaming-answer[hidden] { display: none; }
+.streaming-answer { border-left: 3px solid var(--accent); }
+.streaming-status { color: var(--muted); font-size: 0.85rem; }
+
+.side-source-citation:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .side-source-citation:disabled {
   color: var(--muted);
   cursor: default;
   text-decoration: none;
+}
+/* A non-modal console stays usable while a request is running. */
+.debug-console[hidden] { display: none; }
+.debug-console {
+  position: fixed;
+  inset: auto 16px 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  height: min(360px, 48vh);
+  min-height: 160px;
+  border: 1px solid #40546a;
+  border-radius: 10px;
+  background: #101b2a;
+  color: #e3edf8;
+  box-shadow: 0 8px 36px #0005;
+  overflow: hidden;
+}
+.debug-console-toolbar, .debug-console-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.debug-console-toolbar { justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #40546a; }
+.debug-console-toolbar p { margin: 3px 0 0; color: #b5c6da; font-size: 12px; }
+.debug-console-actions { font-size: 12px; }
+.debug-console-output {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #d3e5f7;
 }

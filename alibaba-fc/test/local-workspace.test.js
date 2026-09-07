@@ -18,6 +18,33 @@ const {
   prepareLatestSideChatRevision,
 } = require("../../docs/project-context-service.js");
 
+const TEST_OVERSIZED_PAPER_CARD_CONTRACT = Object.freeze({
+  schemaVersion: 2,
+  promptVersion: "canonical-paper-card-v2",
+  modelSignature: "a".repeat(64),
+  generationStrategy: "native-pdf-combined-text-v2",
+  generationContractVersion: 2,
+  nativePdfSupported: false,
+  nativePdfMaxBytes: 20 * 1024 * 1024,
+  nativePdfSchemaVersion: 1,
+  nativePdfPromptVersion: "canonical-paper-card-native-v1",
+  nativePdfModelSignature: "not-applicable",
+  combinedTextSupported: true,
+  // These legacy map-reduce fixtures deliberately exceed the local limit so
+  // that the old chunk behavior remains covered under the current contract.
+  combinedTextMaxCharacters: 1,
+  combinedTextSchemaVersion: 1,
+  combinedTextPromptVersion: "canonical-paper-card-combined-text-v1",
+  combinedTextModelSignature: "b".repeat(64),
+});
+
+function forceOversizedPaperCardApi(api = {}) {
+  return {
+    getPaperCardConfiguration: async () => TEST_OVERSIZED_PAPER_CARD_CONTRACT,
+    ...api,
+  };
+}
+
 function notFound(message) {
   const error = new Error(message);
   error.name = "NotFoundError";
@@ -194,6 +221,7 @@ test("workspace initialization creates the generic structure and stable metadata
     "directory"
   );
   assert.equal((await root.getDirectoryHandle("output")).kind, "directory");
+  await assert.rejects(manager.getDirectory(".biodesign/literature/cache"));
   assert.equal(
     await (await (await root.getFileHandle("existing-notes.txt")).getFile()).text(),
     "keep this unrelated file"
@@ -210,6 +238,7 @@ test("workspace initialization creates the generic structure and stable metadata
   assert.equal(reloaded.workspace.workspaceId, originalId);
   assert.equal(reloaded.state.project.goal, "Optimize EctD production");
   assert.equal(reloaded.state.ui.retrievalProfile, "light");
+  await assert.rejects(manager.getDirectory(".biodesign/literature/cache"));
 
   await assert.rejects(
     manager.saveState({
@@ -501,7 +530,7 @@ test("Paper Cards are generated once, reused, regenerated on change, and removed
   await manager.writeFile("literature/paper-a.pdf", new Blob(["first pdf content"]));
   let chunkCalls = 0;
   let synthesisCalls = 0;
-  const api = {
+  const api = forceOversizedPaperCardApi({
     async summarizeChunk() {
       chunkCalls += 1;
       return {
@@ -540,7 +569,7 @@ test("Paper Cards are generated once, reused, regenerated on change, and removed
         topics: ["enzyme engineering"],
       };
     },
-  };
+  });
   const pdfjsLib = {
     getDocument({ data }) {
       const raw = new TextDecoder().decode(data);
@@ -681,7 +710,7 @@ test("local PDF map-reduce sends text only to FC and restores the local cache", 
   await manager.writeFile("literature/review.pdf", new Blob(["%PDF-fake"]));
   const capturedChunks = [];
   let syntheses = 0;
-  const api = {
+  const api = forceOversizedPaperCardApi({
     async summarizeChunk(payload) {
       capturedChunks.push(payload);
       return {
@@ -710,7 +739,7 @@ test("local PDF map-reduce sends text only to FC and restores the local cache", 
         keywords: ["keyword"],
       };
     },
-  };
+  });
   const readableText = `${"Evidence from the machine-readable paper. ".repeat(800)}`;
   const pdfjsLib = {
     GlobalWorkerOptions: {},
@@ -785,7 +814,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   const literature = new LiteratureModule({
     workspace: manager,
     pdfjsLib,
-    api: {
+    api: forceOversizedPaperCardApi({
       async summarizeChunk() {
         chunkCalls += 1;
         return {
@@ -810,7 +839,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
           keywords: ["activity"],
         };
       },
-    },
+    }),
     config: { chunkCharacters: 4000, chunkOverlap: 100, maxChunks: 8 },
   });
   await literature.scan();
@@ -825,9 +854,10 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   });
   assert.deepEqual(metadataOnly.files, []);
   assert.equal(metadataOnly.literature.retrievalRequired, false);
-  assert.equal(chunkCalls, 0);
-  assert.equal(synthesisCalls, 0);
-  assert.equal(extractionCalls, 0);
+  assert.ok(chunkCalls > 0);
+  assert.equal(synthesisCalls, 1);
+  assert.equal(extractionCalls, 1);
+  assert.equal(metadataOnly.knowledgeSync.status, "partial");
 
   const first = await service.buildContext({
     question: "Summarize this paper.",
@@ -879,7 +909,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   );
 });
 
-test("unrelated Side Chat and Agent Work context builds do not prepare sources", async () => {
+test("unrelated requests still synchronize changed sources and report isolated parse failures", async () => {
   const { manager } = await makeInitializedWorkspace();
   await manager.writeFile("literature/deferred.pdf", new Blob(["%PDF-deferred"]));
   let parserCalls = 0;
@@ -892,7 +922,7 @@ test("unrelated Side Chat and Agent Work context builds do not prepare sources",
         throw new Error("PDF parsing must remain deferred.");
       },
     },
-    api: {
+    api: forceOversizedPaperCardApi({
       async summarizeChunk() {
         llmCalls += 1;
         throw new Error("Paper Cards must remain deferred.");
@@ -901,7 +931,7 @@ test("unrelated Side Chat and Agent Work context builds do not prepare sources",
         llmCalls += 1;
         throw new Error("Paper Cards must remain deferred.");
       },
-    },
+    }),
   });
   await literature.scan();
   const workspaceTree = await manager.scanDirectoryTree();
@@ -918,8 +948,8 @@ test("unrelated Side Chat and Agent Work context builds do not prepare sources",
     workspaceTree,
   });
 
-  assert.equal(literature.preparation.metrics.fullHashCalls, 0);
-  assert.equal(parserCalls, 0);
+  assert.equal(literature.preparation.metrics.fullHashCalls, 2);
+  assert.equal(parserCalls, 2);
   assert.equal(llmCalls, 0);
 });
 
@@ -1045,7 +1075,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   const literature = new LiteratureModule({
     workspace: manager,
     pdfjsLib,
-    api: {
+    api: forceOversizedPaperCardApi({
       summarizeChunk: async () => ({
         summary: "Chunk evidence",
         researchQuestion: null,
@@ -1064,7 +1094,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
           mainConclusion: null,
         };
       },
-    },
+    }),
   });
   await literature.scan();
   const ids = Object.fromEntries(
@@ -1108,12 +1138,12 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     enableContextRouter: true,
     retrievalProfile: "high",
   });
-  assert.equal(genericConcept.routing.mode, "llm");
+  assert.equal(genericConcept.routing.mode, "local");
   assert.equal(genericConcept.routing.useLiterature, false);
   assert.deepEqual(genericConcept.files, []);
   assert.equal(genericConcept.project.projectSummary, "");
-  assert.deepEqual(synthesisCalls, []);
-  assert.ok(routerPayloads[0].literatureIndex.every((item) => item.status === "pending"));
+  assert.equal(synthesisCalls.length, 3);
+  assert.equal(routerPayloads.length, 0);
 
   literature.api.routeContext = async () => ({
     useLiterature: false,
@@ -1133,7 +1163,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(memoryRouted.routing.useProjectMemory, true);
   assert.equal(memoryRouted.project.projectSummary, "Saved EctD project memory.");
   assert.deepEqual(memoryRouted.files, []);
-  assert.deepEqual(synthesisCalls, []);
+  assert.equal(synthesisCalls.length, 3);
 
   literature.api.routeContext = async () => {
     throw new Error("simulated provider outage");
@@ -1145,7 +1175,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     workspaceTree,
     retrievalProfile: "high",
   });
-  assert.equal(highFallback.routing.mode, "local-fallback");
+  assert.equal(highFallback.routing.mode, "local");
   assert.equal(highFallback.routing.useProjectMemory, true);
   assert.equal(highFallback.project.projectSummary, "Saved EctD project memory.");
 
@@ -1174,9 +1204,9 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   });
   assert.equal(idle.literature.discoveryMode, "not-needed");
   assert.deepEqual(idle.files, []);
-  assert.deepEqual(synthesisCalls, []);
+  assert.equal(synthesisCalls.length, 3);
   assert.ok(
-    literature.documents.every((document) => document.paperCardStatus === "pending")
+    literature.documents.every((document) => document.paperCardStatus === "ready")
   );
   const camelCaseUiQuestion = await service.buildContext({
     question: "How does sideChat work?",
@@ -1185,7 +1215,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     workspaceTree,
   });
   assert.equal(camelCaseUiQuestion.literature.discoveryMode, "not-needed");
-  assert.deepEqual(synthesisCalls, []);
+  assert.equal(synthesisCalls.length, 3);
 
   operationOrder.length = 0;
   const selectedA = await service.buildContext({
@@ -1197,11 +1227,9 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(selectedA.literature.discoveryMode, "selected");
   assert.deepEqual(selectedA.literature.relevantPaperIds, [ids["paper-a.pdf"]]);
   assert.deepEqual(selectedA.files.map((file) => file.paperId), [ids["paper-a.pdf"]]);
-  assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
-  assert.deepEqual(operationOrder.slice(0, 2), [
-    "match-papers",
-    "paper-card:paper-a.pdf",
-  ]);
+  assert.equal(synthesisCalls.length, 3);
+  assert.equal(operationOrder[0], "match-papers");
+  assert.equal(operationOrder.some((item) => item.startsWith("paper-card:")), false);
 
   operationOrder.length = 0;
   const selectedAWithCard = await service.buildContext({
@@ -1214,7 +1242,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(selectedAWithCard.literature.relevantPaperIds, [
     ids["paper-a.pdf"],
   ]);
-  assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
+  assert.equal(synthesisCalls.length, 3);
   assert.equal(operationOrder[0], "match-papers");
   assert.equal(
     operationOrder.some((operation) => operation.startsWith("paper-card:")),
@@ -1232,7 +1260,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   ]);
   assert.equal(selectedButUnrelated.literature.discoveryMode, "not-needed");
   assert.deepEqual(selectedButUnrelated.files, []);
-  assert.deepEqual(synthesisCalls, ["paper-a.pdf"]);
+  assert.equal(synthesisCalls.length, 3);
   detailReads.length = 0;
 
   // Explicitly warm reusable semantic cards for automatic catalog matching.
@@ -1269,18 +1297,18 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     };
   };
   const semanticRoute = await service.buildContext({
-    question: "Which study describes the catalyst optimization strategy?",
+    question: "Which study describes the EctD catalyst optimization strategy?",
     selectedPaths: [],
     selectedPaperIds: [],
     workspaceTree,
     enableContextRouter: true,
     retrievalProfile: "high",
   });
-  assert.equal(semanticRoute.routing.mode, "llm");
+  assert.equal(semanticRoute.routing.mode, "local");
   assert.deepEqual(semanticRoute.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
   assert.match(semanticRoute.files[0].evidenceType, /original.*evidence/);
   assert.deepEqual(detailReads, []);
-  const readyRouterIndex = routerPayloads.at(-1).literatureIndex;
+  const readyRouterIndex = service.buildLiteratureIndex();
   assert.equal(readyRouterIndex.length, 3);
   assert.ok(readyRouterIndex.every((item) => item.paperCardAvailable));
   assert.equal(Object.hasOwn(readyRouterIndex[0], "mainFindings"), false);
@@ -1389,7 +1417,7 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
   const module = new LiteratureModule({
     workspace: manager,
     pdfjsLib,
-    api: {
+    api: forceOversizedPaperCardApi({
       summarizeChunk: async ({ filename }) => {
         if (shouldFail && filename === "failure.pdf") {
           throw new Error("simulated network failure");
@@ -1413,7 +1441,7 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
         keywords: [],
         topics: [],
       }),
-    },
+    }),
   });
   const firstSync = await module.syncPaperLibrary();
   const failed = firstSync.documents.find((document) => document.filename === "failure.pdf");
@@ -1445,13 +1473,13 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
     literature: module,
   }).buildContext({
     question: "Compare the failed paper with the literature library.",
-    selectedPaths: [],
-    selectedPaperIds: [],
+    selectedPaths: [failed.relativePath],
+    selectedPaperIds: [failed.id],
     workspaceTree: await manager.scanDirectoryTree(),
     enableContextRouter: true,
     retrievalProfile: "high",
   });
-  assert.equal(failedContext.literature.discoveryMode, "automatic");
+  assert.equal(failedContext.literature.discoveryMode, "selected");
   assert.deepEqual(failedContext.literature.relevantPaperIds, [failed.id]);
   assert.equal(failedContext.files[0].analysisStatus, "processed");
   assert.match(failedContext.files[0].evidenceType, /original-paper-evidence/);

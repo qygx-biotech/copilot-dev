@@ -26,6 +26,7 @@ const {
 const {
   LiteratureApiClient,
   LiteratureModule,
+  combineExtractedPaperText,
   chunkLiteratureText,
 } = require("../../docs/literature-module.js");
 const {
@@ -241,6 +242,7 @@ const FC_ROUTES = Object.freeze({
   summarize: "/api/literature/summarize-chunk",
   paperCardSynthesize: "/api/literature/synthesize",
   nativePdf: "/api/literature/analyze-pdf-native",
+  combinedText: "/api/literature/create-paper-card-from-text",
   global: "final/global synthesis or answer",
 });
 
@@ -268,6 +270,7 @@ function assertRouteCounts(counters, expected) {
     [FC_ROUTES.summarize]: expected.summarize || 0,
     [FC_ROUTES.paperCardSynthesize]: expected.paperCardSynthesize || 0,
     [FC_ROUTES.nativePdf]: expected.nativePdf || 0,
+    [FC_ROUTES.combinedText]: expected.combinedText || 0,
     [FC_ROUTES.global]: expected.global || 0,
   });
 }
@@ -280,12 +283,18 @@ const TEST_PAPER_CARD_CONTRACT = Object.freeze({
 
 const TEST_NATIVE_PAPER_CARD_CONTRACT = Object.freeze({
   ...TEST_PAPER_CARD_CONTRACT,
-  generationStrategy: "native-pdf-preferred-v1",
+  generationStrategy: "native-pdf-combined-text-v2",
+  generationContractVersion: 2,
   nativePdfSupported: true,
   nativePdfMaxBytes: 20 * 1024 * 1024,
   nativePdfSchemaVersion: 1,
   nativePdfPromptVersion: "canonical-paper-card-native-v1",
   nativePdfModelSignature: "e".repeat(64),
+  combinedTextSupported: true,
+  combinedTextMaxCharacters: 200000,
+  combinedTextSchemaVersion: 1,
+  combinedTextPromptVersion: "canonical-paper-card-combined-text-v1",
+  combinedTextModelSignature: "f".repeat(64),
 });
 
 function validCanonicalPaperCard(
@@ -301,11 +310,21 @@ function validCanonicalPaperCard(
     modelSignature: contract.modelSignature,
     promptVersion: contract.promptVersion,
     generationStrategy: contract.generationStrategy || "text-map-reduce-v1",
+    generationContractVersion: Number(contract.generationContractVersion) || 0,
     nativePdfSchemaVersion: Number(contract.nativePdfSchemaVersion) || 0,
     nativePdfPromptVersion:
       contract.nativePdfPromptVersion || "not-applicable",
     nativePdfModelSignature:
       contract.nativePdfModelSignature || "not-applicable",
+    combinedTextSupported: contract.combinedTextSupported === true,
+    combinedTextMaxCharacters:
+      Math.max(0, Number(contract.combinedTextMaxCharacters) || 0),
+    combinedTextSchemaVersion:
+      Number(contract.combinedTextSchemaVersion) || 0,
+    combinedTextPromptVersion:
+      contract.combinedTextPromptVersion || "not-applicable",
+    combinedTextModelSignature:
+      contract.combinedTextModelSignature || "not-applicable",
     sourceArtifactSchemaVersion: 1,
     extractorVersion: "local-source-v1",
   };
@@ -328,11 +347,17 @@ function validCanonicalPaperCard(
     modelSignature: descriptor.modelSignature,
     promptVersion: descriptor.promptVersion,
     generationStrategy: descriptor.generationStrategy,
-    generationMode: "text-map-reduce",
+    generationContractVersion: descriptor.generationContractVersion,
+    generationMode: "map-reduce",
     fallbackReason: null,
     nativePdfSchemaVersion: descriptor.nativePdfSchemaVersion,
     nativePdfPromptVersion: descriptor.nativePdfPromptVersion,
     nativePdfModelSignature: descriptor.nativePdfModelSignature,
+    combinedTextSupported: descriptor.combinedTextSupported,
+    combinedTextMaxCharacters: descriptor.combinedTextMaxCharacters,
+    combinedTextSchemaVersion: descriptor.combinedTextSchemaVersion,
+    combinedTextPromptVersion: descriptor.combinedTextPromptVersion,
+    combinedTextModelSignature: descriptor.combinedTextModelSignature,
     cacheKey: paperCardCacheKey(descriptor),
     title: `Card for ${source.displayName}`,
     authors: ["Test Author"],
@@ -373,17 +398,20 @@ function paperCardGenerator(workspace, counters, options = {}) {
     counters?.hit(FC_ROUTES.paperCardSynthesize);
     if (options.emitFallbackProgress === true) {
       onProgress?.({
-        stage: "paper-card-fallback",
+        stage: "map-reduce-start",
         completed: 0,
-        total: 1,
+        total: 5,
         fallbackReason: "native-provider-failure",
-        providerAttempts: 1,
+        mapReduceReason: "native-provider-failure",
+        route: "map-reduce",
       });
       onProgress?.({
         stage: "summarizing",
         completed: 2,
         total: 5,
         fallbackReason: "native-provider-failure",
+        mapReduceReason: "native-provider-failure",
+        route: "map-reduce",
       });
     }
     const contract = paperCardContract || TEST_PAPER_CARD_CONTRACT;
@@ -453,6 +481,10 @@ function makeNativePaperCardGenerator(workspace, calls, options = {}) {
       }));
       if (options.failNative === true) {
         const error = new Error("controlled native failure");
+        if (options.nativeErrorCode) error.code = options.nativeErrorCode;
+        if (options.terminalNativeFailure === true) {
+          error.terminalProviderFailure = true;
+        }
         error.attempts = 1;
         error.fallbackReason = "native-provider-failure";
         throw error;
@@ -469,6 +501,45 @@ function makeNativePaperCardGenerator(workspace, calls, options = {}) {
         modelSignature: TEST_NATIVE_PAPER_CARD_CONTRACT.nativePdfModelSignature,
         schemaVersion: TEST_NATIVE_PAPER_CARD_CONTRACT.nativePdfSchemaVersion,
         promptVersion: TEST_NATIVE_PAPER_CARD_CONTRACT.nativePdfPromptVersion,
+        attempts: 1,
+      };
+    },
+    async createPaperCardFromText(payload) {
+      calls.combinedText = (calls.combinedText || 0) + 1;
+      calls.combinedPayloads ||= [];
+      calls.combinedPayloads.push(clone({
+        paperId: payload.paperId,
+        filename: payload.filename,
+        contentHash: payload.contentHash,
+        text: payload.text,
+        pageCount: payload.pageCount,
+        chunkCount: payload.chunkCount,
+        language: payload.language,
+      }));
+      if (options.failCombined === true || options.contextFailCombined === true) {
+        const error = new Error("controlled combined-text failure");
+        error.attempts = 1;
+        error.fallbackReason = options.contextFailCombined
+          ? "combined-text-context-length"
+          : "combined-text-provider-failure";
+        error.verifiedContextLengthError = options.contextFailCombined === true;
+        throw error;
+      }
+      const analysis = nativePaperCardAnalysis(payload.paperId, payload.contentHash);
+      if (options.invalidCombined === true) {
+        analysis.sourceIdentity.contentHash = "sha256:stale";
+      }
+      return {
+        analysis,
+        paperId: payload.paperId,
+        contentHash: payload.contentHash,
+        model: "combined-text-test-model",
+        modelSignature:
+          TEST_NATIVE_PAPER_CARD_CONTRACT.combinedTextModelSignature,
+        schemaVersion:
+          TEST_NATIVE_PAPER_CARD_CONTRACT.combinedTextSchemaVersion,
+        promptVersion:
+          TEST_NATIVE_PAPER_CARD_CONTRACT.combinedTextPromptVersion,
         attempts: 1,
       };
     },
@@ -518,7 +589,7 @@ function makeNativePaperCardGenerator(workspace, calls, options = {}) {
     now: () => new Date("2026-09-06T00:00:00.000Z"),
     config: {
       chunkCharacters: options.chunkCharacters || 30,
-      chunkOverlap: 0,
+      chunkOverlap: options.chunkOverlap ?? 0,
       chunkConcurrency: 2,
       maxExtractedCharacters: 180000,
       maxChunks: 48,
@@ -756,6 +827,7 @@ test("native Paper Cards use one PDF call per cold paper and survive warm reuse,
   );
   assert.equal(cold.failures.length, 0);
   assert.equal(calls.nativePdf, 3);
+  assert.equal(calls.combinedText || 0, 0);
   assert.equal(calls.summarize, 0);
   assert.equal(calls.synthesize, 0);
   assert.ok(calls.nativePayloads.every((payload) =>
@@ -792,9 +864,9 @@ test("native Paper Cards use one PDF call per cold paper and survive warm reuse,
   assert.deepEqual(firstCard.evidenceFindings[0].evidenceRefs, [
     `${paperIds[0]}:p1:${paperIds[0]}-P1-C1`,
   ]);
-  assert.deepEqual(firstCard.evidenceFindings[1].evidenceRefs, []);
-  assert.deepEqual(firstCard.evidenceFindings[2].evidenceRefs, []);
-  assert.match(firstCard.cacheKey, /canonical-paper-card-native-v1/);
+  assert.equal(firstCard.evidenceFindings.length, 1);
+  assert.equal(firstCard.generationDiagnostics.evidenceFindingsDropped, 2);
+  assert.match(firstCard.cacheKey, /canonical-paper-card-combined-text-v1/);
 
   const warm = await system.preparation.ensureSourceReady(paperIds, "paper_card");
   assert.ok(warm.sources.every((source) => source.cached === true));
@@ -904,10 +976,10 @@ test("mixed 41-paper corpus uses one native call per cold paper and keeps x/41 p
   assert.equal(modified.processingAccounting.nativePaperCardSuccesses, 1);
 });
 
-test("native Paper Card failure runs the parsed-text fallback once with explicit chunk progress", async () => {
+test("native Paper Card failure sends five fitting chunks in one combined-text request", async () => {
   const workspace = new MemoryWorkspace();
   const fallbackPdfText = `%PDF-1.4\n${
-    "The tested variant improved EctD activity. ".repeat(10).slice(0, 100)
+    "The tested variant improved EctD activity. ".repeat(1400).slice(0, 49000)
   }`;
   workspace.setFile(
     "literature/fallback.pdf",
@@ -920,7 +992,7 @@ test("native Paper Card failure runs the parsed-text fallback once with explicit
     getPaperCardConfiguration: async () => TEST_NATIVE_PAPER_CARD_CONTRACT,
     generatePaperCard: makeNativePaperCardGenerator(workspace, calls, {
       failNative: true,
-      chunkCharacters: 28,
+      chunkCharacters: 10000,
     }),
   });
   await system.registry.reconcile(treeFor(workspace));
@@ -933,22 +1005,169 @@ test("native Paper Card failure runs the parsed-text fallback once with explicit
     system.registry.get(paperId).artifacts.paperCard.path
   );
   assert.equal(calls.nativePdf, 1);
-  assert.equal(calls.summarize, 5);
-  assert.equal(calls.synthesize, 1);
-  assert.equal(card.generationMode, "text-map-reduce");
+  assert.equal(calls.combinedText, 1);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+  assert.equal(card.generationMode, "combined-text");
   assert.equal(card.fallbackReason, "native-provider-failure");
   assert.equal(card.generationDiagnostics.nativePdfProviderAttempts, 1);
-  assert.equal(card.generationDiagnostics.textFallbackOperations, 1);
+  assert.equal(card.generationDiagnostics.combinedTextEndpointCalls, 1);
+  assert.equal(card.generationDiagnostics.combinedTextProviderAttempts, 1);
+  assert.equal(card.generationDiagnostics.textFallbackOperations, 0);
+  assert.equal(calls.combinedPayloads[0].chunkCount, 5);
+  assert.equal(calls.combinedPayloads[0].language, "en");
   assert.ok(progress.some((event) =>
-    event.stage === "paper-card-fallback" &&
-    event.fallbackReason === "native-provider-failure"
+    event.stage === "combined-paper-card-request" &&
+    event.route === "combined-text" &&
+    event.fallbackReason === "native-provider-failure" &&
+    event.message === "Creating paper analysis from extracted text"
   ));
-  assert.ok(progress.some((event) =>
-    event.stage === "summarizing" && event.total === 5
-  ));
+  assert.equal(progress.some((event) => event.stage === "summarizing"), false);
 });
 
-test("oversized native Paper Card input skips the native endpoint and records the text fallback reason", async () => {
+test("native Paper Card failure sends nineteen fitting chunks in one combined-text request", async () => {
+  const workspace = new MemoryWorkspace();
+  const fallbackPdfText = `%PDF-1.4\n${
+    "The tested variant improved EctD activity. ".repeat(5000).slice(0, 179000)
+  }`;
+  workspace.setFile("literature/nineteen-chunks.pdf", fallbackPdfText, 1000);
+  const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+  const progress = [];
+  const system = await makeSystem(workspace, {
+    getPaperCardConfiguration: async () => TEST_NATIVE_PAPER_CARD_CONTRACT,
+    generatePaperCard: makeNativePaperCardGenerator(workspace, calls, {
+      failNative: true,
+      chunkCharacters: 10000,
+      chunkOverlap: 400,
+    }),
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+
+  await system.preparation.ensureSourceReady([paperId], "paper_card", {
+    onProgress: (event) => progress.push(clone(event)),
+  });
+  const card = await workspace.readJson(
+    system.registry.get(paperId).artifacts.paperCard.path
+  );
+
+  assert.equal(calls.nativePdf, 1);
+  assert.equal(calls.combinedText, 1);
+  assert.equal(calls.combinedPayloads[0].chunkCount, 19);
+  assert.ok(calls.combinedPayloads[0].text.length > 120000);
+  assert.ok(calls.combinedPayloads[0].text.length <= 200000);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+  assert.equal(card.generationMode, "combined-text");
+  assert.equal(progress.some((event) => event.stage === "map-reduce-start"), false);
+  assert.equal(progress.some((event) => event.stage === "summarizing"), false);
+});
+
+test("English and Chinese questions reuse one combined-text card across chat deletion and restart", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile(
+    "literature/嵌套/酶工程论文.pdf",
+    "%PDF-1.4\nThe tested variant improved EctD activity.",
+    1000
+  );
+  const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+  const contract = {
+    ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+    nativePdfSupported: false,
+    nativePdfModelSignature: "not-applicable",
+  };
+  const options = {
+    getPaperCardConfiguration: async () => contract,
+    generatePaperCard: makeNativePaperCardGenerator(workspace, calls),
+  };
+  let system = await makeSystem(workspace, options);
+  await system.registry.reconcile(treeFor(workspace));
+  const english = await resolveWorkflowResult(
+    system,
+    await system.corpusWorkflows.run("What did this paper find?", { language: "en" })
+  );
+  assert.equal(calls.combinedText, 1);
+  assert.equal(calls.combinedPayloads[0].language, "en");
+  assert.equal(english.processingAccounting.canonicalArtifactsCreated, 1);
+  assert.equal(english.processingAccounting.combinedTextEndpointCalls, 1);
+  assert.equal(english.processingAccounting.combinedTextProviderAttempts, 1);
+  assert.equal(english.processingAccounting.combinedTextPaperCardSuccesses, 1);
+  assert.equal(english.processingAccounting.mapReduceOperations, 0);
+
+  const chatStore = new WorkspaceChatStore({ workspace });
+  const firstChat = await chatStore.loadActiveConversation();
+  await chatStore.clearActiveConversation();
+  assert.equal(
+    await workspace.fileExists(`.biodesign/chat/conversations/${firstChat.id}.json`),
+    false
+  );
+
+  system = await makeSystem(workspace, options);
+  await system.registry.reconcile(treeFor(workspace));
+  const chinese = await resolveWorkflowResult(
+    system,
+    await system.corpusWorkflows.run("这篇论文发现了什么？", { language: "zh" })
+  );
+  assert.equal(calls.combinedText, 1);
+  assert.equal(calls.nativePdf, 0);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+  assert.equal(chinese.processingAccounting.canonicalArtifactsReused, 1);
+  assert.equal(chinese.processingAccounting.canonicalArtifactsCreated, 0);
+  assert.equal(chinese.processingAccounting.combinedTextEndpointCalls, 0);
+  assert.equal(chinese.processingAccounting.combinedTextProviderAttempts, 0);
+});
+
+test("native-PDF and combined-text routes create one compatible canonical cache contract", async () => {
+  const createCard = async (failNative) => {
+    const workspace = new MemoryWorkspace();
+    workspace.setFile(
+      "literature/contract.pdf",
+      "%PDF-1.4\nThe tested variant improved EctD activity.",
+      1000
+    );
+    const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+    const contract = TEST_NATIVE_PAPER_CARD_CONTRACT;
+    const system = await makeSystem(workspace, {
+      getPaperCardConfiguration: async () => contract,
+      generatePaperCard: makeNativePaperCardGenerator(workspace, calls, {
+        failNative,
+      }),
+    });
+    await system.registry.reconcile(treeFor(workspace));
+    const source = system.registry.list({ sourceKind: "paper" })[0];
+    await system.preparation.ensureSourceReady([source.sourceId], "paper_card");
+    return {
+      card: await workspace.readJson(
+        system.registry.get(source.sourceId).artifacts.paperCard.path
+      ),
+      calls,
+    };
+  };
+
+  const native = await createCard(false);
+  const combined = await createCard(true);
+  assert.equal(native.card.generationMode, "native-pdf");
+  assert.equal(combined.card.generationMode, "combined-text");
+  assert.equal(native.card.cacheKey, combined.card.cacheKey);
+  for (const key of [
+    "schemaVersion",
+    "paperCardVersion",
+    "generationStrategy",
+    "generationContractVersion",
+    "promptVersion",
+    "modelSignature",
+    "combinedTextSchemaVersion",
+    "combinedTextPromptVersion",
+    "combinedTextModelSignature",
+  ]) assert.equal(native.card[key], combined.card[key], key);
+  assert.equal(native.calls.nativePdf, 1);
+  assert.equal(native.calls.combinedText || 0, 0);
+  assert.equal(combined.calls.nativePdf, 1);
+  assert.equal(combined.calls.combinedText, 1);
+});
+
+test("oversized native PDF bytes still use one fitting combined-text request", async () => {
   const workspace = new MemoryWorkspace();
   workspace.setFile(
     "literature/too-large.pdf",
@@ -971,14 +1190,15 @@ test("oversized native Paper Card input skips the native endpoint and records th
   );
 
   assert.equal(calls.nativePdf, 0);
-  assert.ok(calls.summarize > 0);
-  assert.equal(calls.synthesize, 1);
-  assert.equal(card.generationMode, "text-map-reduce");
+  assert.equal(calls.combinedText, 1);
+  assert.equal(calls.summarize, 0);
+  assert.equal(calls.synthesize, 0);
+  assert.equal(card.generationMode, "combined-text");
   assert.equal(card.fallbackReason, "native-pdf-too-large");
   assert.equal(card.generationDiagnostics.nativePdfEndpointCalls, 0);
 });
 
-test("unsupported and malformed native Paper Cards each use exactly one text fallback", async () => {
+test("unsupported and malformed native Paper Cards each use one combined-text call", async () => {
   const cases = [
     {
       name: "unsupported",
@@ -1028,11 +1248,188 @@ test("unsupported and malformed native Paper Cards each use exactly one text fal
     );
 
     assert.equal(calls.nativePdf, fixture.expectedNativeCalls, fixture.name);
-    assert.ok(calls.summarize > 0, fixture.name);
-    assert.equal(calls.synthesize, 1, fixture.name);
-    assert.equal(card.generationMode, "text-map-reduce", fixture.name);
+    assert.equal(calls.combinedText, 1, fixture.name);
+    assert.equal(calls.summarize, 0, fixture.name);
+    assert.equal(calls.synthesize, 0, fixture.name);
+    assert.equal(card.generationMode, "combined-text", fixture.name);
     assert.equal(card.fallbackReason, fixture.expectedReason, fixture.name);
-    assert.equal(card.generationDiagnostics.textFallbackOperations, 1, fixture.name);
+    assert.equal(card.generationDiagnostics.textFallbackOperations, 0, fixture.name);
+  }
+});
+
+test("combined text removes adjacent overlap and preserves page boundaries", () => {
+  const combined = combineExtractedPaperText({
+    chunks: [
+      { page: 1, text: "alpha beta gamma shared overlap" },
+      { page: 1, text: "shared overlap delta epsilon" },
+      { page: 2, text: "中文证据 remains on page two" },
+    ],
+  });
+  assert.equal((combined.text.match(/shared overlap/g) || []).length, 1);
+  assert.match(combined.text, /^# Page 1\n/);
+  assert.match(combined.text, /\n\n# Page 2\n中文证据/);
+  assert.equal(combined.chunkCount, 3);
+  assert.equal(combined.pageCount, 2);
+});
+
+test("only local oversize or verified context length activates map-reduce", async () => {
+  for (const fixture of [
+    { name: "local-size", combinedTextMaxCharacters: 20 },
+    { name: "provider-context", contextFailCombined: true },
+  ]) {
+    const workspace = new MemoryWorkspace();
+    workspace.setFile(
+      `literature/${fixture.name}.pdf`,
+      "%PDF-1.4\nThe tested variant improved EctD activity across a bounded paper.",
+      1000
+    );
+    const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+    const contract = {
+      ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+      nativePdfSupported: false,
+      nativePdfModelSignature: "not-applicable",
+      combinedTextMaxCharacters:
+        fixture.combinedTextMaxCharacters ||
+        TEST_NATIVE_PAPER_CARD_CONTRACT.combinedTextMaxCharacters,
+    };
+    const progress = [];
+    const system = await makeSystem(workspace, {
+      getPaperCardConfiguration: async () => contract,
+      generatePaperCard: makeNativePaperCardGenerator(workspace, calls, fixture),
+    });
+    await system.registry.reconcile(treeFor(workspace));
+    const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+    await system.preparation.ensureSourceReady([paperId], "paper_card", {
+      onProgress: (event) => progress.push(clone(event)),
+    });
+    const card = await workspace.readJson(
+      system.registry.get(paperId).artifacts.paperCard.path
+    );
+    assert.equal(card.generationMode, "map-reduce", fixture.name);
+    assert.equal(calls.summarize, 3, fixture.name);
+    assert.equal(calls.synthesize, 1, fixture.name);
+    assert.equal(
+      calls.combinedText || 0,
+      fixture.contextFailCombined ? 1 : 0,
+      fixture.name
+    );
+    assert.ok(progress.some((event) =>
+      event.stage === "map-reduce-start" && event.route === "map-reduce"
+    ), fixture.name);
+  }
+});
+
+test("an absent or legacy generation contract fails before every provider route", async () => {
+  for (const paperCardContract of [
+    null,
+    {
+      ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+      generationStrategy: "text-map-reduce-v1",
+      generationContractVersion: 1,
+    },
+  ]) {
+    const workspace = new MemoryWorkspace();
+    const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+    const generate = makeNativePaperCardGenerator(workspace, calls);
+    await assert.rejects(
+      generate({
+        source: {
+          sourceId: "paper-contract",
+          displayName: "contract.pdf",
+          path: "literature/contract.pdf",
+          sizeBytes: 100,
+          mtimeNs: 1000,
+        },
+        paperArtifact: {
+          pageCount: 1,
+          pages: [{ page: 1, text: "The tested variant improved EctD activity." }],
+          chunks: [{
+            page: 1,
+            chunkId: "paper-contract-P1-C1",
+            text: "The tested variant improved EctD activity.",
+          }],
+        },
+        bytes: new TextEncoder().encode("%PDF-1.4"),
+        contentHash: "sha256:contract",
+        paperCardContract,
+      }),
+      (error) => error.code === "PAPER_CARD_CONFIGURATION_CHANGED"
+    );
+    assert.equal(calls.nativePdf, 0);
+    assert.equal(calls.combinedText || 0, 0);
+    assert.equal(calls.summarize, 0);
+    assert.equal(calls.synthesize, 0);
+  }
+});
+
+test("combined provider and schema failures do not multiply into chunk calls", async () => {
+  for (const fixture of [
+    { name: "provider", options: { failCombined: true } },
+    { name: "invalid-output", options: { invalidCombined: true } },
+  ]) {
+    const workspace = new MemoryWorkspace();
+    workspace.setFile(
+      `literature/${fixture.name}-failure.pdf`,
+      "%PDF-1.4\nThe tested variant improved EctD activity.",
+      1000
+    );
+    const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+    const system = await makeSystem(workspace, {
+      getPaperCardConfiguration: async () => ({
+        ...TEST_NATIVE_PAPER_CARD_CONTRACT,
+        nativePdfSupported: false,
+        nativePdfModelSignature: "not-applicable",
+      }),
+      generatePaperCard: makeNativePaperCardGenerator(
+        workspace,
+        calls,
+        fixture.options
+      ),
+    });
+    await system.registry.reconcile(treeFor(workspace));
+    const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+    await assert.rejects(
+      system.preparation.ensureSourceReady([paperId], "paper_card")
+    );
+    assert.equal(calls.combinedText, 1, fixture.name);
+    assert.equal(calls.summarize, 0, fixture.name);
+    assert.equal(calls.synthesize, 0, fixture.name);
+    assert.equal(system.registry.get(paperId).paperCardStatus, "failed", fixture.name);
+  }
+});
+
+test("native authentication and transport failures stop without a second provider route", async () => {
+  for (const fixture of [
+    { nativeErrorCode: "AUTH_REQUIRED" },
+    { nativeErrorCode: "NETWORK_ERROR" },
+    { nativeErrorCode: "LLM_HTTP_ERROR", terminalNativeFailure: true },
+  ]) {
+    const { nativeErrorCode } = fixture;
+    const workspace = new MemoryWorkspace();
+    workspace.setFile(
+      `literature/${nativeErrorCode}.pdf`,
+      "%PDF-1.4\nThe tested variant improved EctD activity.",
+      1000
+    );
+    const calls = { nativePdf: 0, summarize: 0, synthesize: 0, nativePayloads: [] };
+    const system = await makeSystem(workspace, {
+      getPaperCardConfiguration: async () => TEST_NATIVE_PAPER_CARD_CONTRACT,
+      generatePaperCard: makeNativePaperCardGenerator(workspace, calls, {
+        failNative: true,
+        nativeErrorCode,
+        terminalNativeFailure: fixture.terminalNativeFailure,
+      }),
+    });
+    await system.registry.reconcile(treeFor(workspace));
+    const paperId = system.registry.list({ sourceKind: "paper" })[0].sourceId;
+    await assert.rejects(
+      system.preparation.ensureSourceReady([paperId], "paper_card"),
+      (error) => error.code === nativeErrorCode
+    );
+    assert.equal(calls.nativePdf, 1, nativeErrorCode);
+    assert.equal(calls.combinedText || 0, 0, nativeErrorCode);
+    assert.equal(calls.summarize, 0, nativeErrorCode);
+    assert.equal(calls.synthesize, 0, nativeErrorCode);
   }
 });
 
@@ -1090,6 +1487,19 @@ test("client accounting separates logical endpoints, transport attempts, provide
           attempts: 1,
         }), { status: 502 });
       }
+      if (path === FC_ROUTES.combinedText) {
+        return new Response(JSON.stringify({
+          ok: true,
+          paperId: "paper-a",
+          contentHash: "sha256:a",
+          analysis: nativePaperCardAnalysis("paper-a", "sha256:a"),
+          model: "combined-model",
+          modelSignature: "f".repeat(64),
+          schemaVersion: 1,
+          promptVersion: "canonical-paper-card-combined-text-v1",
+          attempts: 1,
+        }), { status: 200 });
+      }
       return new Response(JSON.stringify({
         ok: true,
         configurationSignature: "b".repeat(64),
@@ -1107,6 +1517,15 @@ test("client accounting separates logical endpoints, transport attempts, provide
     candidates: [],
     callContext: {},
   });
+  await api.createPaperCardFromText({
+    paperId: "paper-a",
+    filename: "paper.pdf",
+    contentHash: "sha256:a",
+    text: "# Page 1\nEvidence",
+    pageCount: 1,
+    chunkCount: 1,
+    callContext: { turnId: "turn-accounting" },
+  });
   await assert.rejects(
     api.planKnowledgeSearch({ query: "EctD", intent: "evidence", callContext: {} }),
     (error) => error.code === "ProviderFailure"
@@ -1115,19 +1534,26 @@ test("client accounting separates logical endpoints, transport attempts, provide
   assert.deepEqual(accounting.logicalEndpointCalls, {
     [FC_ROUTES.paperCardConfig]: 1,
     [FC_ROUTES.rerank]: 1,
+    [FC_ROUTES.combinedText]: 1,
     [FC_ROUTES.plan]: 1,
   });
   assert.deepEqual(accounting.transportAttempts, {
     [FC_ROUTES.paperCardConfig]: 1,
     [FC_ROUTES.rerank]: 1,
+    [FC_ROUTES.combinedText]: 1,
     [FC_ROUTES.plan]: 1,
   });
   assert.deepEqual(accounting.providerAttempts, {
     [FC_ROUTES.paperCardConfig]: 0,
     [FC_ROUTES.rerank]: 2,
+    [FC_ROUTES.combinedText]: 1,
     [FC_ROUTES.plan]: 1,
   });
   assert.deepEqual(accounting.cacheHits, { [FC_ROUTES.rerank]: 1 });
+  assert.equal(
+    api.getTurnCallCounts("turn-accounting").combined_text_paper_card,
+    1
+  );
 });
 
 function invalidMapperError() {
@@ -2503,7 +2929,7 @@ test("stale, missing, malformed, and content-mismatched Paper Cards are rebuilt"
   });
 });
 
-test("canonical cache invalidates on strategy, model, prompt, schema, native, and parsing changes", async () => {
+test("canonical cache invalidates on generation, native, combined-text, and parsing contract changes", async () => {
   const contract = {
     ...TEST_NATIVE_PAPER_CARD_CONTRACT,
   };
@@ -2544,6 +2970,16 @@ test("canonical cache invalidates on strategy, model, prompt, schema, native, an
   await assertRebuilt("Question after native model change.");
   contract.nativePdfSchemaVersion = 2;
   await assertRebuilt("Question after native schema change.");
+  contract.generationContractVersion = 3;
+  await assertRebuilt("Question after generation contract change.");
+  contract.combinedTextPromptVersion = "canonical-paper-card-combined-text-v2";
+  await assertRebuilt("Question after combined-text prompt change.");
+  contract.combinedTextModelSignature = "1".repeat(64);
+  await assertRebuilt("Question after combined-text model change.");
+  contract.combinedTextSchemaVersion = 2;
+  await assertRebuilt("Question after combined-text schema change.");
+  contract.combinedTextMaxCharacters = 100000;
+  await assertRebuilt("Question after combined-text budget change.");
 
   const source = system.registry.get(paperIds[0]);
   source.artifacts.paperCard.sourceArtifactSchemaVersion = 0;
@@ -3226,7 +3662,7 @@ test("whole-paper Side Chat can select native PDF while an exact-text question s
   const selectedPaths = [paper.path];
 
   const wholePaper = await service.buildContext({
-    question: "Give me an overview of this selected study.",
+    question: "Give me an overview of the figures and layout of this selected study.",
     selectedPaths,
     selectedPaperIds: [paper.sourceId],
     workspaceTree: treeFor(workspace),

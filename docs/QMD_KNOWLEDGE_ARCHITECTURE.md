@@ -1,5 +1,7 @@
 # QMD Knowledge Layers
 
+The current shared Side Chat/Agent Command request lifecycle is documented in [PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md](PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md): metadata reconciliation and changed-source synchronization precede semantic interpretation and evidence planning.
+
 BioDesign Copilot keeps scientific authority in the selected project folder while using QMD as a replaceable retrieval engine. QMD never owns source identity, source hashes, corpus membership, experiment values, or recommendation state.
 
 ```text
@@ -93,7 +95,7 @@ Search tools select collections deliberately. Precise claims use evidence. Proje
 
 ## Lazy indexing and embeddings
 
-Opening or refreshing a folder performs only metadata reconciliation. It does not hash, parse, render Markdown, update QMD, embed, or call an LLM.
+Opening or refreshing a folder performs metadata discovery without hashing, parsing, embedding or model calls. Existing deletion cleanup may retire derived artifacts and update their indexes. Changed-source preparation runs at request preflight.
 
 On first relevant paper use:
 
@@ -109,7 +111,7 @@ ensureSourceReady(source, search)
 
 Vector generation is a distinct optional stage. `qmdLexStatus` and `qmdVectorStatus` are persisted separately. Exact identifiers therefore do not wait for model loading. A CLI rebuild or a request that explicitly asks to generate embeddings calls incremental `store.embed`; it does not delete the database. The local KnowledgeService emits `initializing`, `indexing`, `embedding`, `ready`, or `fallback` events; during embedding it polls the backend's real QMD chunk callback so the existing UI can display progress such as `8/32` without appearing frozen.
 
-Paper Cards are generated only by existing explicit broad-summary/comparison triggers or `ensure_paper_card`. Each new card records one deterministic cache key containing the source content hash, card schema, LLM model, and prompt version; legacy keys are migrated only when that card is next requested. Topic membership updates use those structured fields and mark summaries stale without generating them. Corpus syntheses are rendered only after the existing snapshot/map/reduce/verify workflow completes.
+Paper Cards are generated for new/content-modified papers by the request preflight worker, or by the retained explicit broad-summary/comparison and `ensure_paper_card` tools. Each new card records one deterministic cache key containing the source content hash, card schema, LLM model, and prompt version; legacy keys are migrated only when that card is next requested. Topic membership updates use those structured fields and mark summaries stale without generating them. Corpus syntheses are rendered only after the existing snapshot/map/reduce/verify workflow completes.
 
 ## Retrieval tiers and context discipline
 
@@ -160,11 +162,13 @@ Planner, reranker, mapper, native-PDF, and final-answer provider requests carry 
 
 ### User retrieval-quality profiles
 
+The shared request pipeline currently resolves all saved profiles to the existing Medium local-first policy. The profile-specific helpers below remain for compatibility; language alone no longer selects Deep.
+
 The compact Side Chat-header selector is the single authority for the internal `light`, `medium`, or `high` profile. It is validated before being stored in `.biodesign/state.json`, defaults to `light` when absent, and is passed as an immutable value into the current Side Chat or Agent Command context build. There is no profile/feed/provider IPC method. Remote answers and tool arguments cannot change workspace UI state.
 
 | Profile | Literature discovery/content | Context routing | Broad paper handling |
 |---|---|---|---|
-| Light | Existing rule unchanged: Han → Deep; otherwise Fast | Deterministic local only | Existing Paper Card/native-PDF triggers unchanged |
+| Light | Fast independently of input language | Deterministic local only | Existing Paper Card/native-PDF triggers unchanged |
 | Medium | Fast first; deterministic escalation below | Deterministic local only | Existing Paper Card/native-PDF triggers unchanged |
 | High | Deep for every relevant search | Authenticated FC router, local fallback | Reuse valid artifacts; create only a needed missing/stale card; prefer native PDF for relevant whole-paper/table/figure/layout/poor-extraction/critical-verification work |
 
@@ -172,7 +176,7 @@ Medium applies these ordered pure rules:
 
 1. Run Fast and inspect its bounded results.
 2. Accept when a result strongly contains the query's DOI, exact title, author/year pair, biological/enzyme/strain identifier, mutation, `Km`, or `kcat`.
-3. Otherwise escalate cross-language queries and conceptual/topic/strategy/comparison/broad-discovery intent.
+3. Otherwise escalate conceptual/topic/strategy/comparison/broad-discovery intent; language alone does not trigger escalation.
 4. Escalate if Fast returns no usable evidence.
 5. Otherwise accept only if one of the first five usable results contains every non-stopword query term; partial coverage escalates.
 

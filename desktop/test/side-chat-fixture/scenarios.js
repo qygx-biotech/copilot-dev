@@ -7,7 +7,9 @@ const oldMessages = [
 function resetConversation() {
   requests = []; saves = []; toasts = []; saveFailAt = 0; requestFailure = false; pendingRequest = null;
   exists = true; existenceGate = null; fileChecks = [];
+  streamEvents = []; streamFailure = false; lastStreamCallback = null;
   sideChatBusy = false;
+  sideChatImageComposer?.clear(); imageCalls = []; contextCalls = []; imageResponseStatus = 200; imageGate = null;
   sideChatMessages = structuredClone(oldMessages);
   sideChatConversation = { id: "chat", title: "Chat", messages: sideChatMessages };
   workspaceManager.workspace.workspaceId = "w-1";
@@ -17,6 +19,15 @@ function resetConversation() {
 const equal = (actual, expected, message = "Unexpected result") => { if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(message + ": " + JSON.stringify({ actual, expected })); };
 const ok = (condition, message) => { if (!condition) throw new Error(message); };
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+async function chartImageFile(name = "activity.png", type = "image/png") {
+  const canvas = document.createElement("canvas"); canvas.width = 800; canvas.height = 520;
+  const context = canvas.getContext("2d"); context.fillStyle = "#ffffff"; context.fillRect(0, 0, 800, 520);
+  context.fillStyle = "#263e43"; context.font = "30px sans-serif"; context.fillText("Enzyme activity (U/mL)", 70, 55);
+  context.strokeStyle = "#a0adb0"; context.lineWidth = 3; context.beginPath(); context.moveTo(75, 90); context.lineTo(75, 435); context.lineTo(730, 435); context.stroke();
+  context.strokeStyle = "#008678"; context.lineWidth = 8; context.beginPath(); context.moveTo(110, 390); context.lineTo(300, 240); context.lineTo(495, 130); context.lineTo(700, 265); context.stroke();
+  context.fillText("5       6        7        8   pH", 110, 490);
+  return new File([await new Promise(resolve => canvas.toBlob(resolve, type))], name, { type });
+}
 async function idle() { for (let i = 0; i < 100; i++) { await tick(); if (!sideChatBusy) return; } throw new Error("Side Chat remained busy"); }
 const edit = () => sideChatHistory.querySelector('[data-side-chat-action="edit"]').click();
 const input = () => sideChatHistory.querySelector('[data-side-chat-edit-input]');
@@ -35,6 +46,33 @@ function contrast(foreground, background) { const a = luminance(foreground), b =
 async function runScenarios() {
   const passed = [], failed = [];
   async function scenario(name, callback) { resetConversation(); try { await callback(); passed.push(name); } catch (error) { failed.push({ name, error: error.message }); } }
+  await scenario("Debug Console shows live stages, copies metadata, clears, localizes, and closes without blocking chat", async () => {
+    const log = window.BioDesignRuntimeLog;
+    const panel = document.getElementById("debugConsole"), output = document.getElementById("debugConsoleOutput");
+    const opener = document.querySelector("[data-debug-open]");
+    log.clear();
+    log.record("sync-agent.started", { agent: "KnowledgeSyncAgent", sourceCount: 3 });
+    opener.click();
+    ok(!panel.hidden && output.textContent.includes("KnowledgeSyncAgent"), "Saved log did not render on open");
+    log.record("preflight.stage", { stage: "sync-paper-cards", sourceId: "paper-1", layer: "L2", body: "secret document" });
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    ok(output.textContent.includes("sync-paper-cards") && !output.textContent.includes("secret document"), "Live update missing or unsafe");
+    ok(output.clientHeight > 0 && panel.getBoundingClientRect().bottom <= innerHeight, "Log panel is outside viewport");
+    const style = getComputedStyle(output);
+    ok(contrast(style.color, getComputedStyle(panel).backgroundColor) >= 4.5, "Unreadable console text");
+    let copied = "";
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async value => { copied = value; } } });
+    document.getElementById("debugConsoleCopy").click(); await tick();
+    equal(copied, log.exportText());
+    log.setLanguage("zh"); equal(opener.textContent, "调试控制台");
+    document.getElementById("debugConsoleClear").click();
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    equal(log.entries().length, 0);
+    ok(!output.textContent.includes("KnowledgeSyncAgent"), "Clear left old entries visible");
+    document.getElementById("debugConsoleClose").click();
+    ok(panel.hidden && document.activeElement === opener, "Close did not restore focus");
+    log.setLanguage("en");
+  });
   for (const width of [1500, 1200, 900]) await scenario(`Packaged smoke accepts bounded Side Chat at ${width}px and rejects unbounded history`, async () => {
     const frame = document.createElement("iframe");
     frame.style.cssText = `width:${width}px;height:800px;max-width:none;border:0`;
@@ -94,6 +132,27 @@ async function runScenarios() {
       }),
       "Creating paper analysis · 3/41 · fallback chunk 2/5"
     );
+    equal(
+      sideChatProgressText({
+        stage: "canonical-paper-artifact-create",
+        route: "combined-text",
+        papersCompleted: 3,
+        papersTotal: 41,
+        chunkCount: 5,
+      }),
+      "Creating paper analysis from extracted text · 3/41"
+    );
+    currentLanguage = "zh";
+    const chineseCombined = sideChatProgressText({
+      stage: "canonical-paper-artifact-create",
+      route: "combined-text",
+      papersCompleted: 3,
+      papersTotal: 41,
+      chunkCount: 5,
+    });
+    equal(chineseCombined, "正在从提取文本创建论文分析 · 3/41");
+    ok(!chineseCombined.includes("回退分块"), "Combined text must not be labeled as fallback chunks");
+    currentLanguage = "en";
   });
   await scenario("Click Save reads changed textarea value and replaces exactly one turn", async () => { edit(); input().value = "  Edited question  "; save().click(); await idle(); checkReplacement("Edited question"); });
   await scenario("Unchanged text intentionally regenerates", async () => { edit(); save().click(); await idle(); checkReplacement(oldMessages[2].content); });
@@ -140,11 +199,48 @@ async function runScenarios() {
     const entry = citation();
     addSideChatMessage("assistant", "[Model supplied false name](biodesign-citation:citation-1)", { citations: [entry] });
     const button = sideChatHistory.querySelector("[data-side-chat-citation]");
-    equal(button.textContent, "Project Folder / literature / 中文 / 酶活性.pdf");
+    equal(button.textContent, "酶活性.pdf");
+    equal(button.title, "Project Folder / literature / 中文 / 酶活性.pdf");
+    equal(button.getAttribute("aria-label"), button.title);
     button.click(); await tick(); await tick();
     equal(fileChecks, [sources[0].path]); equal(document.activeElement.dataset.workspaceFile, sources[0].path);
     equal(selectedWorkspacePaths.size, 0, "Citation navigation must not change evidence selection");
     ok(expandedWorkspacePaths.has("literature/中文"), "Nested folder was not expanded");
+  });
+  await scenario("Saved grouped citations render as compact clickable links alongside existing registered links", async () => {
+    const entry = citation();
+    addSideChatMessage("assistant", "*   合成途径 [[cite:paper-a], [cite:unknown-id]]，已有来源 [Old label](biodesign-citation:citation-1)。\n    *   嵌套引用 [[cite:paper-a]]。", { citations: [entry] });
+    const body = sideChatHistory.lastElementChild.querySelector(".side-message-body");
+    ok(!/cite:|paper-a|unknown-id|\[\[/.test(body.textContent), "Raw citation IDs leaked into prose");
+    const buttons = [...body.querySelectorAll("[data-side-chat-citation]")];
+    equal(buttons.length, 4);
+    equal(buttons.map(button => button.disabled), [false, true, false, false]);
+    equal(buttons[2].dataset.sideChatCitation, "citation-1");
+    buttons[0].click(); await tick(); await tick();
+    equal(document.activeElement.dataset.workspaceFile, sources[0].path);
+  });
+  await scenario("Long citation filenames fit one line in a narrow chat and expose the full path on hover", async () => {
+    const originalPath = sources[0].path;
+    const originalWidth = sideChatHistory.style.width;
+    try {
+      sources[0].path = "literature/deep/2017--Continuous abatement of methane coupled with ectoine production by Methylomicrobium alcaliphilum 20Z in stirred tank reactors - A step further towards greenhouse gas biorefineries.pdf";
+      workspaceTree.children[0].relativePath = sources[0].path;
+      sideChatHistory.style.width = "280px";
+      const entry = citation();
+      addSideChatMessage("assistant", "生物学功能：相容性溶质 [Source](biodesign-citation:citation-1)。", { citations: [entry] });
+      const body = sideChatHistory.lastElementChild.querySelector(".side-message-body");
+      const button = body.querySelector("[data-side-chat-citation]");
+      equal(button.title, "Project Folder / " + sources[0].path.split("/").join(" / "));
+      ok(button.textContent.length <= 56 && button.textContent.includes("…"), "Filename was not shortened");
+      ok(button.getBoundingClientRect().width <= body.clientWidth, "Link overflowed the chat");
+      ok(button.getBoundingClientRect().height <= parseFloat(getComputedStyle(button).lineHeight) + 1, "Link wrapped to multiple lines");
+      equal(getComputedStyle(button).textOverflow, "ellipsis");
+      button.focus(); equal(document.activeElement, button);
+      button.click(); await tick(); await tick(); equal(fileChecks, [sources[0].path]);
+    } finally {
+      sources[0].path = originalPath; workspaceTree.children[0].relativePath = originalPath;
+      sideChatHistory.style.width = originalWidth;
+    }
   });
   await scenario("Missing metadata and missing sources disable citation navigation", async () => {
     addSideChatMessage("assistant", "[Fake](biodesign-citation:citation-99) and [local:999]");
@@ -157,6 +253,144 @@ async function runScenarios() {
     workspaceManager.workspace.workspaceId = "w-2"; release(); await navigation;
     equal(toasts.at(-1), translations.citationUnavailable);
     equal(expandedWorkspacePaths.has("outside"), false);
+  });
+  await scenario("Streaming text is visible before completion, hides partial citations, and persists exactly one final answer", async () => {
+    let release; pendingRequest = new Promise(resolve => { release = resolve; });
+    streamEvents = [{ type: "delta", text: "中文 draft [[cite:paper-" }];
+    const pending = askSideChat("Stream my answer");
+    for (let i = 0; i < 50 && !lastStreamCallback; i++) await tick();
+    await new Promise(resolve => setTimeout(resolve, 60));
+    const preview = sideChatHistory.querySelector(".streaming-answer");
+    ok(preview && !preview.hidden, "No visible draft while request is pending");
+    ok(preview.textContent.includes("中文 draft") && !preview.textContent.includes("paper-"), "Partial citation ID leaked");
+    equal(sideChatMessages.at(-1).role, "user", "A partial answer was committed");
+    ok(!saves.some(save => JSON.stringify(save).includes("中文 draft")), "A partial answer was persisted");
+    lastStreamCallback({ type: "reset" });
+    ok(preview.hidden, "Tool iteration did not clear its provisional text");
+    lastStreamCallback({ type: "delta", text: "Replacement draft" });
+    release(); await pending;
+    equal(sideChatMessages.at(-1).content, "Regenerated answer");
+    equal(sideChatMessages.filter(message => message.content === "Regenerated answer").length, 1);
+    ok(!sideChatHistory.querySelector(".streaming-answer"), "Provisional duplicate remained after completion");
+  });
+  await scenario("Interrupted streams keep a clearly incomplete draft without persisting a fake assistant answer", async () => {
+    streamEvents = [{ type: "delta", text: "Partial result" }]; streamFailure = true;
+    await askSideChat("Interrupted answer");
+    const preview = sideChatHistory.querySelector(".streaming-answer");
+    ok(preview && !preview.hidden && preview.textContent.includes("Partial result"), "Lost the partial preview");
+    equal(preview.getAttribute("aria-busy"), "false");
+    ok(preview.textContent.includes("streamInterrupted"), "Missing interruption label");
+    equal(sideChatMessages.at(-1).role, "user");
+    ok(!saves.some(save => JSON.stringify(save).includes("Partial result")), "Incomplete result was persisted");
+  });
+  await scenario("Agent Command previews a stream but replaces the recommendation only after a complete response", async () => {
+    const tree = workspaceTree; workspaceTree = null;
+    let release; pendingRequest = new Promise(resolve => { release = resolve; });
+    streamEvents = [{ type: "delta", text: "Provisional analysis" }];
+    currentRecommendation = agentPanel.recommendation = { title: "Existing recommendation" }; panelSaves = [];
+    try {
+      const pending = runAgentInstruction("agent-panel");
+      for (let i = 0; i < 50 && !lastStreamCallback; i++) await tick();
+      await new Promise(resolve => setTimeout(resolve, 60));
+      ok(analysisPanelStack.textContent.includes("Provisional analysis"), "No streamed Agent Command preview");
+      equal(currentRecommendation.title, "Existing recommendation");
+      ok(!JSON.stringify(panelSaves).includes("Provisional analysis"), "A draft recommendation was saved");
+      release(); await pending;
+      equal(currentRecommendation.title, "Regenerated answer");
+      ok(!analysisPanelStack.querySelector(".streaming-answer"), "Preview remained after commit");
+      streamFailure = true; pendingRequest = null;
+      await runAgentInstruction("agent-panel");
+      equal(currentRecommendation.title, "Regenerated answer", "Interrupted stream replaced the official recommendation");
+      equal(agentPanel.status, "streamInterrupted");
+    } finally { workspaceTree = tree; }
+  });
+  await scenario("Switching workspace during a stream cannot append the old answer to the new conversation", async () => {
+    let release; pendingRequest = new Promise(resolve => { release = resolve; });
+    streamEvents = [{ type: "delta", text: "Old workspace draft" }];
+    const pending = askSideChat("Old workspace question");
+    for (let i = 0; i < 50 && !lastStreamCallback; i++) await tick();
+    workspaceManager.workspace.workspaceId = "w-2";
+    sideChatConversation = { id: "new-chat", messages: [] }; sideChatMessages = [];
+    release(); await pending;
+    equal(sideChatMessages.length, 0);
+    ok(!sideChatHistory.querySelector(".streaming-answer"), "Old draft survived the workspace switch");
+  });
+  await scenario("Native image decoding produces bounded image bytes and a small preview", async () => {
+    const prepared = await window.BioDesignChatImageComposer.prepareImage(await chartImageFile());
+    ok(chatImageApi.dataUrlInfo(prepared.dataUrl), "Prepared payload is invalid");
+    ok(chatImageApi.dataUrlInfo(prepared.thumbnail, chatImageApi.limits.thumbnailBytes), "Thumbnail exceeded its limit");
+  });
+  await scenario("Upload button selects images, shows removable previews and rejects unsupported or excessive attachments", async () => {
+    const picker = document.querySelector("#sideChatImageInput"), button = document.querySelector("#attachSideChatImageButton");
+    let opened = false; const originalClick = picker.click; picker.click = () => { opened = true; };
+    button.click(); picker.click = originalClick; ok(opened, "Upload button did not open picker");
+    const transfer = new DataTransfer(); transfer.items.add(await chartImageFile()); picker.files = transfer.files;
+    picker.dispatchEvent(new Event("change"));
+    for (let i = 0; i < 100 && sideChatImageComposer.preparing; i++) await tick();
+    equal(sideChatImageComposer.images.length, 1);
+    ok(!sendSideChatButton.disabled, "Send did not re-enable after the image was prepared");
+    const preview = document.querySelector("#sideChatImagePreviews img"); ok(preview?.naturalWidth > 0, "Image preview did not decode");
+    ok(preview.getBoundingClientRect().width <= 64, "Preview is not compact");
+    await sideChatImageComposer.addFiles([new File(["text"], "note.txt", { type: "text/plain" })]);
+    equal(sideChatImageComposer.images.length, 1); ok(document.querySelector("#sideChatImageStatus").textContent, "No unsupported-file error");
+    const file = await chartImageFile(); await sideChatImageComposer.addFiles([file, file, file, file]);
+    equal(sideChatImageComposer.images.length, 1);
+    document.querySelector("#sideChatImagePreviews button").click(); equal(sideChatImageComposer.images.length, 0);
+  });
+  await scenario("Dragging an image onto the composer attaches it without navigating or sending a request", async () => {
+    const dataTransfer = new DataTransfer(); dataTransfer.items.add(await chartImageFile("dropped.png", "image/webp"));
+    const event = new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer });
+    sideChatInput.dispatchEvent(event);
+    for (let i = 0; i < 100 && sideChatImageComposer.preparing; i++) await tick();
+    ok(event.defaultPrevented, "Image drop could navigate away");
+    equal(sideChatImageComposer.images.length, 1); equal(imageCalls.length, 0); equal(requests.length, 0);
+    setSideChatBusy(true); sideChatInput.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }));
+    equal(sideChatImageComposer.images.length, 1); setSideChatBusy(false);
+  });
+  await scenario("Clearing or switching workspace during image preparation discards the late preview", async () => {
+    const pending = sideChatImageComposer.addFiles([await chartImageFile()]);
+    sideChatImageComposer.clear(); await pending;
+    equal(sideChatImageComposer.images.length, 0); equal(sideChatImageComposer.preparing, false);
+  });
+  await scenario("Vision finishes before context preparation and the final answer receives image observations plus the typed question", async () => {
+    await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Compare this activity with the papers";
+    let release; imageGate = new Promise(resolve => { release = resolve; });
+    const pending = submitSideChat();
+    for (let i = 0; i < 100 && !imageCalls.length; i++) await tick();
+    equal(imageCalls.length, 1); equal(contextCalls.length, 0); equal(requests.length, 0);
+    ok(sideChatHistory.querySelector(".chat-image-previews img"), "Sent message lost its image preview");
+    release(); await pending;
+    equal(contextCalls.length, 1); ok(contextCalls[0].includes("Compare this activity") && contextCalls[0].includes("25 U/mL"), "Context omitted text or image evidence");
+    ok(requests[0].messages.at(-1).content.includes("25 U/mL"), "Main answer did not receive image understanding");
+    ok(!JSON.stringify(requests).includes("data:image"), "Raw image bytes leaked into the normal answer pipeline");
+    equal(sideChatMessages.at(-2).content, "Compare this activity with the papers");
+    equal(sideChatImageComposer.images.length, 0);
+  });
+  await scenario("Image-only submissions work and editing the latest question reuses the stored image for fresh vision analysis", async () => {
+    await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "";
+    await submitSideChat(); equal(imageCalls[0].question, "imageOnlyQuestion");
+    const user = sideChatMessages.at(-2), id = user.images[0].attachmentId;
+    await reviseLatestSideChatMessage(user.id, "Read the axis units instead");
+    equal(imageCalls.length, 2); equal(imageCalls[1].question, "Read the axis units instead");
+    equal(sideChatMessages.at(-2).images[0].attachmentId, id);
+    renderSideChatConversation(); ok(sideChatHistory.querySelector(".chat-image-previews img"), "Reloaded conversation lost previews");
+  });
+  await scenario("A vision failure keeps the image available for retry and never starts knowledge or answer calls", async () => {
+    imageResponseStatus = 502;
+    await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Explain this figure";
+    await submitSideChat();
+    equal(contextCalls.length, 0); equal(requests.length, 0); equal(sideChatMessages.at(-1).role, "user");
+    ok(toasts.includes("chatImageFailed"), "Image failure was not visible");
+    imageResponseStatus = 200; await reviseLatestSideChatMessage(sideChatMessages.at(-1).id, "Explain this figure");
+    equal(imageCalls.length, 2); equal(requests.length, 1);
+  });
+  await scenario("Changing workspace while vision is pending does not start the old answer pipeline", async () => {
+    await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Explain";
+    let release; imageGate = new Promise(resolve => { release = resolve; }); const pending = submitSideChat();
+    for (let i = 0; i < 100 && !imageCalls.length; i++) await tick();
+    workspaceManager.workspace.workspaceId = "w-2"; sideChatMessages = []; sideChatConversation = { id: "new", messages: [] };
+    release(); await pending;
+    equal(contextCalls.length, 0); equal(requests.length, 0); equal(sideChatMessages.length, 0);
   });
   return { passed, failed };
 }

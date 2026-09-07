@@ -22,6 +22,7 @@
               <option value="zh">中文</option>
             </select>
           </div>
+          <button class="text-button" type="button" data-debug-open data-debug-label="open" aria-controls="debugConsole" aria-expanded="false">Debug Console</button>
           <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
         </div>
         <div class="login-copy">
@@ -71,6 +72,7 @@
               <option value="zh">中文</option>
             </select>
           </div>
+          <button class="text-button" type="button" data-debug-open data-debug-label="open" aria-controls="debugConsole" aria-expanded="false">Debug Console</button>
           <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
         </div>
         <p class="eyebrow" data-i18n="workspaceSelectionEyebrow">Local Workspace</p>
@@ -155,6 +157,7 @@
                 <option value="zh">中文</option>
               </select>
             </div>
+            <button class="text-button" type="button" data-debug-open data-debug-label="open" aria-controls="debugConsole" aria-expanded="false">Debug Console</button>
             <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
             <div class="account-chip" aria-label="Current account">
               <span id="currentAccountName" class="current-account">Not signed in</span>
@@ -281,17 +284,21 @@
             </div>
             <div id="sideChatHistory" class="side-chat-history" aria-live="polite"></div>
             <form id="sideChatForm" class="side-chat-form">
+              <div id="sideChatImagePreviews" class="chat-image-previews" aria-label="Attached images" hidden></div>
               <label class="sr-only" for="sideChatInput" data-i18n="sideQuestionLabel">Side question</label>
               <textarea
                 id="sideChatInput"
                 rows="3"
                 placeholder="Ask a question without updating the project plan..."
                 data-i18n-placeholder="sideChatPlaceholder"
-                required
               ></textarea>
-              <button id="sendSideChatButton" class="primary-button" type="submit" data-i18n="askButton">
-                Ask
-              </button>
+              <div class="side-chat-compose-actions">
+                <input id="sideChatImageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+                <button id="attachSideChatImageButton" class="secondary-button chat-image-upload" type="button" data-i18n="attachChatImages">Add images</button>
+                <button id="sendSideChatButton" class="primary-button" type="submit" data-i18n="askButton">Ask</button>
+              </div>
+              <p class="chat-image-hint" data-i18n="chatImageHint">Add or drop up to 4 images · PNG, JPG, WebP</p>
+              <p id="sideChatImageStatus" class="chat-image-status" role="status"></p>
             </form>
           </section>
         </aside>
@@ -307,10 +314,31 @@
     <script src="vendor/experiment-semantics.js"></script>
     <script src="vendor/semantic-intent.js"></script>
     <script src="vendor/source-citations.js"></script>
+    <script src="vendor/event-stream.js"></script>
+    <script src="vendor/chat-images.js"></script>
+    <script src="chat-image-composer.js"></script>
+    <section id="debugConsole" class="debug-console" aria-labelledby="debugConsoleTitle" hidden>
+      <div class="debug-console-toolbar">
+        <div>
+          <strong id="debugConsoleTitle" data-debug-label="title">Debug Console</strong>
+          <p data-debug-label="note">Live stages and backend requests · session only · latest 1,000 events</p>
+        </div>
+        <div class="debug-console-actions">
+          <span id="debugConsoleCopyStatus" role="status"></span>
+          <button id="debugConsoleCopy" type="button" class="secondary-button" data-debug-label="copy">Copy logs</button>
+          <button id="debugConsoleClear" type="button" class="secondary-button" data-debug-label="clear">Clear</button>
+          <button id="debugConsoleClose" type="button" class="secondary-button" data-debug-label="close">Close</button>
+        </div>
+      </div>
+      <pre id="debugConsoleOutput" class="debug-console-output" tabindex="0" aria-label="Runtime log"></pre>
+    </section>
+    <script src="vendor/provider-rate-limit.js"></script>
+    <script src="runtime-log.js"></script>
     <script src="workspace-manager.js"></script>
     <script src="knowledge-service.js"></script>
     <script src="source-system.js"></script>
     <script src="literature-module.js"></script>
+    <script src="request-pipeline.js"></script>
     <script src="project-context-service.js"></script>
     <!-- KaTeX safely renders dollar-delimited math in Side Chat messages. -->
     <script src="vendor/katex/katex.min.js"></script>

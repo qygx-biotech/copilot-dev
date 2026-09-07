@@ -236,8 +236,8 @@
     };
   }
   function answerLanguagePreference(query, input) {
-    const explicit = /(?:answer|reply|respond|write)\s+(?:me\s+)?in\s+(english|chinese|japanese|french|spanish)|用(中文|英文|英语|日文|法语|西班牙语)(?:回答|回复|写)/i.exec(query);
-    const languageCodes = { english: "en", chinese: "zh", japanese: "ja", french: "fr", spanish: "es", 中文: "zh", 英文: "en", 英语: "en", 日文: "ja", 法语: "fr", 西班牙语: "es" };
+    const explicit = /(?:answer|reply|respond|write)\s+(?:me\s+)?in\s+(english|chinese|japanese|french|spanish|german|korean|russian|arabic|portuguese|italian|hindi|hebrew)|用(中文|英文|英语|日文|法语|西班牙语|德语|韩语|俄语|阿拉伯语|葡萄牙语|意大利语|印地语|希伯来语)(?:回答|回复|写)/i.exec(query);
+    const languageCodes = { english: "en", chinese: "zh", japanese: "ja", french: "fr", spanish: "es", german: "de", korean: "ko", russian: "ru", arabic: "ar", portuguese: "pt", italian: "it", hindi: "hi", hebrew: "he", 德语: "de", 韩语: "ko", 俄语: "ru", 阿拉伯语: "ar", 葡萄牙语: "pt", 意大利语: "it", 印地语: "hi", 希伯来语: "he", 中文: "zh", 英文: "en", 英语: "en", 日文: "ja", 法语: "fr", 西班牙语: "es" };
     if (explicit) return languageCodes[normalized(explicit[1] || explicit[2])];
     if (input.projectSemanticRegistry.answerLanguage) return input.projectSemanticRegistry.answerLanguage;
     for (const item of [...input.conversationContext].reverse()) {
@@ -253,6 +253,13 @@
     if (/[\u3400-\u9fff]/u.test(query)) return "zh";
     if (/[\uac00-\ud7af]/u.test(query)) return "ko";
     if (/[\u0400-\u04ff]/u.test(query)) return "ru";
+    if (/[\u0600-\u06ff]/u.test(query)) return "ar";
+    if (/[\u0590-\u05ff]/u.test(query)) return "he";
+    if (/[\u0900-\u097f]/u.test(query)) return "hi";
+    if (/[\u0370-\u03ff]/u.test(query)) return "el";
+    if (/\b(?:quels?|quelle|comment|pourquoi|résum|température|études)\b/i.test(query)) return "fr";
+    if (/\b(?:cuál|cuáles|qué|resumir|artículos|experimentos)\b/i.test(query)) return "es";
+    if (/\b(?:welche|warum|zusammenfassen|höchste)\b/i.test(query)) return "de";
     return "en";
   }
   function patternCoversDomains(pattern, domains) {
@@ -369,6 +376,33 @@
     });
     return { mode: p ? "known-pattern" : "compositional", pattern: p?.patternId || null, advisory: true, steps, blocked: steps.filter((step) => !step.allowed).map((step) => step.capability), unresolved: unique([...ir.unresolvedSlots, ...ir.operations.filter((op) => !steps.some((step) => capabilityMap.get(step.capability).operations.includes(op)) && !["explain", "summarize", "find-conflicts"].includes(op)).map((op) => `capability:${op}`)]) };
   }
+  function planEvidenceNeeds(ir, options = {}) {
+    const objects = new Set(ir.objects || []), operations = new Set(ir.operations || []);
+    const query = String(options.originalQuery || ir.goal || "");
+    const exactFact = /\b(?:Km|kcat|temperature|titer|value|concentration)\b|温度|数值|浓度/u.test(query) && !operations.has("compare");
+    const literature = objects.has("literature") || /\bP\d+\b/.test(query);
+    const broad = literature && !exactFact && (operations.has("summarize") || operations.has("map") || operations.has("compare") || /strategies|themes|across|策略|主题|总体/i.test(query));
+    const previous = /(?:last|previous|earlier) (?:review|synthesis)|上次.*(?:综述|总结)|之前.*结论/i.test(query);
+    const needsNativePdf = literature && /(?:figure|layout|scan|native pdf)|图中|版式|扫描/i.test(query);
+    const evidenceNeeds = [];
+    const add = (type, scope, purpose) => evidenceNeeds.push({ type, scope, purpose });
+    if (literature && !previous) add("literature_evidence", ir.scope.papers || "all-or-relevant", "Support scientific claims with original page evidence");
+    if (broad) { add("paper_cards", ir.scope.papers || "all-or-relevant", "Route whole-paper understanding and comparison"); add("topics", "current-project", "Find themes and relevant papers"); }
+    if (previous) add("previous_syntheses", "current-project", "Inspect the prior review with historical coverage");
+    if (objects.has("experiments")) { add("experiment_records", ir.scope.experiments || "current-project", "Compute exact values, comparisons and rankings"); add("experiment_descriptors", "current-project", "Discover relevant structured sources"); }
+    if (objects.has("memory") || objects.has("recommendation")) add("project_memory", "current-project", "Recover recorded decisions and context");
+    if (objects.has("project")) add("project_metadata", "current-project", "Inspect current project state");
+    if (needsNativePdf) add("native_pdf", ir.scope.papers || "all-or-relevant", "Inspect layout or visual evidence when extraction is insufficient");
+    if (!evidenceNeeds.length) add("no_project_evidence", "none", "Answer from the current request");
+    return { evidenceNeeds, usePaperCards: broad, useTopics: broad, usePreviousSynthesis: previous, needsNativePdf, advisory: true };
+  }
+  function requestUnderstanding(ir, originalQuery) {
+    const canonicalQueryEn = ir.inputLanguage === "en" ? originalQuery :
+      !/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/u.test(ir.goal) ? ir.goal :
+      unique([...(ir.entities || []).map((item) => item.canonicalId), ...(ir.metrics || []).map((item) => item.canonicalField).filter(Boolean), ...ir.objects, ...ir.operations,
+        ...Object.entries(CONCEPT_ALIASES).filter(([, aliases]) => aliases.some((alias) => aliasPresent(normalized(originalQuery), alias))).map(([concept]) => concept)]).join(" ");
+    return { originalQuery, canonicalQueryEn, inputLanguage: ir.inputLanguage, answerLanguage: ir.answerLanguage };
+  }
   function stable(value) {
     if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
     if (plain(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stable(value[key])}`).join(",")}}`;
@@ -410,5 +444,5 @@
       return { profile: input.profile, semantic: { localPattern: local.matchedPattern, localConfidence: local.patternConfidence, matchState: local.matchedPattern ? "known" : local.patternConfidence >= this.thresholds.uncertain ? "uncertain" : "novel", remoteSemanticParserUsed: used, finalPattern: ir.matchedPattern, route, fallback }, operations: [...ir.operations], capabilitiesUsed: [], capabilityHints: [...ir.capabilityHints], semanticParserCalls: used ? 1 : 0, cost: { semanticParserCalls: used ? 1 : 0 } };
     }
   }
-  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, compactSemanticInput, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities });
+  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, compactSemanticInput, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, requestUnderstanding });
 });

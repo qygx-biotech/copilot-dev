@@ -108,19 +108,19 @@ export class ProjectFilesystem {
 
   async stat(relativePath) {
     const absolutePath = await this.resolveExisting(relativePath);
-    const info = await stat(absolutePath);
+    const info = await stat(absolutePath, { bigint: true });
     return {
       relativePath,
       type: info.isDirectory() ? "directory" : info.isFile() ? "file" : "other",
       size: Number(info.size),
-      lastModified: Number(info.mtimeMs),
+      lastModified: Number(info.mtimeNs) / 1e6, mtimeNs: String(info.mtimeNs), filesystemFileId: `${info.dev}:${info.ino}`,
       mimeType: info.isFile() ? mimeType(relativePath) : null,
     };
   }
 
   async readBinary(relativePath) {
     const absolutePath = await this.resolveExisting(relativePath);
-    const info = await stat(absolutePath);
+    const info = await stat(absolutePath, { bigint: true });
     if (!info.isFile()) throw new ValidationError("NOT_A_FILE", "The requested project path is not a file.");
     if (info.size > this.maxReadBytes) throw new ValidationError("FILE_TOO_LARGE", "The project file exceeds the desktop read limit.");
     const bytes = await readFile(absolutePath);
@@ -230,7 +230,7 @@ export class ProjectFilesystem {
           name: entry.name,
           relativePath: childRelative,
           size: Number(info.size),
-          lastModified: Number(info.mtimeMs),
+          lastModified: Number(info.mtimeNs) / 1e6, mtimeNs: String(info.mtimeNs), filesystemFileId: `${info.dev}:${info.ino}`,
           type: mimeType(entry.name),
         });
       }
@@ -250,8 +250,8 @@ export class ProjectFilesystem {
         if (entry.isDirectory()) {
           children.push({ name: entry.name, relativePath, type: "directory", size: null, lastModified: null, children: await visit(absolutePath, relativePath) });
         } else if (entry.isFile()) {
-          const info = await stat(absolutePath);
-          children.push({ name: entry.name, relativePath, type: "file", mimeType: mimeType(entry.name), size: Number(info.size), lastModified: Number(info.mtimeMs), children: [] });
+          const info = await stat(absolutePath, { bigint: true });
+          children.push({ name: entry.name, relativePath, type: "file", mimeType: mimeType(entry.name), size: Number(info.size), lastModified: Number(info.mtimeNs) / 1e6, mtimeNs: String(info.mtimeNs), filesystemFileId: `${info.dev}:${info.ino}`, children: [] });
         }
       }
       return children.sort((left, right) => left.type !== right.type ? (left.type === "directory" ? -1 : 1) : left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" }));

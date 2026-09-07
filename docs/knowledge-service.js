@@ -251,6 +251,9 @@
   }
 
   class KnowledgeService {
+    constructor() { this.blockedCollections = new Set(); }
+    blockCollections(collections) { for (const collection of collections) this.blockedCollections.add(collection); }
+    collectionsBlocked(collections) { return [...(collections || Object.values(COLLECTIONS))].some((collection) => this.blockedCollections.has(collection)); }
     async initialize() {}
     async indexDocuments() {}
     async searchLex() { return []; }
@@ -412,6 +415,7 @@
           },
           signal: options.signal,
         });
+        this.blockedCollections.delete(collection);
         this.emit({ stage: "ready", collection, result: payload });
         return payload;
       } catch (error) {
@@ -446,7 +450,7 @@
     }
 
     async search(query, options = {}) {
-      if (!this.available) return { results: [], fallbackRequired: true };
+      if (!this.available || this.collectionsBlocked(options.collections)) return { results: [], fallbackRequired: true };
       const mode = options.mode || "fast";
       this.emit({
         stage: mode === "semantic" ? "initializing-search-model" : "searching",
@@ -666,6 +670,7 @@
         embeddings,
         ...(options.embed === true && !embed ? { localSemanticDisabled: true } : {}),
       };
+      this.blockedCollections.delete(collection);
       this.emit({ stage: "ready", collection, result });
       return result;
     }
@@ -1469,7 +1474,7 @@
     }
 
     async search(query, options = {}) {
-      if (!this.available) return { results: [], fallbackRequired: true };
+      if (!this.available || this.collectionsBlocked(options.collections)) return { results: [], fallbackRequired: true };
       const mode = ["fast", "semantic", "deep"].includes(options.mode) ? options.mode : "fast";
       this.emit({
         stage: mode === "deep" ? "cloud-retrieval" : "searching-local-evidence",

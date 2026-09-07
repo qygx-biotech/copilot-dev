@@ -164,9 +164,6 @@
   function shouldEscalateFastResults(input = {}) {
     const query = String(input.query || "");
     const results = usableFastResults(input.results);
-    if (isCrossLanguageQuery(query)) {
-      return Object.freeze({ escalate: true, reason: "medium-cross-language" });
-    }
     if (hasStrongExactMatch(query, results)) {
       return Object.freeze({ escalate: false, reason: "medium-strong-exact-match" });
     }
@@ -186,12 +183,12 @@
     const normalized = normalizeRetrievalProfile(profile);
     const query = String(input.query || "");
     if (normalized === "light") {
-      const deep = containsHan(query);
+      const deep = false;
       return Object.freeze({
         profile: normalized,
         mode: deep ? "deep" : "fast",
         escalated: deep,
-        reason: deep ? "light-han-deep" : "light-non-han-fast",
+        reason: "light-lexical",
       });
     }
     if (normalized === "high") {

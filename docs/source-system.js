@@ -5,6 +5,12 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function sourceSystemFactory(root) {
   "use strict";
 
+  function logRuntime(event, details) {
+    if (root.BioDesignRuntimeLog) {
+      root.BioDesignRuntimeLog.record(event, details, details?.code || /failed|fallback/.test(event) ? "warn" : "info");
+    } else console.info(event, details);
+  }
+
   const retrievalProfiles = root?.BioDesignRetrievalProfiles ||
     (typeof require === "function" ? require("../shared/retrieval-profiles.js") : {});
   const experimentSemantics = root?.BioDesignExperimentSemantics ||
@@ -26,8 +32,8 @@
   const PAPER_CARD_CORPUS_MAP_VERSION = "canonical-paper-projection-v2";
   const CORPUS_RETRIEVAL_INTENT = "corpus scientific evidence extraction";
   const NATIVE_PDF_PROMPT_VERSION = "requesty-native-pdf-v1";
-  const PAPER_CARD_CACHE_KEY_VERSION = 3;
-  const PAPER_CARD_GENERATION_STRATEGY = "native-pdf-preferred-v1";
+  const PAPER_CARD_CACHE_KEY_VERSION = 4;
+  const PAPER_CARD_GENERATION_STRATEGY = "native-pdf-combined-text-v2";
   const DEFAULT_CORPUS_PREPARE_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_CONCURRENCY = 2;
   const DEFAULT_CORPUS_MAP_ATTEMPTS = 3;
@@ -87,12 +93,22 @@
       generationStrategy: String(
         input.generationStrategy || "text-map-reduce-v1"
       ),
+      generationContractVersion: Number(input.generationContractVersion) || 0,
       nativePdfSchemaVersion: Number(input.nativePdfSchemaVersion) || 0,
       nativePdfPromptVersion: String(
         input.nativePdfPromptVersion || "not-applicable"
       ),
       nativePdfModelSignature: String(
         input.nativePdfModelSignature || "not-applicable"
+      ),
+      combinedTextMaxCharacters:
+        Math.max(0, Number(input.combinedTextMaxCharacters) || 0),
+      combinedTextSchemaVersion: Number(input.combinedTextSchemaVersion) || 0,
+      combinedTextPromptVersion: String(
+        input.combinedTextPromptVersion || "not-applicable"
+      ),
+      combinedTextModelSignature: String(
+        input.combinedTextModelSignature || "not-applicable"
       ),
       sourceArtifactSchemaVersion: Number(input.sourceArtifactSchemaVersion) || 0,
       extractorVersion: String(input.extractorVersion || "unspecified"),
@@ -108,6 +124,8 @@
       generationStrategy: String(
         value.generationStrategy || "text-map-reduce-v1"
       ),
+      generationContractVersion:
+        Math.max(0, Number(value.generationContractVersion) || 0),
       nativePdfSupported: value.nativePdfSupported === true,
       nativePdfMaxBytes: Math.max(0, Number(value.nativePdfMaxBytes) || 0),
       nativePdfSchemaVersion: Math.max(0, Number(value.nativePdfSchemaVersion) || 0),
@@ -116,6 +134,17 @@
       ),
       nativePdfModelSignature: String(
         value.nativePdfModelSignature || "not-applicable"
+      ),
+      combinedTextSupported: value.combinedTextSupported === true,
+      combinedTextMaxCharacters:
+        Math.max(0, Number(value.combinedTextMaxCharacters) || 0),
+      combinedTextSchemaVersion:
+        Math.max(0, Number(value.combinedTextSchemaVersion) || 0),
+      combinedTextPromptVersion: String(
+        value.combinedTextPromptVersion || "not-applicable"
+      ),
+      combinedTextModelSignature: String(
+        value.combinedTextModelSignature || "not-applicable"
       ),
     };
     const nativeContractValid =
@@ -129,10 +158,23 @@
           /^[a-f0-9]{32,128}$/i.test(contract.nativePdfModelSignature)
         ))
       );
+    const combinedTextContractValid =
+      contract.generationStrategy !== PAPER_CARD_GENERATION_STRATEGY ||
+      (
+        contract.generationContractVersion > 0 &&
+        contract.combinedTextSchemaVersion > 0 &&
+        contract.combinedTextPromptVersion &&
+        contract.combinedTextPromptVersion !== "not-applicable" &&
+        (!contract.combinedTextSupported || (
+          contract.combinedTextMaxCharacters > 0 &&
+          /^[a-f0-9]{32,128}$/i.test(contract.combinedTextModelSignature)
+        ))
+      );
     return contract.schemaVersion > 0 &&
       contract.promptVersion &&
       /^[a-f0-9]{32,128}$/i.test(contract.modelSignature) &&
-      nativeContractValid
+      nativeContractValid &&
+      combinedTextContractValid
       ? contract
       : null;
   }
@@ -280,6 +322,7 @@
     if (normalized.startsWith("protocols/")) return "protocol";
     if (normalized.startsWith("literature/") && PAPER_EXTENSIONS.has(extension)) return "paper";
     if (PAPER_EXTENSIONS.has(extension)) return "other";
+    if (!normalized.startsWith(".") && ["md", "txt", "html", "json"].includes(extension)) return "document";
     return null;
   }
 
@@ -287,7 +330,7 @@
     return [
       normalizePath(entry.relativePath || entry.path),
       Number(entry.size ?? entry.sizeBytes ?? entry.size_bytes) || 0,
-      Number(entry.lastModified ?? entry.mtimeNs ?? entry.mtime_ns) || 0,
+      String(entry.mtimeNs ?? entry.mtime_ns ?? entry.lastModified ?? 0),
       entry.filesystemFileId || entry.filesystem_file_id || "",
     ].join("|");
   }
@@ -595,6 +638,7 @@
       `topic_id: ${markdownScalar(topic.topicId)}`,
       markdownList("parent_topics", topic.parentTopicIds),
       markdownList("paper_ids", topic.paperIds),
+      `source_versions: ${JSON.stringify(topic.sourceVersions || {})}`,
       `summary_status: ${markdownScalar(topic.summaryStatus)}`,
       `summary_version: ${markdownScalar(topic.summaryVersion)}`,
       "authoritative: false",
@@ -610,7 +654,7 @@
       "",
       "# Current Topic Synthesis",
       "",
-      topic.summary || "Not generated. Topic summaries are refreshed lazily.",
+      topic.summaryStatus === "ready" && topic.summary ? topic.summary : "Topic summary is stale or not generated; retrieve current source evidence.",
     ].join("\n").trim()}\n`;
   }
 
@@ -644,6 +688,7 @@
     labelsFromCard(card) {
       return uniqueStrings([
         ...(card.topics || []),
+        ...(card.methods || []).filter((method) => /enzyme engineering|protein engineering|strain engineering|fermentation/i.test(method)).slice(0, 8),
         ...(card.proteins || []).slice(0, 12),
         ...(card.genes || []).slice(0, 12),
         ...(card.metabolites || []).slice(0, 12),
@@ -728,6 +773,7 @@
       for (const topic of this.topics) {
         if (!topic.paperIds.includes(source.sourceId) || nextIds.has(topic.topicId)) continue;
         topic.paperIds = topic.paperIds.filter((paperId) => paperId !== source.sourceId);
+        if (topic.sourceVersions) delete topic.sourceVersions[source.sourceId];
         topic.summaryStatus = "stale";
         topic.updatedAt = nowIso(this.now);
         affected.add(topic.topicId);
@@ -753,6 +799,7 @@
         }
         topic.parentTopicIds = uniqueStrings([...topic.parentTopicIds, ...parentTopicIds], 10);
         topic.paperIds = uniqueStrings([...topic.paperIds, source.sourceId], 10000);
+        topic.sourceVersions = { ...topic.sourceVersions, [source.sourceId]: source.contentHash };
         topic.summaryStatus = "stale";
         topic.updatedAt = nowIso(this.now);
         affected.add(topicId);
@@ -760,6 +807,7 @@
           const parent = this.topics.find((item) => item.topicId === parentId);
           if (parent) {
             parent.paperIds = uniqueStrings([...parent.paperIds, source.sourceId], 10000);
+            parent.sourceVersions = { ...parent.sourceVersions, [source.sourceId]: source.contentHash };
             parent.summaryStatus = "stale";
             parent.updatedAt = nowIso(this.now);
           }
@@ -779,6 +827,7 @@
       for (const topic of this.topics) {
         if (!topic.paperIds.includes(paperId)) continue;
         topic.paperIds = topic.paperIds.filter((value) => value !== paperId);
+        if (topic.sourceVersions) delete topic.sourceVersions[paperId];
         topic.summaryStatus = "stale";
         topic.updatedAt = nowIso(this.now);
         affected.push(topic.topicId, ...(topic.parentTopicIds || []));
@@ -852,7 +901,6 @@
 
     async reconcile(changes = {}) {
       const sourceIds = uniqueStrings([
-        ...(changes.dirty || []),
         ...(changes.missing || []),
       ], 10000);
       if (!sourceIds.length) return { removedPaperIds: [], removedExperimentIds: [] };
@@ -890,6 +938,59 @@
         );
       }
       return { removedPaperIds: paperIds, removedExperimentIds: experimentIds };
+    }
+
+    async removeDerivedSourceArtifacts(source, options = {}) {
+      const collections = source.sourceKind === "paper"
+        ? [KNOWLEDGE_COLLECTIONS.literatureEvidence, KNOWLEDGE_COLLECTIONS.paperCards, KNOWLEDGE_COLLECTIONS.topics]
+        : source.sourceKind === "experiment" ? [KNOWLEDGE_COLLECTIONS.experimentNotes] : [KNOWLEDGE_COLLECTIONS.projectMemory];
+      this.knowledgeService?.blockCollections?.(collections);
+      // Only host-owned derived paths are removable. Original files and historical
+      // workflow journals are never deletion targets.
+      for (const artifact of Object.values(source.artifacts || {})) {
+        if (artifact?.path?.startsWith(".biodesign/") && !artifact.path.startsWith(WORKFLOW_DIRECTORY)) {
+          await removeWorkspaceFileIfPresent(this.workspace, artifact.path);
+        }
+      }
+      for (const path of [source.legacy?.paperCardPath, source.legacy?.summaryPath,
+        `.biodesign/literature/summaries/${source.sourceId}.json`,
+        `.biodesign/literature/cache/${source.sourceId}.json`]) {
+        if (path?.startsWith(".biodesign/literature/")) await removeWorkspaceFileIfPresent(this.workspace, path);
+      }
+      if (source.sourceKind === "paper") {
+        await this.removePaperArtifacts(source.sourceId);
+        if (this.knowledgeService?.available) {
+          await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.literatureEvidence);
+          await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.paperCards);
+          await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.topics);
+        }
+      } else if (source.sourceKind === "experiment") {
+        await this.removeExperimentArtifact(source.sourceId);
+        await this.corpusWorkflows?.invalidateForSources?.([source.sourceId], "experiment_source_changed_or_removed");
+      } else {
+        await removeWorkspaceFileIfPresent(this.workspace, `${KNOWLEDGE_PATHS.projectMemory}/source-${source.sourceId}.md`);
+        if (this.knowledgeService?.available) await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.projectMemory);
+      }
+      source.artifacts = {};
+      source.legacy = {};
+      const state = this.workspace.state;
+      if (state) {
+        for (const key of ["activePaperIds", "activeExperimentIds"]) {
+          const active = state.agent?.sideChat;
+          if (Array.isArray(active?.[key])) active[key] = active[key].filter((id) => id !== source.sourceId);
+        }
+        for (const record of state.memory?.records || []) {
+          if (record.sourceIds?.includes(source.sourceId) || record.provenance?.sourceIds?.includes(source.sourceId) || record.experimentIds?.some((id) => id.startsWith(`${source.sourceId}:`))) {
+            record.status = "stale";
+            if (/^[A-Za-z0-9_.:-]+$/.test(record.memoryId || "")) await removeWorkspaceFileIfPresent(this.workspace, `${KNOWLEDGE_PATHS.projectMemory}/${record.memoryId}.md`);
+          }
+        }
+      }
+      if (this.knowledgeService?.available && state?.memory?.records?.some((record) => record.status === "stale")) await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.projectMemory);
+      if (this.knowledgeService?.collectionsBlocked?.(collections)) {
+        throw new SourceSystemError("KNOWLEDGE_INDEX_NOT_READY", "Removed source indexes are awaiting a successful update.");
+      }
+      if (options.persist !== false) await this.registry.persist();
     }
   }
 
@@ -1084,9 +1185,14 @@
       modelSignature: card.modelSignature,
       promptVersion: card.promptVersion,
       generationStrategy: card.generationStrategy,
+      generationContractVersion: card.generationContractVersion,
       nativePdfSchemaVersion: card.nativePdfSchemaVersion,
       nativePdfPromptVersion: card.nativePdfPromptVersion,
       nativePdfModelSignature: card.nativePdfModelSignature,
+      combinedTextMaxCharacters: card.combinedTextMaxCharacters,
+      combinedTextSchemaVersion: card.combinedTextSchemaVersion,
+      combinedTextPromptVersion: card.combinedTextPromptVersion,
+      combinedTextModelSignature: card.combinedTextModelSignature,
       sourceArtifactSchemaVersion: card.source?.artifactSchemaVersion,
       extractorVersion: card.source?.extractorVersion,
     });
@@ -1116,9 +1222,20 @@
         cardContract.promptVersion !== expectedContract.promptVersion ||
         cardContract.modelSignature !== expectedContract.modelSignature ||
         cardContract.generationStrategy !== expectedContract.generationStrategy ||
+        cardContract.generationContractVersion !==
+          expectedContract.generationContractVersion ||
         cardContract.nativePdfSchemaVersion !== expectedContract.nativePdfSchemaVersion ||
         cardContract.nativePdfPromptVersion !== expectedContract.nativePdfPromptVersion ||
-        cardContract.nativePdfModelSignature !== expectedContract.nativePdfModelSignature
+        cardContract.nativePdfModelSignature !== expectedContract.nativePdfModelSignature ||
+        cardContract.combinedTextSupported !== expectedContract.combinedTextSupported ||
+        cardContract.combinedTextMaxCharacters !==
+          expectedContract.combinedTextMaxCharacters ||
+        cardContract.combinedTextSchemaVersion !==
+          expectedContract.combinedTextSchemaVersion ||
+        cardContract.combinedTextPromptVersion !==
+          expectedContract.combinedTextPromptVersion ||
+        cardContract.combinedTextModelSignature !==
+          expectedContract.combinedTextModelSignature
       )) ||
       card.paperId !== source?.sourceId ||
       card.documentId !== source?.sourceId ||
@@ -1448,6 +1565,7 @@
   class SourceRegistry {
     constructor(options) {
       this.workspace = options.workspace;
+      this.workspaceId = options.workspace.workspace?.workspaceId || options.workspace.workspace?.id;
       this.now = options.now || (() => new Date());
       this.records = [];
       this.loaded = false;
@@ -1499,14 +1617,19 @@
     }
 
     async persist() {
-      await this.workspace.writeJson(SOURCE_PATH, {
+      const write = (this.writeQueue || Promise.resolve()).then(() => {
+        if (this.workspaceId && (this.workspace.workspace?.workspaceId || this.workspace.workspace?.id) !== this.workspaceId) throw new SourceSystemError("OPERATION_ABORTED", "The project changed before registry persistence.");
+        return this.workspace.writeJson(SOURCE_PATH, {
         schemaVersion: SOURCE_REGISTRY_SCHEMA_VERSION,
         sources: this.records,
         aliases: this.aliases || {},
         settings: this.settings || { idleWarmingEnabled: false, idleWarmingConcurrency: 1 },
         metrics: this.metrics,
         updatedAt: nowIso(this.now),
+        });
       });
+      this.writeQueue = write.catch(() => {});
+      await write;
       return this.records;
     }
 
@@ -1556,6 +1679,7 @@
       const started = Date.now();
       await this.load({ legacyDocuments: options.legacyDocuments });
       const relevantFiles = flattenTree(tree).filter((entry) => sourceKindFor(entry.relativePath));
+      const currentPaths = new Set(relevantFiles.map((file) => normalizePath(file.relativePath)));
       const byPath = new Map(this.records.map((source) => [source.path, source]));
       const byFileId = new Map(
         this.records
@@ -1569,7 +1693,8 @@
       for (const file of relevantFiles) {
         const path = normalizePath(file.relativePath);
         const fileId = file.filesystemFileId || null;
-        let source = byPath.get(path) || (fileId ? byFileId.get(fileId) : null);
+        const identityMatch = fileId ? byFileId.get(fileId) : null;
+        let source = byPath.get(path) || (identityMatch && !currentPaths.has(identityMatch.path) && !seen.has(identityMatch.sourceId) ? identityMatch : null);
         const wasMissing = source?.catalogStatus === "missing";
         const signature = statSignatureFor(file);
         if (source && source.path !== path && fileId) {
@@ -1587,7 +1712,7 @@
             displayName: file.name || path.split("/").pop(),
             extension: extensionFor(path),
             sizeBytes: Number(file.size) || 0,
-            mtimeNs: Number(file.lastModified) || 0,
+            mtimeNs: file.mtimeNs ?? (Number(file.lastModified) || 0),
             filesystemFileId: fileId,
             statSignature: signature,
             contentHash: null,
@@ -1608,24 +1733,21 @@
             error: null,
             artifacts: {},
             legacy: {},
+            syncPending: "added",
           };
           this.records.push(source);
           byPath.set(path, source);
           changes.discovered.push(sourceId);
-        } else if (source.statSignature !== signature) {
+        } else if (source.statSignature !== signature || wasMissing) {
           source.catalogStatus = "dirty";
           source.hashStatus = source.contentHash ? "dirty" : "absent";
-          if (source.parseStatus === "ready") source.parseStatus = "stale";
-          if (source.indexStatus === "ready") source.indexStatus = "stale";
-          if (source.qmdLexStatus === "ready") source.qmdLexStatus = "stale";
-          if (source.qmdVectorStatus === "ready") source.qmdVectorStatus = "stale";
           // Canonical Paper Cards are keyed by source identity and content hash.
           // A path or timestamp change is validated by the next content hash and
           // does not itself make the question-independent analysis stale.
-          if (source.structuredDataStatus === "ready") source.structuredDataStatus = "stale";
+          source.syncPending = source.syncPending === "added" ? "added" : "possiblyModified";
           changes.dirty.push(source.sourceId);
         } else {
-          if (source.catalogStatus !== "discovered") source.catalogStatus = "discovered";
+          if (source.hashStatus !== "dirty") source.catalogStatus = "discovered";
           changes.unchanged.push(source.sourceId);
         }
         source.sourceKind = sourceKindFor(path);
@@ -1633,7 +1755,8 @@
         source.displayName = file.name || path.split("/").pop();
         source.extension = extensionFor(path);
         source.sizeBytes = Number(file.size) || 0;
-        source.mtimeNs = Number(file.lastModified) || 0;
+        source.mtimeNs = file.mtimeNs ?? (Number(file.lastModified) || 0);
+        source.mtimeMs = Number(file.lastModified) || 0;
         source.filesystemFileId = fileId;
         source.statSignature = signature;
         source.lastSeenAt = seenAt;
@@ -1644,6 +1767,7 @@
       for (const source of this.records) {
         if (seen.has(source.sourceId) || source.catalogStatus === "missing") continue;
         source.catalogStatus = "missing";
+        source.syncPending = "removed";
         source.hashStatus = source.contentHash ? "stale" : "absent";
         if (source.parseStatus !== "not_started") source.parseStatus = "stale";
         if (source.indexStatus !== "not_started") source.indexStatus = "stale";
@@ -1662,8 +1786,8 @@
       this.metrics.lastStatCalls = relevantFiles.length;
       this.metrics.fullHashCallsDuringReconciliation = 0;
       this.metrics.llmCallsDuringReconciliation = 0;
-      await this.persist();
-      console.info("source_registry_reconciled", {
+      if (changes.discovered.length || changes.dirty.length || changes.missing.length || changes.renamed.length) await this.persist();
+      logRuntime("source_registry_reconciled", {
         durationMs: this.metrics.lastReconciliationMs,
         statCalls: relevantFiles.length,
         fullHashCalls: 0,
@@ -1672,7 +1796,10 @@
         dirty: changes.dirty.length,
         missing: changes.missing.length,
       });
-      return { sources: this.list(), changes, metrics: { ...this.metrics } };
+      return { sources: this.list(), changes, diff: {
+        added: [...changes.discovered], removed: [...changes.missing],
+        possiblyModified: [...changes.dirty], unchanged: changes.unchanged.length,
+      }, metrics: { ...this.metrics } };
     }
 
     async update(sourceId, changes) {
@@ -1772,7 +1899,7 @@
       };
       this.jobs.push(job);
       await this.persist();
-      console.info("source_job_queued", {
+      logRuntime("source_job_queued", {
         jobId: job.jobId,
         jobType: type,
         sourceCount: job.sourceIds.length,
@@ -1782,6 +1909,7 @@
         job.status = "running";
         job.startedAt = nowIso(this.now);
         job.progress.stage = "running";
+        logRuntime("source_job_started", { jobId: job.jobId, jobType: type, sourceCount: job.sourceIds.length });
         await this.persist();
         const report = async (progress) => {
           job.progress = { ...job.progress, ...(progress || {}) };
@@ -1795,7 +1923,7 @@
           job.completedAt = nowIso(this.now);
           if (result?.resultHandle) job.resultHandle = result.resultHandle;
           await this.persist();
-          console.info("source_job_completed", {
+          logRuntime("source_job_completed", {
             jobId: job.jobId,
             jobType: type,
             sourceCount: job.sourceIds.length,
@@ -1806,7 +1934,7 @@
           job.error = compactError(error);
           job.completedAt = nowIso(this.now);
           await this.persist();
-          console.info("source_job_failed", {
+          logRuntime("source_job_failed", {
             jobId: job.jobId,
             jobType: type,
             sourceCount: job.sourceIds.length,
@@ -2217,6 +2345,7 @@
         paperCardCalls: 0,
         paperCardDurationMs: 0,
         nativePaperCardSuccesses: 0,
+        combinedTextPaperCardSuccesses: 0,
         textPaperCardFallbacks: 0,
         textPaperCardFallbackReasons: {},
         cacheHits: 0,
@@ -2244,12 +2373,23 @@
           artifact.modelSignature === expectedContract.modelSignature &&
           String(artifact.generationStrategy || "text-map-reduce-v1") ===
             expectedContract.generationStrategy &&
+          Number(artifact.generationContractVersion) ===
+            expectedContract.generationContractVersion &&
           Number(artifact.nativePdfSchemaVersion) ===
             expectedContract.nativePdfSchemaVersion &&
           String(artifact.nativePdfPromptVersion || "not-applicable") ===
             expectedContract.nativePdfPromptVersion &&
           String(artifact.nativePdfModelSignature || "not-applicable") ===
-            expectedContract.nativePdfModelSignature
+            expectedContract.nativePdfModelSignature &&
+          artifact.combinedTextSupported === expectedContract.combinedTextSupported &&
+          Number(artifact.combinedTextMaxCharacters) ===
+            expectedContract.combinedTextMaxCharacters &&
+          Number(artifact.combinedTextSchemaVersion) ===
+            expectedContract.combinedTextSchemaVersion &&
+          String(artifact.combinedTextPromptVersion || "not-applicable") ===
+            expectedContract.combinedTextPromptVersion &&
+          String(artifact.combinedTextModelSignature || "not-applicable") ===
+            expectedContract.combinedTextModelSignature
         ))
       );
     }
@@ -2451,7 +2591,7 @@
           this.metrics.cacheHits += 1;
           source.lastUsedAt = nowIso(this.now);
           await this.registry.persist();
-          console.info("source_readiness_cache_hit", {
+          logRuntime("source_readiness_cache_hit", {
             sourceId: source.sourceId,
             sourceKind: source.sourceKind,
             capability,
@@ -2491,6 +2631,7 @@
           failed.error = compactError(error);
           if (error?.code === "SOURCE_MISSING") {
             failed.catalogStatus = "missing";
+            failed.syncPending = "removed";
           } else if (error?.code === "SOURCE_CHANGED_DURING_PREPARATION") {
             failed.catalogStatus = "dirty";
             failed.hashStatus = failed.contentHash ? "dirty" : "absent";
@@ -2545,6 +2686,7 @@
       } catch (error) {
         await this.registry.update(source.sourceId, {
           catalogStatus: "missing",
+          syncPending: "removed",
           error: compactError(error),
         });
         throw new SourceSystemError("SOURCE_MISSING", `Source file is unavailable: ${source.path}`, error);
@@ -2568,6 +2710,7 @@
         relativePath: source.path,
         size: file.size,
         lastModified: file.lastModified,
+        mtimeNs: file.mtimeNs,
         filesystemFileId: source.filesystemFileId,
       });
       if (
@@ -2597,6 +2740,7 @@
       );
       if (contentChanged) {
         source.artifacts = {};
+        source.legacy = {};
         source.parseStatus = "not_started";
         source.indexStatus = "not_started";
         source.qmdLexStatus = "not_started";
@@ -2611,7 +2755,8 @@
       source.hashStatus = "ready";
       source.catalogStatus = "discovered";
       source.sizeBytes = Number(file.size) || 0;
-      source.mtimeNs = Number(file.lastModified) || 0;
+      source.mtimeNs = file.mtimeNs ?? (Number(file.lastModified) || 0);
+        source.mtimeMs = Number(file.lastModified) || 0;
       source.statSignature = observedSignature;
       source.lastUsedAt = nowIso(this.now);
       source.error = null;
@@ -2703,6 +2848,7 @@
         source.qmdLexStatus = "failed";
         source.qmdVectorStatus = "failed";
         source.knowledgeError = compactError(error);
+        if (requestContext.strictKnowledgeSync) throw error;
         console.warn("qmd_collection_update_failed", {
           sourceId: source.sourceId,
           collection,
@@ -2751,9 +2897,10 @@
             signal: requestContext.signal,
           });
         }
-        await this.topicService?.updatePaper(source, card);
+        if (requestContext.deferTopicUpdate !== true) await this.topicService?.updatePaper(source, card);
       } catch (error) {
         source.knowledgeError = compactError(error);
+        if (requestContext.strictKnowledgeSync) throw error;
         console.warn("paper_card_knowledge_update_failed", {
           sourceId: source.sourceId,
           code: error?.code || error?.name || "PAPER_CARD_KNOWLEDGE_FAILED",
@@ -2782,6 +2929,7 @@
           });
         } catch (error) {
           source.knowledgeError = compactError(error);
+          if (requestContext.strictKnowledgeSync) throw error;
           console.warn("experiment_note_qmd_update_failed", {
             sourceId: source.sourceId,
             code: error?.code || error?.name || "QMD_UPDATE_FAILED",
@@ -2819,12 +2967,13 @@
         relativePath: source.path,
         size: firstFile.size,
         lastModified: firstFile.lastModified,
+        mtimeNs: firstFile.mtimeNs,
         filesystemFileId: source.filesystemFileId,
       });
       if (currentSignature !== source.statSignature) {
         source.statSignature = currentSignature;
         source.sizeBytes = Number(firstFile.size) || 0;
-        source.mtimeNs = Number(firstFile.lastModified) || 0;
+        source.mtimeNs = firstFile.mtimeNs ?? (Number(firstFile.lastModified) || 0);
         source.catalogStatus = "dirty";
         source.hashStatus = source.contentHash ? "dirty" : "absent";
         await this.registry.persist();
@@ -2908,7 +3057,11 @@
       const contentChanged = Boolean(previousHash && previousHash !== contentHash);
 
       if (contentChanged) {
+        await this.knowledgeLifecycle?.removeDerivedSourceArtifacts({
+          ...source, artifacts: previousDerivedState.artifacts, legacy: previousDerivedState.legacy,
+        }, { persist: false });
         source.artifacts = {};
+        source.legacy = {};
         source.parseStatus = "not_started";
         source.indexStatus = "not_started";
         source.qmdLexStatus = "not_started";
@@ -2922,6 +3075,7 @@
       source.hashStatus = "ready";
       source.catalogStatus = "discovered";
       source.error = null;
+      if (!contentChanged && source.knowledgeSync?.contentHash === contentHash) source.knowledgeSync.statSignature = source.statSignature;
 
       // Timestamp-only changes retain exact derived artifacts after the hash proves
       // content identity. Legacy cards with unknown validation become validated here.
@@ -3002,7 +3156,8 @@
           await report({ stage: "paper-card", completed: 0, total: 1 });
           this.metrics.paperCardCalls += 1;
           const cardStarted = Date.now();
-          const generated = await this.generatePaperCard({
+          let generated;
+          try { generated = await this.generatePaperCard({
             source,
             paperArtifact,
             bytes,
@@ -3017,7 +3172,7 @@
               profile: requestContext.retrievalProfile,
             },
           });
-          this.metrics.paperCardDurationMs += Date.now() - cardStarted;
+          } finally { this.metrics.paperCardDurationMs += Date.now() - cardStarted; }
           generatedPaperCard = generated.card || null;
           const paperCardArtifact = {
             path: generated.path,
@@ -3039,7 +3194,11 @@
               generated.generationStrategy ||
               requestContext.paperCardContract?.generationStrategy ||
               "text-map-reduce-v1",
-            generationMode: generated.generationMode || "text-map-reduce",
+            generationContractVersion: Number(
+              generated.generationContractVersion ||
+              requestContext.paperCardContract?.generationContractVersion
+            ) || 0,
+            generationMode: generated.generationMode || "map-reduce",
             fallbackReason: generated.fallbackReason || null,
             nativePdfSchemaVersion: Number(
               generated.nativePdfSchemaVersion ||
@@ -3052,6 +3211,23 @@
             nativePdfModelSignature:
               generated.nativePdfModelSignature ||
               requestContext.paperCardContract?.nativePdfModelSignature ||
+              "not-applicable",
+            combinedTextSupported:
+              requestContext.paperCardContract?.combinedTextSupported === true,
+            combinedTextMaxCharacters: Math.max(0, Number(
+              requestContext.paperCardContract?.combinedTextMaxCharacters
+            ) || 0),
+            combinedTextSchemaVersion: Number(
+              generated.combinedTextSchemaVersion ||
+              requestContext.paperCardContract?.combinedTextSchemaVersion
+            ) || 0,
+            combinedTextPromptVersion:
+              generated.combinedTextPromptVersion ||
+              requestContext.paperCardContract?.combinedTextPromptVersion ||
+              "not-applicable",
+            combinedTextModelSignature:
+              generated.combinedTextModelSignature ||
+              requestContext.paperCardContract?.combinedTextModelSignature ||
               "not-applicable",
             sourceArtifactSchemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
             extractorVersion: SOURCE_EXTRACTOR_VERSION,
@@ -3074,7 +3250,9 @@
           source.artifacts.paperCard = paperCardArtifact;
           if (paperCardArtifact.generationMode === "native-pdf") {
             this.metrics.nativePaperCardSuccesses += 1;
-          } else if (paperCardArtifact.generationMode === "text-map-reduce") {
+          } else if (paperCardArtifact.generationMode === "combined-text") {
+            this.metrics.combinedTextPaperCardSuccesses += 1;
+          } else if (paperCardArtifact.generationMode === "map-reduce") {
             this.metrics.textPaperCardFallbacks += 1;
             const reason = paperCardArtifact.fallbackReason || "not-attempted";
             this.metrics.textPaperCardFallbackReasons[reason] =
@@ -3113,21 +3291,17 @@
       }
 
       source.sizeBytes = Number(finalFile.size) || 0;
-      source.mtimeNs = Number(finalFile.lastModified) || 0;
+      source.mtimeNs = finalFile.mtimeNs ?? (Number(finalFile.lastModified) || 0);
+      source.mtimeMs = Number(finalFile.lastModified) || 0;
       source.statSignature = statSignatureFor({
         relativePath: source.path,
         size: finalFile.size,
         lastModified: finalFile.lastModified,
+        mtimeNs: finalFile.mtimeNs,
         filesystemFileId: source.filesystemFileId,
       });
       source.lastUsedAt = nowIso(this.now);
-      if (contentChanged && source.sourceKind === "paper" && !needsPaper) {
-        await this.knowledgeLifecycle?.removePaperArtifacts(source.sourceId);
-      }
-      if (contentChanged && source.sourceKind === "experiment" && !needsExperiment) {
-        await this.knowledgeLifecycle?.removeExperimentArtifact(source.sourceId);
-      }
-      if (needsPaper && paperArtifact) {
+      if (needsPaper && paperArtifact && (capability !== "paper_card" || source.artifacts?.knowledgeMarkdown?.contentHash !== source.contentHash)) {
         await report({ stage: "markdown", completed: 0, total: 1 });
         await this.refreshPaperEvidenceKnowledge(source, paperArtifact, requestContext);
       }
@@ -3138,7 +3312,7 @@
         await this.refreshPaperCardKnowledge(source, generatedPaperCard, requestContext);
       }
       await this.registry.persist();
-      console.info("source_readiness_transition", {
+      logRuntime("source_readiness_transition", {
         sourceId: source.sourceId,
         sourceKind: source.sourceKind,
         capability,
@@ -3351,7 +3525,7 @@
         validationStatus: "validated",
       };
       await this.registry.persist();
-      console.info("native_pdf_analysis_completed", {
+      logRuntime("native_pdf_analysis_completed", {
         paperId,
         model: result.modelVersion,
         pdfBytes: sourceBytes.bytes.byteLength,
@@ -3555,7 +3729,7 @@
           }
           for (const result of qmd?.results || []) {
             const source = this.registry.get(result.paperId);
-            if (!source || source.sourceKind !== "paper") continue;
+            if (!source || source.sourceKind !== "paper" || source.catalogStatus === "dirty" || source.indexStatus !== "ready") continue;
             const item = this.paperMetadata(source);
             const best = result.matchedSections?.[0] || {};
             readyResults.push({
@@ -3580,7 +3754,7 @@
           }
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED") throw error;
-          console.info("qmd_literature_search_fallback", {
+          logRuntime("qmd_literature_search_fallback", {
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
             message: String(error?.message || error).slice(0, 300),
           });
@@ -3773,7 +3947,7 @@
           }
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED") throw error;
-          console.info("qmd_paper_content_fallback", {
+          logRuntime("qmd_paper_content_fallback", {
             paperId,
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
             message: String(error?.message || error).slice(0, 300),
@@ -4104,7 +4278,7 @@
             });
           }
         } catch (error) {
-          console.info("qmd_experiment_discovery_fallback", {
+          logRuntime("qmd_experiment_discovery_fallback", {
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
             message: String(error?.message || error).slice(0, 300),
           });
@@ -4226,7 +4400,7 @@
       }
       const retained = this.workflowSharedPlans.get(planKey);
       if (retained) {
-        console.info("corpus_shared_plan", {
+        logRuntime("corpus_shared_plan", {
           workflowId: journal.workflowId,
           callRole: "search_planner",
           cacheKey: retained.cacheKey,
@@ -4508,7 +4682,7 @@
           statSignature: source.statSignature,
         }))
       );
-      console.info("corpus_workflow_update_diff", {
+      logRuntime("corpus_workflow_update_diff", {
         previousWorkflowId: parent.workflowId,
         previousSnapshot: (parent.snapshot || []).length,
         currentPapers: currentSources.length,
@@ -4524,7 +4698,7 @@
         !diff.modifiedPaperIds.length
       ) {
         const status = this.workflowStatusFromJournal(parent);
-        console.info("corpus_workflow_update_reused", {
+        logRuntime("corpus_workflow_update_reused", {
           previousWorkflowId: parent.workflowId,
           currentPapers: currentSources.length,
           reusedMaps: Object.keys(parent.maps || {}).length,
@@ -4572,7 +4746,7 @@
         ? await this.results.read(workflow.resultHandle)
         : workflow;
       const status = this.workflowStatusFromJournal(value);
-      console.info("corpus_workflow_update_completed", {
+      logRuntime("corpus_workflow_update_completed", {
         previousWorkflowId: parent.workflowId,
         workflowId: value.workflowId,
         previousSnapshot: (parent.snapshot || []).length,
@@ -4623,7 +4797,7 @@
         ? await this.results.read(workflow.resultHandle)
         : workflow;
       const status = this.workflowStatusFromJournal(workflowValue);
-      console.info("corpus_map_recovery_completed", {
+      logRuntime("corpus_map_recovery_completed", {
         workflowId: journal.workflowId,
         retriedPaperIds: retryPaperIds,
         papersAnalyzed: status.papersAnalyzed,
@@ -4672,6 +4846,19 @@
 
     async executeMapWorker(workerInput, options = {}) {
       if (!this.mapWorker) return null;
+      const finish = root.BioDesignRuntimeLog?.begin("corpus-mapper", { agent: "CorpusMapper", paperId: workerInput.paperId,
+        turnId: options.turnId, workflowId: options.workflowId });
+      try {
+        const result = await this.executeMapWorkerInternal(workerInput, options);
+        finish?.("completed");
+        return result;
+      } catch (error) {
+        finish?.(error?.code === "OPERATION_ABORTED" ? "cancelled" : "failed", { code: error?.code || "CORPUS_MAP_FAILED" });
+        throw error;
+      }
+    }
+
+    async executeMapWorkerInternal(workerInput, options = {}) {
       const diagnostics = [];
       let lastError = null;
       for (let attempt = 1; attempt <= this.mapAttempts; attempt += 1) {
@@ -4703,7 +4890,7 @@
             schemaValidationDetails: [],
           };
           diagnostics.push(record);
-          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          logRuntime("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
           return { mapped, diagnostics, generationMode: "structured-map" };
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED") throw error;
@@ -4722,7 +4909,7 @@
             ),
           };
           diagnostics.push(record);
-          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          logRuntime("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
           if (error?.code === "InvalidLlmResponse") break;
           if (!isRetryableCorpusMapError(error) || attempt >= this.mapAttempts) break;
         }
@@ -4771,7 +4958,7 @@
             schemaValidationDetails: [],
           };
           diagnostics.push(record);
-          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          logRuntime("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
           return { mapped, diagnostics, generationMode: "native-pdf-fallback" };
         } catch (nativeError) {
           if (nativeError?.code === "OPERATION_ABORTED") throw nativeError;
@@ -4789,7 +4976,7 @@
             ),
           };
           diagnostics.push(record);
-          console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+          logRuntime("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
         }
       }
 
@@ -4845,7 +5032,7 @@
           schemaValidationDetails: [],
         };
         diagnostics.push(record);
-        console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+        logRuntime("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
         return { mapped, diagnostics, generationMode: "source-evidence-fallback" };
       } catch (fallbackError) {
         if (fallbackError?.code === "OPERATION_ABORTED") throw fallbackError;
@@ -4863,7 +5050,7 @@
           ),
         };
         diagnostics.push(record);
-        console.info("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
+        logRuntime("corpus_map_attempt", { paperId: workerInput.paperId, ...record });
         const exhausted = new SourceSystemError(
           String(lastError?.code || fallbackError?.code || "MAP_FAILED").slice(0, 120),
           String(lastError?.message || fallbackError?.message || "Corpus mapping failed.").slice(0, 1000)
@@ -5188,6 +5375,12 @@
         nativePdfEndpointCalls: 0,
         nativePdfProviderAttempts: 0,
         nativePaperCardSuccesses: 0,
+        combinedTextEndpointCalls: 0,
+        combinedTextProviderAttempts: 0,
+        combinedTextPaperCardSuccesses: 0,
+        mapReduceOperations: 0,
+        mapReduceChunkCalls: 0,
+        mapReduceSynthesisCalls: 0,
         textFallbackOperations: 0,
         textFallbackReasons: {},
         localQuestionProjections: 0,
@@ -5399,7 +5592,12 @@
           const logicalGenerationIds = new Set();
           const nativeRequestIds = new Set();
           const nativeSuccessIds = new Set();
+          const combinedTextRequestIds = new Set();
+          const combinedTextSuccessIds = new Set();
+          const mapReduceIds = new Set();
           const textFallbackIds = new Set();
+          const nativeProviderAttemptsBySource = new Map();
+          const combinedProviderAttemptsBySource = new Map();
           const canonicalReadiness = await this.preparation.ensureSourceReady(
             readySourceIds,
             "paper_card",
@@ -5414,7 +5612,11 @@
                   "native-paper-card",
                   "native-paper-card-request",
                   "native-paper-card-success",
-                  "paper-card-fallback",
+                  "native-paper-card-failure",
+                  "combined-paper-card-request",
+                  "combined-paper-card-success",
+                  "combined-paper-card-failure",
+                  "map-reduce-start",
                   "summarizing",
                   "synthesizing",
                   "complete",
@@ -5428,19 +5630,60 @@
                 }
                 if (sourceId && event.stage === "native-paper-card-success") {
                   nativeSuccessIds.add(sourceId);
-                  journal.processingAccounting.nativePdfProviderAttempts +=
-                    Math.max(0, Number(event.providerAttempts) || 0);
                 }
-                if (sourceId && event.stage === "paper-card-fallback") {
+                if (sourceId && event.stage === "combined-paper-card-request") {
+                  combinedTextRequestIds.add(sourceId);
+                }
+                if (sourceId && event.stage === "combined-paper-card-success") {
+                  combinedTextSuccessIds.add(sourceId);
+                }
+                if (sourceId && event.stage === "map-reduce-start") {
+                  mapReduceIds.add(sourceId);
                   textFallbackIds.add(sourceId);
-                  const reason = String(event.fallbackReason || "unknown").slice(0, 120);
+                  const reason = String(
+                    event.mapReduceReason || event.fallbackReason || "unknown"
+                  ).slice(0, 120);
                   journal.processingAccounting.textFallbackReasons[reason] =
                     (journal.processingAccounting.textFallbackReasons[reason] || 0) + 1;
-                  journal.processingAccounting.nativePdfProviderAttempts +=
-                    Math.max(0, Number(event.providerAttempts) || 0);
                 }
                 if (sourceId && event.stage === "complete") {
                   canonicalPaperProgressIds.add(sourceId);
+                }
+                if (sourceId && (
+                  event.nativePdfProviderAttempts !== undefined ||
+                  event.accounting?.nativePdfProviderAttempts !== undefined
+                )) {
+                  nativeProviderAttemptsBySource.set(sourceId, Math.max(
+                    nativeProviderAttemptsBySource.get(sourceId) || 0,
+                    Number(
+                      event.nativePdfProviderAttempts ??
+                      event.accounting?.nativePdfProviderAttempts
+                    ) || 0
+                  ));
+                }
+                if (sourceId && (
+                  event.combinedTextProviderAttempts !== undefined ||
+                  event.accounting?.combinedTextProviderAttempts !== undefined
+                )) {
+                  combinedProviderAttemptsBySource.set(sourceId, Math.max(
+                    combinedProviderAttemptsBySource.get(sourceId) || 0,
+                    Number(
+                      event.combinedTextProviderAttempts ??
+                      event.accounting?.combinedTextProviderAttempts
+                    ) || 0
+                  ));
+                }
+                journal.processingAccounting.nativePdfProviderAttempts =
+                  [...nativeProviderAttemptsBySource.values()]
+                    .reduce((sum, value) => sum + value, 0);
+                journal.processingAccounting.combinedTextProviderAttempts =
+                  [...combinedProviderAttemptsBySource.values()]
+                    .reduce((sum, value) => sum + value, 0);
+                if (sourceId && event.stage === "complete") {
+                  journal.processingAccounting.mapReduceChunkCalls +=
+                    Math.max(0, Number(event.accounting?.mapReduceChunkCalls) || 0);
+                  journal.processingAccounting.mapReduceSynthesisCalls +=
+                    Math.max(0, Number(event.accounting?.mapReduceSynthesisCalls) || 0);
                 }
                 journal.processingAccounting.logicalPaperCardGenerations =
                   logicalGenerationIds.size;
@@ -5448,9 +5691,16 @@
                   nativeRequestIds.size;
                 journal.processingAccounting.nativePaperCardSuccesses =
                   nativeSuccessIds.size;
+                journal.processingAccounting.combinedTextEndpointCalls =
+                  combinedTextRequestIds.size;
+                journal.processingAccounting.combinedTextPaperCardSuccesses =
+                  combinedTextSuccessIds.size;
+                journal.processingAccounting.mapReduceOperations =
+                  mapReduceIds.size;
                 journal.processingAccounting.textFallbackOperations =
                   textFallbackIds.size;
-                const fallbackChunkProgress = event.stage === "summarizing"
+                const fallbackChunkProgress =
+                  event.stage === "summarizing" && event.route === "map-reduce"
                   ? {
                       chunksCompleted: Math.max(0, Number(event.completed) || 0),
                       chunksTotal: Math.max(0, Number(event.total) || 0),
@@ -5465,11 +5715,9 @@
                     : "canonical-paper-validation",
                   sourceStage: event.stage,
                   message: creating
-                    ? event.stage === "paper-card-fallback"
-                      ? "Falling back to parsed-text paper analysis"
-                      : event.stage === "summarizing"
-                        ? "Creating paper analysis from parsed text"
-                        : "Creating paper analysis"
+                    ? event.route === "combined-text"
+                      ? "Creating paper analysis from extracted text"
+                      : "Creating paper analysis"
                     : "Validating cached paper analysis",
                   completed: canonicalPaperProgressIds.size,
                   total: readySourceIds.length,
@@ -5478,6 +5726,7 @@
                   ...fallbackChunkProgress,
                   providerRequest: [
                     "native-paper-card-request",
+                    "combined-paper-card-request",
                     "summarizing",
                     "synthesizing",
                   ].includes(event.stage),
@@ -5526,6 +5775,9 @@
               papersCompleted: canonicalPaperProgressIds.size,
               papersTotal: readySourceIds.length,
               providerRequest: false,
+              route: reused
+                ? "cache-hit"
+                : String(source?.artifacts?.paperCard?.generationMode || ""),
             }));
           }
         } catch (error) {
@@ -5770,7 +6022,7 @@
             }
           }
           if (!journal.maps[sourceId] || journal.maps[sourceId].contentHash !== readySource.contentHash) {
-            console.info("corpus_paper_retrieval", {
+            logRuntime("corpus_paper_retrieval", {
               workflowId,
               callRole: "paper_retrieval",
               paperId: sourceId,
@@ -5830,7 +6082,7 @@
             // accumulated tool history enters the worker context.
             let mappedExecution = null;
             if (this.mapWorker) {
-              console.info("corpus_mapper", {
+              logRuntime("corpus_mapper", {
                 workflowId,
                 callRole: "corpus_mapper",
                 paperId: sourceId,
@@ -6277,7 +6529,7 @@
           }
         }
       }
-      console.info("corpus_workflow_completed", {
+      logRuntime("corpus_workflow_completed", {
         workflowId,
         papersIncluded: journal.reduction.papersIncluded,
         papersFailed: journal.reduction.papersFailed,
@@ -6623,7 +6875,7 @@
           })
         : [];
       const after = await this.getStatus(options);
-      console.info("managed_local_worker_restarted", {
+      logRuntime("managed_local_worker_restarted", {
         workerType: after.workerType,
         generation: after.generation,
         resumedJobCount: resumedJobs.length,

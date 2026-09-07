@@ -15,7 +15,7 @@ Electron never calls Requesty directly. The retired `worker/` implementation con
 - `REQUESTY_SEARCH_PLANNER_MODEL` - optional model for strict search-plan output. Falls back to `REQUESTY_MODEL` when absent.
 - `REQUESTY_RERANK_MODEL` - optional model for strict candidate reranking output. Falls back to `REQUESTY_MODEL` when absent.
 - `REQUESTY_PDF_MODEL` - optional PDF-capable Requesty model. Configuring it enables PDF capability unless `REQUESTY_PDF_ENABLED=false`. OpenAI PDF models are routed through the required `openai-responses/` prefix without changing the general text model.
-- `REQUESTY_PDF_ENABLED`, `REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA`, and `REQUESTY_PDF_SUPPORTS_JSON_SCHEMA` - explicit capability declarations; unsupported or undeclared combinations take the conservative fallback. Per-model overrides may be supplied with `REQUESTY_MODEL_CAPABILITIES_JSON`.
+- `REQUESTY_PDF_ENABLED`, `REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA`, and `REQUESTY_PDF_SUPPORTS_JSON_SCHEMA` - explicit capability declarations. Combined-text Paper Cards use `json_schema` when declared, otherwise `json_object` with the complete schema in the prompt and the same schema/provenance validation. Missing strict-schema support does not disable text cards. Per-model overrides may be supplied with `REQUESTY_MODEL_CAPABILITIES_JSON`.
 - `ADMIN_ACCOUNT` - Existing stable login account used in the authenticated OSS ownership prefix.
 - `ADMIN_PASSWORD_HASH` - Existing bcrypt password hash.
 - `JWT_SECRET` - Existing JWT signing secret.
@@ -40,6 +40,8 @@ npm test
 ```
 
 ## Manual Alibaba Cloud Function Compute Deployment
+
+For live streamed answers, use the [streaming deployment instructions](STREAMING_DEPLOYMENT.md). Streaming requires the included HTTP server on an FC custom runtime. The built-in Node.js deployment below continues to return buffered JSON.
 
 1. Create a Function Compute service and function in Alibaba Cloud.
 2. Choose a Node.js 20 runtime.
@@ -92,6 +94,10 @@ No production dependency was added for the local-workspace routes. The existing 
 
 ## Local-Workspace Literature Endpoints
 
+Paper Card output follows [Requesty's structured-output contract](https://docs.requesty.ai/features/structured-outputs): strict mode sends the raw canonical schema in `response_format.json_schema`, with `strict: true`; the fallback sends `response_format: {type: "json_object"}` and includes that complete schema in the system prompt. Both modes validate field types, required fields, extra keys and exact source identity before returning a card. The Electron host also verifies quoted page evidence before persisting reusable evidence findings. The mode is included in the provider configuration signature, so a changed output contract cannot reuse an incompatible cached card. A model-support flag controls decoding mode rather than whether cards are available.
+
+The obsolete `.biodesign/literature/cache` directory is no longer created when initializing or opening a workspace. Parsed source caches live in `.biodesign/sources/artifacts`; canonical cards still live in `.biodesign/literature/summaries`. Existing legacy-file cleanup remains for older workspaces.
+
 The source-worker endpoints require the existing JWT bearer token and are stateless with respect to project storage:
 
 - `GET /api/knowledge/config` returns opaque planner/ranker configuration signatures plus prompt/schema versions for deterministic client-cache invalidation. It never returns a model name or secret.
@@ -102,7 +108,7 @@ The source-worker endpoints require the existing JWT bearer token and are statel
 - `POST /api/corpus/map-paper` accepts one bounded question plus up to eight evidence excerpts for one paper and returns a host-validated, query-specific map note with only supplied evidence references. It requests strict Requesty `json_schema` output when advertised and falls back to `json_object` plus the same host validation.
 - `POST /api/literature/analyze-pdf-native` accepts one bounded task and one private base64 PDF (20 MB maximum), sends Requesty Chat Completions an `input_file` block, and returns a validated derived paper analysis or corpus map. It never accepts or creates a public URL.
 
-Every route above reuses the existing login/JWT validation, CORS policy, Requesty helper, structured-output validation, two-attempt transient retry policy, logging, and error sanitization. The knowledge routes reject unknown input/output keys. They use values imported from `shared/retrieval-contract.js`, which centralizes the pre-existing Electron/QMD/context limits without changing them.
+Every route above reuses the existing login/JWT validation, CORS policy, Requesty helper, structured-output validation, bounded transient retries, logging, and error sanitization. Text-endpoint HTTP 429 responses return to the client scheduler with their provider status and reset delay instead of retrying early in FC. Include `shared/provider-rate-limit.js` in the deployment ZIP. The knowledge routes reject unknown input/output keys. They use values imported from `shared/retrieval-contract.js`, which centralizes the pre-existing Electron/QMD/context limits without changing them.
 
 None of these routes accepts an OSS key, a directory handle, or a project folder, and none reads or writes OSS. The planning route receives no evidence. The reranking route rejects absolute paths, bearer/JWT-like content, PDF data, and requests beyond the existing aggregate context/request budgets. Candidate IDs and evidence handles are non-authoritative references; Electron reconstructs every final result from its local candidate object. The native-PDF route accepts PDF bytes only as an authenticated, request-scoped base64 data URI; filenames are reduced to their basename and raw PDF content is not logged.
 

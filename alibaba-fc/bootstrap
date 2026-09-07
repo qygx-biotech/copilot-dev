@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")"
+if [ -x /var/fc/lang/nodejs20/bin/node ]; then
+  exec /var/fc/lang/nodejs20/bin/node src/index.js
+elif [ -x /opt/nodejs20/bin/node ]; then
+  exec /opt/nodejs20/bin/node src/index.js
+else
+  exec node src/index.js
+fi

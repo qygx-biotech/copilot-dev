@@ -174,6 +174,8 @@ async function runSmoke(window) {
     loginVisible: !document.getElementById("loginPanel")?.hidden,
     aboutButtonCount: document.querySelectorAll(".about-trigger").length,
     betaButtonPresent: Boolean(document.getElementById("betaUpdateButton")),
+    debugConsolePresent: Boolean(document.getElementById("debugConsoleOutput")) && typeof window.BioDesignRuntimeLog?.record === "function",
+    debugConsoleButtonCount: document.querySelectorAll("[data-debug-open]").length,
     betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true,
     retrievalProfilePresent: Boolean(document.getElementById("retrievalProfileSelect")),
     retrievalProfileValue: document.getElementById("retrievalProfileSelect")?.value,
@@ -190,6 +192,7 @@ async function runSmoke(window) {
       acceptedSmokeTitles.has(renderer.title) &&
       renderer.aboutButtonCount === 3 &&
       renderer.betaButtonPresent &&
+      renderer.debugConsolePresent && renderer.debugConsoleButtonCount === 3 &&
       renderer.betaButtonDisabled === !betaUpdates.eligible &&
       renderer.retrievalProfilePresent &&
       renderer.retrievalProfileValue === "light" &&

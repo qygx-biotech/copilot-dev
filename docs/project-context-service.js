@@ -20,6 +20,9 @@
 
   const citationApi = root?.BioDesignSourceCitations ||
     (typeof require === "function" ? require("../shared/source-citations.js") : {});
+  const chatImages = root?.BioDesignChatImages ||
+    (typeof require === "function" ? require("../shared/chat-images.js") : {});
+  const pipelineApi = root?.AgentRequestPipeline ? root : (typeof require === "function" ? require("./request-pipeline.js") : {});
   const CHAT_SCHEMA_VERSION = 1;
   const CONTEXT_LIMITS = {
     maxInventoryFiles: 500,
@@ -437,7 +440,7 @@
       .slice(-limits.maxConversationMessages * 2)
       .map((message) => ({
         role: message.role,
-        content: message.content.trim().slice(0, limits.maxConversationMessageCharacters),
+        content: (message.role === "user" ? chatImages.combineQuestion(message.content.trim(), message.imageUnderstanding) : message.content.trim()).slice(0, limits.maxConversationMessageCharacters),
       }));
     const selected = [];
     let remaining = limits.maxConversationCharacters;
@@ -487,6 +490,10 @@
         id: message.id,
         role: message.role,
         content: message.content.trim(),
+        ...(message.role === "user" && chatImages.normalizeAttachments(message.images).length ? {
+          images: chatImages.normalizeAttachments(message.images),
+          ...(chatImages.normalizeUnderstanding(message.imageUnderstanding) ? { imageUnderstanding: chatImages.normalizeUnderstanding(message.imageUnderstanding) } : {}),
+        } : {}),
         ...(message.role === "assistant" && Array.isArray(message.activity)
           ? {
               activity: message.activity
@@ -600,7 +607,7 @@
       operations: [...new Set((Array.isArray(value.operations) ? value.operations : []).filter((item) => semanticApi.OPERATIONS.includes(item)))],
       capabilitiesUsed: [...new Set((Array.isArray(value.capabilitiesUsed) ? value.capabilitiesUsed : []).filter((item) => capabilities.has(item)))],
       semanticParserCalls: counter(value.semanticParserCalls),
-      cloudCalls: Object.fromEntries(["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "answer"].map((role) => [role, counter(counts[role])])),
+      cloudCalls: Object.fromEntries(["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "combined_text_paper_card", "image_understanding", "answer"].map((role) => [role, counter(counts[role])])),
     };
   }
 
@@ -698,6 +705,50 @@
       return normalized;
     }
 
+    async saveImageAttachments(images, { signal } = {}) {
+      const workspaceId = this.workspace.workspace?.workspaceId;
+      const ensureCurrent = () => {
+        if (signal?.aborted || this.workspace.workspace?.workspaceId !== workspaceId) throw Object.assign(new Error("Workspace changed."), { code: "OPERATION_ABORTED" });
+      };
+      ensureCurrent();
+      const validated = chatImages.validateImages(images);
+      await this.workspace.ensureDirectory(".biodesign/chat/attachments");
+      const records = [];
+      for (let index = 0; index < validated.length; index++) {
+        ensureCurrent();
+        const attachmentId = this.workspace.createId();
+        const record = chatImages.normalizeAttachments([{ attachmentId, name: validated[index].name, thumbnail: images[index].thumbnail }])[0];
+        if (!record) throw Object.assign(new Error("Invalid image attachment."), { code: "IMAGE_INVALID" });
+        await this.workspace.writeJson(`.biodesign/chat/attachments/${attachmentId}.json`, { schemaVersion: 1, ...validated[index] });
+        ensureCurrent();
+        records.push(record);
+      }
+      return records;
+    }
+
+    async loadImageAttachments(records, { signal } = {}) {
+      const workspaceId = this.workspace.workspace?.workspaceId;
+      const ensureCurrent = () => {
+        if (signal?.aborted || this.workspace.workspace?.workspaceId !== workspaceId) throw Object.assign(new Error("Workspace changed."), { code: "OPERATION_ABORTED" });
+      };
+      ensureCurrent();
+      const normalized = chatImages.normalizeAttachments(records);
+      if (!normalized.length || normalized.length !== records?.length) throw Object.assign(new Error("Image attachments are unavailable."), { code: "IMAGE_MISSING" });
+      const images = [];
+      for (const record of normalized) {
+        try {
+          ensureCurrent();
+          const stored = await this.workspace.readJson(`.biodesign/chat/attachments/${record.attachmentId}.json`);
+          ensureCurrent();
+          images.push({ ...chatImages.validateImages([stored])[0], thumbnail: record.thumbnail });
+        } catch (error) {
+          if (error.code === "OPERATION_ABORTED") throw error;
+          throw Object.assign(new Error("Image attachments are unavailable."), { code: "IMAGE_MISSING" });
+        }
+      }
+      return images;
+    }
+
     async clearActiveConversation() {
       const index = await this.readIndex();
       const activeId = index.activeConversationId;
@@ -732,10 +783,16 @@
       this.knowledgeService = this.sourceSystem?.knowledgeService || null;
       this.limits = { ...CONTEXT_LIMITS, ...(options.limits || {}) };
       this.semanticInterpreter = options.semanticInterpreter || new semanticApi.SemanticInterpreter();
+      this.requestPipeline = options.requestPipeline || (this.sourceSystem && typeof this.workspace.scanDirectoryTree === "function"
+        ? (this.sourceSystem.requestPipeline ||= new pipelineApi.AgentRequestPipeline({ workspace: this.workspace, literature: this.literature, sourceSystem: this.sourceSystem, workspaceSignal: options.workspaceSignal })) : null);
     }
 
     compactKnowledgeHits(payload, kind) {
-      return (payload?.results || []).slice(0, 8).map((result) => ({
+      return (payload?.results || []).filter((result) => {
+        const id = result.sourceId || result.paperId;
+        const source = id && this.sourceRegistry?.get(id, { includeMissing: true });
+        return !source || (source.catalogStatus !== "missing" && source.hashStatus === "ready");
+      }).slice(0, 8).map((result) => ({
         kind,
         sourceId: String(result.sourceId || result.paperId || "").slice(0, 200),
         paperId: String(result.paperId || "").slice(0, 200) || null,
@@ -764,7 +821,7 @@
           });
         }
       };
-      if (PREVIOUS_SYNTHESIS_PATTERN.test(question)) {
+      if (options.evidencePlan ? options.evidencePlan.usePreviousSynthesis : PREVIOUS_SYNTHESIS_PATTERN.test(question)) {
         await run("synthesis", () => this.knowledgeService.searchPreviousSyntheses({
           query: question,
           mode: "fast",
@@ -780,7 +837,7 @@
           signal: options.signal,
         }));
       }
-      if (TOPIC_NAVIGATION_PATTERN.test(question) && questionMayNeedLiterature(question)) {
+      if (options.evidencePlan ? options.evidencePlan.useTopics : TOPIC_NAVIGATION_PATTERN.test(question) && questionMayNeedLiterature(question)) {
         await run("topic", () => this.knowledgeService.searchTopics({
           query: question,
           mode: "fast",
@@ -788,7 +845,7 @@
           signal: options.signal,
         }));
       }
-      if (EXPERIMENT_QUESTION_PATTERN.test(question)) {
+      if (options.evidencePlan ? options.evidencePlan.evidenceNeeds.some((need) => need.type === "experiment_descriptors") : EXPERIMENT_QUESTION_PATTERN.test(question)) {
         await run("experiment-note", () => this.knowledgeService.searchExperimentSources({
           query: question,
           mode: "fast",
@@ -1066,7 +1123,32 @@
     }
 
     async buildContext(options) {
-      const retrievalProfile = normalizeRetrievalProfile(options?.retrievalProfile);
+      const finish = root.BioDesignRuntimeLog?.begin("request-context", { turnId: options.turnId, surface: options.surface });
+      const onProgress = options.onProgress;
+      try {
+        const context = await this.buildContextInternal({ ...options, onProgress: (event) => {
+          // Preflight logs its own shared worker once, even with two consumers.
+          if (!event.runId && !/^(preflight-|sync-)/.test(event.stage || "")) {
+            root.BioDesignRuntimeLog?.record("context.stage", { turnId: options.turnId, surface: options.surface, ...event });
+          }
+          onProgress?.(event);
+        } });
+        finish?.("completed", { sourceCount: context.files?.length || 0 });
+        return context;
+      } catch (error) {
+        finish?.(error?.code === "OPERATION_ABORTED" ? "cancelled" : "failed", { code: error?.code || "CONTEXT_FAILED" });
+        throw error;
+      }
+    }
+
+    async buildContextInternal(options) {
+      const preflight = this.requestPipeline ? await this.requestPipeline.preflight(options) : null;
+      if (preflight) {
+        options = { ...options, workspaceTree: preflight.tree, turnReconciliation: preflight.reconciliation };
+        options.onCatalogUpdated?.(preflight.tree, this.literature.documents);
+      }
+      // The stored/UI profile remains compatible; all requests use one current policy.
+      const retrievalProfile = this.requestPipeline ? "medium" : normalizeRetrievalProfile(options?.retrievalProfile);
       options = {
         ...options,
         retrievalProfile,
@@ -1130,7 +1212,7 @@
 
       const conversationContext = this.buildConversationContext(options.conversation);
       const activeScope = {
-        projectId: String(this.workspace.workspace?.id || ""),
+        projectId: String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || ""),
         paperIds: selectedPaperIds,
         experimentSourceIds: selectedExperimentIds,
         currentTopic: String(this.workspace.state?.agent?.sideChat?.currentTopic || "").slice(0, 500),
@@ -1138,6 +1220,7 @@
         primaryMetric: this.workspace.state?.project?.primaryMetric || null,
         knownMetrics: this.workspace.state?.project?.knownMetrics || [],
       };
+      options.onProgress?.({ stage: "interpreting-request" });
       const interpretation = await this.semanticInterpreter.interpret({
         query: question,
         profile: retrievalProfile,
@@ -1153,8 +1236,13 @@
       });
       const semanticIR = interpretation.ir;
       const capabilityPlan = semanticApi.planCapabilities(semanticIR, { surface, activeScope });
+      const evidencePlan = semanticApi.planEvidenceNeeds(semanticIR, { originalQuery: question });
+      const understanding = semanticApi.requestUnderstanding(semanticIR, question);
+      options.onProgress?.({ stage: "retrieving-evidence" });
+      const retrievalQuery = understanding.canonicalQueryEn && understanding.canonicalQueryEn !== question
+        ? `${question} ${understanding.canonicalQueryEn}` : question;
       options = {
-        ...options, semanticIR, profile: retrievalProfile, language: semanticIR.answerLanguage,
+        ...options, semanticIR, evidencePlan, requestUnderstanding: understanding, profile: retrievalProfile, language: semanticIR.answerLanguage,
         callContext: { turnId: options.turnId, profile: retrievalProfile },
       };
       const corpusWideLiteratureRequest = semanticIR.matchedPattern === "literature.corpus_synthesis" ||
@@ -1167,7 +1255,7 @@
       const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
       const corpusUpdateRequest = semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question);
       const paperQuestion = corpusWideLiteratureRequest || corpusFailureFollowUpRequest || corpusUpdateRequest ||
-        semanticIR.objects.includes("literature") || questionMayNeedLiterature(question);
+        semanticIR.objects.includes("literature") || evidencePlan.evidenceNeeds.some((need) => need.type === "literature_evidence") || questionMayNeedLiterature(question);
       let corpusWorkflowStatus = null;
       let corpusRecoveryResult = null;
       let corpusUpdateResult = null;
@@ -1260,7 +1348,7 @@
         !corpusWideLiteratureRequest &&
         !corpusUpdateRequest &&
         !corpusWorkflowFollowUp
-          ? await this.matchPapers(question, {
+          ? await this.matchPapers(retrievalQuery, {
             topK: Math.min(5, this.limits.maxEvidenceFiles),
             readyOnly: false,
             retrievalProfile,
@@ -1373,7 +1461,7 @@
           );
           relevantPaperIds = routedPaperIds.filter((paperId) => activeIds.has(paperId));
           if (!relevantPaperIds.length && !routedPaperIds.length) {
-            matches = await this.matchPapers(question, {
+            matches = await this.matchPapers(retrievalQuery, {
               topK: Math.min(5, this.limits.maxEvidenceFiles),
               retrievalProfile,
               signal: options.signal,
@@ -1400,9 +1488,16 @@
       );
       context.routing = routing;
       context.semantic = { ir: semanticIR, telemetry: interpretation.telemetry, plan: capabilityPlan };
+      context.requestUnderstanding = understanding;
+      context.evidencePlan = evidencePlan;
+      if (preflight) {
+        context.knowledgeSync = preflight.report;
+        context.preflightTelemetry = preflight.telemetry;
+        if (preflight.report.failures.length) context.notices.push("Knowledge synchronization is incomplete for the reported source IDs. Use ready sources; do not claim complete coverage. Retry a required failed source through its bounded source tool or explain the limitation.");
+      }
       context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest
         ? { available: this.knowledgeService?.available === true, hits: [] }
-        : await this.retrieveLayeredKnowledge(question, options);
+        : await this.retrieveLayeredKnowledge(retrievalQuery, options);
       const sourceCounts = this.sourceRegistry?.counts?.() || {};
       const paperSources = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
       context.literature = {
@@ -1564,7 +1659,7 @@
         paperEvidence = [];
       } else {
         paperEvidence = await this.retrievePaperEvidence(
-          options.question,
+          retrievalQuery,
           relevantPaperIds,
           options
         );
@@ -2021,7 +2116,7 @@
     baseContext(options, type, files = [], routing = null) {
       const memory = this.workspace.state?.memory || {};
       const selectedMemoryIds =
-        options.enableContextRouter === true && routing
+        (options.evidencePlan || options.enableContextRouter === true) && routing
           ? new Set(routing.memoryIds || [])
           : null;
       const memoryValue = (memoryId, value) =>
@@ -2167,6 +2262,14 @@
 
     async buildFileEvidence(file, options) {
       const extension = fileExtension(file.name);
+      const documentSource = this.sourceRegistry?.getByPath(file.relativePath);
+      if (documentSource && !["paper", "experiment"].includes(documentSource.sourceKind) &&
+          documentSource.hashStatus === "ready" && documentSource.artifacts?.documentMarkdown?.contentHash === documentSource.contentHash) {
+        const artifact = await this.workspace.readFile(documentSource.artifacts.documentMarkdown.path);
+        return { name: file.name, relativePath: file.relativePath, extension, sourceId: documentSource.sourceId,
+          contentHash: documentSource.contentHash, analysisStatus: "processed", evidenceType: "project-document-evidence",
+          content: (await artifact.text()).slice(0, this.limits.maxSourceCharactersPerFile) };
+      }
       if (extension !== "pdf") {
         const source = this.sourceRegistry?.getByPath(file.relativePath);
         if (source?.sourceKind === "experiment") {
@@ -2195,7 +2298,7 @@
       try {
         let document = this.literature.findDocumentByPath(file.relativePath);
         if (!document) {
-          await this.literature.scan();
+          if (!options.turnReconciliation) await this.literature.scan();
           document = this.literature.findDocumentByPath(file.relativePath);
         }
         if (!document) throw new Error("The selected PDF is no longer indexed.");
@@ -2224,7 +2327,7 @@
             source?.parseStatus === "failed");
         const useNativePdf = Boolean(
           this.nativePdfAnalyzer &&
-          (highNeedsNative ||
+          (options.evidencePlan ? options.evidencePlan.needsNativePdf : highNeedsNative ||
             NATIVE_PDF_QUESTION_PATTERN.test(String(options.question || "")) ||
             (broad && (options.qualityMode || "balanced") !== "fast"))
         );
@@ -2282,6 +2385,7 @@
         if (broad) {
           try {
             const cardResult = await this.literature.createPaperCard(document.id, {
+              turnReconciliation: options.turnReconciliation,
               signal: options.signal,
               onProgress: (progress) =>
                 options.onProgress?.({ ...progress, relativePath: file.relativePath }),

@@ -416,6 +416,7 @@ test("document endpoints reject unauthenticated access", async () => {
     localSynthesisResponse,
     corpusMapResponse,
     nativePdfResponse,
+    combinedTextResponse,
     contextRouterResponse
   ] = await Promise.all([
     handler(apiEvent("GET", "/api/documents", undefined, false), context),
@@ -490,6 +491,19 @@ test("document endpoints reject unauthenticated access", async () => {
     handler(
       apiEvent(
         "POST",
+        "/api/literature/create-paper-card-from-text",
+        {
+          paperId: "paper-a",
+          contentHash: "sha256:test",
+          text: "# Page 1\nevidence"
+        },
+        false
+      ),
+      context
+    ),
+    handler(
+      apiEvent(
+        "POST",
         "/api/context/route",
         { userQuery: "Which paper?", literatureIndex: [] },
         false
@@ -506,6 +520,7 @@ test("document endpoints reject unauthenticated access", async () => {
   assert.equal(localSynthesisResponse.statusCode, 401);
   assert.equal(corpusMapResponse.statusCode, 401);
   assert.equal(nativePdfResponse.statusCode, 401);
+  assert.equal(combinedTextResponse.statusCode, 401);
   assert.equal(contextRouterResponse.statusCode, 401);
 });
 
@@ -728,6 +743,50 @@ test("canonical Paper Card uses one direct native PDF request with its narrow st
   }
 });
 
+test("native Paper Card exposes Requesty authentication failure as terminal", async () => {
+  const previous = {
+    model: process.env.REQUESTY_PDF_MODEL,
+    pdf: process.env.REQUESTY_PDF_ENABLED,
+    schema: process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA,
+    combination: process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA
+  };
+  process.env.REQUESTY_PDF_MODEL = "openai/gpt-4.1";
+  process.env.REQUESTY_PDF_ENABLED = "true";
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+  process.env.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "true";
+  const requestStart = capturedLlmRequests.length;
+  queuedChatHttpStatuses.push(401);
+  try {
+    const response = await handler(
+      apiEvent("POST", "/api/literature/analyze-pdf-native", {
+        paperId: "paper-card-native",
+        filename: "paper.pdf",
+        contentHash: "sha256:paper-card-native",
+        task: "Create a comprehensive question-independent Paper Card.",
+        purpose: "canonical-paper-card",
+        responseSchema: "canonical_paper_card",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nauth-failure").toString("base64")}`
+      }),
+      context
+    );
+    const body = parseResponse(response);
+    assert.equal(response.statusCode, 502);
+    assert.equal(body.terminalProviderFailure, true);
+    assert.equal(body.attempts, 1);
+    assert.equal(capturedLlmRequests.slice(requestStart).length, 1);
+  } finally {
+    for (const [name, value] of Object.entries({
+      REQUESTY_PDF_MODEL: previous.model,
+      REQUESTY_PDF_ENABLED: previous.pdf,
+      REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: previous.schema,
+      REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: previous.combination
+    })) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
 test("canonical Paper Card rejects mismatched provenance without repair or a second provider call", async () => {
   const previous = {
     model: process.env.REQUESTY_PDF_MODEL,
@@ -818,6 +877,312 @@ test("canonical Paper Card makes no provider request when direct PDF structured 
       else process.env[name] = value;
     }
   }
+});
+
+test("combined extracted text creates the canonical Paper Card in one strict Requesty call", async () => {
+  assert.deepEqual(
+    _test.COMBINED_TEXT_PAPER_CARD_RESPONSE_FORMAT.json_schema.schema,
+    _test.NATIVE_PAPER_CARD_RESPONSE_FORMAT.json_schema.schema
+  );
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard()));
+  const response = await handler(
+    apiEvent("POST", "/api/literature/create-paper-card-from-text", {
+      paperId: "paper-card-native",
+      filename: "/private/workspace/literature/中文论文.pdf",
+      contentHash: "sha256:paper-card-native",
+      text:
+        "# Page 1\nIntroduction and methods.\n\n# Page 4\nThe tested variant improved EctD activity.",
+      pageCount: 4,
+      chunkCount: 5,
+      extractionTruncated: false,
+      callContext: {
+        turnId: "turn-combined",
+        workflowId: "workflow-combined",
+        callRole: "combined_text_paper_card",
+        paperId: "paper-card-native",
+        profile: "high"
+      }
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  const requests = capturedLlmRequests.slice(requestStart);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(body.analysis.sourceIdentity.paperId, "paper-card-native");
+  assert.equal(body.analysis.sourceIdentity.contentHash, "sha256:paper-card-native");
+  assert.equal(body.diagnostics.generationMode, "combined-text");
+  assert.equal(body.diagnostics.chunkCount, 5);
+  assert.equal(body.schemaVersion, 1);
+  assert.equal(body.promptVersion, "canonical-paper-card-combined-text-v2");
+  assert.match(body.modelSignature, /^[a-f0-9]{64}$/);
+  assert.equal(requests.length, 1);
+  assert.equal(
+    requests[0].response_format.json_schema.name,
+    "canonical_combined_text_paper_card"
+  );
+  assert.equal(requests[0].response_format.json_schema.strict, true);
+  assert.match(requests[0].messages[0].content, /stable English/);
+  assert.equal(JSON.stringify(requests[0]).includes("/private/workspace"), false);
+});
+
+test("combined Paper Card rejects invalid provenance without a repair call", async () => {
+  const requestStart = capturedLlmRequests.length;
+  queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard({
+    source_identity: {
+      paper_id: "stale-paper",
+      content_hash: "sha256:paper-card-native"
+    }
+  })));
+  const response = await handler(
+    apiEvent("POST", "/api/literature/create-paper-card-from-text", {
+      paperId: "paper-card-native",
+      filename: "paper.pdf",
+      contentHash: "sha256:paper-card-native",
+      text: "# Page 4\nThe tested variant improved EctD activity.",
+      pageCount: 4,
+      chunkCount: 1,
+      callContext: {
+        turnId: "turn-invalid-combined",
+        workflowId: "workflow-invalid-combined",
+        callRole: "combined_text_paper_card",
+        paperId: "paper-card-native",
+        profile: "light"
+      }
+    }),
+    context
+  );
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 502);
+  assert.equal(body.fallbackReason, "combined-text-schema-or-provenance-invalid");
+  assert.equal(body.verifiedContextLengthError, false);
+  assert.equal(capturedLlmRequests.slice(requestStart).length, 1);
+});
+
+test("Paper Cards use one validated json_object call when strict schema support is false or unset", async () => {
+  const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+  try {
+    for (const value of ["false", undefined]) {
+      if (value === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+      else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = value;
+      const config = parseResponse(await handler(apiEvent("GET", "/api/literature/config"), context));
+      assert.equal(config.combinedTextSupported, true);
+      assert.equal(config.combinedTextOutputMode, "json_object");
+      const start = capturedLlmRequests.length;
+      queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard()));
+      const response = await handler(apiEvent("POST", "/api/literature/create-paper-card-from-text", {
+        paperId: "paper-card-native", contentHash: "sha256:paper-card-native", filename: "paper.pdf",
+        text: "# Page 4\nThe tested variant improved EctD activity.", pageCount: 4, chunkCount: 1,
+        callContext: { turnId: "json-card", callRole: "combined_text_paper_card", paperId: "paper-card-native", profile: "medium" },
+      }), context);
+      const body = parseResponse(response), requests = capturedLlmRequests.slice(start);
+      assert.equal(response.statusCode, 200);
+      assert.equal(body.diagnostics.structuredOutputMode, "combined-text+json_object");
+      assert.equal(body.analysis.sourceIdentity.contentHash, "sha256:paper-card-native");
+      assert.equal(body.modelSignature, config.combinedTextModelSignature);
+      assert.equal(requests.length, 1);
+      assert.deepEqual(requests[0].response_format, { type: "json_object" });
+      assert.ok(requests[0].messages[0].content.includes(JSON.stringify(_test.COMBINED_TEXT_PAPER_CARD_RESPONSE_FORMAT.json_schema.schema)));
+      process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+      const strict = parseResponse(await handler(apiEvent("GET", "/api/literature/config"), context));
+      assert.equal(strict.combinedTextOutputMode, "json_schema");
+      assert.notEqual(strict.combinedTextModelSignature, config.combinedTextModelSignature);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+    else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = previous;
+  }
+});
+
+test("JSON object card output still rejects wrong source identity and malformed fields", async () => {
+  const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
+  try {
+    for (const invalid of [
+      validNativePaperCard({ source_identity: { paper_id: "another-paper", content_hash: "sha256:paper-card-native" } }),
+      validNativePaperCard({ methods: "wrong type" }),
+      { short_summary: "A valid JSON object is not sufficient for a canonical card." },
+    ]) {
+      const start = capturedLlmRequests.length;
+      queuedChatCompletionTexts.push(JSON.stringify(invalid));
+      const response = await handler(apiEvent("POST", "/api/literature/create-paper-card-from-text", {
+        paperId: "paper-card-native", contentHash: "sha256:paper-card-native", filename: "paper.pdf",
+        text: "# Page 4\nThe tested variant improved EctD activity.",
+        callContext: { turnId: "invalid-json-card", callRole: "combined_text_paper_card", paperId: "paper-card-native", profile: "medium" },
+      }), context);
+      assert.equal(response.statusCode, 502);
+      assert.equal(parseResponse(response).fallbackReason, "combined-text-schema-or-provenance-invalid");
+      assert.equal(capturedLlmRequests.length - start, 1);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+    else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = previous;
+  }
+});
+
+test("an L2-blocked project resumes through the real FC JSON fallback and persists canonical cards, mirrors and topics", async () => {
+  const { createFixture } = require("./helpers/preflight-fixture.js");
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
+  try {
+    const fixture = await createFixture();
+    fixture.workspace.set("literature/P1.pdf", "The tested variant improved EctD activity.");
+    const api = new LiteratureApiClient({
+      baseUrl: "https://fc.test", getHeaders: () => ({ Authorization: `Bearer ${authToken}` }),
+      fetch: async (url, options) => {
+        const response = await handler({ httpMethod: options.method, path: new URL(url).pathname, headers: options.headers, body: options.body }, context);
+        return new Response(response.body, { status: response.statusCode, headers: response.headers });
+      },
+    });
+    fixture.literature.api = api;
+    fixture.system.preparation.setPaperCardGenerator((input) => fixture.literature.generatePaperCardFromPrepared(input));
+    let oldCapabilityGate = true;
+    fixture.system.preparation.getPaperCardConfiguration = async () => {
+      const config = await api.getPaperCardConfiguration();
+      return oldCapabilityGate ? { ...config, combinedTextSupported: false } : config;
+    };
+    const start = capturedLlmRequests.length;
+    const blocked = await fixture.pipeline.preflight({ turnId: "old-backend" });
+    assert.equal(blocked.report.failures[0].code, "COMBINED_TEXT_PAPER_CARD_UNAVAILABLE");
+    assert.equal(capturedLlmRequests.length, start);
+    const source = fixture.system.registry.list()[0];
+    assert.equal(source.knowledgeSync.stages.l1, "ready");
+    oldCapabilityGate = false;
+    queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard({
+      source_identity: { paper_id: source.sourceId, content_hash: source.contentHash },
+      major_findings: [{ claim: "The tested variant improved EctD activity.", citations: [{ page: 1, quote: "variant improved EctD activity" }] }],
+    })));
+    const resumed = await fixture.pipeline.preflight({ turnId: "fixed-backend" });
+    assert.equal(resumed.report.status, "completed", JSON.stringify(resumed.report.failures));
+    assert.equal(resumed.report.updated.paperCards, 1);
+    assert.equal(fixture.calls.parses, 1);
+    assert.equal(capturedLlmRequests.length - start, 1);
+    assert.equal(source.knowledgeSync.status, "SYNC_READY");
+    assert.equal(await fixture.workspace.fileExists(source.artifacts.paperCard.path), true);
+    assert.equal(await fixture.workspace.fileExists(source.artifacts.paperCardMarkdown.path), true);
+    assert.equal(source.artifacts.topicMembership.contentHash, source.contentHash);
+    assert.ok(fixture.system.topicService.topics.some((topic) => topic.paperIds.includes(source.sourceId)));
+    assert.equal((await fixture.workspace.readJson(source.artifacts.paperCard.path)).source.hash, source.contentHash);
+    assert.equal((await fixture.pipeline.preflight({ turnId: "reused" })).telemetry.syncAgentSpawned, false);
+    assert.equal(capturedLlmRequests.length - start, 1);
+    assert.deepEqual(fixture.workspace.state.agent.currentRecommendation, { id: "R1" });
+  } finally {
+    if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
+    else process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = previous;
+  }
+});
+
+test("two added long papers recover from a real FC input-token quota response and persist L2/L3 without redoing three ready papers", async () => {
+  const { createFixture } = require("./helpers/preflight-fixture.js");
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  const fixture = await createFixture();
+  for (let i = 1; i <= 3; i++) fixture.workspace.set(`literature/P${i}.pdf`, "The tested variant improved EctD activity.");
+  await fixture.pipeline.preflight({ turnId: "seed-three" });
+  const originalCards = fixture.system.registry.list().map(source => ({ id: source.sourceId, card: fixture.workspace.files.get(source.artifacts.paperCard.path) }));
+  const savedFetch = global.fetch;
+  let clock = 0, fullCalls = 0, peak = 0, active = 0;
+  let releaseInitialPair;
+  const initialPair = new Promise(resolve => { releaseInitialPair = resolve; });
+  const waits = [], excerptLengths = [], synthesisLengths = [];
+  global.fetch = async (url, options) => {
+    const request = JSON.parse(options.body);
+    if (request.messages?.[0]?.content?.includes("complete bounded text for one academic paper")) {
+      fullCalls++;
+      if (fullCalls === 2) releaseInitialPair();
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("The second paper-card provider request never started concurrently")), 5000);
+        initialPair.then(() => { clearTimeout(timeout); resolve(); });
+      });
+      return new Response(JSON.stringify({ error: { message: "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_3_input_token_count, limit: 16000, model: gemma-4-31b\nPlease retry in 22.454788929s." } }), { status: 429, headers: { "Retry-After": "23" } });
+    }
+    if (request.messages?.[0]?.content?.includes("one excerpt of an academic paper")) {
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: "Evidence summary. ".repeat(210),
+        mainFindings: ["The tested variant improved EctD activity."] }) } }] }));
+    }
+    active++; peak = Math.max(peak, active);
+    try { return await savedFetch(url, options); } finally { active--; }
+  };
+  try {
+    const api = new LiteratureApiClient({ baseUrl: "https://fc.test", now: () => clock,
+      wait: async ms => { waits.push(ms); clock += ms; }, getHeaders: () => ({ Authorization: `Bearer ${authToken}` }),
+      fetch: async (url, options) => {
+        const endpoint = new URL(url).pathname, body = options.body ? JSON.parse(options.body) : null;
+        if (endpoint.endsWith("summarize-chunk")) excerptLengths.push(body.text.length);
+        if (endpoint.endsWith("synthesize")) synthesisLengths.push(JSON.stringify(body.chunkSummaries).length);
+        const result = await handler({ httpMethod: options.method, path: endpoint, headers: options.headers, body: options.body }, context);
+        if (endpoint.endsWith("create-paper-card-from-text")) {
+          const error = JSON.parse(result.body);
+          assert.equal(result.statusCode, 429);
+          assert.equal(error.providerStatus, 429);
+          assert.equal(error.retryAfterMs, 23000);
+          assert.equal(error.inputTokenLimit, 16000);
+          assert.equal(error.attempts, 1, "FC must not retry before the provider reset");
+        }
+        return new Response(result.body, { status: result.statusCode, headers: result.headers });
+      },
+    });
+    fixture.literature.api = api;
+    fixture.system.preparation.setPaperCardGenerator(input => fixture.literature.generatePaperCardFromPrepared(input));
+    fixture.system.preparation.getPaperCardConfiguration = () => api.getPaperCardConfiguration();
+    for (const [name, size] of [["P4", 75014], ["P5", 109877]]) {
+      fixture.workspace.set(`literature/${name}.pdf`, "The tested variant improved EctD activity. ".repeat(3000).slice(0, size));
+    }
+    const result = await fixture.pipeline.preflight({ turnId: "add-two-long-papers" });
+    assert.equal(result.report.status, "completed", JSON.stringify(result.report.failures));
+    assert.equal(result.report.updated.paperCards, 2);
+    assert.equal(fullCalls, 2, "Both new papers must reach the provider concurrently before the quota is learned");
+    assert.equal(api.paperCardConcurrency, 1);
+    assert.deepEqual(waits, [24000]);
+    assert.equal(peak, 1);
+    assert.ok(excerptLengths.length >= 19 && excerptLengths.every(length => length <= 10000));
+    assert.ok(synthesisLengths.length > 2 && synthesisLengths.every(length => length <= 28000), "Synthesis must also fit the learned quota without discarding excerpts");
+    for (const id of result.diff.added) {
+      const source = fixture.system.registry.get(id), card = await fixture.workspace.readJson(source.artifacts.paperCard.path);
+      assert.equal(source.knowledgeSync.status, "SYNC_READY");
+      assert.equal(card.generationMode, "map-reduce");
+      assert.equal(card.source.hash, source.contentHash);
+      assert.ok(await fixture.workspace.fileExists(source.artifacts.paperCardMarkdown.path));
+      assert.ok(source.artifacts.topicMembership);
+    }
+    for (const original of originalCards) assert.equal(fixture.workspace.files.get(fixture.system.registry.get(original.id).artifacts.paperCard.path), original.card);
+    const requestCount = excerptLengths.length;
+    assert.equal((await fixture.pipeline.preflight({ turnId: "unchanged-after-recovery" })).telemetry.syncAgentSpawned, false);
+    assert.equal(excerptLengths.length, requestCount);
+    assert.equal(fixture.calls.parses, 5);
+  } finally { global.fetch = savedFetch; }
+});
+
+test("only explicit Requesty context-size responses are classified as context-size errors", () => {
+  assert.equal(
+    _test.isVerifiedContextLengthError(
+      400,
+      JSON.stringify({ error: { code: "context_length_exceeded", message: "too long" } })
+    ),
+    true
+  );
+  assert.equal(
+    _test.isVerifiedContextLengthError(
+      413,
+      JSON.stringify({ error: { message: "Maximum context length exceeded" } })
+    ),
+    true
+  );
+  assert.equal(
+    _test.isVerifiedContextLengthError(
+      401,
+      JSON.stringify({ error: { message: "Maximum context length exceeded" } })
+    ),
+    false
+  );
+  assert.equal(
+    _test.isVerifiedContextLengthError(
+      502,
+      JSON.stringify({ error: { message: "upstream unavailable" } })
+    ),
+    false
+  );
 });
 
 test("native PDF falls back to two-step strict extraction when PDF plus json_schema is unsupported", async () => {

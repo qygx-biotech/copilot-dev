@@ -1,5 +1,7 @@
 # Semantic interpretation above the existing knowledge layers
 
+The current [shared request pipeline](PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md) completes source reconciliation and knowledge synchronization before this semantic layer. It retains the original query, uses the semantic goal as an English working query when a remote interpretation is required, and derives an advisory evidence-needs plan for the existing main-agent loop.
+
 BioDesign Copilot interprets requests before selecting context for the existing workspace agent. This layer canonicalizes request metadata and experiment schemas. Original documents, workbook cells, evidence handles, and source authority remain unchanged. Read [QMD_KNOWLEDGE_ARCHITECTURE.md](QMD_KNOWLEDGE_ARCHITECTURE.md) for the underlying L0–L4 architecture.
 
 ```mermaid
@@ -57,6 +59,8 @@ The calibrated defaults are a known-match threshold of 0.86, uncertain threshold
 Known-pattern caching includes the normalized query with protected-ID case retained, compact conversation and active scope, profile, semantic schema version, pattern library version, and project registry version/content. It is a bounded in-memory optimization, not a second lifecycle database. Context-dependent results are never keyed only by query text. Invalid/failed remote interpretations fall back locally and are not cached as successful remote interpretations.
 
 ## Profiles and FC boundary
+
+The new request pipeline resolves all saved profiles to Medium for one current default policy. The following table describes retained helper behavior outside that override. Chinese/Han input alone never forces Deep retrieval.
 
 | Profile | Semantic interpretation | Retrieval after interpretation |
 | --- | --- | --- |

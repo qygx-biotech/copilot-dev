@@ -87,3 +87,16 @@ test("citation existence checks reject symlink escapes and remain scoped to the 
   await assert.rejects(() => filesystem.exists(path.join(outside, "paper.pdf")), { code: "INVALID_PATH" });
   await assert.rejects(() => filesystem.exists("../paper.pdf"), { code: "INVALID_PATH" });
 });
+
+test("metadata-only preflight gets identical nanosecond and filesystem identity fields from tree and stat", async () => {
+  const root = await temporaryProject("biodesign-preflight-stat-");
+  const filesystem = await ProjectFilesystem.open(root);
+  await filesystem.writeText("literature/P17.pdf", "source fixture");
+  const metadata = await filesystem.stat("literature/P17.pdf");
+  const entry = (await filesystem.tree()).children[0].children[0];
+  assert.match(metadata.mtimeNs, /^\d+$/);
+  assert.match(metadata.filesystemFileId, /^\d+:\d+$/);
+  assert.equal(entry.mtimeNs, metadata.mtimeNs);
+  assert.equal(entry.filesystemFileId, metadata.filesystemFileId);
+  assert.doesNotThrow(() => JSON.stringify(entry));
+});

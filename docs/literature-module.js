@@ -4,6 +4,17 @@
   if (root) Object.assign(root, api);
 })(typeof globalThis !== "undefined" ? globalThis : this, function literatureFactory(root) {
   "use strict";
+  const rateLimitApi = root.BioDesignProviderRateLimit ||
+    (typeof require === "function" ? require("../shared/provider-rate-limit.js") : {});
+  const PAPER_CARD_ENDPOINTS = new Set(["/api/literature/create-paper-card-from-text", "/api/literature/analyze-pdf-native", "/api/literature/summarize-chunk", "/api/literature/synthesize"]);
+  function abortableDelay(milliseconds, signal) {
+    assertNotAborted(signal);
+    return new Promise((resolve, reject) => {
+      const abort = () => { clearTimeout(timer); signal?.removeEventListener("abort", abort); reject(new LiteratureError("OPERATION_ABORTED", "The literature operation was stopped.")); };
+      const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, milliseconds);
+      signal?.addEventListener("abort", abort, { once: true });
+    });
+  }
 
   const sourceSystemApi = root?.createSourceSystem
     ? root
@@ -23,15 +34,20 @@
   });
   const PAPER_CARD_VERSION = 2;
   const PAPER_CARD_PROMPT_VERSION = "canonical-paper-card-v2";
-  const PAPER_CARD_GENERATION_STRATEGY = "native-pdf-preferred-v1";
+  const PAPER_CARD_GENERATION_STRATEGY = "native-pdf-combined-text-v2";
+  const PAPER_CARD_GENERATION_CONTRACT_VERSION = 2;
   const NATIVE_PAPER_CARD_SCHEMA_VERSION = 1;
   const NATIVE_PAPER_CARD_PROMPT_VERSION = "canonical-paper-card-native-v1";
+  const COMBINED_TEXT_PAPER_CARD_SCHEMA_VERSION = 1;
+  const COMBINED_TEXT_PAPER_CARD_PROMPT_VERSION =
+    "canonical-paper-card-combined-text-v1";
   const DEFAULT_NATIVE_PDF_MAX_BYTES = 20 * 1024 * 1024;
+  const DEFAULT_COMBINED_TEXT_MAX_CHARACTERS = 120000;
   const SOURCE_ARTIFACT_SCHEMA_VERSION = 1;
   const SOURCE_EXTRACTOR_VERSION = "local-source-v1";
   const makePaperCardCacheKey = sourceSystemApi.paperCardCacheKey || ((input = {}) =>
     JSON.stringify({
-      version: 3,
+      version: 4,
       sourceId: String(input.sourceId || ""),
       contentHash: String(input.contentHash || ""),
       schemaVersion: Number(input.schemaVersion) || 0,
@@ -40,12 +56,22 @@
       generationStrategy: String(
         input.generationStrategy || "text-map-reduce-v1"
       ),
+      generationContractVersion: Number(input.generationContractVersion) || 0,
       nativePdfSchemaVersion: Number(input.nativePdfSchemaVersion) || 0,
       nativePdfPromptVersion: String(
         input.nativePdfPromptVersion || "not-applicable"
       ),
       nativePdfModelSignature: String(
         input.nativePdfModelSignature || "not-applicable"
+      ),
+      combinedTextSchemaVersion: Number(input.combinedTextSchemaVersion) || 0,
+      combinedTextMaxCharacters:
+        Math.max(0, Number(input.combinedTextMaxCharacters) || 0),
+      combinedTextPromptVersion: String(
+        input.combinedTextPromptVersion || "not-applicable"
+      ),
+      combinedTextModelSignature: String(
+        input.combinedTextModelSignature || "not-applicable"
       ),
       sourceArtifactSchemaVersion: Number(input.sourceArtifactSchemaVersion) || 0,
       extractorVersion: String(input.extractorVersion || "unspecified"),
@@ -106,6 +132,69 @@
       chunks,
       processedCharacters,
       truncated: normalized.length > source.length || processedCharacters < source.length,
+    };
+  }
+
+  function adjacentChunkOverlap(left, right) {
+    const previous = String(left || "");
+    const current = String(right || "");
+    const maximum = Math.min(previous.length, current.length);
+    if (!maximum) return 0;
+    const probeLength = Math.min(32, maximum);
+    const probe = current.slice(0, probeLength);
+    let position = previous.lastIndexOf(probe);
+    while (position >= 0) {
+      const overlap = previous.length - position;
+      if (overlap <= maximum && current.startsWith(previous.slice(position))) {
+        return overlap;
+      }
+      position = previous.lastIndexOf(probe, position - 1);
+    }
+    for (let length = probeLength - 1; length >= 1; length -= 1) {
+      if (previous.endsWith(current.slice(0, length))) return length;
+    }
+    return 0;
+  }
+
+  function combineExtractedPaperText(paperArtifact) {
+    const pages = (Array.isArray(paperArtifact?.pages) ? paperArtifact.pages : [])
+      .filter((page) => Number.isInteger(Number(page?.page)) && Number(page.page) > 0)
+      .map((page) => ({
+        page: Number(page.page),
+        text: String(page.text || "").trim(),
+      }))
+      .filter((page) => page.text);
+    if (pages.length) {
+      return {
+        text: pages.map((page) => `# Page ${page.page}\n${page.text}`).join("\n\n"),
+        pageCount: pages.length,
+        chunkCount: Array.isArray(paperArtifact?.chunks)
+          ? paperArtifact.chunks.length
+          : pages.length,
+      };
+    }
+
+    const combinedPages = [];
+    for (const chunk of (Array.isArray(paperArtifact?.chunks) ? paperArtifact.chunks : [])) {
+      const page = Number(chunk?.page);
+      const text = String(chunk?.text || "").trim();
+      if (!Number.isInteger(page) || page < 1 || !text) continue;
+      const current = combinedPages.at(-1);
+      if (!current || current.page !== page) {
+        combinedPages.push({ page, text });
+        continue;
+      }
+      const overlap = adjacentChunkOverlap(current.text, text);
+      current.text += `${overlap ? "" : "\n"}${text.slice(overlap)}`;
+    }
+    return {
+      text: combinedPages
+        .map((page) => `# Page ${page.page}\n${page.text}`)
+        .join("\n\n"),
+      pageCount: combinedPages.length,
+      chunkCount: Array.isArray(paperArtifact?.chunks)
+        ? paperArtifact.chunks.length
+        : 0,
     };
   }
 
@@ -327,11 +416,13 @@
     const chunks = Array.isArray(paperArtifact?.chunks) ? paperArtifact.chunks : [];
     let submittedCitations = 0;
     let verifiedCitations = 0;
+    let submittedFindings = 0;
     const validatedFindings = (Array.isArray(findings) ? findings : [])
       .slice(0, 30)
       .map((finding) => {
         const claim = String(finding?.claim || "").trim().slice(0, 1600);
         if (!claim) return null;
+        submittedFindings += 1;
         const evidenceRefs = [];
         const seen = new Set();
         for (const citation of (Array.isArray(finding?.citations) ? finding.citations : [])) {
@@ -355,6 +446,21 @@
           }
           if (evidenceRefs.length >= 3) break;
         }
+        if (!evidenceRefs.length) {
+          const normalizedClaim = normalizeEvidenceQuote(claim);
+          const matchingChunk = chunks.find((chunk) =>
+            Number.isInteger(Number(chunk?.page)) &&
+            Number(chunk.page) > 0 &&
+            String(chunk?.chunkId || "") &&
+            normalizeEvidenceQuote(chunk.text).includes(normalizedClaim)
+          );
+          if (normalizedClaim.length >= 4 && matchingChunk) {
+            evidenceRefs.push(
+              `${sourceId}:p${Number(matchingChunk.page)}:${String(matchingChunk.chunkId).slice(0, 256)}`
+            );
+          }
+        }
+        if (!evidenceRefs.length) return null;
         return { claim, evidenceRefs };
       })
       .filter(Boolean);
@@ -363,6 +469,9 @@
       submittedCitations,
       verifiedCitations,
       droppedCitations: submittedCitations - verifiedCitations,
+      submittedFindings,
+      verifiedFindings: validatedFindings.length,
+      droppedFindings: submittedFindings - validatedFindings.length,
     };
   }
 
@@ -513,6 +622,14 @@
       this.getHeaders = options.getHeaders || (() => ({}));
       this.onUnauthorized = options.onUnauthorized || (() => {});
       this.fetch = options.fetch || root.fetch.bind(root);
+      this.log = options.runtimeLog || root.BioDesignRuntimeLog;
+      this.now = options.now || (() => Date.now());
+      this.wait = options.wait || abortableDelay;
+      this.paperCardQueue = [];
+      this.paperCardConcurrency = 2;
+      this.activePaperCardRequests = 0;
+      this.providerCooldownUntil = 0;
+      this.inputTokenLimit = null;
       this.turnCallCounts = new Map();
       this.endpointAccounting = {
         logicalEndpointCalls: {},
@@ -529,12 +646,23 @@
         signal,
         "GET"
       );
+      if (this.configurationSignature && this.configurationSignature !== data.modelSignature) {
+        this.inputTokenLimit = null;
+        this.paperCardConcurrency = 2;
+        this.drainPaperCardQueue();
+      }
+      this.configurationSignature = data.modelSignature;
+      this.log?.record("paper-card.configuration", { combinedTextSupported: data.combinedTextSupported === true,
+        nativePdfSupported: data.nativePdfSupported === true, structuredOutputMode: data.combinedTextOutputMode || "not-advertised",
+        promptVersion: data.combinedTextPromptVersion });
       return {
         schemaVersion: data.schemaVersion,
         promptVersion: data.promptVersion,
         modelSignature: data.modelSignature,
         generationStrategy:
           data.generationStrategy || PAPER_CARD_GENERATION_STRATEGY,
+        generationContractVersion:
+          Math.max(0, Number(data.generationContractVersion) || 0),
         nativePdfSupported: data.nativePdfSupported === true,
         nativePdfMaxBytes:
           Math.max(0, Number(data.nativePdfMaxBytes) || 0) ||
@@ -545,10 +673,21 @@
           String(data.nativePdfPromptVersion || "not-applicable"),
         nativePdfModelSignature:
           String(data.nativePdfModelSignature || "not-applicable"),
+        combinedTextSupported: data.combinedTextSupported === true,
+        combinedTextMaxCharacters:
+          Math.max(0, Number(data.combinedTextMaxCharacters) || 0) ||
+          DEFAULT_COMBINED_TEXT_MAX_CHARACTERS,
+        combinedTextSchemaVersion:
+          Math.max(0, Number(data.combinedTextSchemaVersion) || 0),
+        combinedTextPromptVersion:
+          String(data.combinedTextPromptVersion || "not-applicable"),
+        combinedTextModelSignature:
+          String(data.combinedTextModelSignature || "not-applicable"),
       };
     }
 
     async summarizeChunk(payload, signal) {
+      this.recordTurnCall(payload.callContext?.turnId, "paper_card_chunk");
       const data = await this.request(
         "/api/literature/summarize-chunk",
         {
@@ -557,6 +696,7 @@
           totalChunks: payload.totalChunks,
           text: payload.text,
           language: payload.language === "zh" ? "zh" : "en",
+          callContext: boundedCallContext(payload.callContext, "paper_card_chunk", payload.callContext?.paperId),
         },
         signal
       );
@@ -564,6 +704,7 @@
     }
 
     async synthesize(payload, signal) {
+      this.recordTurnCall(payload.callContext?.turnId, "paper_card_synthesis");
       const data = await this.request(
         "/api/literature/synthesize",
         {
@@ -574,6 +715,7 @@
           extractionTruncated: payload.extractionTruncated === true,
           chunkSummaries: payload.chunkSummaries,
           language: payload.language === "zh" ? "zh" : "en",
+          callContext: boundedCallContext(payload.callContext, "paper_card_synthesis", payload.callContext?.paperId),
         },
         signal
       );
@@ -662,6 +804,38 @@
       };
     }
 
+    async createPaperCardFromText(payload, signal) {
+      const data = await this.request(
+        "/api/literature/create-paper-card-from-text",
+        {
+          paperId: String(payload.paperId || "").slice(0, 160),
+          filename: safeFilename(payload.filename),
+          contentHash: String(payload.contentHash || "").slice(0, 160),
+          text: String(payload.text || ""),
+          pageCount: Math.max(0, Number(payload.pageCount) || 0),
+          chunkCount: Math.max(0, Number(payload.chunkCount) || 0),
+          extractionTruncated: payload.extractionTruncated === true,
+          callContext: boundedCallContext(
+            payload.callContext,
+            "combined_text_paper_card",
+            payload.paperId
+          ),
+        },
+        signal
+      );
+      return {
+        analysis: data.analysis,
+        paperId: data.paperId || null,
+        contentHash: data.contentHash || null,
+        model: data.model || null,
+        modelSignature: data.modelSignature || "",
+        schemaVersion: Number(data.schemaVersion) || 0,
+        promptVersion: data.promptVersion || "",
+        attempts: Math.max(0, Number(data.attempts) || 0),
+        diagnostics: data.diagnostics || null,
+      };
+    }
+
     async interpretSemantics(payload, signal) {
       const data = await this.request("/api/semantic/interpret", {
         ...payload,
@@ -680,7 +854,7 @@
 
     recordTurnCall(turnId, role) {
       if (!/^[A-Za-z0-9._:-]{1,200}$/.test(String(turnId || ""))) return;
-      const allowed = ["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "answer"];
+      const allowed = ["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "combined_text_paper_card", "paper_card_chunk", "paper_card_synthesis", "image_understanding", "answer"];
       if (!allowed.includes(role)) return;
       const counts = this.turnCallCounts.get(turnId) || Object.fromEntries(allowed.map((name) => [name, 0]));
       counts[role] += 1;
@@ -763,7 +937,73 @@
     }
 
     async request(path, body, signal, method = "POST") {
-      const roles = { "/api/semantic/interpret": "semantic_parser", "/api/semantic/map-schema": "schema_mapper", "/api/knowledge/plan-search": "search_planner", "/api/knowledge/rerank": "reranker", "/api/corpus/map-paper": "corpus_mapper", "/api/literature/analyze-pdf-native": "native_pdf" };
+      return this.requestInternal(path, body, signal, method);
+    }
+
+    acquirePaperCardSlot(signal, details) {
+      assertNotAborted(signal);
+      return new Promise((resolve, reject) => {
+        const entry = { signal, details, resolve };
+        entry.onAbort = () => {
+          const index = this.paperCardQueue.indexOf(entry);
+          if (index < 0) return;
+          this.paperCardQueue.splice(index, 1);
+          signal?.removeEventListener("abort", entry.onAbort);
+          reject(new LiteratureError("OPERATION_ABORTED", "The literature operation was stopped."));
+        };
+        signal?.addEventListener("abort", entry.onAbort, { once: true });
+        this.paperCardQueue.push(entry);
+        this.log?.record("paper-card.request-queued", { ...details, queueDepth: this.paperCardQueue.length,
+          activeRequests: this.activePaperCardRequests, concurrency: this.paperCardConcurrency });
+        this.drainPaperCardQueue();
+      });
+    }
+
+    drainPaperCardQueue() {
+      while (this.activePaperCardRequests < this.paperCardConcurrency && this.paperCardQueue.length) {
+        const entry = this.paperCardQueue.shift();
+        entry.signal?.removeEventListener("abort", entry.onAbort);
+        this.activePaperCardRequests++;
+        this.log?.record("paper-card.slot-acquired", { ...entry.details, activeRequests: this.activePaperCardRequests,
+          concurrency: this.paperCardConcurrency, queueDepth: this.paperCardQueue.length });
+        let released = false;
+        entry.resolve(() => {
+          if (released) return;
+          released = true;
+          this.activePaperCardRequests--;
+          this.drainPaperCardQueue();
+        });
+      }
+    }
+
+    inputQuotaCharacterBudget() {
+      return rateLimitApi.inputQuotaCharacterBudget(this.inputTokenLimit);
+    }
+
+    async waitForProviderCooldown(signal, details) {
+      while (this.providerCooldownUntil > this.now()) {
+        const retryAfterMs = this.providerCooldownUntil - this.now();
+        if (retryAfterMs > 121000) throw Object.assign(new LiteratureError("ProviderRateLimited", "The provider cooldown is too long for an automatic retry. Retry after the quota resets."),
+          { providerStatus: 429, retryAfterMs, rateLimitRetryable: true });
+        this.log?.record("backend-request.cooldown", { ...details, code: "ProviderRateLimited", retryAfterMs, inputTokenLimit: this.inputTokenLimit }, "warn");
+        await this.wait(retryAfterMs, signal);
+      }
+      assertNotAborted(signal);
+    }
+
+    assertPaperCardQuotaBudget(path, body) {
+      const learnedBudget = this.inputQuotaCharacterBudget();
+      if (path === "/api/literature/create-paper-card-from-text" && learnedBudget && String(body?.text || "").length > learnedBudget) {
+        this.log?.record("paper-card.quota-route", { paperId: body?.paperId, route: "map-reduce", inputTokenLimit: this.inputTokenLimit }, "warn");
+        throw Object.assign(new LiteratureError("ProviderRateLimited", "The full paper exceeds the conservative budget learned from the provider's input-token quota."),
+          { providerStatus: 429, verifiedInputTokenRateLimit: true, inputTokenLimit: this.inputTokenLimit, attempts: 0 });
+      }
+    }
+
+    async requestInternal(path, body, signal, method = "POST") {
+      assertNotAborted(signal);
+      this.assertPaperCardQuotaBudget(path, body);
+      const roles = { "/api/semantic/interpret": "semantic_parser", "/api/semantic/map-schema": "schema_mapper", "/api/knowledge/plan-search": "search_planner", "/api/knowledge/rerank": "reranker", "/api/corpus/map-paper": "corpus_mapper", "/api/literature/analyze-pdf-native": "native_pdf", "/api/literature/create-paper-card-from-text": "combined_text_paper_card" };
       this.recordTurnCall(body?.callContext?.turnId, roles[path]);
       this.endpointAccounting.logicalEndpointCalls[path] =
         (this.endpointAccounting.logicalEndpointCalls[path] || 0) + 1;
@@ -772,9 +1012,20 @@
       let lastError;
       for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
         assertNotAborted(signal);
-        this.endpointAccounting.transportAttempts[path] =
-          (this.endpointAccounting.transportAttempts[path] || 0) + 1;
+        const details = { endpoint: path, paperId: body?.paperId || body?.callContext?.paperId, turnId: body?.callContext?.turnId };
+        // Acquire per transport attempt, so retries also obey a concurrency
+        // reduction learned while another paper's request was in flight.
+        const release = PAPER_CARD_ENDPOINTS.has(path) ? await this.acquirePaperCardSlot(signal, details) : null;
+        let finish;
         try {
+          assertNotAborted(signal);
+          this.assertPaperCardQuotaBudget(path, body);
+          if (method !== "GET") await this.waitForProviderCooldown(signal, details);
+          this.endpointAccounting.transportAttempts[path] =
+            (this.endpointAccounting.transportAttempts[path] || 0) + 1;
+          finish = this.log?.begin("backend-request", { ...details, method,
+            workflowId: body?.callContext?.workflowId, role: roles[path] || body?.callContext?.callRole,
+            attempt: attempt + 1, ...(release ? { activeRequests: this.activePaperCardRequests, concurrency: this.paperCardConcurrency } : {}) });
           const response = await this.fetch(`${this.baseUrl}${path}`, {
             method,
             headers: {
@@ -797,6 +1048,8 @@
               (this.endpointAccounting.cacheHits[path] || 0) + 1;
           }
           if (response.ok && data.ok) {
+            finish?.("completed", { status: response.status, providerAttempts: Math.max(0, Number(data.attempts) || 0), cached: data.cached === true,
+              structuredOutputMode: data.diagnostics?.structuredOutputMode });
             return data;
           }
           const error = new LiteratureError(
@@ -806,21 +1059,48 @@
           error.status = response.status;
           error.attempts = Math.max(0, Number(data.attempts) || 0);
           error.fallbackReason = String(data.fallbackReason || "").slice(0, 120);
+          error.verifiedContextLengthError =
+            data.verifiedContextLengthError === true;
+          error.terminalProviderFailure =
+            data.terminalProviderFailure === true;
+          const rateLimit = rateLimitApi.parseRateLimit(response.status, data, response.headers?.get?.("retry-after"), this.now());
+          if (rateLimit) {
+            Object.assign(error, rateLimit, { code: "ProviderRateLimited" });
+            if (rateLimit.verifiedInputTokenRateLimit) this.inputTokenLimit = rateLimit.inputTokenLimit;
+            if (this.paperCardConcurrency !== 1) {
+              this.paperCardConcurrency = 1;
+              this.log?.record("paper-card.concurrency-reduced", { ...details, concurrency: 1,
+                activeRequests: this.activePaperCardRequests, ...rateLimit }, "warn");
+            }
+            if (rateLimit.rateLimitRetryable) {
+              // Add a small margin to the provider's reset time; never shorten it.
+              this.providerCooldownUntil = Math.max(this.providerCooldownUntil, this.now() + rateLimit.retryAfterMs + 1000);
+            }
+          }
           // Function Compute already performs its own short provider retry. The
           // browser retries only throttling/timeouts (plus network exceptions)
           // to avoid multiplying model calls.
-          const retryable = [408, 425, 429, 504].includes(response.status);
+          const retryable = rateLimit
+            ? rateLimit.rateLimitRetryable && rateLimit.retryAfterMs <= 120000 &&
+              !(path === "/api/literature/create-paper-card-from-text" && rateLimit.verifiedInputTokenRateLimit)
+            : [408, 425, 504].includes(response.status);
+          finish?.("failed", { status: response.status, code: error.code, retryable: retryable && attempt + 1 < maximumAttempts, providerAttempts: error.attempts, ...rateLimit });
           if (!retryable || attempt + 1 >= maximumAttempts) throw error;
           lastError = error;
         } catch (error) {
+          finish?.(error?.name === "AbortError" || error?.code === "OPERATION_ABORTED" ? "cancelled" : "failed",
+            { code: error?.code || (error?.name === "AbortError" ? "OPERATION_ABORTED" : "NETWORK_ERROR") });
           if (error?.name === "AbortError") {
             throw new LiteratureError("OPERATION_ABORTED", "The literature operation was stopped.", error);
           }
           if (error instanceof LiteratureError) throw error;
           lastError = error;
           if (attempt + 1 >= maximumAttempts) break;
+        } finally {
+          release?.();
         }
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        this.log?.record("backend-request.retry", { endpoint: path, attempt: attempt + 2, code: lastError?.code || "NETWORK_ERROR" }, "warn");
+        if (this.providerCooldownUntil <= this.now()) await this.wait(400, signal);
       }
       if (lastError instanceof LiteratureError) throw lastError;
       throw new LiteratureError(
@@ -974,7 +1254,7 @@
 
     async scan(options = {}) {
       const index = await this.workspace.readJson(".biodesign/literature/index.json");
-      const tree = options.tree || (await this.workspace.scanDirectoryTree());
+      const tree = options.tree || (options.reconciliation ? null : await this.workspace.scanDirectoryTree());
       const previous = Array.isArray(index.documents) ? index.documents : [];
       if (!this.sourceRegistry) {
         throw new LiteratureError(
@@ -982,11 +1262,11 @@
           "The local source registry could not be initialized."
         );
       }
-      const reconciliation = await this.sourceRegistry.reconcile(tree, {
+      const reconciliation = options.reconciliation || await this.sourceRegistry.reconcile(tree, {
         legacyDocuments: previous,
       });
       try {
-        await this.sourceSystem?.knowledgeLifecycle?.reconcile(
+        if (!options.deferKnowledgeMaintenance) await this.sourceSystem?.knowledgeLifecycle?.reconcile(
           reconciliation.changes
         );
       } catch (error) {
@@ -1027,7 +1307,7 @@
           relativePath: source.path,
           filename: source.displayName,
           size: Number(source.sizeBytes),
-          lastModified: Number(source.mtimeNs),
+          lastModified: Number(source.mtimeMs ?? source.mtimeNs),
           statSignature: source.statSignature,
           sourceHash: source.contentHash,
           hashStatus: source.hashStatus,
@@ -1046,7 +1326,7 @@
           summaryUpdatedAt: old.summaryUpdatedAt || "",
           isLiteraturePaper: source.sourceKind === "paper",
           discovery: createPaperDiscoveryRecord(
-            source.legacy?.discovery || old.discovery,
+            source.legacy?.discovery || (old.sourceHash === source.contentHash ? old.discovery : null),
             source.displayName
           ),
         };
@@ -1170,7 +1450,7 @@
     }
 
     async ensurePaperCards(options = {}) {
-      await this.scan();
+      await this.scan(options.turnReconciliation ? { reconciliation: options.turnReconciliation, deferKnowledgeMaintenance: true } : {});
       const allowedIds = Array.isArray(options.paperIds)
         ? new Set(options.paperIds)
         : null;
@@ -1298,10 +1578,20 @@
       callContext,
     }) {
       assertNotAborted(signal);
-      const sourceText = (paperArtifact.pages || [])
-        .map((page) => `# Page ${page.page}\n${page.text}`)
-        .join("\n\n");
-      const chunkResult = chunkLiteratureText(sourceText, this.config);
+      if (
+        !paperCardContract ||
+        paperCardContract.generationStrategy !== PAPER_CARD_GENERATION_STRATEGY ||
+        Number(paperCardContract.generationContractVersion) !==
+          PAPER_CARD_GENERATION_CONTRACT_VERSION
+      ) {
+        throw new LiteratureError(
+          "PAPER_CARD_CONFIGURATION_CHANGED",
+          "The canonical Paper Card generation contract is unavailable or incompatible."
+        );
+      }
+      const combinedText = combineExtractedPaperText(paperArtifact);
+      const sourceText = combinedText.text;
+      let chunkResult = chunkLiteratureText(sourceText, this.config);
       if (!chunkResult.chunks.length) {
         throw new LiteratureError("NO_TEXT_CHUNKS", "No usable text chunks were produced from this PDF.");
       }
@@ -1309,17 +1599,21 @@
       // causes processing. Question-level synthesis can localize the answer.
       const language = "en";
       let synthesized = null;
-      let generationMode = "text-map-reduce";
+      let generationMode = null;
       let fallbackReason =
-        paperCardContract?.generationStrategy !== PAPER_CARD_GENERATION_STRATEGY
-          ? "native-not-configured"
-          : paperCardContract?.nativePdfSupported !== true
-            ? "native-structured-output-unsupported"
-            : typeof this.api?.analyzePdfNative !== "function"
-              ? "native-api-unavailable"
-              : "native-provider-failure";
+        paperCardContract.nativePdfSupported !== true
+          ? "native-structured-output-unsupported"
+          : typeof this.api?.analyzePdfNative !== "function"
+            ? "native-api-unavailable"
+            : "native-provider-failure";
       let nativeEvidenceValidation = null;
       let nativeProviderAttempts = 0;
+      let nativeEndpointCalls = 0;
+      let combinedTextProviderAttempts = 0;
+      let combinedTextEndpointCalls = 0;
+      let mapReduceReason = null;
+      let mapReduceChunkCalls = 0;
+      let mapReduceSynthesisCalls = 0;
       const nativeBytes = bytes instanceof Uint8Array ? bytes : null;
       const nativeConfigured = Boolean(
         paperCardContract?.generationStrategy === PAPER_CARD_GENERATION_STRATEGY &&
@@ -1335,11 +1629,13 @@
       } else if (nativeConfigured && nativeBytes.byteLength > nativeByteLimit) {
         fallbackReason = "native-pdf-too-large";
       } else if (nativeConfigured) {
+        nativeEndpointCalls = 1;
         onProgress?.({
           stage: "native-paper-card-request",
           completed: 0,
           total: 1,
           providerRequest: true,
+          route: "native-pdf",
         });
         try {
           const nativeResult = await this.api.analyzePdfNative(
@@ -1382,11 +1678,20 @@
               paperArtifact,
               source.sourceId
             );
+            const supportedClaims = new Set(
+              nativeEvidenceValidation.findings.map((item) => item.claim)
+            );
             synthesized = {
               ...analysis,
-              mainFindings: (analysis.majorFindings || []).map((item) => item.claim),
-              importantResults: (analysis.importantResults || []).map((item) => item.claim),
-              keyResults: allNativeFindings.map((item) => item.claim),
+              mainFindings: (analysis.majorFindings || [])
+                .map((item) => item.claim)
+                .filter((claim) => supportedClaims.has(claim)),
+              importantResults: (analysis.importantResults || [])
+                .map((item) => item.claim)
+                .filter((claim) => supportedClaims.has(claim)),
+              keyResults: allNativeFindings
+                .map((item) => item.claim)
+                .filter((claim) => supportedClaims.has(claim)),
               summary: analysis.shortSummary,
               model: nativeResult.model || null,
             };
@@ -1398,9 +1703,28 @@
               total: 1,
               providerRequest: false,
               providerAttempts: nativeProviderAttempts,
+              nativePdfProviderAttempts: nativeProviderAttempts,
+              route: "native-pdf",
             });
           }
         } catch (error) {
+          if (
+            ["AUTH_REQUIRED", "NETWORK_ERROR", "OPERATION_ABORTED"].includes(error?.code) ||
+            error?.terminalProviderFailure === true
+          ) {
+            onProgress?.({
+              stage: "native-paper-card-failure",
+              completed: 0,
+              total: 1,
+              providerRequest: false,
+              providerAttempts: Math.max(0, Number(error?.attempts) || 0),
+              nativePdfProviderAttempts:
+                Math.max(0, Number(error?.attempts) || 0),
+              fallbackReason: error?.fallbackReason || "native-provider-failure",
+              route: "native-pdf",
+            });
+            throw error;
+          }
           nativeProviderAttempts = Math.max(0, Number(error?.attempts) || 0);
           fallbackReason = error?.fallbackReason ||
             (error?.code === "NativePaperCardUnsupported"
@@ -1408,20 +1732,191 @@
               : "native-provider-failure");
         }
       }
-      if (!synthesized) {
+
+      const combinedTextLimit = Math.max(
+        1,
+        Number(paperCardContract?.combinedTextMaxCharacters) ||
+          DEFAULT_COMBINED_TEXT_MAX_CHARACTERS
+      );
+      const combinedTextConfigured = Boolean(
+        paperCardContract?.generationStrategy === PAPER_CARD_GENERATION_STRATEGY &&
+        paperCardContract?.combinedTextSupported === true &&
+        typeof this.api?.createPaperCardFromText === "function"
+      );
+      let useMapReduce = false;
+      let quotaCharacterBudget = this.api.inputQuotaCharacterBudget?.() || 0;
+      if (!synthesized && quotaCharacterBudget && sourceText.length > quotaCharacterBudget) {
+        useMapReduce = true;
+        mapReduceReason = "combined-text-input-token-rate-limit";
+      }
+      if (!synthesized && !useMapReduce && sourceText.length > combinedTextLimit) {
+        useMapReduce = true;
+        mapReduceReason = "combined-text-local-size-limit";
+      }
+      if (!synthesized && !useMapReduce && !combinedTextConfigured) {
+        const error = new LiteratureError(
+          "COMBINED_TEXT_PAPER_CARD_UNAVAILABLE",
+          "The FC backend does not advertise a usable Paper Card text route. Deploy the current backend to enable validated JSON output."
+        );
+        error.fallbackReason = "combined-text-structured-output-unsupported";
+        error.nativeFallbackReason = fallbackReason;
+        throw error;
+      }
+      if (!synthesized && !useMapReduce) {
         onProgress?.({
-          stage: "paper-card-fallback",
+          stage: "combined-paper-card-request",
           completed: 0,
           total: 1,
           fallbackReason,
           providerAttempts: nativeProviderAttempts,
+          nativePdfProviderAttempts: nativeProviderAttempts,
+          providerRequest: true,
+          route: "combined-text",
+          message: "Creating paper analysis from extracted text",
+        });
+        combinedTextEndpointCalls = 1;
+        try {
+          const combinedResult = await this.api.createPaperCardFromText(
+            {
+              paperId: source.sourceId,
+              filename: source.displayName,
+              contentHash,
+              text: sourceText,
+              pageCount: paperArtifact.pageCount || combinedText.pageCount,
+              chunkCount: chunkResult.chunks.length,
+              extractionTruncated:
+                paperArtifact.truncated === true || chunkResult.truncated,
+              language,
+              callContext,
+            },
+            signal
+          );
+          combinedTextProviderAttempts = Math.max(
+            0,
+            Number(combinedResult.attempts) || 0
+          );
+          const validationErrors = nativePaperCardValidationErrors(combinedResult, {
+            paperId: source.sourceId,
+            contentHash,
+            schemaVersion:
+              paperCardContract.combinedTextSchemaVersion ||
+              COMBINED_TEXT_PAPER_CARD_SCHEMA_VERSION,
+            promptVersion:
+              paperCardContract.combinedTextPromptVersion ||
+              COMBINED_TEXT_PAPER_CARD_PROMPT_VERSION,
+            modelSignature: paperCardContract.combinedTextModelSignature,
+          });
+          if (validationErrors.length) {
+            const error = new LiteratureError(
+              "COMBINED_TEXT_PAPER_CARD_INVALID",
+              "The combined-text Paper Card failed local schema or provenance validation."
+            );
+            error.fallbackReason = "combined-text-schema-or-provenance-invalid";
+            error.nativeFallbackReason = fallbackReason;
+            throw error;
+          }
+          const analysis = combinedResult.analysis;
+          const allFindings = [
+            ...(analysis.majorFindings || []),
+            ...(analysis.importantResults || []),
+          ];
+          nativeEvidenceValidation = validatedNativeEvidenceFindings(
+            allFindings,
+            paperArtifact,
+            source.sourceId
+          );
+          const supportedClaims = new Set(
+            nativeEvidenceValidation.findings.map((item) => item.claim)
+          );
+          synthesized = {
+            ...analysis,
+            mainFindings: (analysis.majorFindings || [])
+              .map((item) => item.claim)
+              .filter((claim) => supportedClaims.has(claim)),
+            importantResults: (analysis.importantResults || [])
+              .map((item) => item.claim)
+              .filter((claim) => supportedClaims.has(claim)),
+            keyResults: allFindings
+              .map((item) => item.claim)
+              .filter((claim) => supportedClaims.has(claim)),
+            summary: analysis.shortSummary,
+            model: combinedResult.model || null,
+          };
+          generationMode = "combined-text";
+          onProgress?.({
+            stage: "combined-paper-card-success",
+            completed: 1,
+            total: 1,
+            fallbackReason,
+            providerRequest: false,
+            providerAttempts: combinedTextProviderAttempts,
+            combinedTextProviderAttempts,
+            route: "combined-text",
+          });
+        } catch (error) {
+          combinedTextProviderAttempts = Math.max(
+            combinedTextProviderAttempts,
+            Number(error?.attempts) || 0
+          );
+          onProgress?.({
+            stage: "combined-paper-card-failure",
+            completed: 0,
+            total: 1,
+            fallbackReason,
+            combinedTextFailureReason:
+              error?.fallbackReason || "combined-text-provider-failure",
+            code: error?.code,
+            providerStatus: error?.providerStatus,
+            retryAfterMs: error?.retryAfterMs,
+            inputTokenLimit: error?.inputTokenLimit,
+            verifiedContextLengthError:
+              error?.verifiedContextLengthError === true,
+            providerRequest: false,
+            providerAttempts: combinedTextProviderAttempts,
+            nativePdfProviderAttempts: nativeProviderAttempts,
+            combinedTextProviderAttempts,
+            route: "combined-text",
+          });
+          if (error?.verifiedInputTokenRateLimit === true && Number(error?.inputTokenLimit) > 2000 &&
+            error?.rateLimitRetryable !== false && (Number(error?.retryAfterMs) || 0) <= 120000) {
+            useMapReduce = true;
+            mapReduceReason = "combined-text-input-token-rate-limit";
+            quotaCharacterBudget = rateLimitApi.inputQuotaCharacterBudget(error.inputTokenLimit);
+          } else if (error?.verifiedContextLengthError === true) {
+            useMapReduce = true;
+            mapReduceReason = error.fallbackReason || "combined-text-context-length";
+          } else {
+            error.nativeFallbackReason ||= fallbackReason;
+            throw error;
+          }
+        }
+      }
+
+      if (!synthesized && useMapReduce) {
+        if (quotaCharacterBudget && quotaCharacterBudget < this.config.chunkCharacters) {
+          chunkResult = chunkLiteratureText(sourceText, { ...this.config, chunkCharacters: quotaCharacterBudget,
+            chunkOverlap: Math.min(this.config.chunkOverlap, Math.floor(quotaCharacterBudget / 10)) });
+          if (chunkResult.truncated) throw new LiteratureError("PAPER_CARD_QUOTA_TOO_SMALL", "The provider input-token quota is too small to process the full paper within the bounded excerpt limit.");
+        }
+        generationMode = "map-reduce";
+        onProgress?.({
+          stage: "map-reduce-start",
+          completed: 0,
+          total: chunkResult.chunks.length,
+          fallbackReason,
+          mapReduceReason,
           providerRequest: false,
+          route: "map-reduce",
+          nativePdfProviderAttempts: nativeProviderAttempts,
+          combinedTextProviderAttempts,
         });
         onProgress?.({
           stage: "summarizing",
           completed: 0,
           total: chunkResult.chunks.length,
           fallbackReason,
+          mapReduceReason,
+          route: "map-reduce",
         });
         let completed = 0;
         const chunkSummaries = await runWithConcurrency(
@@ -1435,15 +1930,19 @@
                 totalChunks: chunkResult.chunks.length,
                 text,
                 language,
+                callContext,
               },
               signal
             );
+            mapReduceChunkCalls += 1;
             completed += 1;
             onProgress?.({
               stage: "summarizing",
               completed,
               total: chunkResult.chunks.length,
               fallbackReason,
+              mapReduceReason,
+              route: "map-reduce",
             });
             return result;
           }
@@ -1455,7 +1954,36 @@
           completed: 0,
           total: 1,
           fallbackReason,
+          mapReduceReason,
+          route: "map-reduce",
         });
+        // All excerpts are retained. If their summaries exceed a learned token
+        // quota, reduce bounded groups before the final synthesis instead of
+        // truncating evidence or resubmitting an oversized summary payload.
+        let synthesisInputs = chunkSummaries;
+        const synthesisBudget = this.api.inputQuotaCharacterBudget?.() || quotaCharacterBudget;
+        for (let round = 0; synthesisBudget && JSON.stringify(synthesisInputs).length > synthesisBudget; round++) {
+          if (round >= 3 || synthesisInputs.length < 2) throw new LiteratureError("PAPER_CARD_QUOTA_TOO_SMALL", "The provider input-token quota is too small for the bounded synthesis.");
+          const groups = [];
+          let group = [];
+          for (const summary of synthesisInputs) {
+            if (JSON.stringify([summary]).length > synthesisBudget) throw new LiteratureError("PAPER_CARD_QUOTA_TOO_SMALL", "One excerpt summary exceeds the provider input-token budget.");
+            if (group.length && JSON.stringify([...group, summary]).length > synthesisBudget) { groups.push(group); group = []; }
+            group.push(summary);
+          }
+          if (group.length) groups.push(group);
+          const reduced = [];
+          for (const [index, summaries] of groups.entries()) {
+            onProgress?.({ stage: "synthesizing", route: "map-reduce", mapReduceReason, completed: index, total: groups.length });
+            if (summaries.length === 1) { reduced.push(summaries[0]); continue; }
+            mapReduceSynthesisCalls++;
+            reduced.push(await this.api.synthesize({ filename: source.displayName, pageCount: paperArtifact.pageCount,
+              chunkSummaries: summaries, language, callContext }, signal));
+          }
+          if (JSON.stringify(reduced).length >= JSON.stringify(synthesisInputs).length) throw new LiteratureError("PAPER_CARD_QUOTA_TOO_SMALL", "Grouped summaries could not fit the provider input-token budget.");
+          synthesisInputs = reduced;
+        }
+        mapReduceSynthesisCalls++;
         synthesized = await this.api.synthesize(
           {
             filename: source.displayName,
@@ -1463,8 +1991,9 @@
             lastModified: source.mtimeNs,
             pageCount: paperArtifact.pageCount,
             extractionTruncated: paperArtifact.truncated || chunkResult.truncated,
-            chunkSummaries,
+            chunkSummaries: synthesisInputs,
             language,
+            callContext,
           },
           signal
         );
@@ -1480,7 +2009,7 @@
         (
           Number(paperCardContract.schemaVersion) !== PAPER_CARD_VERSION ||
           paperCardContract.promptVersion !== PAPER_CARD_PROMPT_VERSION ||
-          (generationMode === "text-map-reduce" && synthesized.modelSignature &&
+          (generationMode === "map-reduce" && synthesized.modelSignature &&
             synthesized.modelSignature !== paperCardContract.modelSignature) ||
           (synthesized.promptVersion &&
             synthesized.promptVersion !== paperCardContract.promptVersion) ||
@@ -1536,9 +2065,11 @@
         promptVersion: PAPER_CARD_PROMPT_VERSION,
         generationStrategy:
           paperCardContract?.generationStrategy ||
-          (generationMode === "native-pdf"
+          (["native-pdf", "combined-text"].includes(generationMode)
             ? PAPER_CARD_GENERATION_STRATEGY
             : "text-map-reduce-v1"),
+        generationContractVersion:
+          Number(paperCardContract?.generationContractVersion) || 0,
         generationMode,
         fallbackReason,
         nativePdfSchemaVersion:
@@ -1547,21 +2078,40 @@
           paperCardContract?.nativePdfPromptVersion || "not-applicable",
         nativePdfModelSignature:
           paperCardContract?.nativePdfModelSignature || "not-applicable",
+        combinedTextSchemaVersion:
+          Number(paperCardContract?.combinedTextSchemaVersion) || 0,
+        combinedTextSupported:
+          paperCardContract?.combinedTextSupported === true,
+        combinedTextMaxCharacters:
+          Math.max(0, Number(paperCardContract?.combinedTextMaxCharacters) || 0),
+        combinedTextPromptVersion:
+          paperCardContract?.combinedTextPromptVersion || "not-applicable",
+        combinedTextModelSignature:
+          paperCardContract?.combinedTextModelSignature || "not-applicable",
         generationDiagnostics: {
           mode: generationMode,
+          route: generationMode,
           fallbackReason,
-          nativePdfEndpointCalls: nativeConfigured && nativeBytes?.byteLength &&
-            nativeBytes.byteLength <= nativeByteLimit
-            ? 1
-            : 0,
+          mapReduceReason,
+          nativePdfEndpointCalls: nativeEndpointCalls,
           nativePdfProviderAttempts: nativeProviderAttempts,
+          combinedTextEndpointCalls,
+          combinedTextProviderAttempts,
+          mapReduceChunkCalls,
+          mapReduceSynthesisCalls,
           nativeEvidenceCitationsSubmitted:
             nativeEvidenceValidation?.submittedCitations || 0,
           nativeEvidenceCitationsVerified:
             nativeEvidenceValidation?.verifiedCitations || 0,
           nativeEvidenceCitationsDropped:
             nativeEvidenceValidation?.droppedCitations || 0,
-          textFallbackOperations: generationMode === "text-map-reduce" ? 1 : 0,
+          evidenceFindingsSubmitted:
+            nativeEvidenceValidation?.submittedFindings || 0,
+          evidenceFindingsVerified:
+            nativeEvidenceValidation?.verifiedFindings || 0,
+          evidenceFindingsDropped:
+            nativeEvidenceValidation?.droppedFindings || 0,
+          textFallbackOperations: generationMode === "map-reduce" ? 1 : 0,
         },
         cacheKey: makePaperCardCacheKey({
           sourceId: source.sourceId,
@@ -1571,15 +2121,25 @@
           promptVersion: PAPER_CARD_PROMPT_VERSION,
           generationStrategy:
             paperCardContract?.generationStrategy ||
-            (generationMode === "native-pdf"
+            (["native-pdf", "combined-text"].includes(generationMode)
               ? PAPER_CARD_GENERATION_STRATEGY
               : "text-map-reduce-v1"),
+          generationContractVersion:
+            Number(paperCardContract?.generationContractVersion) || 0,
           nativePdfSchemaVersion:
             Number(paperCardContract?.nativePdfSchemaVersion) || 0,
           nativePdfPromptVersion:
             paperCardContract?.nativePdfPromptVersion || "not-applicable",
           nativePdfModelSignature:
             paperCardContract?.nativePdfModelSignature || "not-applicable",
+          combinedTextSchemaVersion:
+            Number(paperCardContract?.combinedTextSchemaVersion) || 0,
+          combinedTextMaxCharacters:
+            Math.max(0, Number(paperCardContract?.combinedTextMaxCharacters) || 0),
+          combinedTextPromptVersion:
+            paperCardContract?.combinedTextPromptVersion || "not-applicable",
+          combinedTextModelSignature:
+            paperCardContract?.combinedTextModelSignature || "not-applicable",
           sourceArtifactSchemaVersion: SOURCE_ARTIFACT_SCHEMA_VERSION,
           extractorVersion: SOURCE_EXTRACTOR_VERSION,
         }),
@@ -1641,7 +2201,22 @@
         discovery: createPaperDiscoveryRecord(card, source.displayName),
       };
       source.error = null;
-      onProgress?.({ stage: "complete", completed: 1, total: 1 });
+      onProgress?.({
+        stage: "complete",
+        completed: 1,
+        total: 1,
+        route: generationMode,
+        fallbackReason,
+        mapReduceReason,
+        accounting: {
+          nativePdfEndpointCalls: nativeEndpointCalls,
+          nativePdfProviderAttempts: nativeProviderAttempts,
+          combinedTextEndpointCalls,
+          combinedTextProviderAttempts,
+          mapReduceChunkCalls,
+          mapReduceSynthesisCalls,
+        },
+      });
       return {
         card,
         path,
@@ -1655,6 +2230,12 @@
         nativePdfSchemaVersion: card.nativePdfSchemaVersion,
         nativePdfPromptVersion: card.nativePdfPromptVersion,
         nativePdfModelSignature: card.nativePdfModelSignature,
+        generationContractVersion: card.generationContractVersion,
+        combinedTextSchemaVersion: card.combinedTextSchemaVersion,
+        combinedTextSupported: card.combinedTextSupported,
+        combinedTextMaxCharacters: card.combinedTextMaxCharacters,
+        combinedTextPromptVersion: card.combinedTextPromptVersion,
+        combinedTextModelSignature: card.combinedTextModelSignature,
         cacheKey: card.cacheKey,
       };
     }
@@ -1677,7 +2258,7 @@
         "paper_card",
         options
       );
-      await this.scan();
+      await this.scan(options.turnReconciliation ? { reconciliation: options.turnReconciliation, deferKnowledgeMaintenance: true } : {});
       const current = this.findDocument(documentId);
       const card = await this.workspace.readJson(current.paperCardPath);
       const sourceText = options.includeSourceText
@@ -1702,6 +2283,7 @@
     LiteratureError,
     LiteratureModule,
     PAPER_CARD_VERSION,
+    combineExtractedPaperText,
     chunkLiteratureText,
     createPaperDiscoveryRecord,
     extractLocalPdf,

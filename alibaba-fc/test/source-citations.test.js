@@ -157,3 +157,66 @@ test("model-supplied citation metadata is discarded even when no citation token 
   const result = agent.resolveSideChatAnswerCitations({ reply: "Answer", citations: [{ id: "citation-1", relativePath: "/outside", page: 999, status: "resolved" }] }, kb, "side_chat");
   assert.deepEqual(result, { reply: "Answer" });
 });
+
+test("grouped and single cite markers resolve without leaking IDs or extra brackets", () => {
+  const ids = ["e7b79259-c640-49f4-ba04-a9e77ba78f08", "e9355bd2-a1b4-4d7d-af44-4dbe08f74550"];
+  const sources = citations.createRegistry(ids.map((sourceId, i) => ({ sourceId, relativePath: `literature/paper-${i}.pdf` })));
+  for (const input of [`[[cite:${ids[0]}], [cite:${ids[1]}]]`, `[cite:${ids[0]}], [cite:${ids[1]}]`, `[[cite:${ids.join(", ")}]]`]) {
+    const result = citations.resolveAnswer(`合成途径 ${input}。`, sources);
+    assert.deepEqual(result.citations.map(entry => entry.sourceId), ids);
+    assert.doesNotMatch(result.reply, /\[\[|cite:|e7b79259|e9355bd2|\)\]/);
+    assert.equal((result.reply.match(/biodesign-citation:/g) || []).length, 2);
+  }
+  const missing = citations.resolveAnswer("[[cite:unknown-a], [cite:unknown-b]]", sources);
+  assert.ok(missing.citations.every(entry => entry.status === "missing"));
+  assert.doesNotMatch(missing.reply, /unknown-|cite:/);
+  const protectedText = "`[[cite:paper-a], [cite:paper-b]]` [Label [cite:paper-a]](https://example.com)";
+  assert.equal(citations.resolveAnswer(protectedText, registry()).reply, protectedText);
+});
+
+test("saved mixed replies repair stable IDs without changing saved identities or colliding with existing links", () => {
+  const sources = fixture().sourceMap.paperSources;
+  const context = { workspaceId: "w", workspaceName: "Project Folder", getSource: id => sources.find(source => source.sourceId === id), files: sources.map(source => ({ type: "file", relativePath: source.path })) };
+  const saved = citations.bindToWorkspace(citations.resolveAnswer("[local:1]", registry()).citations, context);
+  const reply = "[Existing](biodesign-citation:citation-1) [Unregistered](biodesign-citation:citation-2) [[cite:paper-b], [cite:paper-a]] [local:999] [[cite:paper-b:p99:invented]]";
+  const result = citations.resolveForDisplay(reply, saved, context);
+  assert.deepEqual(result.citations[0], saved[0]);
+  assert.equal(result.citations[1].id, "citation-3");
+  assert.equal(result.citations[1].sourceId, "paper-b");
+  assert.ok(citations.navigationTarget(result.citations[1], context));
+  assert.ok(!result.citations.some(entry => entry.id === "citation-2"));
+  assert.ok(result.citations.slice(-2).every(entry => entry.status === "missing"));
+  assert.doesNotMatch(result.reply, /\[\[|cite:|local:999|invented/);
+  const repeated = citations.resolveForDisplay(result.reply, result.citations, context);
+  assert.deepEqual(repeated, result);
+
+  sources[0].contentHash = "changed";
+  const stale = citations.resolveForDisplay("[[cite:paper-a]]", saved, context).citations.at(-1);
+  assert.equal(stale.contentHash, saved[0].contentHash);
+  assert.equal(citations.navigationTarget(stale, context), null);
+  const otherWorkspace = { ...context, workspaceId: "other" };
+  assert.equal(citations.navigationTarget(citations.resolveForDisplay("[[cite:paper-a]]", saved, otherWorkspace).citations.at(-1), otherWorkspace), null);
+  assert.equal(citations.resolveForDisplay("[local:1]", [], context).citations[0].status, "missing");
+});
+
+test("compact citation labels retain the filename, extension and verified location; full labels retain the path", () => {
+  const entry = { relativePath: "literature/deep/2017--Continuous abatement of methane coupled with ectoine production by Methylomicrobium alcaliphilum 20Z in stirred tank reactors - A step further towards greenhouse gas biorefineries.pdf", workspaceName: "LocalWork_Test_APP copy", page: 5, status: "resolved" };
+  const compact = citations.label(entry, { compact: true });
+  assert.ok(compact.length < 70);
+  assert.match(compact, /^2017--Continuous.*….*\.pdf — p\. 5$/);
+  assert.doesNotMatch(compact, /literature|LocalWork/);
+  assert.equal(citations.label(entry), `LocalWork_Test_APP copy / ${entry.relativePath.split("/").join(" / ")} — p. 5`);
+});
+
+test("nested list citations resolve while actual indented and fenced code remains untouched", () => {
+  const input = [
+    "*   **主流模型对比**：", "    *   AF3 [[cite:paper-a]]。", "    *   Chai-1 [[cite:paper-b]]。",
+    "", "*   **技术突破**：", "    1. 优势 [[cite:paper-c]]。", "       续行 [paper-a]。",
+    "", "           [[cite:code-in-list]]", "", "    ```text", "    [[cite:fenced-in-list]]", "    ```",
+    "", "Outside list", "", "    * [[cite:indented-code]]", "    [local:1]",
+  ].join("\n");
+  const result = citations.resolveAnswer(input, registry());
+  assert.deepEqual(result.citations.map(entry => entry.sourceId), ["paper-a", "paper-b", "paper-c"]);
+  assert.doesNotMatch(result.reply, /cite:paper-|\[paper-a\]/);
+  for (const code of ["           [[cite:code-in-list]]", "    [[cite:fenced-in-list]]", "    * [[cite:indented-code]]", "    [local:1]"]) assert.ok(result.reply.includes(code), code);
+});

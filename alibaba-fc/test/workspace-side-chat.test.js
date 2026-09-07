@@ -358,7 +358,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.ok(chatStart >= 0 && chatEnd > chatStart);
   assert.doesNotMatch(chatFunction, /currentRecommendation\s*=/);
   assert.doesNotMatch(chatFunction, /runAgentInstruction/);
-  assert.match(chatFunction, /enableContextRouter:\s*retrievalProfile\s*===\s*"high"/);
+  assert.match(chatFunction, /projectContextService\.buildContext/);
   const agentStart = appSource.indexOf("async function runAgentInstruction");
   const agentEnd = appSource.indexOf("function setAgentBusy", agentStart);
   const agentFunction = appSource.slice(agentStart, agentEnd);
@@ -447,7 +447,7 @@ test("workspace open, login, and Refresh never generate Paper Cards", () => {
   assert.match(moduleSource, /async ensurePaperCards\(/);
 });
 
-test("Side Chat reconciles current nested-file metadata before routing without eager processing", () => {
+test("Both surfaces share the context preflight gate before routing", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),
     "utf8"
@@ -455,11 +455,14 @@ test("Side Chat reconciles current nested-file metadata before routing without e
   const chatStart = appSource.indexOf("async function askSideChat");
   const chatEnd = appSource.indexOf("function updateSideChatThinking", chatStart);
   const chatFunction = appSource.slice(chatStart, chatEnd);
-  const reconcileCall = chatFunction.indexOf("await reconcileCurrentWorkspaceCatalog()");
+  const contextSource = fs.readFileSync(path.join(__dirname, "../../docs/project-context-service.js"), "utf8");
+  const reconcileCall = contextSource.indexOf("await this.requestPipeline.preflight(options)");
   const contextBuild = chatFunction.indexOf("projectContextService.buildContext");
 
   assert.ok(reconcileCall >= 0);
-  assert.ok(contextBuild > reconcileCall);
+  assert.ok(contextBuild >= 0);
+  assert.ok(contextSource.indexOf("await this.semanticInterpreter.interpret", reconcileCall) > reconcileCall);
+  assert.doesNotMatch(chatFunction, /await reconcileCurrentWorkspaceCatalog\(\)/);
   assert.doesNotMatch(
     chatFunction.slice(0, contextBuild),
     /ensurePaperCards|\.summarize\(|ensureSourceReady/
