@@ -1,0 +1,31 @@
+{
+  "savedLogicalRoleCounts": {
+    "semantic_parser": 11,
+    "schema_mapper": 36,
+    "search_planner": 0,
+    "reranker": 0,
+    "corpus_mapper": 0,
+    "native_pdf": 0,
+    "combined_text_paper_card": 0,
+    "image_understanding": 0,
+    "answer": 38
+  },
+  "roleObservationCoverage": {
+    "semantic_parser": 13,
+    "schema_mapper": 13,
+    "search_planner": 13,
+    "reranker": 13,
+    "corpus_mapper": 13,
+    "native_pdf": 13,
+    "combined_text_paper_card": 13,
+    "image_understanding": 13,
+    "answer": 13
+  },
+  "totalObservations": 13,
+  "actualFcRequests": null,
+  "actualRequestyCalls": null,
+  "inputTokens": null,
+  "outputTokens": null,
+  "estimatedUsd": null,
+  "limitation": "Persisted counters omit some preflight/planner work and are not transport counts. Missing counters remain unmeasured. Upstream attempts and billing are unavailable."
+}

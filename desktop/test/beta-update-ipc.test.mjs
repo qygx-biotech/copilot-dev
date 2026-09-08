@@ -21,7 +21,7 @@ function ipcFixture() {
   const sessionManager = new EventEmitter();
   let requests = 0;
   const controller = {
-    async requestBetaUpdateCheck() {
+    async requestUpdateCheck() {
       requests += 1;
       return { state: "checking" };
     },
@@ -37,9 +37,9 @@ function ipcFixture() {
   return { controller, handlers, requests: () => requests, unregister, webContents };
 }
 
-test("the beta update IPC accepts only the current file renderer and no input", async () => {
+test("the update IPC accepts only the current file renderer and no input", async () => {
   const state = ipcFixture();
-  const handler = state.handlers.get(channels.betaUpdateCheck);
+  const handler = state.handlers.get(channels.updateCheck);
   const trustedEvent = {
     sender: state.webContents,
     senderFrame: { url: state.webContents.getURL() },

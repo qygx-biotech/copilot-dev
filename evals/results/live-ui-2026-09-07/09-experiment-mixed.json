@@ -1,0 +1,355 @@
+{
+  "caseId": "CW-ECTD_EXPERIMENTS-07",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "在 mixed-header 的 X04 表中，42°C 条件下平均滴度最高的是 **A163V** 突变体。\n\n两个突变体的平均滴度如下：\n*   **A163V**: 4.65 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A2:H2](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A3:H3](biodesign-citation:citation-2)\n*   **T212S**: 3.95 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A4:H4](biodesign-citation:citation-3), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A5:H5](biodesign-citation:citation-4)",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "X04-R1",
+          "sourceId": "X04",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "experiments/X04.xlsx",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "page": null,
+          "sheet": "EctD",
+          "row": 2,
+          "range": "A2:H2",
+          "status": "resolved"
+        },
+        {
+          "id": "citation-2",
+          "reference": "X04-R2",
+          "sourceId": "X04",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "experiments/X04.xlsx",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "page": null,
+          "sheet": "EctD",
+          "row": 3,
+          "range": "A3:H3",
+          "status": "resolved"
+        },
+        {
+          "id": "citation-3",
+          "reference": "X04-R3",
+          "sourceId": "X04",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "experiments/X04.xlsx",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "page": null,
+          "sheet": "EctD",
+          "row": 4,
+          "range": "A4:H4",
+          "status": "resolved"
+        },
+        {
+          "id": "citation-4",
+          "reference": "X04-R4",
+          "sourceId": "X04",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "experiments/X04.xlsx",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "page": null,
+          "sheet": "EctD",
+          "row": 5,
+          "range": "A5:H5",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P152",
+        "P117",
+        "P131",
+        "P17",
+        "P52"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X03",
+        "X04",
+        "X01",
+        "X02"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": "experiment.rank",
+          "localConfidence": 0.8669,
+          "matchState": "known",
+          "remoteSemanticParserUsed": false,
+          "finalPattern": "experiment.rank",
+          "route": "local"
+        },
+        "operations": [
+          "aggregate",
+          "rank",
+          "filter"
+        ],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results"
+        ],
+        "semanticParserCalls": 0,
+        "cloudCalls": {
+          "semantic_parser": 0,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "fast",
+        "attemptedMode": "deep",
+        "escalated": true,
+        "reason": "local-compatible-fallback"
+      }
+    },
+    "activity": [
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P117.pdf...",
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P17.pdf...",
+      "正在读取 P17.pdf 的源文件细节...",
+      "正在准备 P52.pdf...",
+      "正在读取 P52.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "在 mixed-header 的 X04 表中，42°C 下哪个突变体的平均滴度最高？同时列出两个均值。",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:21:55.239Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788826854353-7e8a2ac1ecd8b",
+          "role": "user",
+          "content": "在 mixed-header 的 X04 表中，42°C 下哪个突变体的平均滴度最高？同时列出两个均值。",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P152",
+              "P117",
+              "P131",
+              "P17",
+              "P52"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X03",
+              "X04",
+              "X01",
+              "X02"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": "experiment.rank",
+                "localConfidence": 0.8669,
+                "matchState": "known",
+                "remoteSemanticParserUsed": false,
+                "finalPattern": "experiment.rank",
+                "route": "local"
+              },
+              "operations": [
+                "aggregate",
+                "rank",
+                "filter"
+              ],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results"
+              ],
+              "semanticParserCalls": 0,
+              "cloudCalls": {
+                "semantic_parser": 0,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 2
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "fast",
+              "attemptedMode": "deep",
+              "escalated": true,
+              "reason": "local-compatible-fallback"
+            }
+          },
+          "createdAt": "2026-09-08T00:20:54.353Z"
+        },
+        {
+          "id": "1788826915234-1661ca1d6f005",
+          "role": "assistant",
+          "content": "在 mixed-header 的 X04 表中，42°C 条件下平均滴度最高的是 **A163V** 突变体。\n\n两个突变体的平均滴度如下：\n*   **A163V**: 4.65 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A2:H2](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A3:H3](biodesign-citation:citation-2)\n*   **T212S**: 3.95 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A4:H4](biodesign-citation:citation-3), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx — Sheet EctD — A5:H5](biodesign-citation:citation-4)",
+          "activity": [
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P117.pdf...",
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P17.pdf...",
+            "正在读取 P17.pdf 的源文件细节...",
+            "正在准备 P52.pdf...",
+            "正在读取 P52.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "X04-R1",
+              "sourceId": "X04",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X04.xlsx",
+              "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+              "page": null,
+              "sheet": "EctD",
+              "row": 2,
+              "range": "A2:H2",
+              "status": "resolved"
+            },
+            {
+              "id": "citation-2",
+              "reference": "X04-R2",
+              "sourceId": "X04",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X04.xlsx",
+              "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+              "page": null,
+              "sheet": "EctD",
+              "row": 3,
+              "range": "A3:H3",
+              "status": "resolved"
+            },
+            {
+              "id": "citation-3",
+              "reference": "X04-R3",
+              "sourceId": "X04",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X04.xlsx",
+              "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+              "page": null,
+              "sheet": "EctD",
+              "row": 4,
+              "range": "A4:H4",
+              "status": "resolved"
+            },
+            {
+              "id": "citation-4",
+              "reference": "X04-R4",
+              "sourceId": "X04",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X04.xlsx",
+              "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+              "page": null,
+              "sheet": "EctD",
+              "row": 5,
+              "range": "A5:H5",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-08T00:21:55.234Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 60881,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": "experiment.rank",
+      "localConfidence": 0.8669,
+      "matchState": "known",
+      "remoteSemanticParserUsed": false,
+      "finalPattern": "experiment.rank",
+      "route": "local"
+    },
+    "operations": [
+      "aggregate",
+      "rank",
+      "filter"
+    ],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results"
+    ],
+    "semanticParserCalls": 0,
+    "cloudCalls": {
+      "semantic_parser": 0,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 2
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "d9ad3e88d9d052456bbd4872f6b2b27affdecc8c18a041d295709cc5045d31a4",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

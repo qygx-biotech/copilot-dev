@@ -1,0 +1,217 @@
+{
+  "createdAt": "2026-09-07T23:41:33.397Z",
+  "role": "post-score-source-diagnostic",
+  "entrypoint": "ProjectFilesystem.ensureDirectory",
+  "runtime": "v26.3.0",
+  "fixture": "Independent empty temporary project; no frozen case rerun",
+  "concurrency": 8,
+  "observations": [
+    {
+      "repetition": 0,
+      "cold": [
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe0'"
+        }
+      ],
+      "warm": [
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        }
+      ]
+    },
+    {
+      "repetition": 1,
+      "cold": [
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe1'"
+        }
+      ],
+      "warm": [
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        }
+      ]
+    },
+    {
+      "repetition": 2,
+      "cold": [
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        },
+        {
+          "status": "rejected",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/tmp/biodesign-fs-race-diagnostic-XMjQDB/probe2'"
+        }
+      ],
+      "warm": [
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        },
+        {
+          "status": "fulfilled"
+        }
+      ]
+    }
+  ]
+}

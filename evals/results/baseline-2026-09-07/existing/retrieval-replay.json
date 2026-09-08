@@ -1,0 +1,2753 @@
+{
+  "schemaVersion": 3,
+  "generatedAt": "2026-09-07T23:29:12.120Z",
+  "fixture": true,
+  "qmdPackageVersion": "2.8.3",
+  "nodeVersion": "v24.18.1",
+  "queryCount": 10,
+  "repeats": 3,
+  "models": [
+    {
+      "modelName": "lexical",
+      "modelId": null,
+      "dbPath": "/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-qmd-benchmark-JxOeWZ/.biodesign/knowledge/qmd/benchmarks/lexical.sqlite",
+      "update": {
+        "durationMs": 11.308459,
+        "result": {
+          "collections": 1,
+          "indexed": 11,
+          "updated": 0,
+          "unchanged": 0,
+          "removed": 0,
+          "skipped": 0,
+          "needsEmbedding": 11
+        }
+      },
+      "embedding": {
+        "firstDurationMs": null,
+        "steadyDurationMs": null,
+        "firstResult": null,
+        "steadyResult": null
+      },
+      "memory": {
+        "rssBeforeBytes": 77332480,
+        "peakRssBytes": 125845504,
+        "peakDeltaBytes": 48513024
+      },
+      "aggregates": {
+        "legacy": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 0.8,
+            "recallAt10": 0.8,
+            "evidenceRecallAt5": 0.7,
+            "meanReciprocalRank": 0.8,
+            "firstQueryMeanMs": 0.6351834000000054,
+            "steadyQueryP50Ms": 0.04083400000001802
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.1830416000000128,
+            "steadyQueryP50Ms": 0.045457999999996446
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 0,
+            "recallAt10": 0,
+            "evidenceRecallAt5": 0,
+            "meanReciprocalRank": 0,
+            "firstQueryMeanMs": 0.11468750000000227,
+            "steadyQueryP50Ms": 0.03633299999998485
+          }
+        },
+        "qmdLex": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 0.2,
+            "recallAt10": 0.2,
+            "evidenceRecallAt5": 0.2,
+            "meanReciprocalRank": 0.2,
+            "firstQueryMeanMs": 0.49267910000000226,
+            "steadyQueryP50Ms": 0.07425000000000637
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 0.2,
+            "recallAt10": 0.2,
+            "evidenceRecallAt5": 0.2,
+            "meanReciprocalRank": 0.2,
+            "firstQueryMeanMs": 0.5647329999999983,
+            "steadyQueryP50Ms": 0.08329200000000014
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 0,
+            "recallAt10": 0,
+            "evidenceRecallAt5": 0,
+            "meanReciprocalRank": 0,
+            "firstQueryMeanMs": 0.7347084999999964,
+            "steadyQueryP50Ms": 0.07325000000000159
+          }
+        },
+        "cloudPlannedLexicalReplay": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 0.9828126999999981,
+            "steadyQueryP50Ms": 0.8082499999999868
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.2422751999999917,
+            "steadyQueryP50Ms": 0.8475839999999977
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 0.9908544999999975,
+            "steadyQueryP50Ms": 0.7302090000000021
+          }
+        },
+        "cloudRerankedReplay": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 0.8940500999999997,
+            "steadyQueryP50Ms": 0.8197499999999991
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.1180252000000024,
+            "steadyQueryP50Ms": 0.9754169999999931
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 0.9186250000000058,
+            "steadyQueryP50Ms": 0.6722919999999988
+          }
+        },
+        "profileLight": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 0.8,
+            "recallAt10": 0.8,
+            "evidenceRecallAt5": 0.7,
+            "meanReciprocalRank": 0.8,
+            "firstQueryMeanMs": 0.21372069999999893,
+            "steadyQueryP50Ms": 0.1103339999999946
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 0.27592460000000185,
+            "steadyQueryP50Ms": 0.1564170000000047
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 0,
+            "recallAt10": 0,
+            "evidenceRecallAt5": 0,
+            "meanReciprocalRank": 0,
+            "firstQueryMeanMs": 0.14958349999999143,
+            "steadyQueryP50Ms": 0.10366700000000151
+          }
+        },
+        "profileMedium": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 0.9,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 0.906037500000005,
+            "steadyQueryP50Ms": 0.4528750000000059
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.235483400000004,
+            "steadyQueryP50Ms": 1.353082999999998
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.11772950000001,
+            "steadyQueryP50Ms": 0.8448339999999916
+          }
+        },
+        "profileHigh": {
+          "all": {
+            "queryCount": 10,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.0249295000000047,
+            "steadyQueryP50Ms": 0.9652909999999792
+          },
+          "en": {
+            "queryCount": 5,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.1733920000000126,
+            "steadyQueryP50Ms": 1.048208000000045
+          },
+          "zh": {
+            "queryCount": 2,
+            "recallAt5": 1,
+            "recallAt10": 1,
+            "evidenceRecallAt5": 1,
+            "meanReciprocalRank": 1,
+            "firstQueryMeanMs": 1.3343129999999945,
+            "steadyQueryP50Ms": 0.7737079999999992
+          }
+        }
+      },
+      "profiles": {
+        "light": {
+          "profile": "light",
+          "queryCount": 10,
+          "recallAt5": 0.8,
+          "recallAt10": 0.8,
+          "evidenceRecallAt5": 0.7,
+          "meanReciprocalRank": 0.8,
+          "firstQueryMeanMs": 0.21372069999999893,
+          "steadyQueryP50Ms": 0.1103339999999946,
+          "deepQueryCount": 0,
+          "deepQueryPercentage": 0,
+          "fcRequestCount": {
+            "cold": 0,
+            "cached": 0
+          },
+          "requestyCallCount": {
+            "cold": 0,
+            "cached": 0
+          },
+          "estimatedUsage": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0
+          },
+          "cacheBehavior": "All queries remained local; no FC or Requesty retrieval calls were required.",
+          "latencyScope": "Measured local orchestration only; live FC and Requesty latency is not included."
+        },
+        "medium": {
+          "profile": "medium",
+          "queryCount": 10,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 0.9,
+          "meanReciprocalRank": 1,
+          "firstQueryMeanMs": 0.906037500000005,
+          "steadyQueryP50Ms": 0.4528750000000059,
+          "deepQueryCount": 5,
+          "deepQueryPercentage": 0.5,
+          "fcRequestCount": {
+            "cold": 15,
+            "cached": 5
+          },
+          "requestyCallCount": {
+            "cold": 10,
+            "cached": 0
+          },
+          "estimatedUsage": {
+            "inputCharacters": 14238,
+            "outputCharacters": 2398,
+            "inputTokens": 3561,
+            "outputTokens": 602
+          },
+          "cacheBehavior": "Cold Deep uses config, plan, and rank requests; valid plan/rank caches retain one FC config-signature check and make zero Requesty calls. Fast remains local.",
+          "latencyScope": "Measured local orchestration only; live FC and Requesty latency is not included."
+        },
+        "high": {
+          "profile": "high",
+          "queryCount": 10,
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "meanReciprocalRank": 1,
+          "firstQueryMeanMs": 1.0249295000000047,
+          "steadyQueryP50Ms": 0.9652909999999792,
+          "deepQueryCount": 10,
+          "deepQueryPercentage": 1,
+          "fcRequestCount": {
+            "cold": 30,
+            "cached": 10
+          },
+          "requestyCallCount": {
+            "cold": 20,
+            "cached": 0
+          },
+          "estimatedUsage": {
+            "inputCharacters": 26305,
+            "outputCharacters": 4296,
+            "inputTokens": 6580,
+            "outputTokens": 1078
+          },
+          "cacheBehavior": "Cold Deep uses config, plan, and rank requests; valid plan/rank caches retain one FC config-signature check and make zero Requesty calls. Fast remains local.",
+          "latencyScope": "Measured local orchestration only; live FC and Requesty latency is not included."
+        }
+      },
+      "queries": [
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-096",
+            "paper-052",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 5.655833000000001,
+          "steadyMs": [
+            0.08074999999999477,
+            0.05016699999998764,
+            0.5522919999999942
+          ],
+          "steadyP50Ms": 0.08074999999999477
+        },
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 2.3319159999999926,
+          "steadyMs": [
+            0.2864579999999961,
+            0.20070799999999167,
+            0.20266600000000778
+          ],
+          "steadyP50Ms": 0.20266600000000778
+        },
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-074",
+            "paper-096",
+            "paper-118",
+            "paper-052",
+            "paper-021"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.5860420000000062,
+          "steadyMs": [
+            1.0303749999999923,
+            0.8475839999999977,
+            0.8163339999999977
+          ],
+          "steadyP50Ms": 0.8475839999999977,
+          "usageEstimate": {
+            "inputCharacters": 89,
+            "outputCharacters": 79,
+            "inputTokens": 23,
+            "outputTokens": 20,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-021",
+            "paper-118",
+            "paper-052",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.2259999999999849,
+          "steadyMs": [
+            0.8954579999999908,
+            1.0639589999999828,
+            0.9754169999999931
+          ],
+          "steadyP50Ms": 0.9754169999999931,
+          "usageEstimate": {
+            "inputCharacters": 3442,
+            "outputCharacters": 529,
+            "inputTokens": 861,
+            "outputTokens": 133,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.37691599999999426,
+          "steadyMs": [
+            0.15350000000000819,
+            0.17020899999999983,
+            0.17862500000001091
+          ],
+          "steadyP50Ms": 0.17020899999999983,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.9636250000000075,
+          "steadyMs": [
+            0.22020800000001373,
+            0.19095899999999233,
+            0.5568340000000092
+          ],
+          "steadyP50Ms": 0.22020800000001373,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "medium-strong-exact-match"
+          }
+        },
+        {
+          "queryId": "en-exact-variant",
+          "language": "en",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-021",
+            "paper-118",
+            "paper-052",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.1870839999999987,
+          "steadyMs": [
+            1.0444160000000124,
+            0.9652909999999792,
+            0.8894579999999905
+          ],
+          "steadyP50Ms": 0.9652909999999792,
+          "usageEstimate": {
+            "inputCharacters": 3442,
+            "outputCharacters": 529,
+            "inputTokens": 861,
+            "outputTokens": 133,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-052",
+            "paper-063"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.09016600000001063,
+          "steadyMs": [
+            0.0644580000000019,
+            0.045457999999996446,
+            0.036624999999986585
+          ],
+          "steadyP50Ms": 0.045457999999996446
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.2174579999999935,
+          "steadyMs": [
+            0.10604200000000219,
+            0.09825000000000728,
+            0.08954199999999446
+          ],
+          "steadyP50Ms": 0.09825000000000728
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-052",
+            "paper-031",
+            "paper-074",
+            "paper-096",
+            "paper-021",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.3269169999999804,
+          "steadyMs": [
+            1.2101670000000126,
+            1.1985420000000033,
+            1.1306659999999908
+          ],
+          "steadyP50Ms": 1.1985420000000033,
+          "usageEstimate": {
+            "inputCharacters": 127,
+            "outputCharacters": 110,
+            "inputTokens": 32,
+            "outputTokens": 28,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-052",
+            "paper-021",
+            "paper-096",
+            "paper-118",
+            "paper-031",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.6730420000000095,
+          "steadyMs": [
+            1.3714999999999975,
+            1.271792000000005,
+            1.3100839999999891
+          ],
+          "steadyP50Ms": 1.3100839999999891,
+          "usageEstimate": {
+            "inputCharacters": 4133,
+            "outputCharacters": 633,
+            "inputTokens": 1034,
+            "outputTokens": 159,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-052",
+            "paper-063"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.32487500000002,
+          "steadyMs": [
+            0.2121659999999963,
+            0.15316699999999628,
+            0.1564170000000047
+          ],
+          "steadyP50Ms": 0.1564170000000047,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-052",
+            "paper-021",
+            "paper-096",
+            "paper-118",
+            "paper-031",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 2.123250000000013,
+          "steadyMs": [
+            2.1309160000000134,
+            2.1483340000000055,
+            1.7164589999999862
+          ],
+          "steadyP50Ms": 2.1309160000000134,
+          "usageEstimate": {
+            "inputCharacters": 4133,
+            "outputCharacters": 633,
+            "inputTokens": 1034,
+            "outputTokens": 159,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "medium-insufficient-lexical-coverage"
+          }
+        },
+        {
+          "queryId": "en-semantic-variant",
+          "language": "en",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-052",
+            "paper-021",
+            "paper-096",
+            "paper-118",
+            "paper-031",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.5933750000000089,
+          "steadyMs": [
+            1.1832080000000076,
+            1.1302919999999972,
+            1.1788329999999974
+          ],
+          "steadyP50Ms": 1.1788329999999974,
+          "usageEstimate": {
+            "inputCharacters": 4133,
+            "outputCharacters": 633,
+            "inputTokens": 1034,
+            "outputTokens": 159,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017",
+            "paper-052",
+            "paper-074",
+            "paper-085",
+            "paper-096",
+            "paper-107",
+            "paper-021",
+            "paper-041",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.05941699999999628,
+          "steadyMs": [
+            0.0489170000000172,
+            0.04262499999998681,
+            0.03562499999998181
+          ],
+          "steadyP50Ms": 0.04262499999998681
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.10208299999999326,
+          "steadyMs": [
+            0.08329200000000014,
+            0.0998339999999871,
+            0.0817909999999813
+          ],
+          "steadyP50Ms": 0.08329200000000014
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.6605840000000001,
+          "steadyMs": [
+            0.6899579999999901,
+            0.6620000000000061,
+            0.750708000000003
+          ],
+          "steadyP50Ms": 0.6899579999999901,
+          "usageEstimate": {
+            "inputCharacters": 137,
+            "outputCharacters": 112,
+            "inputTokens": 35,
+            "outputTokens": 28,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.6763329999999996,
+          "steadyMs": [
+            0.6582089999999994,
+            0.6427500000000066,
+            0.6414999999999793
+          ],
+          "steadyP50Ms": 0.6427500000000066,
+          "usageEstimate": {
+            "inputCharacters": 1368,
+            "outputCharacters": 270,
+            "inputTokens": 342,
+            "outputTokens": 68,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017",
+            "paper-052",
+            "paper-074",
+            "paper-085",
+            "paper-096",
+            "paper-107",
+            "paper-021",
+            "paper-041",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.14383300000000077,
+          "steadyMs": [
+            0.13141700000002743,
+            0.13912499999997863,
+            0.26837500000002024
+          ],
+          "steadyP50Ms": 0.13912499999997863,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.3934589999999787,
+          "steadyMs": [
+            1.353082999999998,
+            1.46766599999998,
+            1.1693750000000023
+          ],
+          "steadyP50Ms": 1.353082999999998,
+          "usageEstimate": {
+            "inputCharacters": 1368,
+            "outputCharacters": 270,
+            "inputTokens": 342,
+            "outputTokens": 68,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "medium-conceptual-discovery"
+          }
+        },
+        {
+          "queryId": "en-fermentation",
+          "language": "en",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.9029170000000022,
+          "steadyMs": [
+            0.7170419999999922,
+            0.6746249999999918,
+            0.6904169999999965
+          ],
+          "steadyP50Ms": 0.6904169999999965,
+          "usageEstimate": {
+            "inputCharacters": 1368,
+            "outputCharacters": 270,
+            "inputTokens": 342,
+            "outputTokens": 68,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.12166700000000219,
+          "steadyMs": [
+            0.047875000000004775,
+            0.03633299999998485,
+            0.03429199999999355
+          ],
+          "steadyP50Ms": 0.03633299999998485
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 1.3804169999999942,
+          "steadyMs": [
+            0.0776249999999834,
+            0.07325000000000159,
+            0.07275000000001342
+          ],
+          "steadyP50Ms": 0.07325000000000159
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-074",
+            "paper-096",
+            "paper-052",
+            "paper-021",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.2239999999999895,
+          "steadyMs": [
+            1.3833329999999933,
+            1.2984590000000082,
+            1.1190829999999892
+          ],
+          "steadyP50Ms": 1.2984590000000082,
+          "usageEstimate": {
+            "inputCharacters": 87,
+            "outputCharacters": 108,
+            "inputTokens": 22,
+            "outputTokens": 27,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-021",
+            "paper-052",
+            "paper-118",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.163250000000005,
+          "steadyMs": [
+            2.3220000000000027,
+            1.9341249999999945,
+            1.2214999999999918
+          ],
+          "steadyP50Ms": 1.9341249999999945,
+          "usageEstimate": {
+            "inputCharacters": 3438,
+            "outputCharacters": 558,
+            "inputTokens": 860,
+            "outputTokens": 140,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.18620899999999097,
+          "steadyMs": [
+            0.10949999999999704,
+            0.10366700000000151,
+            0.10191700000001447
+          ],
+          "steadyP50Ms": 0.10366700000000151,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-021",
+            "paper-052",
+            "paper-118",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.449292000000014,
+          "steadyMs": [
+            1.2163749999999993,
+            1.4725420000000042,
+            2.363625000000013
+          ],
+          "steadyP50Ms": 1.4725420000000042,
+          "usageEstimate": {
+            "inputCharacters": 3438,
+            "outputCharacters": 558,
+            "inputTokens": 860,
+            "outputTokens": 140,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "medium-no-usable-fast-results"
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-variant",
+          "language": "zh",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-021",
+            "paper-052",
+            "paper-118",
+            "paper-074"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.7956670000000088,
+          "steadyMs": [
+            1.3360000000000127,
+            1.4465000000000146,
+            1.1621250000000032
+          ],
+          "steadyP50Ms": 1.3360000000000127,
+          "usageEstimate": {
+            "inputCharacters": 3438,
+            "outputCharacters": 558,
+            "inputTokens": 860,
+            "outputTokens": 140,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.10770800000000236,
+          "steadyMs": [
+            0.040958999999986645,
+            0.03691600000001927,
+            0.030708000000004176
+          ],
+          "steadyP50Ms": 0.03691600000001927
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.08899999999999864,
+          "steadyMs": [
+            0.08562499999999318,
+            0.06470800000002441,
+            0.07425000000000637
+          ],
+          "steadyP50Ms": 0.07425000000000637
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.7577090000000055,
+          "steadyMs": [
+            0.7847500000000025,
+            0.7302090000000021,
+            0.6680830000000242
+          ],
+          "steadyP50Ms": 0.7302090000000021,
+          "usageEstimate": {
+            "inputCharacters": 85,
+            "outputCharacters": 112,
+            "inputTokens": 22,
+            "outputTokens": 28,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.6740000000000066,
+          "steadyMs": [
+            0.6722919999999988,
+            0.6048750000000211,
+            0.7214579999999842
+          ],
+          "steadyP50Ms": 0.6722919999999988,
+          "usageEstimate": {
+            "inputCharacters": 1264,
+            "outputCharacters": 270,
+            "inputTokens": 316,
+            "outputTokens": 68,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.1129579999999919,
+          "steadyMs": [
+            0.09966599999998493,
+            0.1103339999999946,
+            0.24037500000000023
+          ],
+          "steadyP50Ms": 0.1103339999999946,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.786167000000006,
+          "steadyMs": [
+            1.0065000000000168,
+            0.8448339999999916,
+            0.7263749999999902
+          ],
+          "steadyP50Ms": 0.8448339999999916,
+          "usageEstimate": {
+            "inputCharacters": 1264,
+            "outputCharacters": 270,
+            "inputTokens": 316,
+            "outputTokens": 68,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "medium-no-usable-fast-results"
+          }
+        },
+        {
+          "queryId": "zh-crosslingual-fermentation",
+          "language": "zh",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-031",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.8729589999999803,
+          "steadyMs": [
+            0.8738749999999982,
+            0.7737079999999992,
+            0.6727920000000154
+          ],
+          "steadyP50Ms": 0.7737079999999992,
+          "usageEstimate": {
+            "inputCharacters": 1264,
+            "outputCharacters": 270,
+            "inputTokens": 316,
+            "outputTokens": 68,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-041",
+            "paper-052",
+            "paper-063",
+            "paper-074",
+            "paper-085",
+            "paper-096",
+            "paper-107",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 1,
+          "firstMs": 0.07895899999999756,
+          "steadyMs": [
+            0.0438750000000141,
+            0.059166000000004715,
+            0.035583000000002585
+          ],
+          "steadyP50Ms": 0.0438750000000141
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.4258750000000191,
+          "steadyMs": [
+            0.05854200000001697,
+            0.05299999999999727,
+            0.05375000000000796
+          ],
+          "steadyP50Ms": 0.05375000000000796
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.24729200000001583,
+          "steadyMs": [
+            0.18991700000000833,
+            0.18762499999999704,
+            0.1817920000000015
+          ],
+          "steadyP50Ms": 0.18762499999999704,
+          "usageEstimate": {
+            "inputCharacters": 79,
+            "outputCharacters": 67,
+            "inputTokens": 20,
+            "outputTokens": 17,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.18554100000000062,
+          "steadyMs": [
+            0.18862500000000182,
+            0.17987500000000978,
+            0.18320900000000506
+          ],
+          "steadyP50Ms": 0.18320900000000506,
+          "usageEstimate": {
+            "inputCharacters": 900,
+            "outputCharacters": 152,
+            "inputTokens": 225,
+            "outputTokens": 38,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-041",
+            "paper-052",
+            "paper-063",
+            "paper-074",
+            "paper-085",
+            "paper-096",
+            "paper-107",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 1,
+          "firstMs": 0.11000000000001364,
+          "steadyMs": [
+            0.09854200000000901,
+            0.09729100000001267,
+            0.1587080000000185
+          ],
+          "steadyP50Ms": 0.09854200000000901,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-041",
+            "paper-052",
+            "paper-063",
+            "paper-074",
+            "paper-085",
+            "paper-096",
+            "paper-107",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 1,
+          "firstMs": 0.3100000000000023,
+          "steadyMs": [
+            0.7819169999999929,
+            0.4528750000000059,
+            0.3070409999999981
+          ],
+          "steadyP50Ms": 0.4528750000000059,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "medium-strong-exact-match"
+          }
+        },
+        {
+          "queryId": "doi-lookup",
+          "language": "identifier",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.30424999999999613,
+          "steadyMs": [
+            0.24795800000001122,
+            0.23329100000000835,
+            0.21441699999999742
+          ],
+          "steadyP50Ms": 0.23329100000000835,
+          "usageEstimate": {
+            "inputCharacters": 900,
+            "outputCharacters": 152,
+            "inputTokens": 225,
+            "outputTokens": 38,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-017",
+            "paper-021",
+            "paper-052",
+            "paper-096"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.05854199999998855,
+          "steadyMs": [
+            0.044749999999993406,
+            0.03766699999999901,
+            0.038457999999991443
+          ],
+          "steadyP50Ms": 0.038457999999991443
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.1469590000000096,
+          "steadyMs": [
+            0.15287499999999454,
+            0.13366700000000264,
+            0.18070800000000986
+          ],
+          "steadyP50Ms": 0.15287499999999454
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-017",
+            "paper-096",
+            "paper-052",
+            "paper-021"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.0374999999999943,
+          "steadyMs": [
+            1.5177500000000066,
+            0.9694999999999823,
+            1.0193749999999966
+          ],
+          "steadyP50Ms": 1.0193749999999966,
+          "usageEstimate": {
+            "inputCharacters": 75,
+            "outputCharacters": 88,
+            "inputTokens": 19,
+            "outputTokens": 22,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-017",
+            "paper-021",
+            "paper-096",
+            "paper-052"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.0308749999999804,
+          "steadyMs": [
+            0.9972080000000005,
+            1.1216249999999945,
+            1.1374999999999886
+          ],
+          "steadyP50Ms": 1.1216249999999945,
+          "usageEstimate": {
+            "inputCharacters": 2813,
+            "outputCharacters": 465,
+            "inputTokens": 704,
+            "outputTokens": 117,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.23491699999999582,
+          "steadyMs": [
+            0.15350000000000819,
+            0.14695800000001213,
+            0.14308399999998755
+          ],
+          "steadyP50Ms": 0.14695800000001213,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.20270800000000122,
+          "steadyMs": [
+            0.16320899999999483,
+            0.1513750000000016,
+            0.15429100000000062
+          ],
+          "steadyP50Ms": 0.15429100000000062,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "medium-strong-exact-match"
+          }
+        },
+        {
+          "queryId": "exact-kinetic-identifiers",
+          "language": "identifier",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-017",
+            "paper-021",
+            "paper-096",
+            "paper-052"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.1225000000000023,
+          "steadyMs": [
+            1.0529170000000079,
+            1.0773749999999893,
+            1.0872499999999832
+          ],
+          "steadyP50Ms": 1.0773749999999893,
+          "usageEstimate": {
+            "inputCharacters": 2813,
+            "outputCharacters": 465,
+            "inputTokens": 704,
+            "outputTokens": 117,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.06974999999999909,
+          "steadyMs": [
+            0.04179099999998925,
+            0.04083400000001802,
+            0.032083000000000084
+          ],
+          "steadyP50Ms": 0.04083400000001802
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.060875000000010004,
+          "steadyMs": [
+            0.05558400000001029,
+            0.05112500000001319,
+            0.06570800000000077
+          ],
+          "steadyP50Ms": 0.05558400000001029
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-017",
+            "paper-052"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.3502500000000168,
+          "steadyMs": [
+            0.2757919999999956,
+            0.37837500000000546,
+            0.47416599999999676
+          ],
+          "steadyP50Ms": 0.37837500000000546,
+          "usageEstimate": {
+            "inputCharacters": 72,
+            "outputCharacters": 69,
+            "inputTokens": 18,
+            "outputTokens": 18,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-052",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.2967089999999928,
+          "steadyMs": [
+            0.2652080000000012,
+            0.2738329999999962,
+            0.26849999999998886
+          ],
+          "steadyP50Ms": 0.26849999999998886,
+          "usageEstimate": {
+            "inputCharacters": 1959,
+            "outputCharacters": 300,
+            "inputTokens": 490,
+            "outputTokens": 75,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.11349999999998772,
+          "steadyMs": [
+            0.09283300000001304,
+            0.09054199999999923,
+            0.08904200000000628
+          ],
+          "steadyP50Ms": 0.09054199999999923,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.134791000000007,
+          "steadyMs": [
+            0.1078329999999994,
+            0.17949999999999022,
+            0.1731670000000065
+          ],
+          "steadyP50Ms": 0.1731670000000065,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "medium-strong-exact-match"
+          }
+        },
+        {
+          "queryId": "exact-strain-id",
+          "language": "identifier",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-118"
+          ],
+          "ranking": [
+            "paper-118",
+            "paper-052",
+            "paper-017"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.28695899999999597,
+          "steadyMs": [
+            0.27233300000000327,
+            0.2785000000000082,
+            0.31937499999997954
+          ],
+          "steadyP50Ms": 0.2785000000000082,
+          "usageEstimate": {
+            "inputCharacters": 1959,
+            "outputCharacters": 300,
+            "inputTokens": 490,
+            "outputTokens": 75,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-052",
+            "paper-096",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.04125000000001933,
+          "steadyMs": [
+            0.03691700000001674,
+            0.03445899999999824,
+            0.033124999999984084
+          ],
+          "steadyP50Ms": 0.03445899999999824
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.09012500000000045,
+          "steadyMs": [
+            0.07949999999999591,
+            0.08062499999999773,
+            0.08033399999999347
+          ],
+          "steadyP50Ms": 0.08033399999999347
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-118",
+            "paper-052",
+            "paper-021"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.581249999999983,
+          "steadyMs": [
+            1.189707999999996,
+            0.8058749999999861,
+            0.8082499999999868
+          ],
+          "steadyP50Ms": 0.8082499999999868,
+          "usageEstimate": {
+            "inputCharacters": 114,
+            "outputCharacters": 75,
+            "inputTokens": 29,
+            "outputTokens": 19,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-118",
+            "paper-052",
+            "paper-021"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.8935840000000042,
+          "steadyMs": [
+            0.8197499999999991,
+            0.7938339999999755,
+            1.0456250000000011
+          ],
+          "steadyP50Ms": 0.8197499999999991,
+          "usageEstimate": {
+            "inputCharacters": 2953,
+            "outputCharacters": 452,
+            "inputTokens": 739,
+            "outputTokens": 113,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-052",
+            "paper-096",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.40566599999999653,
+          "steadyMs": [
+            0.1852090000000146,
+            0.15270799999998985,
+            0.20062500000000227
+          ],
+          "steadyP50Ms": 0.1852090000000146,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-052",
+            "paper-096",
+            "paper-118"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.2963750000000118,
+          "steadyMs": [
+            0.24645799999998985,
+            0.2436660000000188,
+            0.24933399999997619
+          ],
+          "steadyP50Ms": 0.24645799999998985,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "medium-strong-exact-match"
+          }
+        },
+        {
+          "queryId": "paper-author-year-lookup",
+          "language": "en",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-017"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-118",
+            "paper-052",
+            "paper-021"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.9852920000000154,
+          "steadyMs": [
+            1.1339170000000536,
+            1.048208000000045,
+            0.9060840000000212
+          ],
+          "steadyP50Ms": 1.048208000000045,
+          "usageEstimate": {
+            "inputCharacters": 2953,
+            "outputCharacters": 452,
+            "inputTokens": 739,
+            "outputTokens": 113,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "legacy",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-052",
+            "paper-085"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.0685420000000363,
+          "steadyMs": [
+            0.04950000000002319,
+            0.04754099999996697,
+            0.04695800000001782
+          ],
+          "steadyP50Ms": 0.04754099999996697
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "qmdLex",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [],
+          "recallAt5": 0,
+          "recallAt10": 0,
+          "evidenceRecallAt5": 0,
+          "reciprocalRank": 0,
+          "firstMs": 0.08208300000001145,
+          "steadyMs": [
+            0.06979100000000926,
+            0.07066599999996015,
+            0.06824999999997772
+          ],
+          "steadyP50Ms": 0.06979100000000926
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "cloudPlannedLexicalReplay",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-031",
+            "paper-085",
+            "paper-096",
+            "paper-118",
+            "paper-052",
+            "paper-021"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.0565829999999892,
+          "steadyMs": [
+            1.1571670000000154,
+            1.514792,
+            1.3869169999999826
+          ],
+          "steadyP50Ms": 1.3869169999999826,
+          "usageEstimate": {
+            "inputCharacters": 113,
+            "outputCharacters": 144,
+            "inputTokens": 29,
+            "outputTokens": 36,
+            "coldFcRequests": 2,
+            "coldRequestyCalls": 1,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "cloudRerankedReplay",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-031",
+            "paper-021",
+            "paper-118",
+            "paper-052",
+            "paper-085"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.121167000000014,
+          "steadyMs": [
+            1.1197919999999613,
+            1.0759580000000142,
+            1.1162089999999694
+          ],
+          "steadyP50Ms": 1.1162089999999694,
+          "usageEstimate": {
+            "inputCharacters": 4035,
+            "outputCharacters": 667,
+            "inputTokens": 1009,
+            "outputTokens": 167,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          }
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "profileLight",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-021",
+            "paper-031",
+            "paper-052",
+            "paper-085"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 0.1283329999999978,
+          "steadyMs": [
+            0.11283300000002328,
+            0.1063750000000141,
+            0.1027080000000069
+          ],
+          "steadyP50Ms": 0.1063750000000141,
+          "usageEstimate": {
+            "inputCharacters": 0,
+            "outputCharacters": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "coldFcRequests": 0,
+            "coldRequestyCalls": 0,
+            "cachedFcRequests": 0,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "light",
+            "mode": "fast",
+            "escalated": false,
+            "reason": "light-lexical"
+          }
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "profileMedium",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-031",
+            "paper-021",
+            "paper-118",
+            "paper-052",
+            "paper-085"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.4007080000000087,
+          "steadyMs": [
+            2.0306659999999965,
+            1.7543340000000285,
+            1.6997920000000022
+          ],
+          "steadyP50Ms": 1.7543340000000285,
+          "usageEstimate": {
+            "inputCharacters": 4035,
+            "outputCharacters": 667,
+            "inputTokens": 1009,
+            "outputTokens": 167,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "medium",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "medium-conceptual-discovery"
+          }
+        },
+        {
+          "queryId": "broad-production-strategies",
+          "language": "en",
+          "backend": "profileHigh",
+          "expectedPaperIds": [
+            "paper-017",
+            "paper-031"
+          ],
+          "ranking": [
+            "paper-017",
+            "paper-096",
+            "paper-031",
+            "paper-021",
+            "paper-118",
+            "paper-052",
+            "paper-085"
+          ],
+          "recallAt5": 1,
+          "recallAt10": 1,
+          "evidenceRecallAt5": 1,
+          "reciprocalRank": 1,
+          "firstMs": 1.1982920000000377,
+          "steadyMs": [
+            1.3430000000000177,
+            1.2662920000000213,
+            1.260500000000036
+          ],
+          "steadyP50Ms": 1.2662920000000213,
+          "usageEstimate": {
+            "inputCharacters": 4035,
+            "outputCharacters": 667,
+            "inputTokens": 1009,
+            "outputTokens": 167,
+            "coldFcRequests": 3,
+            "coldRequestyCalls": 2,
+            "cachedFcRequests": 1,
+            "cachedRequestyCalls": 0
+          },
+          "retrievalDecision": {
+            "profile": "high",
+            "mode": "deep",
+            "escalated": true,
+            "reason": "high-relevant-deep"
+          }
+        }
+      ]
+    }
+  ],
+  "recommendation": {
+    "selected": "lexical",
+    "reason": "Only one model was measured; no cross-model recommendation was possible."
+  },
+  "notes": [
+    "QMD hybrid uses one lexical and one vector query with reranking disabled, isolating retrieval and embedding-model effects.",
+    "First embedding time includes lazy model startup and any cold download; first-query timing begins after embeddings exist.",
+    "Steady query latency is the median of repeated warm queries.",
+    "RSS checkpoints are process-level and the two models run sequentially, so retained native allocations can affect the second baseline.",
+    "Cloud-planned and cloud-reranked rows replay validated structured responses over the unchanged corpus/query set; their measured latency is local orchestration only, not live FC/Requesty network latency.",
+    "Recorded usage is a character-based token estimate (four characters per token); live provider usage was unavailable because no production FC credential was supplied.",
+    "Profile comparisons use the same unchanged corpus and query set. Medium applies the production deterministic Fast-first decision helpers; Light and High apply their production mode selectors."
+  ]
+}

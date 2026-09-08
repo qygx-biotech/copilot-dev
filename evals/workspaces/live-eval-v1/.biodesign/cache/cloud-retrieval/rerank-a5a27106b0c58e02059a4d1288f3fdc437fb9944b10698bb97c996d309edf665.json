@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "rerank",
+  "cacheKey": "a5a27106b0c58e02059a4d1288f3fdc437fb9944b10698bb97c996d309edf665",
+  "configurationSignature": "90306a728333b05adadde32c1b77a833fb60e615b6f35a429d9157d22df44d6c",
+  "value": [
+    {
+      "candidateId": "candidate-90a6846bb89be7bdbd9f6f4b5f00e46b275a65fad0e59acdf84a0e637d5f96f8",
+      "score": 0.1,
+      "reason": "The document discusses a titer study for EctD A163V, but it does not provide the mean completed titer or mention table X02; it only provides the Km value."
+    },
+    {
+      "candidateId": "candidate-0cd7cedfdb0008bacdc0a97374b0af594f8d0d4ca39486a8ac376c8daa40e94a",
+      "score": 0.1,
+      "reason": "The document mentions titer rankings for EctD A163V, but it does not provide a specific mean completed titer value or mention table X02."
+    },
+    {
+      "candidateId": "candidate-30b6acbb0eb3f834cf7fb9039a09967d94e15e87565455df4b6f2e457d2dc959",
+      "score": 0,
+      "reason": "The document focuses on the T212S variant, not the A163V variant requested in the query."
+    }
+  ]
+}

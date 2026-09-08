@@ -1,0 +1,852 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-07T23:50:06.840Z",
+  "scope": "Read-only mapping of requested classes to original existing regression PASS logs. No test reruns, GUI launches or production changes during this task. Original baseline results are unchanged.",
+  "interpretation": "Established means only the explicit assertion at the stated evidence tier. Missing layers are NOT established and are never upgraded to a pass by test naming.",
+  "evidenceTiers": {
+    "in_memory_orchestration": {
+      "definition": "Real orchestration/source/corpus modules with Map/Blob-backed workspace and injected extraction, provider and index adapters.",
+      "sources": [
+        "alibaba-fc/test/helpers/preflight-fixture.js:7-31",
+        "alibaba-fc/test/helpers/preflight-fixture.js:35-75",
+        "alibaba-fc/test/source-system.test.js:55-101",
+        "alibaba-fc/test/source-system.test.js:121-161",
+        "alibaba-fc/test/qmd-knowledge-layers.test.js:85-90"
+      ]
+    },
+    "mocked_component_protocol": {
+      "definition": "Production component/FC handler with mocked cloud/network, bridge or context inputs; no live provider.",
+      "sources": [
+        "desktop/test/cloud-retrieval.test.mjs:12-40",
+        "alibaba-fc/test/semantic-backend.test.js:15-21",
+        "alibaba-fc/test/oss-pdf-review.test.js:21-30",
+        "alibaba-fc/test/oss-pdf-review.test.js:106"
+      ]
+    },
+    "local_bytes_and_in_memory": {
+      "definition": "Production experiment parsing/query logic, real CSV/XLSX byte representation, in-memory workspace/registry; no real disk or live mapper.",
+      "sources": [
+        "alibaba-fc/test/experiment-semantics.test.js:7-23",
+        "alibaba-fc/test/preflight-knowledge-sync.test.js:83-86"
+      ]
+    },
+    "local_policy_unit": {
+      "definition": "Direct deterministic function assertions with fixed query inputs."
+    },
+    "real_filesystem": {
+      "definition": "Actual temporary disk directories, file bytes and symlinks through production ProjectFilesystem; no GUI.",
+      "sources": [
+        "desktop/test/project-filesystem.test.mjs:10-18"
+      ]
+    },
+    "real_qmd_sdk_filesystem": {
+      "definition": "Real QMD 2.8.3 SDK, project-local SQLite and Markdown mirror; lexical smoke only; no provider/GUI.",
+      "sources": [
+        "local-backend/test/qmd-sdk-smoke.test.js:9-59"
+      ]
+    },
+    "static_source_scan": {
+      "definition": "Source regex/policy assertions, not execution or network interception."
+    },
+    "full_app_live": {
+      "definition": "Complete running application with real workspace and authenticated deployed FC/provider. NOT established by this matrix; parent live evaluation is independent."
+    }
+  },
+  "rows": [
+    {
+      "id": "unchanged_and_add_papers",
+      "requestedClass": "150 unchanged papers and added papers touch only affected layers",
+      "status": "established_at_test_boundary",
+      "established": "150 seeded papers cause zero extra raw reads, hashes, card calls or index calls on unchanged preflight. Three added papers cause three parses and three L2 cards, with two-card concurrency bound.",
+      "notEstablished": [
+        "Real 150-PDF cold extraction/provider latency or filesystem throughput; this fixture stores text in Blob objects named .pdf."
+      ],
+      "evidence": [
+        {
+          "testName": "A/B/C: 150 ready papers take metadata-only fast path; three additions and deletion touch only affected layers",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 13,
+            "assertionLines": "14-28,51-64"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 15441,
+            "tap": "ok 96 - A/B/C: 150 ready papers take metadata-only fast path; three additions and deletion touch only affected layers"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "timestamp_only_hash_no_l2_rebuild",
+      "requestedClass": "Timestamp-only update rehashes without rebuilding L2",
+      "status": "established_at_test_boundary",
+      "established": "One timestamp-only change hashes once, spawns no sync agent, and makes no extra card/index calls. A byte change rebuilds one source. Legacy prepared source without a sync marker also reuses cards.",
+      "notEstablished": [
+        "End-to-end real filesystem touch through UI; filesystem metadata shape is checked separately but the no-rebuild assertion uses a memory workspace."
+      ],
+      "evidence": [
+        {
+          "testName": "timestamp-only change hashes once with no derived updates; content modification updates one source",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 68,
+            "assertionLines": "69-79"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 15782,
+            "tap": "ok 97 - timestamp-only change hashes once with no derived updates; content modification updates one source"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "timestamp-only verification reuses a fully prepared legacy project without a new sync marker",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 237,
+            "assertionLines": "238-244"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 28161,
+            "tap": "ok 107 - timestamp-only verification reuses a fully prepared legacy project without a new sync marker"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "metadata-only preflight gets identical nanosecond and filesystem identity fields from tree and stat",
+          "source": {
+            "file": "desktop/test/project-filesystem.test.mjs",
+            "line": 91,
+            "assertionLines": "92-101"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 270,
+            "tap": "ok 20 - metadata-only preflight gets identical nanosecond and filesystem identity fields from tree and stat"
+          },
+          "evidenceTier": "real_filesystem"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "add_experiment_source",
+      "requestedClass": "Add experiment table and produce exact queryable rows",
+      "status": "established_at_test_boundary",
+      "established": "Real XLSX bytes parsed from an in-memory workspace produce exact Chinese-column canonical values and deterministic ranking, without Paper Cards.",
+      "notEstablished": [
+        "Full app upload/import event flow and live schema mapper inference."
+      ],
+      "evidence": [
+        {
+          "testName": "D: Chinese XLSX columns normalize to exact structured records, descriptor, and deterministic ranking; deletion removes active records",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 82,
+            "assertionLines": "83-107"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 15926,
+            "tap": "ok 98 - D: Chinese XLSX columns normalize to exact structured records, descriptor, and deterministic ranking; deletion removes active records"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "delete_experiment_row_purge",
+      "requestedClass": "Delete experiment source and purge its rows",
+      "status": "partial_requested_scope",
+      "established": "Deleting the XLSX source removes both experiment artifacts and makes the same semantic query return zero active records.",
+      "notEstablished": [
+        "Deleting a single row within a retained workbook and checking incremental stale-row purging is NOT established by the identified existing tests.",
+        "Real disk QMD/database stale-row removal and live UI query after source deletion are not established here."
+      ],
+      "evidence": [
+        {
+          "testName": "D: Chinese XLSX columns normalize to exact structured records, descriptor, and deterministic ranking; deletion removes active records",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 82,
+            "assertionLines": "83-107"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 15926,
+            "tap": "ok 98 - D: Chinese XLSX columns normalize to exact structured records, descriptor, and deterministic ranking; deletion removes active records"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "delete_paper_l1_l2_l3_stale_syntheses",
+      "requestedClass": "Delete paper: L1/L2/L3 cleanup and stale synthesis",
+      "status": "established_at_test_boundary",
+      "established": "Preflight removes registry entry, parsed text/card/Markdown files, topic membership and the mocked evidence collection entry, and marks an existing corpus workflow stale. Separate lifecycle test removes evidence/card/topic Markdown.",
+      "notEstablished": [
+        "Real QMD SQLite row purge or deletion of all stale synthesis output files is not directly asserted; marking workflow status stale is the tested behavior."
+      ],
+      "evidence": [
+        {
+          "testName": "A/B/C: 150 ready papers take metadata-only fast path; three additions and deletion touch only affected layers",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 13,
+            "assertionLines": "14-28,51-64"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 15441,
+            "tap": "ok 96 - A/B/C: 150 ready papers take metadata-only fast path; three additions and deletion touch only affected layers"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "deleting a paper removes derived mirrors and refreshes affected collections",
+          "source": {
+            "file": "alibaba-fc/test/qmd-knowledge-layers.test.js",
+            "line": 588,
+            "assertionLines": "589-609"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 28435,
+            "tap": "ok 122 - deleting a paper removes derived mirrors and refreshes affected collections"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "incremental corpus diff remaps modified sources, removes deleted sources, and does no work when unchanged",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 3175,
+            "assertionLines": "3209-3233"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 54214,
+            "tap": "ok 282 - incremental corpus diff remaps modified sources, removes deleted sources, and does no work when unchanged"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "failed_paper_retry",
+      "requestedClass": "Retry only failed paper stages/maps",
+      "status": "established_at_test_boundary",
+      "established": "An L2 failure keeps L1 ready; next preflight makes one additional card call without reparsing three sources. Corpus recovery reuses 30 maps and calls each of two failed mappers once, restoring 32/32 coverage.",
+      "notEstablished": [
+        "Real provider recovery and persistence across actual application relaunch."
+      ],
+      "evidence": [
+        {
+          "testName": "concurrent surfaces join one sync, cancellation cannot cancel the other consumer, partial work resumes without regenerating ready cards",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 110,
+            "assertionLines": "112-125"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 16229,
+            "tap": "ok 99 - concurrent surfaces join one sync, cancellation cannot cancel the other consumer, partial work resumes without regenerating ready cards"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "CASES 2-3: include failed papers retries only two maps and incrementally updates 30/32 to 32/32",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 3400,
+            "assertionLines": "3427-3431,3469-3492"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 54238,
+            "tap": "ok 286 - CASES 2-3: include failed papers retries only two maps and incrementally updates 30/32 to 32/32"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "L3 failure resumes with a persisted valid L2 card after coordinator restart",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 213,
+            "assertionLines": "214-222"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 27899,
+            "tap": "ok 105 - L3 failure resumes with a persisted valid L2 card after coordinator restart"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "malformed_pdf",
+      "requestedClass": "Malformed PDF failure isolation",
+      "status": "partial_requested_scope",
+      "established": "Injected parser failure reports partial L1 failure and leaves other paper/document processing usable. Injected encrypted-PDF error produces a prepare failure with sourceReady=false and retryable=false.",
+      "notEstablished": [
+        "Actual malformed or encrypted PDF bytes through the production PDF parser are NOT established by these tests; the parser throws a synthetic error.",
+        "UI recovery from a malformed real PDF."
+      ],
+      "evidence": [
+        {
+          "testName": "malformed paper is isolated; protocol/text handlers preserve language without Paper Cards",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 128,
+            "assertionLines": "129-136"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 16425,
+            "tap": "ok 100 - malformed paper is isolated; protocol/text handlers preserve language without Paper Cards"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "CASE 5: an encrypted PDF is accurately retained as a preparation failure",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 3526,
+            "assertionLines": "3527-3548"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 54250,
+            "tap": "ok 288 - CASE 5: an encrypted PDF is accurately retained as a preparation failure"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "mapper_invalid",
+      "requestedClass": "mapperInvalid / invalid structured mapper output",
+      "status": "established_at_test_boundary",
+      "established": "Injected InvalidLlmResponse preserves ready source evidence and reports map-stage diagnostics; fallback succeeds with one full mapper and one fallback call. FC schema endpoint rejects invented/duplicate IDs and invalid fields with 502 and unresolved-local-schema.",
+      "notEstablished": [
+        "Real model production of invalid JSON and the full app fault-injection label mapperInvalid are not exercised by existing regression logs."
+      ],
+      "evidence": [
+        {
+          "testName": "CASE 1: map failures remain prepared and expose their actual structured-output diagnostics",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 3333,
+            "assertionLines": "3343-3351,3378-3396"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 54232,
+            "tap": "ok 285 - CASE 1: map failures remain prepared and expose their actual structured-output diagnostics"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "CASE 4: InvalidLlmResponse skips repeated full maps and uses source-evidence fallback",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 3496,
+            "assertionLines": "3501-3523"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 54244,
+            "tap": "ok 287 - CASE 4: InvalidLlmResponse skips repeated full maps and uses source-evidence fallback"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "schema mapper rejects invented IDs, duplicate IDs, extra keys and out-of-ontology mappings without retry",
+          "source": {
+            "file": "alibaba-fc/test/semantic-backend.test.js",
+            "line": 149,
+            "assertionLines": "150-164"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 28734,
+            "tap": "ok 144 - schema mapper rejects invented IDs, duplicate IDs, extra keys and out-of-ontology mappings without retry"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "requesty_unavailable",
+      "requestedClass": "Requesty unavailable",
+      "status": "partial_requested_scope",
+      "established": "Injected native AUTH_REQUIRED/NETWORK_ERROR/terminal LLM_HTTP_ERROR stops after one native call without alternate provider routes. Mocked 429 then 200 causes exactly one retry. Mocked planner/reranker failures preserve local lexical fusion.",
+      "notEstablished": [
+        "Actual sustained Requesty outage, DNS failure, live credentials, transport timeout or complete full-app answer behavior is NOT established by these existing tests."
+      ],
+      "evidence": [
+        {
+          "testName": "native authentication and transport failures stop without a second provider route",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 1401,
+            "assertionLines": "1402-1405,1425-1432"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 33484,
+            "tap": "ok 238 - native authentication and transport failures stop without a second provider route"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "Side Chat retries one transient Requesty response",
+          "source": {
+            "file": "alibaba-fc/test/oss-pdf-review.test.js",
+            "line": 1992,
+            "assertionLines": "1993-2007"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 3922,
+            "tap": "ok 91 - Side Chat retries one transient Requesty response"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        },
+        {
+          "testName": "invalid cloud IDs and FC failures preserve deterministic local lexical fusion",
+          "source": {
+            "file": "desktop/test/cloud-retrieval.test.mjs",
+            "line": 201,
+            "assertionLines": "201-261"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 52,
+            "tap": "ok 3 - invalid cloud IDs and FC failures preserve deterministic local lexical fusion"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "qmd_failure",
+      "requestedClass": "QMD update/index failure",
+      "status": "partial_requested_scope",
+      "established": "Mocked /update HTTP 500 rejects indexing and suppresses stale collection search entirely; successful update re-enables search. Separate smoke uses actual QMD 2.8.3 SDK and real disk to index and retrieve one mirror.",
+      "notEstablished": [
+        "An actual QMD process, SDK, SQLite or disk failure is NOT injected in the real-QMD smoke. No evidence that all QMD failure classes were tested."
+      ],
+      "evidence": [
+        {
+          "testName": "a QMD deletion failure suppresses stale collection search until the update succeeds",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 197,
+            "assertionLines": "199-210"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 27748,
+            "tap": "ok 104 - a QMD deletion failure suppresses stale collection search until the update succeeds"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        },
+        {
+          "testName": "real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper mirror",
+          "source": {
+            "file": "local-backend/test/qmd-sdk-smoke.test.js",
+            "line": 9,
+            "assertionLines": "10-33,39-59"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/qmd-regressions.stdout.txt",
+            "line": 41,
+            "tap": "ok 7 - real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper mirror"
+          },
+          "evidenceTier": "real_qmd_sdk_filesystem"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "deleted_during_processing",
+      "requestedClass": "Source deleted during processing",
+      "status": "established_at_test_boundary",
+      "established": "Deleting source from in-memory workspace during card-generation barrier reports partial/removal, clears registry/documents/evidence collection, and causes no further sync on next preflight.",
+      "notEstablished": [
+        "Real filesystem deletion race with PDF worker/provider/process lifetime and UI notification timing."
+      ],
+      "evidence": [
+        {
+          "testName": "source removed during card generation is cleaned before this request reaches the main agent",
+          "source": {
+            "file": "alibaba-fc/test/preflight-knowledge-sync.test.js",
+            "line": 225,
+            "assertionLines": "226-234"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 28026,
+            "tap": "ok 106 - source removed during card generation is cleaned before this request reaches the main agent"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "schema_ambiguity",
+      "requestedClass": "Schema ambiguity must remain unresolved without invented units/metrics",
+      "status": "established_at_test_boundary",
+      "established": "Duplicate headers retain raw values but withhold ambiguous canonical temperature. Missing units/metrics refuse numeric ranking, and Light profile leaves ambiguous mapping unresolved without calling FC.",
+      "notEstablished": [
+        "Live model clarification quality and ambiguous workbook interaction in GUI."
+      ],
+      "evidence": [
+        {
+          "testName": "duplicate raw headers and duplicate canonical measurements stay recoverable and ambiguous",
+          "source": {
+            "file": "alibaba-fc/test/experiment-semantics.test.js",
+            "line": 73,
+            "assertionLines": "74-79"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 156,
+            "tap": "ok 20 - duplicate raw headers and duplicate canonical measurements stay recoverable and ambiguous"
+          },
+          "evidenceTier": "local_bytes_and_in_memory"
+        },
+        {
+          "testName": "obvious Light/Medium/High mappings do not call FC, and Light keeps ambiguous values",
+          "source": {
+            "file": "alibaba-fc/test/experiment-semantics.test.js",
+            "line": 89,
+            "assertionLines": "90-97"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 168,
+            "tap": "ok 22 - obvious Light/Medium/High mappings do not call FC, and Light keeps ambiguous values"
+          },
+          "evidenceTier": "local_bytes_and_in_memory"
+        },
+        {
+          "testName": "numeric rank refuses unresolved metric/units and never treats blank values as zero",
+          "source": {
+            "file": "alibaba-fc/test/experiment-semantics.test.js",
+            "line": 208,
+            "assertionLines": "209-221"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 210,
+            "tap": "ok 29 - numeric rank refuses unresolved metric/units and never treats blank values as zero"
+          },
+          "evidenceTier": "local_bytes_and_in_memory"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "ds_store_filter",
+      "requestedClass": ".DS_Store must not be ingested as a paper",
+      "status": "established_at_test_boundary",
+      "established": "Adding .DS_Store alongside four new papers leaves registry discovery at 36 and no .DS_Store source entry. FC tool listing filters the artifact while preserving authoritative paper count.",
+      "notEstablished": [
+        "Finder-created metadata in a real workspace through the live filesystem scanner; existing fixture uses an in-memory tree."
+      ],
+      "evidence": [
+        {
+          "testName": "incremental Side Chat update deterministically reuses 32 maps and maps only four new papers",
+          "source": {
+            "file": "alibaba-fc/test/source-system.test.js",
+            "line": 3043,
+            "assertionLines": "3089-3100"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 54208,
+            "tap": "ok 281 - incremental Side Chat update deterministically reuses 32 maps and maps only four new papers"
+          },
+          "evidenceTier": "in_memory_orchestration"
+        },
+        {
+          "testName": "list_papers and source_coverage use the authoritative registry and prior workflow independently",
+          "source": {
+            "file": "alibaba-fc/test/side-chat-agent.test.js",
+            "line": 672,
+            "assertionLines": "696-702,732-741"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 29859,
+            "tap": "ok 196 - list_papers and source_coverage use the authoritative registry and prior workflow independently"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "repeated_planner",
+      "requestedClass": "Repeated or concurrent planner requests reuse work",
+      "status": "established_at_test_boundary",
+      "established": "Repeated identical search performs one plan and one rerank with cache hit. Equivalent concurrent requests share one planner promise and one cache file; failed promise is removed and next request retries.",
+      "notEstablished": [
+        "Real FC duplicate billing/requests, cross-process planner coordination or disk cache durability across full app restart."
+      ],
+      "evidence": [
+        {
+          "testName": "Deep retrieval uses authenticated FC planning/reranking, budgeted snippets, local reconstruction, and deterministic omission order",
+          "source": {
+            "file": "desktop/test/cloud-retrieval.test.mjs",
+            "line": 87,
+            "assertionLines": "191-198"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 22,
+            "tap": "ok 2 - Deep retrieval uses authenticated FC planning/reranking, budgeted snippets, local reconstruction, and deterministic omission order"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        },
+        {
+          "testName": "equivalent planner inputs share one concurrent request across paper and collection scopes",
+          "source": {
+            "file": "desktop/test/cloud-retrieval.test.mjs",
+            "line": 264,
+            "assertionLines": "284-306"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 70,
+            "tap": "ok 4 - equivalent planner inputs share one concurrent request across paper and collection scopes"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        },
+        {
+          "testName": "failed shared planner requests leave the in-flight registry and retry normally",
+          "source": {
+            "file": "desktop/test/cloud-retrieval.test.mjs",
+            "line": 429,
+            "assertionLines": "434-451"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 142,
+            "tap": "ok 8 - failed shared planner requests leave the in-flight registry and retry normally"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "han_query_policy",
+      "requestedClass": "Han-containing query follows retrieval policy without automatic language-only escalation",
+      "status": "established_at_test_boundary",
+      "established": "Light query with Han characters stays fast lexical; Medium escalation reasons are conceptual discovery/insufficient evidence rather than language. Fast/semantic-disabled Electron service makes no cloud/embedding call for a Chinese query.",
+      "notEstablished": [
+        "Broad Han/CJK script coverage, arbitrary language proficiency, production multilingual relevance and end-to-end answer-language compliance."
+      ],
+      "evidence": [
+        {
+          "testName": "Light uses lexical retrieval independently of input language",
+          "source": {
+            "file": "alibaba-fc/test/retrieval-profiles.test.js",
+            "line": 20,
+            "assertionLines": "20-33"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 28442,
+            "tap": "ok 123 - Light uses lexical retrieval independently of input language"
+          },
+          "evidenceTier": "local_policy_unit"
+        },
+        {
+          "testName": "Medium escalates conceptual discovery or insufficient evidence, not language",
+          "source": {
+            "file": "alibaba-fc/test/retrieval-profiles.test.js",
+            "line": 54,
+            "assertionLines": "54-68"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/fc-regressions.stdout.txt",
+            "line": 28454,
+            "tap": "ok 125 - Medium escalates conceptual discovery or insufficient evidence, not language"
+          },
+          "evidenceTier": "local_policy_unit"
+        },
+        {
+          "testName": "Fast retrieval is offline lexical-only and default semantic mode does not initialize a model",
+          "source": {
+            "file": "desktop/test/cloud-retrieval.test.mjs",
+            "line": 67,
+            "assertionLines": "73-84"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 4,
+            "tap": "ok 1 - Fast retrieval is offline lexical-only and default semantic mode does not initialize a model"
+          },
+          "evidenceTier": "mocked_component_protocol"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "direct_requesty_restriction",
+      "requestedClass": "Desktop/renderer cannot directly call Requesty or contain its credential",
+      "status": "partial_requested_scope",
+      "established": "Original static scan finds no literal Requesty URL or REQUESTY_API_KEY assignment in enumerated source trees (excluding vendor), and verifies server-tree packaging exclusions.",
+      "notEstablished": [
+        "Runtime network denial is NOT established. Static scan does not prove absence of dynamically constructed endpoints, arbitrary runtime credentials or dependency-driven traffic."
+      ],
+      "evidence": [
+        {
+          "testName": "desktop and renderer sources contain no direct Requesty host or credential",
+          "source": {
+            "file": "desktop/test/security-boundary.test.mjs",
+            "line": 88,
+            "assertionLines": "89-106"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 308,
+            "tap": "ok 26 - desktop and renderer sources contain no direct Requesty host or credential"
+          },
+          "evidenceTier": "static_source_scan"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    },
+    {
+      "id": "symlink_path_escape",
+      "requestedClass": "Symlink and project path escape restriction",
+      "status": "established_at_test_boundary",
+      "established": "Actual temp directories/files/symlinks reject traversal reads, leaf symlink reads and traversal writes with SYMLINK_NOT_ALLOWED; citation existence rejects symlink, absolute and parent paths.",
+      "notEstablished": [
+        "Filesystem race/TOCTOU attacks and every platform-specific symlink/junction variant; full GUI IPC integration."
+      ],
+      "evidence": [
+        {
+          "testName": "symlink traversal and symlink leaf access are rejected",
+          "source": {
+            "file": "desktop/test/project-filesystem.test.mjs",
+            "line": 48,
+            "assertionLines": "49-59"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 252,
+            "tap": "ok 17 - symlink traversal and symlink leaf access are rejected"
+          },
+          "evidenceTier": "real_filesystem"
+        },
+        {
+          "testName": "citation existence checks reject symlink escapes and remain scoped to the selected workspace",
+          "source": {
+            "file": "desktop/test/project-filesystem.test.mjs",
+            "line": 76,
+            "assertionLines": "77-88"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 264,
+            "tap": "ok 19 - citation existence checks reject symlink escapes and remain scoped to the selected workspace"
+          },
+          "evidenceTier": "real_filesystem"
+        },
+        {
+          "testName": "absolute, parent, Windows, empty-segment, and NUL paths are rejected",
+          "source": {
+            "file": "desktop/test/project-filesystem.test.mjs",
+            "line": 40,
+            "assertionLines": "41-45"
+          },
+          "originalResult": {
+            "status": "pass",
+            "file": "existing/desktop-regressions.stdout.txt",
+            "line": 246,
+            "tap": "ok 16 - absolute, parent, Windows, empty-segment, and NUL paths are rejected"
+          },
+          "evidenceTier": "real_filesystem"
+        }
+      ],
+      "fullAppLiveEstablished": false
+    }
+  ],
+  "summary": {
+    "requestedClasses": 17,
+    "classesWithOriginalPassEvidence": 17,
+    "partialRequestedScope": [
+      "delete_experiment_row_purge",
+      "malformed_pdf",
+      "requesty_unavailable",
+      "qmd_failure",
+      "direct_requesty_restriction"
+    ],
+    "fullAppLiveClassesEstablished": 0,
+    "missingTestsMustNotBeCountedAsPass": true
+  },
+  "changes": {
+    "production": [],
+    "originalBaseline": [],
+    "testReruns": [],
+    "guiLaunches": []
+  }
+}

@@ -1,0 +1,1599 @@
+{
+  "schemaVersion": "1",
+  "auditRole": "Post-baseline raw-JSON arithmetic and measurement audit; no independent semantic judge score",
+  "createdAt": "2026-09-07T23:46:10.978Z",
+  "baselineRunId": "2026-09-07T23-24-41-852Z",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "baselineSha256": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+  "baselineHashVerified": true,
+  "sourceArtifacts": [
+    "baseline.json",
+    "frozen-cases.jsonl",
+    "adversarial-findings.json",
+    "../adapter-audit-2026-09-07/adapter-audit.json",
+    "../adapter-audit-2026-09-07/diagnostics.json"
+  ],
+  "scope": {
+    "cases": 96,
+    "observations": 192,
+    "completed": 166,
+    "blockedOrError": 26,
+    "devCases": 72,
+    "heldoutCases": 24,
+    "actualFcCalls": 0,
+    "generatedAnswers": 0,
+    "cacheConditions": [
+      "cold",
+      "warm"
+    ],
+    "configuredCaseRepeats": 1,
+    "generatedAnswerTrials": 0
+  },
+  "retrieval": {
+    "frozenSummary": {
+      "retrieval.paper.recall5": {
+        "mean": 0.7222222222222222,
+        "ci95": [
+          0.5,
+          0.8888888888888888
+        ],
+        "observations": 36,
+        "cases": 18
+      },
+      "retrieval.paper.recall10": {
+        "mean": 0.7222222222222222,
+        "ci95": [
+          0.5,
+          0.8888888888888888
+        ],
+        "observations": 36,
+        "cases": 18
+      },
+      "retrieval.paper.precision5": {
+        "mean": 0.17777777777777778,
+        "ci95": [
+          0.1111111111111111,
+          0.24444444444444452
+        ],
+        "observations": 36,
+        "cases": 18
+      },
+      "retrieval.paper.mrr": {
+        "mean": 0.6805555555555556,
+        "ci95": [
+          0.4583333333333333,
+          0.8888888888888888
+        ],
+        "observations": 36,
+        "cases": 18
+      },
+      "retrieval.evidence.recall5": {
+        "mean": 0.6083333333333334,
+        "ci95": [
+          0.4083333333333334,
+          0.8
+        ],
+        "observations": 40,
+        "cases": 20
+      },
+      "retrieval.evidence.recall10": {
+        "mean": 0.6708333333333334,
+        "ci95": [
+          0.4748958333333333,
+          0.85
+        ],
+        "observations": 40,
+        "cases": 20
+      },
+      "retrieval.evidence.precision5": {
+        "mean": 0.16000000000000003,
+        "ci95": [
+          0.10999999999999999,
+          0.22000000000000006
+        ],
+        "observations": 40,
+        "cases": 20
+      },
+      "retrieval.evidence.mrr": {
+        "mean": 0.5227380952380953,
+        "ci95": [
+          0.34768154761904757,
+          0.7
+        ],
+        "observations": 40,
+        "cases": 20
+      }
+    },
+    "byDomain": {
+      "open_domain_celluweave": {
+        "retrieval.paper.recall5": {
+          "mean": 0.6428571428571429,
+          "observations": 28,
+          "cases": 14
+        },
+        "retrieval.paper.recall10": {
+          "mean": 0.6428571428571429,
+          "observations": 28,
+          "cases": 14
+        },
+        "retrieval.paper.precision5": {
+          "mean": 0.1571428571428571,
+          "observations": 28,
+          "cases": 14
+        },
+        "retrieval.paper.mrr": {
+          "mean": 0.5892857142857143,
+          "observations": 28,
+          "cases": 14
+        },
+        "retrieval.evidence.recall5": {
+          "mean": 0.5104166666666667,
+          "observations": 32,
+          "cases": 16
+        },
+        "retrieval.evidence.recall10": {
+          "mean": 0.5885416666666667,
+          "observations": 32,
+          "cases": 16
+        },
+        "retrieval.evidence.precision5": {
+          "mean": 0.1375,
+          "observations": 32,
+          "cases": 16
+        },
+        "retrieval.evidence.mrr": {
+          "mean": 0.40342261904761906,
+          "observations": 32,
+          "cases": 16
+        }
+      },
+      "primary_ectd": {
+        "retrieval.paper.recall5": {
+          "mean": 1,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.paper.recall10": {
+          "mean": 1,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.paper.precision5": {
+          "mean": 0.25,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.paper.mrr": {
+          "mean": 1,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.evidence.recall5": {
+          "mean": 1,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.evidence.recall10": {
+          "mean": 1,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.evidence.precision5": {
+          "mean": 0.25,
+          "observations": 8,
+          "cases": 4
+        },
+        "retrieval.evidence.mrr": {
+          "mean": 1,
+          "observations": 8,
+          "cases": 4
+        }
+      }
+    },
+    "supplementalExcludingActualCorpusWorkflows": {
+      "excludedScoredCaseIds": [
+        "CW-DISCOVERY-05"
+      ],
+      "metrics": {
+        "retrieval.paper.recall5": {
+          "mean": 0.7058823529411765,
+          "observations": 34,
+          "cases": 17
+        },
+        "retrieval.paper.recall10": {
+          "mean": 0.7058823529411765,
+          "observations": 34,
+          "cases": 17
+        },
+        "retrieval.paper.precision5": {
+          "mean": 0.17647058823529413,
+          "observations": 34,
+          "cases": 17
+        },
+        "retrieval.paper.mrr": {
+          "mean": 0.7058823529411765,
+          "observations": 34,
+          "cases": 17
+        },
+        "retrieval.evidence.recall5": {
+          "mean": 0.6403508771929826,
+          "observations": 38,
+          "cases": 19
+        },
+        "retrieval.evidence.recall10": {
+          "mean": 0.6535087719298246,
+          "observations": 38,
+          "cases": 19
+        },
+        "retrieval.evidence.precision5": {
+          "mean": 0.16842105263157897,
+          "observations": 38,
+          "cases": 19
+        },
+        "retrieval.evidence.mrr": {
+          "mean": 0.543859649122807,
+          "observations": 38,
+          "cases": 19
+        }
+      },
+      "replacesFrozenSummary": false
+    }
+  },
+  "bilingual": {
+    "independentPairs": 3,
+    "matchedCachePairObservations": 6,
+    "aggregate": {
+      "paper": {
+        "recall5": {
+          "en": 1,
+          "zh": 0.6666666666666666,
+          "signedEnMinusZh": 0.3333333333333333,
+          "absoluteGap": 0.3333333333333333
+        },
+        "jaccard5": 0.5142857142857142,
+        "recall10": {
+          "en": 1,
+          "zh": 0.6666666666666666,
+          "signedEnMinusZh": 0.3333333333333333,
+          "absoluteGap": 0.3333333333333333
+        },
+        "jaccard10": 0.5142857142857142
+      },
+      "evidence": {
+        "recall5": {
+          "en": 1,
+          "zh": 0.6666666666666666,
+          "signedEnMinusZh": 0.3333333333333333,
+          "absoluteGap": 0.3333333333333333
+        },
+        "jaccard5": 0.2857142857142857,
+        "recall10": {
+          "en": 1,
+          "zh": 0.6666666666666666,
+          "signedEnMinusZh": 0.3333333333333333,
+          "absoluteGap": 0.3333333333333333
+        },
+        "jaccard10": 0.6143939393939394
+      }
+    },
+    "perPair": [
+      {
+        "pairId": "lookup_p17_en_zh",
+        "enCase": "CW-LOOKUP-01",
+        "zhCase": "CW-LOOKUP-02",
+        "cacheStates": [
+          "cold",
+          "warm"
+        ],
+        "coldWarmIdentical": true,
+        "metrics": {
+          "paper": {
+            "recall5": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard5": 0.8,
+            "recall10": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard10": 0.8
+          },
+          "evidence": {
+            "recall5": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard5": 0.42857142857142855,
+            "recall10": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard10": 0.8181818181818182
+          }
+        }
+      },
+      {
+        "pairId": "discover_calcium",
+        "enCase": "CW-DISCOVERY-01",
+        "zhCase": "CW-DISCOVERY-02",
+        "cacheStates": [
+          "cold",
+          "warm"
+        ],
+        "coldWarmIdentical": true,
+        "metrics": {
+          "paper": {
+            "recall5": {
+              "en": 1,
+              "zh": 0,
+              "signedEnMinusZh": 1,
+              "absoluteGap": 1
+            },
+            "jaccard5": 0.14285714285714285,
+            "recall10": {
+              "en": 1,
+              "zh": 0,
+              "signedEnMinusZh": 1,
+              "absoluteGap": 1
+            },
+            "jaccard10": 0.14285714285714285
+          },
+          "evidence": {
+            "recall5": {
+              "en": 1,
+              "zh": 0,
+              "signedEnMinusZh": 1,
+              "absoluteGap": 1
+            },
+            "jaccard5": 0,
+            "recall10": {
+              "en": 1,
+              "zh": 0,
+              "signedEnMinusZh": 1,
+              "absoluteGap": 1
+            },
+            "jaccard10": 0.125
+          }
+        }
+      },
+      {
+        "pairId": "ectd_discovery_a163v",
+        "enCase": "CW-ECTD_PAPERS-01",
+        "zhCase": "CW-ECTD_PAPERS-02",
+        "cacheStates": [
+          "cold",
+          "warm"
+        ],
+        "coldWarmIdentical": true,
+        "metrics": {
+          "paper": {
+            "recall5": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard5": 0.6,
+            "recall10": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard10": 0.6
+          },
+          "evidence": {
+            "recall5": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard5": 0.42857142857142855,
+            "recall10": {
+              "en": 1,
+              "zh": 1,
+              "signedEnMinusZh": 0,
+              "absoluteGap": 0
+            },
+            "jaccard10": 0.9
+          }
+        }
+      }
+    ],
+    "frozenGapCi95": [
+      0,
+      1
+    ]
+  },
+  "numeric": {
+    "overallSavedExact": {
+      "mean": 0,
+      "ci95": [
+        0,
+        0
+      ],
+      "n": 55,
+      "clusters": 28,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "savedByDomain": {
+      "open_domain_celluweave": {
+        "mean": 0,
+        "ci95": [
+          0,
+          0
+        ],
+        "n": 39,
+        "clusters": 20,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "primary_ectd": {
+        "mean": 0,
+        "ci95": [
+          0,
+          0
+        ],
+        "n": 16,
+        "clusters": 8,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      }
+    },
+    "primaryEctD": {
+      "caseCount": 8,
+      "observationCount": 16,
+      "exactRequestFulfillment": 0,
+      "outcomeObservationCounts": {
+        "unresolved_query": 8,
+        "numeric_result_emitted": 6,
+        "query_not_invoked": 2
+      },
+      "cases": [
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-01",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_titer",
+              "field": "titer",
+              "value": 4.85,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-02",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_titer",
+              "field": "titer",
+              "value": 4.85,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-03",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_titer",
+              "field": "titer",
+              "value": 4.85,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X03-R1",
+                "X03-R2"
+              ]
+            },
+            {
+              "name": "T212S_mean_titer",
+              "field": "titer",
+              "value": 4.2,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X03-R3",
+                "X03-R4"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-04",
+          "expectedEntries": [
+            {
+              "name": "T212S_mean_activity",
+              "field": "activity",
+              "value": 2.25,
+              "unit": "U/mg",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X02-R3",
+                "X02-R4"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "numeric_result_emitted",
+              "structuredStatus": "ready",
+              "unresolved": [],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "numeric_result_emitted",
+              "structuredStatus": "ready",
+              "unresolved": [],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [
+            {
+              "field": "titer",
+              "value": 4.074999999999999,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "groupValue": null,
+              "groupBy": [],
+              "sourceRows": [
+                "X03-R3",
+                "X03-R4",
+                "X04-R3",
+                "X04-R4"
+              ],
+              "filters": []
+            }
+          ],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-05",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_yield",
+              "field": "yield",
+              "value": 0.41,
+              "unit": "g/g",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ]
+            },
+            {
+              "name": "A163V_mean_productivity",
+              "field": "productivity",
+              "value": 0.10104166666666665,
+              "unit": "g/L/h",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "query_not_invoked",
+              "structuredStatus": null,
+              "unresolved": null,
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "query_not_invoked",
+              "structuredStatus": null,
+              "unresolved": null,
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-06",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_titer",
+              "field": "titer",
+              "value": 4.85,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "numeric_result_emitted",
+              "structuredStatus": "ready",
+              "unresolved": [],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "numeric_result_emitted",
+              "structuredStatus": "ready",
+              "unresolved": [],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [
+            {
+              "field": "titer",
+              "value": 4.75,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "groupValue": null,
+              "groupBy": [],
+              "sourceRows": [
+                "X03-R1",
+                "X03-R2",
+                "X04-R1",
+                "X04-R2"
+              ],
+              "filters": []
+            }
+          ],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-07",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_titer",
+              "field": "titer",
+              "value": 4.65,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X04-R1",
+                "X04-R2"
+              ]
+            },
+            {
+              "name": "T212S_mean_titer",
+              "field": "titer",
+              "value": 3.95,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X04-R3",
+                "X04-R4"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "numeric_result_emitted",
+              "structuredStatus": "ready",
+              "unresolved": [],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "numeric_result_emitted",
+              "structuredStatus": "ready",
+              "unresolved": [],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [
+            {
+              "field": "titer",
+              "value": 4.75,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "groupValue": "A163V",
+              "groupBy": [
+                "mutation"
+              ],
+              "sourceRows": [
+                "X03-R1",
+                "X03-R2",
+                "X04-R1",
+                "X04-R2"
+              ],
+              "filters": []
+            },
+            {
+              "field": "titer",
+              "value": 4.074999999999999,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "groupValue": "T212S",
+              "groupBy": [
+                "mutation"
+              ],
+              "sourceRows": [
+                "X03-R3",
+                "X03-R4",
+                "X04-R3",
+                "X04-R4"
+              ],
+              "filters": []
+            }
+          ],
+          "coldWarmEntriesIdentical": true
+        },
+        {
+          "caseId": "CW-ECTD_EXPERIMENTS-08",
+          "expectedEntries": [
+            {
+              "name": "A163V_mean_activity",
+              "field": "activity",
+              "value": 1.55,
+              "unit": "U/mg",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X04-R1",
+                "X04-R2"
+              ]
+            },
+            {
+              "name": "T212S_mean_activity",
+              "field": "activity",
+              "value": 2.45,
+              "unit": "U/mg",
+              "aggregation": "mean",
+              "sourceRows": [
+                "X04-R3",
+                "X04-R4"
+              ]
+            }
+          ],
+          "outcomeByCache": [
+            {
+              "cacheState": "cold",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            },
+            {
+              "cacheState": "warm",
+              "status": "completed",
+              "class": "unresolved_query",
+              "structuredStatus": "unresolved",
+              "unresolved": [
+                "no_numeric_values:titer"
+              ],
+              "savedExactAccuracy": 0
+            }
+          ],
+          "emittedEntries": [],
+          "coldWarmEntriesIdentical": true
+        }
+      ]
+    }
+  },
+  "corpus": {
+    "observedWorkflows": 4,
+    "workflowObservations": 8,
+    "scoredValidWorkflowObservations": 6,
+    "perRun": [
+      {
+        "caseId": "CW-DISCOVERY-05",
+        "cacheState": "cold",
+        "observationStatus": "completed",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-65b5ab3a",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 7,
+        "analyzedFraction": 0.875,
+        "failedPaperIds": [
+          "P17"
+        ],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 8,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 20,
+          "statusCounts": {
+            "original-evidence-located": 20
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 1,
+          "qmdUpdates": 34,
+          "cards": 8,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-DISCOVERY-05",
+        "cacheState": "warm",
+        "observationStatus": "completed",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-65b5ab3a",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 8,
+        "analyzedFraction": 1,
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 1,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 23,
+          "statusCounts": {
+            "original-evidence-located": 23
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 1,
+          "qmdUpdates": 1,
+          "cards": 0,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-CORPUS-01",
+        "cacheState": "cold",
+        "observationStatus": "completed",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-0866d379",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 7,
+        "analyzedFraction": 0.875,
+        "failedPaperIds": [
+          "P31"
+        ],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 8,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 20,
+          "statusCounts": {
+            "original-evidence-located": 20
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 0,
+          "qmdUpdates": 34,
+          "cards": 8,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-CORPUS-01",
+        "cacheState": "warm",
+        "observationStatus": "completed",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-0866d379",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 8,
+        "analyzedFraction": 1,
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 1,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 23,
+          "statusCounts": {
+            "original-evidence-located": 23
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 0,
+          "qmdUpdates": 1,
+          "cards": 0,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-CORPUS-04",
+        "cacheState": "cold",
+        "observationStatus": "completed",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-08413dca",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 7,
+        "analyzedFraction": 0.875,
+        "failedPaperIds": [
+          "P31"
+        ],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 8,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 20,
+          "statusCounts": {
+            "original-evidence-located": 20
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 1,
+          "qmdUpdates": 34,
+          "cards": 8,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-CORPUS-04",
+        "cacheState": "warm",
+        "observationStatus": "completed",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-08413dca",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 8,
+        "analyzedFraction": 1,
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 1,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 23,
+          "statusCounts": {
+            "original-evidence-located": 23
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 1,
+          "qmdUpdates": 1,
+          "cards": 0,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-04",
+        "cacheState": "cold",
+        "observationStatus": "blocked",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-6dafc985",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 7,
+        "analyzedFraction": 0.875,
+        "failedPaperIds": [
+          "P17"
+        ],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 8,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 20,
+          "statusCounts": {
+            "original-evidence-located": 20
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 0,
+          "qmdUpdates": 34,
+          "cards": 8,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-04",
+        "cacheState": "warm",
+        "observationStatus": "blocked",
+        "workflowStatus": "completed",
+        "workflowId": "summarize-paper-corpus-6dafc985",
+        "phase": "answer",
+        "snapshot": 8,
+        "prepared": 8,
+        "analyzed": 8,
+        "analyzedFraction": 1,
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "preparationCacheHits": 8,
+        "canonicalArtifactsReused": 8,
+        "localQuestionProjections": 1,
+        "providerMapRequests": 0,
+        "verification": {
+          "rows": 23,
+          "statusCounts": {
+            "original-evidence-located": 23
+          },
+          "semanticEntailmentAssessed": false
+        },
+        "localCounters": {
+          "qmdSearches": 0,
+          "qmdUpdates": 1,
+          "cards": 0,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      }
+    ],
+    "aggregateByCache": {
+      "cold": {
+        "runs": 4,
+        "snapshotTotal": 32,
+        "preparedTotal": 32,
+        "analyzedTotal": 28,
+        "analyzedFraction": 0.875,
+        "failedSourcesTotal": 4,
+        "verificationRows": 80
+      },
+      "warm": {
+        "runs": 4,
+        "snapshotTotal": 32,
+        "preparedTotal": 32,
+        "analyzedTotal": 32,
+        "analyzedFraction": 1,
+        "failedSourcesTotal": 0,
+        "verificationRows": 92
+      }
+    },
+    "declaredCorpusCasesWithoutWorkflow": [
+      "CW-CORPUS-02",
+      "CW-CORPUS-03",
+      "CW-CORPUS-05",
+      "CW-CORPUS-06",
+      "CW-CORPUS-07",
+      "CW-CORPUS-08",
+      "CW-ECTD_WORKFLOWS-03"
+    ],
+    "reuseInterpretation": "Warm reuses the same workflow ID and seven successful maps, then projects the one previously failed paper; localQuestionProjections cold8→warm1, cards cold8→warm0. Cold preparation cache hits come after measured preflight generated the cards."
+  },
+  "localCostCounters": {
+    "byCache": {
+      "cold": {
+        "observations": 96,
+        "recordedCounterObservations": 93,
+        "missingCounterObservations": 3,
+        "sums": {
+          "qmdSearches": 169,
+          "qmdUpdates": 2941,
+          "cards": 710,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      },
+      "warm": {
+        "observations": 96,
+        "recordedCounterObservations": 95,
+        "missingCounterObservations": 1,
+        "sums": {
+          "qmdSearches": 170,
+          "qmdUpdates": 8,
+          "cards": 2,
+          "maps": 0,
+          "nativePdf": 0
+        }
+      }
+    },
+    "usdByRole": {
+      "retrieval": {
+        "known": 0,
+        "missing": 192,
+        "knownTotalUsd": null,
+        "meanKnownUsd": null,
+        "coverage": 0
+      },
+      "generation": {
+        "known": 0,
+        "missing": 192,
+        "knownTotalUsd": null,
+        "meanKnownUsd": null,
+        "coverage": 0
+      },
+      "judge": {
+        "known": 0,
+        "missing": 192,
+        "knownTotalUsd": null,
+        "meanKnownUsd": null,
+        "coverage": 0
+      }
+    },
+    "scope": "Sums of recorded logical local-boundary counters only; missing counter observations excluded and counted. Controlled cards are not paid FC/provider calls."
+  },
+  "latencyMs": {
+    "cold": {
+      "observations": 96,
+      "allObserved": {
+        "preflightMs": {
+          "n": 93,
+          "p50": 1929.653707999969,
+          "p95": 2070.2925169999944,
+          "mean": 1873.4310918172039,
+          "max": 3278.347667000002
+        },
+        "mainGateMs": {
+          "n": 93,
+          "p50": 1936.0900829999882,
+          "p95": 2089.3932164000116,
+          "mean": 1887.516999107528,
+          "max": 3289.7038329999996
+        },
+        "latencyMs": {
+          "n": 94,
+          "p50": 2026.334104000005,
+          "p95": 2474.6518545000044,
+          "mean": 2023.5668133085112,
+          "max": 3433.1977499999994
+        },
+        "totalHarnessMs": {
+          "n": 96,
+          "p50": 2191.6906044999996,
+          "p95": 3026.749895250001,
+          "mean": 2317.7809417812505,
+          "max": 5318.1344589999935
+        },
+        "setupMs": {
+          "n": 94,
+          "p50": 154.42549999999028,
+          "p95": 1065.8109919999974,
+          "mean": 278.62592646808474,
+          "max": 3259.618542000011
+        }
+      },
+      "completedOnly": {
+        "preflightMs": {
+          "n": 82,
+          "p50": 1926.059125000007,
+          "p95": 2063.755250299991,
+          "mean": 1861.3496133048782,
+          "max": 3278.347667000002
+        },
+        "mainGateMs": {
+          "n": 82,
+          "p50": 1932.6259580000042,
+          "p95": 2087.1676729500164,
+          "mean": 1876.3728724756118,
+          "max": 3289.7038329999996
+        },
+        "latencyMs": {
+          "n": 82,
+          "p50": 2029.9592914999994,
+          "p95": 2518.6688669499968,
+          "mean": 2020.2885273658542,
+          "max": 3433.1977499999994
+        },
+        "totalHarnessMs": {
+          "n": 82,
+          "p50": 2191.8683960000053,
+          "p95": 2863.6064618500013,
+          "mean": 2317.3979414634146,
+          "max": 5318.1344589999935
+        },
+        "setupMs": {
+          "n": 82,
+          "p50": 154.8482915000004,
+          "p95": 1495.395692000002,
+          "mean": 297.10906406097524,
+          "max": 3259.618542000011
+        }
+      }
+    },
+    "warm": {
+      "observations": 96,
+      "allObserved": {
+        "preflightMs": {
+          "n": 95,
+          "p50": 0.7668750000011642,
+          "p95": 69.86555809998244,
+          "mean": 8.592546936841417,
+          "max": 253.1157499999681
+        },
+        "mainGateMs": {
+          "n": 95,
+          "p50": 0.7836669999960577,
+          "p95": 75.9859998999862,
+          "mean": 9.314778463157468,
+          "max": 287.5816249999916
+        },
+        "latencyMs": {
+          "n": 96,
+          "p50": 53.82860399999845,
+          "p95": 282.0336144999892,
+          "mean": 96.01737276041574,
+          "max": 716.625541999998
+        },
+        "totalHarnessMs": {
+          "n": 96,
+          "p50": 53.85935400000017,
+          "p95": 282.06721874999494,
+          "mean": 96.07318359375047,
+          "max": 716.6578750000008
+        },
+        "setupMs": {
+          "n": 96,
+          "p50": 0.032229000000370434,
+          "p95": 0.05655200000910554,
+          "mean": 0.05557336458482117,
+          "max": 2.0747909999918193
+        }
+      },
+      "completedOnly": {
+        "preflightMs": {
+          "n": 84,
+          "p50": 0.7764795000002778,
+          "p95": 70.59838745001325,
+          "mean": 9.61275051190402,
+          "max": 253.1157499999681
+        },
+        "mainGateMs": {
+          "n": 84,
+          "p50": 0.7913125000013679,
+          "p95": 77.14214554998907,
+          "mean": 10.427468690475788,
+          "max": 287.5816249999916
+        },
+        "latencyMs": {
+          "n": 84,
+          "p50": 54.87183299999742,
+          "p95": 264.9700374499908,
+          "mean": 102.57657729761783,
+          "max": 716.625541999998
+        },
+        "totalHarnessMs": {
+          "n": 84,
+          "p50": 54.90483349999613,
+          "p95": 265.00484999999594,
+          "mean": 102.63619345238155,
+          "max": 716.6578750000008
+        },
+        "setupMs": {
+          "n": 84,
+          "p50": 0.032333000001017353,
+          "p95": 0.056676800016430204,
+          "mean": 0.05937353571614169,
+          "max": 2.0747909999918193
+        }
+      }
+    },
+    "scope": "preflight=reconciliationMs+knowledgeSyncMs; mainGate=mainAgentStartMs; latencyMs=whole adapter execution after fixture setup, including all declared context turns; totalHarnessMs includes fixture/setup. For CW-ECTD_WORKFLOWS-03 preflight/mainGate refer to final turn, while latencyMs covers two context builds."
+  },
+  "contextDiscipline": {
+    "cold": {
+      "recordedObservations": 93,
+      "missingObservations": 3,
+      "mainContextCharacters": {
+        "n": 93,
+        "p50": 21756,
+        "p95": 179147.39999999997,
+        "mean": 59953.720430107525,
+        "max": 252303,
+        "sum": 5575696,
+        "zeros": 0
+      },
+      "syncReportCharacters": {
+        "n": 93,
+        "p50": 2362,
+        "p95": 2386.3999999999996,
+        "mean": 2256.559139784946,
+        "max": 2426,
+        "sum": 209860,
+        "zeros": 0
+      },
+      "structuredResultHandles": {
+        "n": 93,
+        "p50": 0,
+        "p95": 1,
+        "mean": 0.3118279569892473,
+        "max": 2,
+        "sum": 29,
+        "zeros": 66
+      },
+      "rawMaintenanceTranscriptPresent": {
+        "true": 0,
+        "false": 0,
+        "unknown": 93
+      }
+    },
+    "warm": {
+      "recordedObservations": 95,
+      "missingObservations": 1,
+      "mainContextCharacters": {
+        "n": 95,
+        "p50": 19628,
+        "p95": 179824.6,
+        "mean": 57039.778947368424,
+        "max": 250140,
+        "sum": 5418779,
+        "zeros": 0
+      },
+      "syncReportCharacters": {
+        "n": 95,
+        "p50": 252,
+        "p95": 375,
+        "mean": 262.3578947368421,
+        "max": 438,
+        "sum": 24924,
+        "zeros": 0
+      },
+      "structuredResultHandles": {
+        "n": 95,
+        "p50": 0,
+        "p95": 1,
+        "mean": 0.30526315789473685,
+        "max": 2,
+        "sum": 29,
+        "zeros": 68
+      },
+      "rawMaintenanceTranscriptPresent": {
+        "true": 0,
+        "false": 0,
+        "unknown": 95
+      }
+    },
+    "scope": "UTF-16 serialized JSON character lengths of context, not actual model prompt/token usage. Handles are unique resultHandle strings in that JSON. rawMaintenanceTranscriptPresent=null is unknown."
+  },
+  "findings": [
+    {
+      "id": "numeric_zero_is_fulfillment_not_arithmetic_error_rate",
+      "severity": "interpretation",
+      "evidence": "Eight primary EctD cases / 16 observations: six emitted numeric results, eight unresolved queries, two queries not invoked.",
+      "conclusion": "All eight fail exact requested primitive-result fulfillment, but it is false to describe all sixteen observations as wrong computed arithmetic. No generated answer was available to score."
+    },
+    {
+      "id": "numeric_component_matching_understates_metadata",
+      "severity": "scorer_defect",
+      "cases": [
+        "CW-ECTD_EXPERIMENTS-07"
+      ],
+      "evidence": "Both saved groups have field=titer, unit=g/L, aggregation=mean, groupValue=A163V or T212S. Scorer disambiguation uses gold.filters.batch but gold uses filters.variant; matched=false sets every component false.",
+      "conclusion": "Frozen field/unit/aggregation component scores understate matching emitted metadata. Independent group-value comparison still finds 4.75 vs 4.65 and 4.075 vs 3.95; exact0 remains supported. No rescore or baseline rewrite performed."
+    },
+    {
+      "id": "stress_fields_and_primary_schema_failures_are_distinct",
+      "severity": "interpretation",
+      "evidence": "Open-domain gold includes modulus_kPa, retention_pct and water_uptake_g_g, outside the fixed production canonical ontology; EctD gold includes titer/yield/productivity, but X02 suffixed raw headers remain unnormalized.",
+      "conclusion": "Overall experiment0 cannot be presented as an accuracy estimate for established production scientific fields. Report EctD8 separately. Activity gold naming activity versus specific_activity is an additional schema-convention mismatch; observed wrong titer selection and unresolved output remain independently visible."
+    },
+    {
+      "id": "corpus_recall_is_relevant_subset_not_snapshot_coverage",
+      "severity": "denominator",
+      "evidence": "Saved corpus.analyzedRecall=.944444 uses 3 valid case clusters and relevant gold paper subsets. All four observed workflows have 7/8 analyzed cold and 8/8 warm; one workflow is blocked because requested fault injection was unreached.",
+      "conclusion": "Use raw cold87.5%/warm100% snapshot coverage for execution completeness. Corpus status completed can coexist with a failed source. Do not generalize three scored cases to all corpus requests."
+    },
+    {
+      "id": "actual_corpus_path_in_ranked_retrieval_cohort",
+      "severity": "scope",
+      "cases": [
+        "CW-DISCOVERY-05"
+      ],
+      "evidence": "Static category discovery keeps this case in retrieval metrics despite actual.corpusWorkflow being present.",
+      "conclusion": "Frozen retrieval metric mixes one corpus-routed discovery case into ordinary discovery. Supplemental same-observation metrics excluding every actual corpus workflow are supplied separately."
+    },
+    {
+      "id": "evidence_prefix_is_not_independently_ranked_chunk_retrieval",
+      "severity": "interpretation",
+      "evidence": "Original adapter forms evidenceIds by deduplicating readPaperEvidence page aliases followed by citationEvidence and memory aliases.",
+      "conclusion": "Evidence Recall@K/MRR describe emitted evidence order. They do not establish an independently relevance-ranked chunk retriever, evidence entailment, or final citation correctness."
+    },
+    {
+      "id": "bilingual_sample_size_is_three_pairs",
+      "severity": "uncertainty",
+      "evidence": "Six matched pair observations are the same three EN/ZH pairs in cold and warm conditions; one stochastic repeat only.",
+      "conclusion": "Paper/evidence recall EN1 vs ZH2/3 and gap1/3 are correct for these pairs. They are not a broad language-quality estimate; fixed-seed gap CI [0,1] reflects the small case set. Cold/warm are not independent model trials."
+    },
+    {
+      "id": "located_evidence_does_not_prove_entailment",
+      "severity": "interpretation",
+      "evidence": "Corpus verification statuses are exclusively original-evidence-located. Controlled cards copy fixture excerpts; final answer count0.",
+      "conclusion": "Do not convert located-evidence counts to semantic support, factual answer accuracy, or judge win rates."
+    },
+    {
+      "id": "sync_success_cohort_has_setup_limitations",
+      "severity": "harness",
+      "cases": [
+        "CW-SYNC_FAILURE-02",
+        "CW-SYNC_FAILURE-08",
+        "CW-ECTD_WORKFLOWS-05"
+      ],
+      "evidence": "Post-baseline adapter audit says newly added P83 was already in initial fixture; explicit sync mutation unsupported. Failed-but-now-readable P131 case kept the failure state; verified bytes can be current while artifacts fail.",
+      "conclusion": "Frozen version/freshness1 must not imply comprehensive sync acceptance. Corrected adapter replays are separate evidence, not baseline improvements."
+    },
+    {
+      "id": "cost_latency_and_context_are_local_boundary_measurements",
+      "severity": "interpretation",
+      "evidence": "No live FC calls or generated answers; all USD role values null. mainContextCharacters is JSON.stringify(context).length, and preflight/mainGate are final context-turn telemetry.",
+      "conclusion": "Logical cards/QMD updates are not provider billing; latency is not end-to-end streamed-answer latency; serialized characters are not model tokens or proof of actual prompt size. Maintenance transcript presence is unmeasured."
+    },
+    {
+      "id": "blocked_cases_and_missing_audits_are_not_permission_failures",
+      "severity": "scope",
+      "evidence": "26 observations are blocked/error; complete permission, final citation, and action audits are absent. Adversarial review separates native-project-scope setup mismatches.",
+      "conclusion": "Retain hard-gate failures and unknowns individually. Do not count unexecuted setup, missing final answer, or incomplete access audit as demonstrated production permission violations."
+    }
+  ],
+  "baselinePreservation": {
+    "before": {
+      "baseline": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+      "frozenCases": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e",
+      "suiteCases": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e"
+    },
+    "after": {
+      "baseline": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+      "frozenCases": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e",
+      "suiteCases": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e"
+    },
+    "baselineOrFrozenCasesModified": false
+  },
+  "productionCodeModified": false,
+  "appOrElectronExecution": false,
+  "rawArithmeticVerification": {
+    "retrievalMetricValuesRecomputed": 304,
+    "retrievalMismatches": [],
+    "method": "Independent set/rank arithmetic over saved raw emitted IDs and frozen gold, without importing scoring.mjs.",
+    "numericExamples": [
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "requestedValue": 2.25,
+        "requestedUnit": "U/mg",
+        "observedValue": 4.075,
+        "observedUnit": "g/L",
+        "interpretation": "Wrong measure and wrong source rows."
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-06",
+        "requestedValue": 4.85,
+        "observedValue": 4.75,
+        "unit": "g/L",
+        "interpretation": "Correct arithmetic on wrong requested-source subset."
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-07",
+        "requestedValues": {
+          "A163V": 4.65,
+          "T212S": 3.95
+        },
+        "observedValues": {
+          "A163V": 4.75,
+          "T212S": 4.075
+        },
+        "unit": "g/L",
+        "interpretation": "Both group numerics wrong for requested 42C source subset; scorer also failed variant-group identity matching."
+      }
+    ]
+  }
+}

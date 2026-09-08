@@ -1,0 +1,4627 @@
+{
+  "schemaVersion": "judge-assisted-grounding-v1",
+  "aggregationVersion": "1.0.1",
+  "nSamples": 7,
+  "nIndependentCases": 6,
+  "classification": "LLM-assisted diagnostics against supplied evidence; not independently certified scientific truth or hard-gate clearance.",
+  "methods": {
+    "weighting": "Compute each sample ratio, average available repeats within case, then weight cases equally; artifact types stay separate. Diagnostic counts are not pooled headline rates.",
+    "bootstrap": {
+      "method": "Case-cluster percentile bootstrap",
+      "seed": 20260907,
+      "samples": 2000
+    },
+    "claimPrecision": "Supported / all audited material claims. Uncertain remains in the denominator and has its own rate; contradicted and unsupported are also separate.",
+    "goldRecall": "Distinct gold claim IDs explicitly linked from supported audits / all packet.gold.claims. Zero gold claims gives null. Claim links are judge-supplied, not inferred from substring presence.",
+    "citationPrecision": "Per audited claim–observed-citation link. Credit requires supported verdict and cited source/page matching judge-identified supporting evidence. Narrow references resolve first; underlying actual citation indexes cannot contribute twice within a claim. Broad aliases already represented by specific references are redundant. A partly overlapping broad alias retains its original page uncertainty. Unknown mappings are excluded with counts, never credited.",
+    "sourceVsPage": "Source support does not establish page localization. A null/ambiguous actual citation page stays unlocalized even if the judge cites a known gold passage ID. Page precision uses localized, mappable links only; localization coverage is reported separately.",
+    "omittedCitations": "No observed citation gives zero claim citation coverage (when claims exist), but zero-denominator citation precision is null. Missing citation metadata remains unresolved, not proof of no citations."
+  },
+  "byArtifactType": {
+    "final_answer": {
+      "nSamples": 7,
+      "nIndependentCases": 6,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 0.6453449328449329,
+          "ci95": [
+            0.3666666666666667,
+            0.8667735042735042
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "unsupportedClaimRate": {
+          "mean": 0.037164224664224664,
+          "ci95": [
+            0,
+            0.08485576923076882
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "contradictedClaimRate": {
+          "mean": 0.04502442002442003,
+          "ci95": [
+            0,
+            0.11126373626373627
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0.08218864468864469,
+          "ci95": [
+            0,
+            0.1858974358974359
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "uncertaintyRate": {
+          "mean": 0.27246642246642244,
+          "ci95": [
+            0.08675213675213674,
+            0.5524404761904759
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "goldClaimCoverageRecall": {
+          "mean": 0.9333333333333332,
+          "ci95": [
+            0.7999999999999999,
+            1
+          ],
+          "nSamples": 6,
+          "nMissingOrZeroDenominator": 1,
+          "nIndependentCases": 5,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "citationCoverage": {
+          "mean": 0.6428571428571429,
+          "ci95": [
+            0.2827380952380954,
+            0.9761904761904763
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": 0.8785714285714286,
+          "ci95": [
+            0.7571428571428571,
+            1
+          ],
+          "nSamples": 4,
+          "nMissingOrZeroDenominator": 3,
+          "nIndependentCases": 4,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "ci95": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 7,
+          "nIndependentCases": 0,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "nSamples": 4,
+          "nMissingOrZeroDenominator": 3,
+          "nIndependentCases": 4,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 0.5619047619047618,
+          "ci95": [
+            0.1898809523809524,
+            0.8619047619047618
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "nSamples": 7,
+          "nMissingOrZeroDenominator": 0,
+          "nIndependentCases": 6,
+          "totalSamples": 7,
+          "totalIndependentCases": 6
+        }
+      },
+      "diagnosticCounts": {
+        "materialClaimAudits": 71,
+        "supported": 31,
+        "unsupported": 4,
+        "contradicted": 6,
+        "uncertain": 30,
+        "requiredGoldClaims": 21,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 17,
+        "claimsWithCitation": 24,
+        "claimsWithSourceSupport": 19,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 26,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 26,
+        "sourceSupportKnown": 26,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      }
+    }
+  },
+  "perCase": [
+    {
+      "caseId": "CW-CORPUS-01",
+      "artifactType": "final_answer",
+      "packetIds": [
+        "d380743f8fb126cb",
+        "d5939f4c17899961"
+      ],
+      "nSamples": 2,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 0.40064102564102566,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedClaimRate": {
+          "mean": 0.08012820512820512,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "contradictedClaimRate": {
+          "mean": 0.19871794871794873,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0.27884615384615385,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "uncertaintyRate": {
+          "mean": 0.3205128205128205,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "goldClaimCoverageRecall": {
+          "mean": 0.6666666666666666,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "citationCoverage": {
+          "mean": 0,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 2
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 2
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 2
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 2,
+          "nMissingOrZeroDenominator": 0
+        }
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "artifactType": "final_answer",
+      "packetIds": [
+        "f7d737d510b6c5ff"
+      ],
+      "nSamples": 1,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "contradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "uncertaintyRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "goldClaimCoverageRecall": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "citationCoverage": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        }
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-07",
+      "artifactType": "final_answer",
+      "packetIds": [
+        "337f87c5b25f49fc"
+      ],
+      "nSamples": 1,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "contradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "uncertaintyRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "goldClaimCoverageRecall": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "citationCoverage": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        }
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-08",
+      "artifactType": "final_answer",
+      "packetIds": [
+        "5876e39aee828969"
+      ],
+      "nSamples": 1,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 0.1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "contradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "uncertaintyRate": {
+          "mean": 0.9,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "goldClaimCoverageRecall": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "citationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        }
+      }
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "artifactType": "final_answer",
+      "packetIds": [
+        "8e55692ea8d31e73"
+      ],
+      "nSamples": 1,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 0.5714285714285714,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedClaimRate": {
+          "mean": 0.14285714285714285,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "contradictedClaimRate": {
+          "mean": 0.07142857142857142,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0.21428571428571427,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "uncertaintyRate": {
+          "mean": 0.21428571428571427,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "goldClaimCoverageRecall": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "citationCoverage": {
+          "mean": 0.8571428571428571,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": 0.7142857142857143,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 0.5714285714285714,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        }
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-05",
+      "artifactType": "final_answer",
+      "packetIds": [
+        "78a5668efd3aea8f"
+      ],
+      "nSamples": 1,
+      "metrics": {
+        "strictClaimSupportPrecision": {
+          "mean": 0.8,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "contradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "unsupportedOrContradictedClaimRate": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "uncertaintyRate": {
+          "mean": 0.2,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "goldClaimCoverageRecall": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "citationCoverage": {
+          "mean": 1,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceCitationSupportPrecision": {
+          "mean": 0.8,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageCitationSupportPrecision": {
+          "mean": null,
+          "nSamples": 0,
+          "nMissingOrZeroDenominator": 1
+        },
+        "citationPageLocalizationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "sourceSupportedCitationCoverage": {
+          "mean": 0.8,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        },
+        "pageSupportedCitationCoverage": {
+          "mean": 0,
+          "nSamples": 1,
+          "nMissingOrZeroDenominator": 0
+        }
+      }
+    }
+  ],
+  "perSample": [
+    {
+      "packetId": "d380743f8fb126cb",
+      "caseId": "CW-CORPUS-01",
+      "repeat": 0,
+      "artifactType": "final_answer",
+      "judgeConfidence": "high",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 13,
+        "supported": 5,
+        "unsupported": 1,
+        "contradicted": 3,
+        "uncertain": 4,
+        "requiredGoldClaims": 6,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 4,
+        "claimsWithCitation": 0,
+        "claimsWithSourceSupport": 0,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 0,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 0,
+        "sourceSupportKnown": 0,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 0.38461538461538464,
+        "unsupportedClaimRate": 0.07692307692307693,
+        "contradictedClaimRate": 0.23076923076923078,
+        "unsupportedOrContradictedClaimRate": 0.3076923076923077,
+        "uncertaintyRate": 0.3076923076923077,
+        "goldClaimCoverageRecall": 0.6666666666666666,
+        "citationCoverage": 0,
+        "sourceCitationSupportPrecision": null,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": null,
+        "sourceSupportedCitationCoverage": 0,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [
+        "p17mean",
+        "p31mean",
+        "p31n",
+        "p52mean"
+      ],
+      "uncoveredGoldClaims": [
+        {
+          "id": "p17n",
+          "subject": "P17:50mM",
+          "predicate": "sample_count",
+          "value": 5,
+          "evidenceIds": [
+            "P17:p2:v1"
+          ],
+          "unit": "specimens"
+        },
+        {
+          "id": "p52n",
+          "subject": "P52",
+          "predicate": "sample_count",
+          "value": 6,
+          "evidenceIds": [
+            "P52:p2:v1"
+          ],
+          "unit": "specimens"
+        }
+      ],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "纳入 8 篇",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "成功分析 8/8",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "失败 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "缺失 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 4,
+          "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p17mean"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p17mean",
+                "subject": "P17:50mM",
+                "predicate": "mean_modulus",
+                "value": 42,
+                "evidenceIds": [
+                  "P17:p2:v1"
+                ],
+                "unit": "kPa"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p17mean"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 5,
+          "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p17n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p17n",
+                "subject": "P17:50mM",
+                "predicate": "sample_count",
+                "value": 5,
+                "evidenceIds": [
+                  "P17:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p17n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 6,
+          "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 8,
+          "candidateSpan": "Average compressive modulus: **48.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p31mean"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p31mean",
+                "subject": "P31",
+                "predicate": "mean_modulus",
+                "value": 48,
+                "evidenceIds": [
+                  "P31:p2:v2"
+                ],
+                "unit": "kPa"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p31mean"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 9,
+          "candidateSpan": "Average compressive modulus: **48.0 kPa** (**n=6**)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p31n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p31n",
+                "subject": "P31",
+                "predicate": "sample_count",
+                "value": 6,
+                "evidenceIds": [
+                  "P31:p2:v2"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p31n"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 10,
+          "candidateSpan": "Mean compressive modulus: **51.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p52mean"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p52mean",
+                "subject": "P52",
+                "predicate": "mean_modulus",
+                "value": 51,
+                "evidenceIds": [
+                  "P52:p2:v1"
+                ],
+                "unit": "kPa"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p52mean"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p52n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p52n",
+                "subject": "P52",
+                "predicate": "sample_count",
+                "value": 6,
+                "evidenceIds": [
+                  "P52:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p52n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 12,
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "unsupportedClaims": [
+        {
+          "auditIndex": 5,
+          "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p17n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p17n",
+                "subject": "P17:50mM",
+                "predicate": "sample_count",
+                "value": 5,
+                "evidenceIds": [
+                  "P17:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p17n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p52n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p52n",
+                "subject": "P52",
+                "predicate": "sample_count",
+                "value": 6,
+                "evidenceIds": [
+                  "P52:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p52n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 12,
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "uncertainClaims": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "纳入 8 篇",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "成功分析 8/8",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "失败 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "缺失 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "criticalErrors": [
+        {
+          "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "issue": "The original study explicitly reports n=5 independent sheets for the 50 mmol/L condition; calling the count unreported contradicts the requested evidence."
+        },
+        {
+          "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported)",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "issue": "The additionally listed 75 mmol/L condition also explicitly reports n=5; the absence claim is false."
+        },
+        {
+          "candidateSpan": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "issue": "The original study explicitly reports n=6 independent sheets; calling the count unreported contradicts the requested evidence."
+        },
+        {
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+          "goldEvidenceIds": [
+            "P17:p2:v1",
+            "P31:p2:v2",
+            "P52:p2:v1"
+          ],
+          "issue": "Every numeric result cites this same unresolved artifact. Its supplied citation has status missing, page null, and a sourceId absent from the supplied sources; it cannot establish the claimed provenance."
+        }
+      ],
+      "missingPoints": [
+        {
+          "goldRequirement": "p17n",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "omission": "The requested sample count is replaced with a false assertion that it was not reported."
+        },
+        {
+          "goldRequirement": "p52n",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "omission": "The requested sample count is replaced with a false assertion that it was not reported."
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "纳入 8 篇",
+          "subject": "reported coverage",
+          "metric": "included_study_count",
+          "value": 8,
+          "unit": "studies",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "成功分析 8/8",
+          "subject": "reported coverage",
+          "metric": "successful_analysis_count",
+          "value": 8,
+          "unit": "studies",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "成功分析 8/8",
+          "subject": "reported coverage",
+          "metric": "analysis_total_count",
+          "value": 8,
+          "unit": "studies",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "失败 0",
+          "subject": "reported coverage",
+          "metric": "failed_analysis_count",
+          "value": 0,
+          "unit": "studies",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "缺失 0",
+          "subject": "reported coverage",
+          "metric": "missing_count",
+          "value": 0,
+          "unit": "studies",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "50 mmol/L condition",
+          "subject": "P17:50mM",
+          "metric": "calcium_concentration",
+          "value": 50,
+          "unit": "mmol/L",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa**",
+          "subject": "P17:50mM",
+          "metric": "mean_modulus",
+          "value": 42,
+          "unit": "kPa",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "75 mmol/L condition",
+          "subject": "P17:75mM",
+          "metric": "calcium_concentration",
+          "value": 75,
+          "unit": "mmol/L",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa**",
+          "subject": "P17:75mM",
+          "metric": "mean_modulus",
+          "value": 56,
+          "unit": "kPa",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "Average compressive modulus: **48.0 kPa**",
+          "subject": "P31",
+          "metric": "mean_modulus",
+          "value": 48,
+          "unit": "kPa",
+          "sourceIds": [
+            "P31"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**n=6**",
+          "subject": "P31",
+          "metric": "sample_count",
+          "value": 6,
+          "unit": "specimens",
+          "sourceIds": [
+            "P31"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "Mean compressive modulus: **51.0 kPa**",
+          "subject": "P52",
+          "metric": "mean_modulus",
+          "value": 51,
+          "unit": "kPa",
+          "sourceIds": [
+            "P52"
+          ],
+          "sourceRows": []
+        }
+      ]
+    },
+    {
+      "packetId": "d5939f4c17899961",
+      "caseId": "CW-CORPUS-01",
+      "repeat": 1,
+      "artifactType": "final_answer",
+      "judgeConfidence": "high",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 12,
+        "supported": 5,
+        "unsupported": 1,
+        "contradicted": 2,
+        "uncertain": 4,
+        "requiredGoldClaims": 6,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 4,
+        "claimsWithCitation": 0,
+        "claimsWithSourceSupport": 0,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 0,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 0,
+        "sourceSupportKnown": 0,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 0.4166666666666667,
+        "unsupportedClaimRate": 0.08333333333333333,
+        "contradictedClaimRate": 0.16666666666666666,
+        "unsupportedOrContradictedClaimRate": 0.25,
+        "uncertaintyRate": 0.3333333333333333,
+        "goldClaimCoverageRecall": 0.6666666666666666,
+        "citationCoverage": 0,
+        "sourceCitationSupportPrecision": null,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": null,
+        "sourceSupportedCitationCoverage": 0,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [
+        "p17mean",
+        "p31mean",
+        "p31n",
+        "p52mean"
+      ],
+      "uncoveredGoldClaims": [
+        {
+          "id": "p17n",
+          "subject": "P17:50mM",
+          "predicate": "sample_count",
+          "value": 5,
+          "evidenceIds": [
+            "P17:p2:v1"
+          ],
+          "unit": "specimens"
+        },
+        {
+          "id": "p52n",
+          "subject": "P52",
+          "predicate": "sample_count",
+          "value": 6,
+          "evidenceIds": [
+            "P52:p2:v1"
+          ],
+          "unit": "specimens"
+        }
+      ],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "纳入 8 篇",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "成功分析 8/8",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "失败 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "缺失 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 4,
+          "candidateSpan": "Based on the available evidence from the processed corpus [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 5,
+          "candidateSpan": "**42.0 kPa** (for the 50 mmol/L condition)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p17mean"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p17mean",
+                "subject": "P17:50mM",
+                "predicate": "mean_modulus",
+                "value": 42,
+                "evidenceIds": [
+                  "P17:p2:v1"
+                ],
+                "unit": "kPa"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p17mean"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 6,
+          "candidateSpan": "**56.0 kPa** (for the 75 mmol/L condition)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p17n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p17n",
+                "subject": "P17:50mM",
+                "predicate": "sample_count",
+                "value": 5,
+                "evidenceIds": [
+                  "P17:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p17n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 8,
+          "candidateSpan": "**48.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p31mean"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p31mean",
+                "subject": "P31",
+                "predicate": "mean_modulus",
+                "value": 48,
+                "evidenceIds": [
+                  "P31:p2:v2"
+                ],
+                "unit": "kPa"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p31mean"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 9,
+          "candidateSpan": "*Sample count: n=6*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p31n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p31n",
+                "subject": "P31",
+                "predicate": "sample_count",
+                "value": 6,
+                "evidenceIds": [
+                  "P31:p2:v2"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p31n"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 10,
+          "candidateSpan": "**51.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p52mean"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p52mean",
+                "subject": "P52",
+                "predicate": "mean_modulus",
+                "value": 51,
+                "evidenceIds": [
+                  "P52:p2:v1"
+                ],
+                "unit": "kPa"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p52mean"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p52n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p52n",
+                "subject": "P52",
+                "predicate": "sample_count",
+                "value": 6,
+                "evidenceIds": [
+                  "P52:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p52n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        }
+      ],
+      "unsupportedClaims": [
+        {
+          "auditIndex": 4,
+          "candidateSpan": "Based on the available evidence from the processed corpus [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p17n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p17n",
+                "subject": "P17:50mM",
+                "predicate": "sample_count",
+                "value": 5,
+                "evidenceIds": [
+                  "P17:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p17n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p52n"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "p52n",
+                "subject": "P52",
+                "predicate": "sample_count",
+                "value": 6,
+                "evidenceIds": [
+                  "P52:p2:v1"
+                ],
+                "unit": "specimens"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "p52n"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        }
+      ],
+      "uncertainClaims": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "纳入 8 篇",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "成功分析 8/8",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "失败 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "缺失 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "criticalErrors": [
+        {
+          "candidateSpan": "*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "issue": "P17 explicitly reports n=5 independent sheets for the 50 mmol/L condition and n=5 for the 75 mmol/L condition. Replace the false absence claim with those counts."
+        },
+        {
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "issue": "P52 explicitly reports n=6 independent sheets. Replace the false absence claim with n=6."
+        },
+        {
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "goldEvidenceIds": [
+            "P17:p2:v1",
+            "P31:p2:v2",
+            "P52:p2:v1"
+          ],
+          "issue": "The sole citation has status missing and sourceId catalog:local:1, which does not occur in supplied sources. It cannot substantiate the list. Cite the supplied original-study evidence for each study; do not invent a page for this page-null artifact."
+        }
+      ],
+      "missingPoints": [
+        {
+          "goldRequirement": "p17n",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "omission": "The required P17 50 mmol/L sample count, n=5 independent sheets, is absent and incorrectly labeled not reported."
+        },
+        {
+          "goldRequirement": "p52n",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "omission": "The required P52 sample count, n=6 independent sheets, is absent and incorrectly labeled not reported."
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "纳入 8 篇",
+          "subject": "processed_corpus",
+          "metric": "included_paper_count",
+          "value": 8,
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "成功分析 8/8",
+          "subject": "processed_corpus",
+          "metric": "success_count_ratio",
+          "value": "8/8",
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "失败 0",
+          "subject": "processed_corpus",
+          "metric": "failed_paper_count",
+          "value": 0,
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "缺失 0",
+          "subject": "processed_corpus",
+          "metric": "missing_paper_count",
+          "value": 0,
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**42.0 kPa**",
+          "subject": "P17:50mM",
+          "metric": "mean_modulus",
+          "value": 42,
+          "unit": "kPa",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "50 mmol/L",
+          "subject": "P17:50mM",
+          "metric": "calcium_concentration",
+          "value": 50,
+          "unit": "mmol/L",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**56.0 kPa**",
+          "subject": "P17:75mM",
+          "metric": "mean_modulus",
+          "value": 56,
+          "unit": "kPa",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "75 mmol/L",
+          "subject": "P17:75mM",
+          "metric": "calcium_concentration",
+          "value": 75,
+          "unit": "mmol/L",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**48.0 kPa**",
+          "subject": "P31",
+          "metric": "mean_modulus",
+          "value": 48,
+          "unit": "kPa",
+          "sourceIds": [
+            "P31"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "*Sample count: n=6*",
+          "subject": "P31",
+          "metric": "sample_count",
+          "value": 6,
+          "unit": "specimens",
+          "sourceIds": [
+            "P31"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**51.0 kPa**",
+          "subject": "P52",
+          "metric": "mean_modulus",
+          "value": 51,
+          "unit": "kPa",
+          "sourceIds": [
+            "P52"
+          ],
+          "sourceRows": []
+        }
+      ]
+    },
+    {
+      "packetId": "f7d737d510b6c5ff",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 0,
+      "artifactType": "final_answer",
+      "judgeConfidence": "high",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 3,
+        "supported": 3,
+        "unsupported": 0,
+        "contradicted": 0,
+        "uncertain": 0,
+        "requiredGoldClaims": 0,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 0,
+        "claimsWithCitation": 3,
+        "claimsWithSourceSupport": 3,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 3,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 3,
+        "sourceSupportKnown": 3,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 1,
+        "unsupportedClaimRate": 0,
+        "contradictedClaimRate": 0,
+        "unsupportedOrContradictedClaimRate": 0,
+        "uncertaintyRate": 0,
+        "goldClaimCoverageRecall": null,
+        "citationCoverage": 1,
+        "sourceCitationSupportPrecision": 1,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": 0,
+        "sourceSupportedCitationCoverage": 1,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [],
+      "uncoveredGoldClaims": [],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "**P117** reports kinetic measurements for the EctD variant **A163V** at **30°C**",
+          "citedEvidenceIds": [
+            "P117"
+          ],
+          "supportingEvidenceIds": [
+            "P117:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P117",
+              "status": "observed",
+              "sourceId": "P117",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P117"
+              ],
+              "citedIds": [
+                "P117"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "a Michaelis constant ($K_m$) for ectoine of **0.42 mM**",
+          "citedEvidenceIds": [
+            "P117"
+          ],
+          "supportingEvidenceIds": [
+            "P117:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P117",
+              "status": "observed",
+              "sourceId": "P117",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P117"
+              ],
+              "citedIds": [
+                "P117"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "compared to **0.80 mM** for the wild-type enzyme",
+          "citedEvidenceIds": [
+            "P117"
+          ],
+          "supportingEvidenceIds": [
+            "P117:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P117",
+              "status": "observed",
+              "sourceId": "P117",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P117"
+              ],
+              "citedIds": [
+                "P117"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "unsupportedClaims": [],
+      "uncertainClaims": [],
+      "criticalErrors": [],
+      "missingPoints": [],
+      "numericClaims": [
+        {
+          "candidateSpan": "**30°C**",
+          "subject": "EctD A163V kinetic characterization in P117",
+          "metric": "assay temperature",
+          "value": 30,
+          "unit": "°C",
+          "sourceIds": [
+            "P117"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "a Michaelis constant ($K_m$) for ectoine of **0.42 mM**",
+          "subject": "EctD A163V in P117",
+          "metric": "Michaelis constant Km for ectoine",
+          "value": 0.42,
+          "unit": "mM",
+          "sourceIds": [
+            "P117"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "compared to **0.80 mM** for the wild-type enzyme",
+          "subject": "Wild-type EctD in P117",
+          "metric": "Michaelis constant Km for ectoine",
+          "value": 0.8,
+          "unit": "mM",
+          "sourceIds": [
+            "P117"
+          ],
+          "sourceRows": []
+        }
+      ]
+    },
+    {
+      "packetId": "337f87c5b25f49fc",
+      "caseId": "CW-ECTD_PAPERS-07",
+      "repeat": 0,
+      "artifactType": "final_answer",
+      "judgeConfidence": "high",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "contradicted": 0,
+        "uncertain": 0,
+        "requiredGoldClaims": 3,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 3,
+        "claimsWithCitation": 4,
+        "claimsWithSourceSupport": 4,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 4,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 4,
+        "sourceSupportKnown": 4,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 1,
+        "unsupportedClaimRate": 0,
+        "contradictedClaimRate": 0,
+        "unsupportedOrContradictedClaimRate": 0,
+        "uncertaintyRate": 0,
+        "goldClaimCoverageRecall": 1,
+        "citationCoverage": 1,
+        "sourceCitationSupportPrecision": 1,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": 0,
+        "sourceSupportedCitationCoverage": 1,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [
+        "activity_leader",
+        "titer_leader",
+        "yield_available"
+      ],
+      "uncoveredGoldClaims": [],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "At 42°C in P152",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1",
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "**Specific Activity:** **T212S** leads with 2.40 U/mg",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "activity_leader"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "activity_leader",
+                "subject": "P152:42C",
+                "predicate": "activity_leader",
+                "value": "T212S",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "activity_leader"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "**Product Titer:** **A163V** leads with 4.60 g/L",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "titer_leader"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "titer_leader",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "titer_leader"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "A measured **yield** was not reported for these 42°C conditions",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "yield_available"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "yield_available",
+                "subject": "P152:42C",
+                "predicate": "yield_available",
+                "value": false,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "yield_available"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        }
+      ],
+      "unsupportedClaims": [],
+      "uncertainClaims": [],
+      "criticalErrors": [],
+      "missingPoints": [],
+      "numericClaims": [
+        {
+          "candidateSpan": "At 42°C in P152",
+          "subject": "P152",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**Specific Activity:** **T212S** leads with 2.40 U/mg",
+          "subject": "T212S",
+          "metric": "specific activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**Product Titer:** **A163V** leads with 4.60 g/L",
+          "subject": "A163V",
+          "metric": "product titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "A measured **yield** was not reported for these 42°C conditions",
+          "subject": "P152",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        }
+      ]
+    },
+    {
+      "packetId": "5876e39aee828969",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "repeat": 0,
+      "artifactType": "final_answer",
+      "judgeConfidence": "medium",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 20,
+        "supported": 2,
+        "unsupported": 0,
+        "contradicted": 0,
+        "uncertain": 18,
+        "requiredGoldClaims": 1,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 1,
+        "claimsWithCitation": 0,
+        "claimsWithSourceSupport": 0,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 0,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 0,
+        "sourceSupportKnown": 0,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 0.1,
+        "unsupportedClaimRate": 0,
+        "contradictedClaimRate": 0,
+        "unsupportedOrContradictedClaimRate": 0,
+        "uncertaintyRate": 0.9,
+        "goldClaimCoverageRecall": 1,
+        "citationCoverage": 0,
+        "sourceCitationSupportPrecision": null,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": null,
+        "sourceSupportedCitationCoverage": 0,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [
+        "proof"
+      ],
+      "uncoveredGoldClaims": [],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "简单直接的回答是：**不足以证明。**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P117:p3:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "proof"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "proof",
+                "subject": "P117",
+                "predicate": "lower_Km_alone_proves_process_productivity",
+                "value": false,
+                "evidenceIds": [
+                  "P117:p3:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "proof"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "较低的 $K_m$（米氏常数）仅代表酶对底物的**亲和力较高**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "但这并不等同于在复杂的发酵过程中具有更高的**生产强度（Productivity）**。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P117:p3:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "proof"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "proof",
+                "subject": "P117",
+                "predicate": "lower_Km_alone_proves_process_productivity",
+                "value": false,
+                "evidenceIds": [
+                  "P117:p3:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "proof"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "$K_m$ 描述的是酶在底物浓度较低时的反应效率。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 4,
+          "candidateSpan": "然而，发酵过程中的生产强度由多个因素共同决定：",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 5,
+          "candidateSpan": "生产强度更多地取决于最大反应速率 $V_{max}$（即 $k_{cat} \\times [E]_{total}$）。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 6,
+          "candidateSpan": "如果 A163V 突变虽然降低了 $K_m$（提高了亲和力），但同时降低了 $k_{cat}$（周转数），那么在底物充足的情况下，其整体催化效率反而可能下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "如果发酵工艺中的底物浓度远高于 $K_m$，那么酶将处于饱和状态，此时反应速率由 $V_{max}$ 决定，$K_m$ 的差异对生产强度的影响微乎其微。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 8,
+          "candidateSpan": "$K_m$ 通常是在纯化酶的体外实验中测得的，而发酵是一个复杂的体内过程：",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 9,
+          "candidateSpan": "即使酶的亲和力很高，如果底物进入细胞的速率（转运蛋白效率）是限速步骤，那么降低 $K_m$ 也无法提升整体生产强度。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 10,
+          "candidateSpan": "生产强度取决于整个代谢路径的通量。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "如果上游前体供应不足或下游产物积累导致反馈抑制，单一酶的 $K_m$ 改善无法解决系统性瓶颈。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 12,
+          "candidateSpan": "A163V 突变可能会影响蛋白质的折叠、稳定性或在细胞内的表达水平。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 13,
+          "candidateSpan": "如果突变导致酶在发酵过程中快速降解，即使单个分子的亲和力更高，总的催化能力也会下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 14,
+          "candidateSpan": "在酶工程中，经常存在 **“亲和力-周转率权衡” (Affinity-Turnover Trade-off)**。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 15,
+          "candidateSpan": "为了获得更低的 $K_m$，酶可能会与底物结合得过于紧密，从而减慢了产物的释放速度，导致 $k_{cat}$ 下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 16,
+          "candidateSpan": "**测定 $k_{cat}$ 和 $k_{cat}/K_m$：** 评估催化效率（Catalytic Efficiency）而非单一的亲和力。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 17,
+          "candidateSpan": "**定量分析酶表达量：** 通过 Western Blot 或蛋白质组学确认 A163V 在细胞内的稳态浓度。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 18,
+          "candidateSpan": "**小试发酵验证：** 直接测量不同时间点的产物滴度（Titer）和比生产速率（Specific Productivity）。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 19,
+          "candidateSpan": "**底物浓度梯度实验：** 测试在不同底物供给水平下，A163V 与野生型在实际生产强度上的差异，以确认 $K_m$ 的改善是否在当前工艺条件下起作用。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "unsupportedClaims": [],
+      "uncertainClaims": [
+        {
+          "auditIndex": 1,
+          "candidateSpan": "较低的 $K_m$（米氏常数）仅代表酶对底物的**亲和力较高**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "$K_m$ 描述的是酶在底物浓度较低时的反应效率。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 4,
+          "candidateSpan": "然而，发酵过程中的生产强度由多个因素共同决定：",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 5,
+          "candidateSpan": "生产强度更多地取决于最大反应速率 $V_{max}$（即 $k_{cat} \\times [E]_{total}$）。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 6,
+          "candidateSpan": "如果 A163V 突变虽然降低了 $K_m$（提高了亲和力），但同时降低了 $k_{cat}$（周转数），那么在底物充足的情况下，其整体催化效率反而可能下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "如果发酵工艺中的底物浓度远高于 $K_m$，那么酶将处于饱和状态，此时反应速率由 $V_{max}$ 决定，$K_m$ 的差异对生产强度的影响微乎其微。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 8,
+          "candidateSpan": "$K_m$ 通常是在纯化酶的体外实验中测得的，而发酵是一个复杂的体内过程：",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 9,
+          "candidateSpan": "即使酶的亲和力很高，如果底物进入细胞的速率（转运蛋白效率）是限速步骤，那么降低 $K_m$ 也无法提升整体生产强度。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 10,
+          "candidateSpan": "生产强度取决于整个代谢路径的通量。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "如果上游前体供应不足或下游产物积累导致反馈抑制，单一酶的 $K_m$ 改善无法解决系统性瓶颈。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 12,
+          "candidateSpan": "A163V 突变可能会影响蛋白质的折叠、稳定性或在细胞内的表达水平。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 13,
+          "candidateSpan": "如果突变导致酶在发酵过程中快速降解，即使单个分子的亲和力更高，总的催化能力也会下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 14,
+          "candidateSpan": "在酶工程中，经常存在 **“亲和力-周转率权衡” (Affinity-Turnover Trade-off)**。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 15,
+          "candidateSpan": "为了获得更低的 $K_m$，酶可能会与底物结合得过于紧密，从而减慢了产物的释放速度，导致 $k_{cat}$ 下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 16,
+          "candidateSpan": "**测定 $k_{cat}$ 和 $k_{cat}/K_m$：** 评估催化效率（Catalytic Efficiency）而非单一的亲和力。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 17,
+          "candidateSpan": "**定量分析酶表达量：** 通过 Western Blot 或蛋白质组学确认 A163V 在细胞内的稳态浓度。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 18,
+          "candidateSpan": "**小试发酵验证：** 直接测量不同时间点的产物滴度（Titer）和比生产速率（Specific Productivity）。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 19,
+          "candidateSpan": "**底物浓度梯度实验：** 测试在不同底物供给水平下，A163V 与野生型在实际生产强度上的差异，以确认 $K_m$ 的改善是否在当前工艺条件下起作用。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "criticalErrors": [],
+      "missingPoints": [],
+      "numericClaims": []
+    },
+    {
+      "packetId": "8e55692ea8d31e73",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "repeat": 0,
+      "artifactType": "final_answer",
+      "judgeConfidence": "high",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 14,
+        "supported": 8,
+        "unsupported": 2,
+        "contradicted": 1,
+        "uncertain": 3,
+        "requiredGoldClaims": 1,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 1,
+        "claimsWithCitation": 12,
+        "claimsWithSourceSupport": 8,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 14,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 14,
+        "sourceSupportKnown": 14,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 0.5714285714285714,
+        "unsupportedClaimRate": 0.14285714285714285,
+        "contradictedClaimRate": 0.07142857142857142,
+        "unsupportedOrContradictedClaimRate": 0.21428571428571427,
+        "uncertaintyRate": 0.21428571428571427,
+        "goldClaimCoverageRecall": 1,
+        "citationCoverage": 0.8571428571428571,
+        "sourceCitationSupportPrecision": 0.7142857142857143,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": 0,
+        "sourceSupportedCitationCoverage": 0.5714285714285714,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [
+        "choice"
+      ],
+      "uncoveredGoldClaims": [],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "Based on the evidence from **P152** and internal experiment **X04** at 42°C",
+          "citedEvidenceIds": [
+            "P152",
+            "X04"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1",
+            "X04:EctD:r2",
+            "X04:EctD:r3",
+            "X04:EctD:r4",
+            "X04:EctD:r5"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            },
+            {
+              "citedId": "X04",
+              "status": "observed",
+              "sourceId": "X04",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                1
+              ],
+              "actualCitationIds": [
+                "citation-2",
+                "local:4"
+              ],
+              "citedIds": [
+                "X04"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "| **A163V** | 1.50 U/mg [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **4.60 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **Product Titer** |",
+          "citedEvidenceIds": [
+            "P152",
+            "X04"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1",
+            "X04:EctD:r2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            },
+            {
+              "citedId": "X04",
+              "status": "observed",
+              "sourceId": "X04",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                1
+              ],
+              "actualCitationIds": [
+                "citation-2",
+                "local:4"
+              ],
+              "citedIds": [
+                "X04"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "| **T212S** | **2.40 U/mg** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | 3.90 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | **Specific Activity** |",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 4,
+          "candidateSpan": "**For Production Maximization:** Recommend **A163V**.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1",
+            "M06:record:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 5,
+          "candidateSpan": "4.60 g/L vs 3.90 g/L",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 6,
+          "candidateSpan": "It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 7,
+          "candidateSpan": "making it the superior choice if the primary goal is increasing the final amount of hydroxy-tetrahydropyrimidine produced",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 8,
+          "candidateSpan": "hydroxy-tetrahydropyrimidine",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 9,
+          "candidateSpan": "**For Enzyme Engineering/Activity:** Recommend **T212S**.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 10,
+          "candidateSpan": "It exhibits substantially higher specific activity (2.40 U/mg vs 1.50 U/mg)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 12,
+          "candidateSpan": "or integrate it with the CelluWeave novel domain",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 13,
+          "candidateSpan": "**Next Step Suggestion:** If the objective is to combine high activity with high titer, a follow-up design could explore a double mutant combining both **A163V** and **T212S** to determine if these beneficial traits are additive at 42°C.",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "unsupportedClaims": [
+        {
+          "auditIndex": 1,
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 6,
+          "candidateSpan": "It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 12,
+          "candidateSpan": "or integrate it with the CelluWeave novel domain",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "uncertainClaims": [
+        {
+          "auditIndex": 7,
+          "candidateSpan": "making it the superior choice if the primary goal is increasing the final amount of hydroxy-tetrahydropyrimidine produced",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [
+            "choice"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "choice",
+                "subject": "P152:42C",
+                "predicate": "titer_leader",
+                "value": "A163V",
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ]
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "choice"
+                }
+              ],
+              "countedAsCovered": false
+            }
+          ]
+        },
+        {
+          "auditIndex": 11,
+          "candidateSpan": "which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 13,
+          "candidateSpan": "**Next Step Suggestion:** If the objective is to combine high activity with high titer, a follow-up design could explore a double mutant combining both **A163V** and **T212S** to determine if these beneficial traits are additive at 42°C.",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "criticalErrors": [
+        {
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "issue": "The current objective is already specified by M06 as fermentation product titer, and M07 explicitly marks the activity preference superseded. Treating the objective as unresolved prevents a direct recommendation of A163V for the actual current goal."
+        }
+      ],
+      "missingPoints": [
+        {
+          "goldRequirement": "{\"type\":\"selected_resource\",\"value\":\"A163V\"}",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "omission": "Does not select A163V unequivocally for the current titer objective or explain that M06 supersedes the previous activity objective. A163V appears only as one conditional recommendation alongside T212S and a proposed double mutant."
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "Based on the evidence from **P152** and internal experiment **X04** at 42°C",
+          "subject": "P152 and X04 variant comparison",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "### Variant Comparison at 42°C",
+          "subject": "A163V and T212S comparison",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "| **A163V** | 1.50 U/mg",
+          "subject": "A163V at 42°C",
+          "metric": "specific_activity",
+          "value": 1.5,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**4.60 g/L**",
+          "subject": "A163V at 42°C",
+          "metric": "product_titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "| **T212S** | **2.40 U/mg**",
+          "subject": "T212S at 42°C",
+          "metric": "specific_activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "3.90 g/L",
+          "subject": "T212S at 42°C",
+          "metric": "product_titer",
+          "value": 3.9,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "4.60 g/L vs 3.90 g/L",
+          "subject": "A163V at 42°C",
+          "metric": "product_titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "4.60 g/L vs 3.90 g/L",
+          "subject": "T212S at 42°C",
+          "metric": "product_titer",
+          "value": 3.9,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "2.40 U/mg vs 1.50 U/mg",
+          "subject": "T212S at 42°C",
+          "metric": "specific_activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "2.40 U/mg vs 1.50 U/mg",
+          "subject": "A163V at 42°C",
+          "metric": "specific_activity",
+          "value": 1.5,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "to determine if these beneficial traits are additive at 42°C",
+          "subject": "Proposed A163V and T212S double mutant follow-up",
+          "metric": "proposed_temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [],
+          "sourceRows": []
+        }
+      ]
+    },
+    {
+      "packetId": "78a5668efd3aea8f",
+      "caseId": "CW-ECTD_PAPERS-05",
+      "repeat": 0,
+      "artifactType": "final_answer",
+      "judgeConfidence": "high",
+      "auditExhaustiveness": "unverified",
+      "counts": {
+        "materialClaimAudits": 5,
+        "supported": 4,
+        "unsupported": 0,
+        "contradicted": 0,
+        "uncertain": 1,
+        "requiredGoldClaims": 4,
+        "missingCitationMetadata": 0,
+        "coveredGoldClaims": 4,
+        "claimsWithCitation": 5,
+        "claimsWithSourceSupport": 4,
+        "claimsWithPageSupport": 0,
+        "auditedCitationReferences": 5,
+        "unresolvedCitedReferences": 0,
+        "redundantCitedReferences": 0,
+        "observedClaimCitationLinks": 5,
+        "sourceSupportKnown": 5,
+        "sourceSupportUnknown": 0,
+        "pageLocalizedCitationLinks": 0,
+        "pageSupportKnown": 0,
+        "pageSupportUnknown": 0,
+        "ambiguousPageCitationLinks": 0
+      },
+      "metrics": {
+        "strictClaimSupportPrecision": 0.8,
+        "unsupportedClaimRate": 0,
+        "contradictedClaimRate": 0,
+        "unsupportedOrContradictedClaimRate": 0,
+        "uncertaintyRate": 0.2,
+        "goldClaimCoverageRecall": 1,
+        "citationCoverage": 1,
+        "sourceCitationSupportPrecision": 0.8,
+        "pageCitationSupportPrecision": null,
+        "citationPageLocalizationCoverage": 0,
+        "sourceSupportedCitationCoverage": 0.8,
+        "pageSupportedCitationCoverage": 0
+      },
+      "coveredGoldClaimIds": [
+        "actA",
+        "actT",
+        "titerA",
+        "titerT"
+      ],
+      "uncoveredGoldClaims": [],
+      "claimAudits": [
+        {
+          "auditIndex": 0,
+          "candidateSpan": "No, the higher specific activity of **T212S** does not mean it has a higher product titer.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1",
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "actA",
+            "actT",
+            "titerA",
+            "titerT"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "actA",
+                "subject": "P152:A163V",
+                "predicate": "specific_activity",
+                "value": 1.5,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "U/mg"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "actA"
+                }
+              ],
+              "countedAsCovered": true
+            },
+            {
+              "goldClaim": {
+                "id": "actT",
+                "subject": "P152:T212S",
+                "predicate": "specific_activity",
+                "value": 2.4,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "U/mg"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "actT"
+                }
+              ],
+              "countedAsCovered": true
+            },
+            {
+              "goldClaim": {
+                "id": "titerA",
+                "subject": "P152:A163V",
+                "predicate": "titer",
+                "value": 4.6,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "g/L"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "titerA"
+                }
+              ],
+              "countedAsCovered": true
+            },
+            {
+              "goldClaim": {
+                "id": "titerT",
+                "subject": "P152:T212S",
+                "predicate": "titer",
+                "value": 3.9,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "g/L"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "titerT"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 1,
+          "candidateSpan": "**T212S** exhibits a higher specific activity (2.40 U/mg) compared to **A163V** (1.50 U/mg)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "actT",
+            "actA"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "actT",
+                "subject": "P152:T212S",
+                "predicate": "specific_activity",
+                "value": 2.4,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "U/mg"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "actT"
+                }
+              ],
+              "countedAsCovered": true
+            },
+            {
+              "goldClaim": {
+                "id": "actA",
+                "subject": "P152:A163V",
+                "predicate": "specific_activity",
+                "value": 1.5,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "U/mg"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "actA"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 2,
+          "candidateSpan": "it actually results in a lower product titer (3.90 g/L) than **A163V** (4.60 g/L)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "titerT",
+            "titerA"
+          ],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": [
+            {
+              "goldClaim": {
+                "id": "titerT",
+                "subject": "P152:T212S",
+                "predicate": "titer",
+                "value": 3.9,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "g/L"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "titerT"
+                }
+              ],
+              "countedAsCovered": true
+            },
+            {
+              "goldClaim": {
+                "id": "titerA",
+                "subject": "P152:A163V",
+                "predicate": "titer",
+                "value": 4.6,
+                "evidenceIds": [
+                  "P152:p2:v1"
+                ],
+                "unit": "g/L"
+              },
+              "answerRequirements": [
+                {
+                  "type": "claim",
+                  "claimId": "titerA"
+                }
+              ],
+              "countedAsCovered": true
+            }
+          ]
+        },
+        {
+          "auditIndex": 3,
+          "candidateSpan": "This demonstrates that enzyme activity and fermentation titer are separate outcomes",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1",
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 1,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        },
+        {
+          "auditIndex": 4,
+          "candidateSpan": "do not necessarily correlate linearly in this system.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "unsupportedClaims": [],
+      "uncertainClaims": [
+        {
+          "auditIndex": 4,
+          "candidateSpan": "do not necessarily correlate linearly in this system.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [],
+          "citations": [
+            {
+              "citedId": "P152",
+              "status": "observed",
+              "sourceId": "P152",
+              "page": null,
+              "pageStatus": "not_localized",
+              "actualCitationIndexes": [
+                0
+              ],
+              "actualCitationIds": [
+                "citation-1",
+                "P152"
+              ],
+              "citedIds": [
+                "P152"
+              ],
+              "sourceSupported": 0,
+              "pageSupported": null,
+              "unmappedSupportingEvidenceIds": []
+            }
+          ],
+          "redundantCitedReferences": [],
+          "unresolvedCitedReferences": [],
+          "goldClaimLinks": []
+        }
+      ],
+      "criticalErrors": [],
+      "missingPoints": [],
+      "numericClaims": [
+        {
+          "candidateSpan": "**T212S** exhibits a higher specific activity (2.40 U/mg)",
+          "subject": "P152:T212S",
+          "metric": "specific_activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**A163V** (1.50 U/mg)",
+          "subject": "P152:A163V",
+          "metric": "specific_activity",
+          "value": 1.5,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "it actually results in a lower product titer (3.90 g/L)",
+          "subject": "P152:T212S",
+          "metric": "titer",
+          "value": 3.9,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**A163V** (4.60 g/L)",
+          "subject": "P152:A163V",
+          "metric": "titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Schema validation verifies spans and allowed references, not semantic entailment, exhaustive claim extraction, correct gold-claim linkage, or citation-to-claim attachment.",
+    "Scientific units, source attribution, and compound-claim granularity may be judged incorrectly. Numeric extraction remains unverified; this module never certifies arithmetic or row provenance.",
+    "Unsupported and uncertain spans and original gold links are retained for review. A second judge belongs in a separate reliability analysis, never a duplicate primary sample.",
+    "Citation existence alone never earns support. Unknown metadata and zero denominators are explicit; this is not a complete fabricated-citation audit.",
+    "Small curated samples and correlated repeats do not establish broad model reliability. No hard safety or permission gate is overridden."
+  ],
+  "inputArtifacts": {
+    "packets": {
+      "path": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/judge-packets.json",
+      "sha256": "a4af5c0e8228a92632f198d09444f24daba4f02075d574deff99b14029e1fd2a"
+    },
+    "scoreFiles": [
+      {
+        "path": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/judge-scores.json",
+        "sha256": "3dc16bd9d2025947a591f31d454c068e9bc7c73e684e165e2b18a06db34cd375"
+      }
+    ]
+  }
+}

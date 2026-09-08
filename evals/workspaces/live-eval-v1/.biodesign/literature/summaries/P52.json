@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P52",
+  "documentId": "P52",
+  "fileName": "P52.pdf",
+  "generatedAt": "2026-09-07T23:45:09.592Z",
+  "source": {
+    "filename": "P52.pdf",
+    "relativePath": "literature/P52.pdf",
+    "size": 50982,
+    "lastModified": "1788824298377600023",
+    "hash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+    "pageCount": 3,
+    "processedCharacters": 1281,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 5,
+    "nativeEvidenceCitationsVerified": 5,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 5,
+    "evidenceFindingsVerified": 5,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P52\",\"contentHash\":\"sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "CelluWeave C: Added cellulose and swelling tradeoffs",
+  "authors": [
+    "C. Moss"
+  ],
+  "year": 2025,
+  "abstractSummary": null,
+  "researchQuestion": null,
+  "mainFindings": [
+    "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+    "The hydrogel demonstrated 93% shape retention.",
+    "The water uptake of the hydrogel was 12.5 g/g.",
+    "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+    "Water uptake increased from 10.0 to 12.5 g/g relative to P17."
+  ],
+  "methods": [
+    "Curing in 50 mmol/L calcium chloride for 10 minutes",
+    "24 hours equilibration",
+    "Wet compression at 10% strain"
+  ],
+  "methodsSummary": "A nonliving hydrogel containing 2.0% w/v alginate and 1.2% w/v cellulose was cured in 50 mmol/L calcium chloride for 10 minutes, equilibrated for 24 hours, and subjected to wet compression at 10% strain.",
+  "organisms": [],
+  "genes": [],
+  "proteins": [],
+  "pathways": [],
+  "metabolites": [],
+  "experimentalConditions": [
+    "2.0% w/v alginate",
+    "1.2% w/v cellulose",
+    "50 mmol/L calcium chloride",
+    "10 minutes curing",
+    "24 hours equilibration",
+    "10% strain"
+  ],
+  "measurements": [
+    "Mean compressive modulus",
+    "Shape retention",
+    "Water uptake"
+  ],
+  "importantResults": [
+    "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+    "Water uptake increased from 10.0 to 12.5 g/g relative to P17.",
+    "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+    "The hydrogel demonstrated 93% shape retention.",
+    "The water uptake of the hydrogel was 12.5 g/g."
+  ],
+  "limitations": [
+    "One of six sheets exhibited visible brittle cracking during handling",
+    "The study did not establish a crack-rate confidence interval",
+    "No living-cell or safety testing occurred"
+  ],
+  "keywords": [
+    "hydrogel",
+    "alginate",
+    "cellulose",
+    "compressive modulus"
+  ],
+  "topics": [
+    "Material science"
+  ],
+  "shortSummary": "This study characterizes a nonliving hydrogel composed of 2.0% w/v alginate and 1.2% w/v cellulose, reporting a mean compressive modulus of 51.0 kPa and water uptake of 12.5 g/g.",
+  "summary": "This study characterizes a nonliving hydrogel composed of 2.0% w/v alginate and 1.2% w/v cellulose, reporting a mean compressive modulus of 51.0 kPa and water uptake of 12.5 g/g.",
+  "keyResults": [
+    "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+    "The hydrogel demonstrated 93% shape retention.",
+    "The water uptake of the hydrogel was 12.5 g/g.",
+    "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+    "Water uptake increased from 10.0 to 12.5 g/g relative to P17."
+  ],
+  "mainConclusion": "The alginate-cellulose hydrogel shows higher compressive modulus and water uptake compared to P17, although these descriptive comparisons do not establish statistical significance.",
+  "evidenceFindings": [
+    {
+      "claim": "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+      "evidenceRefs": [
+        "P52:p2:P52-P2-C1"
+      ]
+    },
+    {
+      "claim": "The hydrogel demonstrated 93% shape retention.",
+      "evidenceRefs": [
+        "P52:p2:P52-P2-C1"
+      ]
+    },
+    {
+      "claim": "The water uptake of the hydrogel was 12.5 g/g.",
+      "evidenceRefs": [
+        "P52:p2:P52-P2-C1"
+      ]
+    },
+    {
+      "claim": "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+      "evidenceRefs": [
+        "P52:p3:P52-P3-C1"
+      ]
+    },
+    {
+      "claim": "Water uptake increased from 10.0 to 12.5 g/g relative to P17.",
+      "evidenceRefs": [
+        "P52:p3:P52-P3-C1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,470 @@
+{
+  "createdAt": "2026-09-08T00:42:24.154Z",
+  "scope": "Evaluation-only fixture setup/status corrections. Actual local production entrypoints, controlled cards, no final-answer provider.",
+  "newObservationCount": 22,
+  "completed": 22,
+  "error": 0,
+  "blocked": 0,
+  "totalSeparateAuditObservations": 26,
+  "originalBaselineModified": false,
+  "scorer": {
+    "version": "1.0.1",
+    "sha256": "16f9688a7b05228e3312721bd5508be084d882615e0c3931988904d22b6f6262"
+  },
+  "outcomes": {
+    "addedSource": {
+      "observations": [
+        {
+          "caseId": "CW-SYNC_FAILURE-02",
+          "cacheState": "cold",
+          "status": "completed",
+          "executionMode": "application-local-controlled-provider",
+          "projectScope": {
+            "type": "project",
+            "files": []
+          },
+          "syncRuns": [
+            {
+              "changedSourceIds": [
+                "P83"
+              ],
+              "diff": {
+                "added": [
+                  "P83"
+                ],
+                "removed": [],
+                "possiblyModified": [],
+                "unchanged": 16
+              }
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "P83",
+              "catalogStatus": "discovered",
+              "indexStatus": "ready",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+            }
+          ],
+          "sourceCatalogIds": [
+            "X01",
+            "X02",
+            "X03",
+            "X04",
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P117",
+            "P131",
+            "P152",
+            "N08",
+            "N09",
+            "N10",
+            "N11",
+            "P95",
+            "P83"
+          ],
+          "retrievedPaperIds": [
+            "P52",
+            "P17",
+            "P74"
+          ],
+          "candidatePaperIds": [
+            "P52",
+            "P17",
+            "P74"
+          ],
+          "mutationTrace": [
+            {
+              "stage": "fixture-mutation",
+              "mode": "original-source-fixture-setup",
+              "operation": "add",
+              "sourceId": "P83"
+            }
+          ],
+          "completeAccessAudit": false
+        },
+        {
+          "caseId": "CW-SYNC_FAILURE-02",
+          "cacheState": "warm",
+          "status": "completed",
+          "executionMode": "application-local-controlled-provider",
+          "projectScope": {
+            "type": "project",
+            "files": []
+          },
+          "syncRuns": [
+            {
+              "changedSourceIds": [],
+              "diff": {
+                "added": [],
+                "removed": [],
+                "possiblyModified": [],
+                "unchanged": 17
+              }
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "P83",
+              "catalogStatus": "discovered",
+              "indexStatus": "ready",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+            }
+          ],
+          "sourceCatalogIds": [
+            "X01",
+            "X02",
+            "X03",
+            "X04",
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P117",
+            "P131",
+            "P152",
+            "N08",
+            "N09",
+            "N10",
+            "N11",
+            "P95",
+            "P83"
+          ],
+          "retrievedPaperIds": [
+            "P52",
+            "P17",
+            "P74"
+          ],
+          "candidatePaperIds": [
+            "P52",
+            "P17",
+            "P74"
+          ],
+          "mutationTrace": [],
+          "completeAccessAudit": false
+        }
+      ],
+      "conclusion": "P83 is truly newly added, then indexed with current matching hash. Warm reconciliation is unchanged. Query still misses P83 in candidates and final retrieval; source freshness does not prove successful discovery or final answer."
+    },
+    "deletedSource": {
+      "observationOrigin": "Immutable original baseline; this case had no setup correction and was not rerun.",
+      "observations": [
+        {
+          "caseId": "CW-SYNC_FAILURE-03",
+          "cacheState": "cold",
+          "status": "completed",
+          "executionMode": "application-local-controlled-provider",
+          "projectScope": {
+            "type": "project",
+            "files": []
+          },
+          "syncRuns": [
+            {
+              "changedSourceIds": [],
+              "diff": {
+                "added": [],
+                "removed": [],
+                "possiblyModified": [],
+                "unchanged": 18
+              }
+            },
+            {
+              "changedSourceIds": [
+                "P67"
+              ],
+              "diff": {
+                "added": [],
+                "removed": [
+                  "P67"
+                ],
+                "possiblyModified": [],
+                "unchanged": 17
+              }
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "P83",
+              "catalogStatus": "discovered",
+              "indexStatus": "ready",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+            },
+            {
+              "sourceId": "P67",
+              "catalogStatus": "missing",
+              "indexStatus": "stale",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:f828219faf359a9059066d19c463f17fb281e3685127a72fe54749c9f226f4f2"
+            }
+          ],
+          "sourceCatalogIds": [
+            "X01",
+            "X02",
+            "X03",
+            "X04",
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152",
+            "N08",
+            "N09",
+            "N10",
+            "N11",
+            "P67",
+            "P95"
+          ],
+          "retrievedPaperIds": [
+            "P52",
+            "P17",
+            "P31",
+            "P83",
+            "P117"
+          ],
+          "candidatePaperIds": [
+            "P52",
+            "P17",
+            "P31",
+            "P83",
+            "P117"
+          ],
+          "mutationTrace": [
+            {
+              "stage": "fixture-mutation",
+              "mode": "original-source-fixture-setup",
+              "operation": "delete",
+              "sourceId": "P67"
+            }
+          ],
+          "completeAccessAudit": false
+        },
+        {
+          "caseId": "CW-SYNC_FAILURE-03",
+          "cacheState": "warm",
+          "status": "completed",
+          "executionMode": "application-local-controlled-provider",
+          "projectScope": {
+            "type": "project",
+            "files": []
+          },
+          "syncRuns": [
+            {
+              "changedSourceIds": [],
+              "diff": {
+                "added": [],
+                "removed": [],
+                "possiblyModified": [],
+                "unchanged": 17
+              }
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "P83",
+              "catalogStatus": "discovered",
+              "indexStatus": "ready",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+            },
+            {
+              "sourceId": "P67",
+              "catalogStatus": "missing",
+              "indexStatus": "stale",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:f828219faf359a9059066d19c463f17fb281e3685127a72fe54749c9f226f4f2"
+            }
+          ],
+          "sourceCatalogIds": [
+            "X01",
+            "X02",
+            "X03",
+            "X04",
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152",
+            "N08",
+            "N09",
+            "N10",
+            "N11",
+            "P67",
+            "P95"
+          ],
+          "retrievedPaperIds": [
+            "P52",
+            "P17",
+            "P31",
+            "P83",
+            "P117"
+          ],
+          "candidatePaperIds": [
+            "P52",
+            "P17",
+            "P31",
+            "P83",
+            "P117"
+          ],
+          "mutationTrace": [],
+          "completeAccessAudit": false
+        }
+      ],
+      "conclusion": "P67 deletion is reflected as catalog missing/index stale with removed diff. It is absent from candidate/final retrieval. Stored historical metadata remains; no final answer or exhaustive cross-transport audit was produced."
+    },
+    "ignoredMetadataFile": {
+      "observations": [
+        {
+          "caseId": "CW-ECTD_WORKFLOWS-06",
+          "cacheState": "cold",
+          "status": "completed",
+          "executionMode": "application-local-controlled-provider",
+          "projectScope": {
+            "type": "project",
+            "files": []
+          },
+          "syncRuns": [
+            {
+              "changedSourceIds": [],
+              "diff": {
+                "added": [],
+                "removed": [],
+                "possiblyModified": [],
+                "unchanged": 17
+              }
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "P83",
+              "catalogStatus": "discovered",
+              "indexStatus": "ready",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+            }
+          ],
+          "sourceCatalogIds": [
+            "X01",
+            "X02",
+            "X03",
+            "X04",
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152",
+            "N08",
+            "N09",
+            "N10",
+            "N11",
+            "P95"
+          ],
+          "retrievedPaperIds": [
+            "P117",
+            "P131",
+            "P152"
+          ],
+          "candidatePaperIds": [
+            "P117",
+            "P152",
+            "P131"
+          ],
+          "mutationTrace": [
+            {
+              "stage": "fixture-mutation",
+              "mode": "original-source-fixture-setup",
+              "operation": "add_file",
+              "path": ".DS_Store"
+            }
+          ],
+          "completeAccessAudit": false
+        },
+        {
+          "caseId": "CW-ECTD_WORKFLOWS-06",
+          "cacheState": "warm",
+          "status": "completed",
+          "executionMode": "application-local-controlled-provider",
+          "projectScope": {
+            "type": "project",
+            "files": []
+          },
+          "syncRuns": [
+            {
+              "changedSourceIds": [],
+              "diff": {
+                "added": [],
+                "removed": [],
+                "possiblyModified": [],
+                "unchanged": 17
+              }
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "P83",
+              "catalogStatus": "discovered",
+              "indexStatus": "ready",
+              "verifiedFixtureVersion": 1,
+              "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+            }
+          ],
+          "sourceCatalogIds": [
+            "X01",
+            "X02",
+            "X03",
+            "X04",
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152",
+            "N08",
+            "N09",
+            "N10",
+            "N11",
+            "P95"
+          ],
+          "retrievedPaperIds": [
+            "P117",
+            "P131",
+            "P152"
+          ],
+          "candidatePaperIds": [
+            "P117",
+            "P152",
+            "P131"
+          ],
+          "mutationTrace": [],
+          "completeAccessAudit": false
+        }
+      ],
+      "conclusion": ".DS_Store original bytes are materialized by setup; production catalog remains17 documents/datasets and records no source diff. P117/P131/P152 are retrieved in cold and warm runs. This establishes this controlled local ingestion check only."
+    },
+    "obsoletePrincipalStatus": {
+      "observations": 20,
+      "conclusion": "Ten local_user/project-scope cases now execute without an erroneous enterprise-ACL blocked label. All full permission and side-effect audits remain incomplete; no overall permission pass is asserted."
+    }
+  },
+  "integrityFile": "evals/results/adapter-audit-2026-09-07/replay-integrity-after.json",
+  "observationFiles": [
+    "cases.jsonl",
+    "cases-setup-status-correction.jsonl"
+  ],
+  "scoreFile": "scores.jsonl"
+}

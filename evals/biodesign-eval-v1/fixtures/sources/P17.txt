@@ -1,0 +1,11 @@
+=== PAGE 1 | P17:p1:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Paper P17. Invented authors: A. Vale and B. Lin. Fixture year 2024. Topic: nonliving cellulose–alginate hydrogel sheets. No animal, human, clinical, or living-cell data were collected. Method: 2.0% w/v alginate and 0.8% w/v cellulose; calcium chloride bath 50 mmol/L for 10 minutes. Compression was measured wet, after 24 hours of equilibration, at 10% strain.
+
+=== PAGE 2 | P17:p2:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Table 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape retention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample SD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented.
+
+=== PAGE 3 | P17:p3:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Limitations. Only two calcium concentrations and one cellulose fraction were evaluated. No cost, biodegradation, cytotoxicity, cell viability, or printer throughput data are available. A higher calcium concentration is not established as universally preferable. DOI is absent; do not invent one.

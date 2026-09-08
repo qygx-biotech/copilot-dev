@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "observed-answer-numeric-extractions-v1",
+  "policy": "Candidate-only transcription, independently checked by the adversarial reviewer against frozen source rows. Expected answers are never generated here; the scorer reads them from the immutable suite. A row-level citation can establish row identity, not automatic claim entailment.",
+  "extractions": [
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "repeat": 0,
+      "method": "Literal final-answer number, unit, completed status and row IDs; source rows independently checked against the frozen X02 table.",
+      "entries": [
+        {
+          "name": "A163V_mean_titer",
+          "answerSpan": "The mean completed A163V titer is **4.85 g/L**",
+          "value": 4.85,
+          "unit": "g/L",
+          "field": "titer",
+          "aggregation": "mean",
+          "filters": { "sourceId": "X02", "variant": "A163V", "status": "complete" },
+          "groupBy": [],
+          "sourceRows": ["X02-R1", "X02-R2"]
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "repeat": 0,
+      "method": "No numeric aggregate was asserted. Empty entries are an observed absent answer, not a zero-valued answer.",
+      "declaredAbsenceSpan": "there are no completed rows for the **T212S** mutation at **35°C** within experiment **X02**",
+      "entries": []
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "repeat": 0,
+      "method": "Literal per-variant means in the 42°C answer; X04 citation references/ranges resolve to the four frozen completed rows. Independent reviewer recomputed both means from raw rows.",
+      "entries": [
+        {
+          "name": "A163V_mean_titer",
+          "answerSpan": "**A163V**: 4.65 g/L",
+          "value": 4.65,
+          "unit": "g/L",
+          "field": "titer",
+          "aggregation": "mean",
+          "filters": { "sourceId": "X04", "variant": "A163V", "status": "complete", "temperature": 42 },
+          "groupBy": [],
+          "sourceRows": ["X04-R1", "X04-R2"]
+        },
+        {
+          "name": "T212S_mean_titer",
+          "answerSpan": "**T212S**: 3.95 g/L",
+          "value": 3.95,
+          "unit": "g/L",
+          "field": "titer",
+          "aggregation": "mean",
+          "filters": { "sourceId": "X04", "variant": "T212S", "status": "complete", "temperature": 42 },
+          "groupBy": [],
+          "sourceRows": ["X04-R3", "X04-R4"]
+        }
+      ]
+    }
+  ]
+}

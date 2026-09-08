@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P83",
+  "documentId": "P83",
+  "fileName": "P83.pdf",
+  "generatedAt": "2026-09-07T23:46:10.600Z",
+  "source": {
+    "filename": "P83.pdf",
+    "relativePath": "literature/P83.pdf",
+    "size": 103188,
+    "lastModified": "1788824298378755576",
+    "hash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+    "pageCount": 3,
+    "processedCharacters": 670,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 5,
+    "nativeEvidenceCitationsVerified": 5,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 5,
+    "evidenceFindingsVerified": 5,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P83\",\"contentHash\":\"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "CelluWeave D：低温储存后的可逆性",
+  "authors": [
+    "周澄"
+  ],
+  "year": 2026,
+  "abstractSummary": null,
+  "researchQuestion": "Evaluation of the mechanical stability and shape retention of a sodium alginate and cellulose hydrogel after cold storage.",
+  "mainFindings": [
+    "After 7 days of storage at 4°C, the mean compression modulus of the material was 46.0 kPa.",
+    "The shape retention rate of the material after 7 days of storage at 4°C was 95%.",
+    "The mean compression modulus decreased by 4.0 kPa, representing an 8.0% reduction compared to fresh samples.",
+    "The compression modulus mean was 46.0 kPa (SD 2.0 kPa, n=4) after 7 days of storage at 4°C.",
+    "Fresh samples had a mean compression modulus of 50.0 kPa (n=4)."
+  ],
+  "methods": [
+    "Formulation of sodium alginate 2.0% and cellulose 1.2%",
+    "Curing with 50 mmol/L calcium chloride for 10 minutes",
+    "Storage at 4°C for 7 days",
+    "Mechanical testing in wet state after 24-hour equilibrium at 10% strain"
+  ],
+  "methodsSummary": "The study utilized a material composed of 2.0% sodium alginate and 1.2% cellulose, cured with 50 mmol/L calcium chloride for 10 minutes. The material was stored at 4°C for 7 days and then tested for compression modulus and shape retention under 10% strain after 24 hours of wet-state equilibrium.",
+  "organisms": [],
+  "genes": [],
+  "proteins": [],
+  "pathways": [],
+  "metabolites": [],
+  "experimentalConditions": [
+    "4°C storage for 7 days",
+    "Wet state 24-hour equilibrium",
+    "10% strain"
+  ],
+  "measurements": [
+    "Compression modulus (kPa)",
+    "Shape retention rate (%)"
+  ],
+  "importantResults": [
+    "The compression modulus mean was 46.0 kPa (SD 2.0 kPa, n=4) after 7 days of storage at 4°C.",
+    "Fresh samples had a mean compression modulus of 50.0 kPa (n=4).",
+    "After 7 days of storage at 4°C, the mean compression modulus of the material was 46.0 kPa.",
+    "The shape retention rate of the material after 7 days of storage at 4°C was 95%.",
+    "The mean compression modulus decreased by 4.0 kPa, representing an 8.0% reduction compared to fresh samples."
+  ],
+  "limitations": [
+    "No freeze-thaw cycles were performed",
+    "No measurements of cell viability or microbial contamination",
+    "Results from 7-day refrigeration cannot be generalized to freezing conditions or long-term storage"
+  ],
+  "keywords": [
+    "sodium alginate",
+    "cellulose",
+    "compression modulus",
+    "storage stability"
+  ],
+  "topics": [
+    "hydrogels",
+    "material science"
+  ],
+  "shortSummary": "This study evaluated a sodium alginate and cellulose hydrogel, finding that after 7 days of storage at 4°C, it retained 95% of its shape and experienced only an 8% decrease in compression modulus.",
+  "summary": "This study evaluated a sodium alginate and cellulose hydrogel, finding that after 7 days of storage at 4°C, it retained 95% of its shape and experienced only an 8% decrease in compression modulus.",
+  "keyResults": [
+    "After 7 days of storage at 4°C, the mean compression modulus of the material was 46.0 kPa.",
+    "The shape retention rate of the material after 7 days of storage at 4°C was 95%.",
+    "The mean compression modulus decreased by 4.0 kPa, representing an 8.0% reduction compared to fresh samples.",
+    "The compression modulus mean was 46.0 kPa (SD 2.0 kPa, n=4) after 7 days of storage at 4°C.",
+    "Fresh samples had a mean compression modulus of 50.0 kPa (n=4)."
+  ],
+  "mainConclusion": "The sodium alginate and cellulose hydrogel maintains high shape retention and most of its mechanical stiffness when stored at 4°C for 7 days.",
+  "evidenceFindings": [
+    {
+      "claim": "After 7 days of storage at 4°C, the mean compression modulus of the material was 46.0 kPa.",
+      "evidenceRefs": [
+        "P83:p2:P83-P2-C1"
+      ]
+    },
+    {
+      "claim": "The shape retention rate of the material after 7 days of storage at 4°C was 95%.",
+      "evidenceRefs": [
+        "P83:p2:P83-P2-C1"
+      ]
+    },
+    {
+      "claim": "The mean compression modulus decreased by 4.0 kPa, representing an 8.0% reduction compared to fresh samples.",
+      "evidenceRefs": [
+        "P83:p2:P83-P2-C1"
+      ]
+    },
+    {
+      "claim": "The compression modulus mean was 46.0 kPa (SD 2.0 kPa, n=4) after 7 days of storage at 4°C.",
+      "evidenceRefs": [
+        "P83:p2:P83-P2-C1"
+      ]
+    },
+    {
+      "claim": "Fresh samples had a mean compression modulus of 50.0 kPa (n=4).",
+      "evidenceRefs": [
+        "P83:p2:P83-P2-C1"
+      ]
+    }
+  ]
+}

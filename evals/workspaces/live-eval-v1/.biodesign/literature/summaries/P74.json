@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P74",
+  "documentId": "P74",
+  "fileName": "P74.pdf",
+  "generatedAt": "2026-09-07T23:44:57.763Z",
+  "source": {
+    "filename": "P74.pdf",
+    "relativePath": "literature/P74.pdf",
+    "size": 49956,
+    "lastModified": "1788824298376217677",
+    "hash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+    "pageCount": 2,
+    "processedCharacters": 840,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 4,
+    "nativeEvidenceCitationsVerified": 4,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 4,
+    "evidenceFindingsVerified": 4,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P74\",\"contentHash\":\"sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "CelluWeave evidence map: Three small synthetic studies",
+  "authors": [],
+  "year": null,
+  "abstractSummary": "Paper P74 is an invented narrative review that describes P17, P31, and P52 and contributes zero independent sheets.",
+  "researchQuestion": null,
+  "mainFindings": [
+    "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+    "P31 uses 15% strain after 1 hour."
+  ],
+  "methods": [
+    "narrative review"
+  ],
+  "methodsSummary": "The paper is a narrative review describing P17, P31, and P52.",
+  "organisms": [],
+  "genes": [],
+  "proteins": [],
+  "pathways": [],
+  "metabolites": [],
+  "experimentalConditions": [
+    "10% strain after 24 hours wet equilibration",
+    "15% strain after 1 hour"
+  ],
+  "measurements": [
+    "strain"
+  ],
+  "importantResults": [
+    "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+    "P31 uses 15% strain after 1 hour."
+  ],
+  "limitations": [
+    "No source in this review establishes cell viability, biodegradation, cost, industrial print speed, or clinical suitability."
+  ],
+  "keywords": [
+    "narrative review"
+  ],
+  "topics": [
+    "review of P17, P31, and P52"
+  ],
+  "shortSummary": "A narrative review summarizing strain conditions for papers P17, P31, and P52.",
+  "summary": "A narrative review summarizing strain conditions for papers P17, P31, and P52.",
+  "keyResults": [
+    "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+    "P31 uses 15% strain after 1 hour."
+  ],
+  "mainConclusion": null,
+  "evidenceFindings": [
+    {
+      "claim": "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+      "evidenceRefs": [
+        "P74:p2:P74-P2-C1"
+      ]
+    },
+    {
+      "claim": "P31 uses 15% strain after 1 hour.",
+      "evidenceRefs": [
+        "P74:p2:P74-P2-C1"
+      ]
+    },
+    {
+      "claim": "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+      "evidenceRefs": [
+        "P74:p2:P74-P2-C1"
+      ]
+    },
+    {
+      "claim": "P31 uses 15% strain after 1 hour.",
+      "evidenceRefs": [
+        "P74:p2:P74-P2-C1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,744 @@
+{
+  "schemaVersion": 1,
+  "jobs": [
+    {
+      "jobId": "64f446cc-0ada-4799-8c89-78118a8138bc",
+      "dedupeKey": "knowledge-sync:synthetic_celluweave",
+      "jobType": "knowledge-sync",
+      "sourceIds": [
+        "X01",
+        "X02",
+        "X03",
+        "X04",
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152",
+        "N08",
+        "N09",
+        "N10",
+        "N11",
+        "P95"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 17,
+        "total": 17,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:32.374Z",
+      "startedAt": "2026-09-07T23:42:32.385Z",
+      "completedAt": "2026-09-07T23:47:47.091Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "1698ddf3-a083-4491-9309-f4a99ee4e2a9",
+      "dedupeKey": "X01:experiments/X01.xlsx|25296|1788824298392728210|16777234:201154949",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "X01"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:32.413Z",
+      "startedAt": "2026-09-07T23:42:32.426Z",
+      "completedAt": "2026-09-07T23:42:32.492Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "adc563de-9d71-4db4-8a22-241fb60b356c",
+      "dedupeKey": "X02:experiments/X02.xlsx|17627|1788824298392247580|16777234:201154948",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "X02"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:32.426Z",
+      "startedAt": "2026-09-07T23:42:32.441Z",
+      "completedAt": "2026-09-07T23:42:32.511Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "14e07e5b-af50-43fc-b3e2-7df2daa8c82e",
+      "dedupeKey": "X01:experiments/X01.xlsx|25296|1788824298392728210|16777234:201154949",
+      "jobType": "prepare:experiment_data",
+      "sourceIds": [
+        "X01"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:32.506Z",
+      "startedAt": "2026-09-07T23:42:32.519Z",
+      "completedAt": "2026-09-07T23:42:34.084Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "8c9ad071-1999-4cf9-ae1e-d774a51dd3a0",
+      "dedupeKey": "X02:experiments/X02.xlsx|17627|1788824298392247580|16777234:201154948",
+      "jobType": "prepare:experiment_data",
+      "sourceIds": [
+        "X02"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:32.523Z",
+      "startedAt": "2026-09-07T23:42:32.533Z",
+      "completedAt": "2026-09-07T23:42:34.044Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "be23e2d0-9e16-48eb-8628-f77fb6443bac",
+      "dedupeKey": "X03:experiments/X03.xlsx|17146|1788824298391799659|16777234:201154947",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "X03"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:34.148Z",
+      "startedAt": "2026-09-07T23:42:34.161Z",
+      "completedAt": "2026-09-07T23:42:34.221Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "a0d0a7e1-24f4-41f9-8254-45e955aabe37",
+      "dedupeKey": "X04:experiments/X04.xlsx|17152|1788824298391287279|16777234:201154946",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "X04"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:34.161Z",
+      "startedAt": "2026-09-07T23:42:34.174Z",
+      "completedAt": "2026-09-07T23:42:34.238Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "296151b4-5b2a-4f0e-b49f-e712ba538c26",
+      "dedupeKey": "X03:experiments/X03.xlsx|17146|1788824298391799659|16777234:201154947",
+      "jobType": "prepare:experiment_data",
+      "sourceIds": [
+        "X03"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:34.234Z",
+      "startedAt": "2026-09-07T23:42:34.245Z",
+      "completedAt": "2026-09-07T23:42:34.939Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "16710318-1570-428c-8255-5b273b2bb9f9",
+      "dedupeKey": "X04:experiments/X04.xlsx|17152|1788824298391287279|16777234:201154946",
+      "jobType": "prepare:experiment_data",
+      "sourceIds": [
+        "X04"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:34.250Z",
+      "startedAt": "2026-09-07T23:42:34.263Z",
+      "completedAt": "2026-09-07T23:42:34.681Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "fd81e32c-d4e0-44f3-ae5e-df0ef21bf6be",
+      "dedupeKey": "P17:literature/P17.pdf|51254|1788824298375436003|16777234:201154910",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P17"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:34.705Z",
+      "startedAt": "2026-09-07T23:42:34.713Z",
+      "completedAt": "2026-09-07T23:42:34.762Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "02227a30-fb51-442d-9937-ef3d7ef51500",
+      "dedupeKey": "P17:literature/P17.pdf|51254|1788824298375436003|16777234:201154910",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P17"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:34.768Z",
+      "startedAt": "2026-09-07T23:42:34.775Z",
+      "completedAt": "2026-09-07T23:42:35.381Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "77122f8c-0bf5-4f88-8f0a-340a40aa0f91",
+      "dedupeKey": "P31:literature/P31.pdf|100734|1788824298379338373|16777234:201154916",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P31"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:35.031Z",
+      "startedAt": "2026-09-07T23:42:35.041Z",
+      "completedAt": "2026-09-07T23:42:35.150Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "17b4d89d-311b-45aa-beb9-0fa6ab1ba3f0",
+      "dedupeKey": "P31:literature/P31.pdf|100734|1788824298379338373|16777234:201154916",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P31"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:35.207Z",
+      "startedAt": "2026-09-07T23:42:35.225Z",
+      "completedAt": "2026-09-07T23:42:35.629Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "4a6698c6-7593-45e6-aabc-1324506adbc6",
+      "dedupeKey": "P17:literature/P17.pdf|51254|1788824298375436003|16777234:201154910",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P17"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:35.701Z",
+      "startedAt": "2026-09-07T23:42:35.709Z",
+      "completedAt": "2026-09-07T23:43:54.002Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "1cd99416-c501-4671-8ab1-a8603114f760",
+      "dedupeKey": "P31:literature/P31.pdf|100734|1788824298379338373|16777234:201154916",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P31"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:42:35.947Z",
+      "startedAt": "2026-09-07T23:42:35.956Z",
+      "completedAt": "2026-09-07T23:43:54.305Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "88b30d72-d8b3-4e68-8037-a3bbfacc10cc",
+      "dedupeKey": "P52:literature/P52.pdf|50982|1788824298377600023|16777234:201154913",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P52"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:43:54.067Z",
+      "startedAt": "2026-09-07T23:43:54.073Z",
+      "completedAt": "2026-09-07T23:43:54.113Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "aeab4608-7b6f-4493-a76c-6d5b76507a9f",
+      "dedupeKey": "P52:literature/P52.pdf|50982|1788824298377600023|16777234:201154913",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P52"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:43:54.120Z",
+      "startedAt": "2026-09-07T23:43:54.126Z",
+      "completedAt": "2026-09-07T23:43:54.463Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "31ca3cb1-f377-4839-affc-94540e4086ae",
+      "dedupeKey": "P74:literature/P74.pdf|49956|1788824298376217677|16777234:201154911",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P74"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:43:54.393Z",
+      "startedAt": "2026-09-07T23:43:54.402Z",
+      "completedAt": "2026-09-07T23:43:54.450Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "4f7d0a97-cbcb-40ad-a4ba-8af6a55822ff",
+      "dedupeKey": "P74:literature/P74.pdf|49956|1788824298376217677|16777234:201154911",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P74"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:43:54.459Z",
+      "startedAt": "2026-09-07T23:43:54.469Z",
+      "completedAt": "2026-09-07T23:43:54.831Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "8ee9b76f-6921-4dc0-894c-f9e516df8e0f",
+      "dedupeKey": "P52:literature/P52.pdf|50982|1788824298377600023|16777234:201154913",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P52"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:43:54.808Z",
+      "startedAt": "2026-09-07T23:43:54.817Z",
+      "completedAt": "2026-09-07T23:45:09.650Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "b47a991e-620a-4899-b70b-2bb6254a15ff",
+      "dedupeKey": "P74:literature/P74.pdf|49956|1788824298376217677|16777234:201154911",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P74"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:43:55.186Z",
+      "startedAt": "2026-09-07T23:43:55.195Z",
+      "completedAt": "2026-09-07T23:44:57.837Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "09e8265e-60d3-442c-93db-832a4af52aed",
+      "dedupeKey": "P83:literature/P83.pdf|103188|1788824298378755576|16777234:201154915",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P83"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:44:57.916Z",
+      "startedAt": "2026-09-07T23:44:57.924Z",
+      "completedAt": "2026-09-07T23:44:57.967Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "a4e22c66-57bf-4191-b759-d237fc4ca84f",
+      "dedupeKey": "P83:literature/P83.pdf|103188|1788824298378755576|16777234:201154915",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P83"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:44:57.973Z",
+      "startedAt": "2026-09-07T23:44:57.980Z",
+      "completedAt": "2026-09-07T23:44:58.393Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "168caca1-d824-4e24-9227-b9f521fba756",
+      "dedupeKey": "P83:literature/P83.pdf|103188|1788824298378755576|16777234:201154915",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P83"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:44:58.764Z",
+      "startedAt": "2026-09-07T23:44:58.772Z",
+      "completedAt": "2026-09-07T23:46:10.668Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "532eee15-2c25-4371-9ee5-44eaa8958337",
+      "dedupeKey": "P117:literature/P117.pdf|51139|1788824298377011809|16777234:201154912",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P117"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:45:09.720Z",
+      "startedAt": "2026-09-07T23:45:09.728Z",
+      "completedAt": "2026-09-07T23:45:09.776Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "26bc5e04-ce23-45bc-94d4-14364ec2ad0c",
+      "dedupeKey": "P117:literature/P117.pdf|51139|1788824298377011809|16777234:201154912",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P117"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:45:09.784Z",
+      "startedAt": "2026-09-07T23:45:09.791Z",
+      "completedAt": "2026-09-07T23:45:10.186Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "1dfd6fa5-919a-4a85-92da-b34cf1b153f0",
+      "dedupeKey": "P117:literature/P117.pdf|51139|1788824298377011809|16777234:201154912",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P117"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:45:10.583Z",
+      "startedAt": "2026-09-07T23:45:10.593Z",
+      "completedAt": "2026-09-07T23:46:27.825Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "224b51f0-4beb-445c-a581-25d8c1ea3f81",
+      "dedupeKey": "P131:literature/P131.pdf|89780|1788824298378176571|16777234:201154914",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P131"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:46:10.778Z",
+      "startedAt": "2026-09-07T23:46:10.785Z",
+      "completedAt": "2026-09-07T23:46:10.906Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "244c45c4-8dc9-4db9-b982-f0de9b8ba719",
+      "dedupeKey": "P131:literature/P131.pdf|89780|1788824298378176571|16777234:201154914",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P131"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:46:10.912Z",
+      "startedAt": "2026-09-07T23:46:10.918Z",
+      "completedAt": "2026-09-07T23:46:11.277Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "25d0d89d-4a3b-4443-9aa0-6a104c9c4b11",
+      "dedupeKey": "P131:literature/P131.pdf|89780|1788824298378176571|16777234:201154914",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P131"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:46:11.641Z",
+      "startedAt": "2026-09-07T23:46:11.650Z",
+      "completedAt": "2026-09-07T23:47:30.979Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "7787b757-f97b-4f51-9ef8-7793e7df8531",
+      "dedupeKey": "P152:literature/P152.pdf|56976|1788824298381675021|16777234:201154917",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P152"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:46:27.934Z",
+      "startedAt": "2026-09-07T23:46:27.942Z",
+      "completedAt": "2026-09-07T23:46:27.981Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "714fec08-94c4-421d-8d7c-f6aa98f48cda",
+      "dedupeKey": "P152:literature/P152.pdf|56976|1788824298381675021|16777234:201154917",
+      "jobType": "prepare:search",
+      "sourceIds": [
+        "P152"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:46:27.988Z",
+      "startedAt": "2026-09-07T23:46:27.997Z",
+      "completedAt": "2026-09-07T23:46:28.430Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "4fe68f1e-87ee-4009-abc7-2454db9210b6",
+      "dedupeKey": "P152:literature/P152.pdf|56976|1788824298381675021|16777234:201154917",
+      "jobType": "prepare:paper_card",
+      "sourceIds": [
+        "P152"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:46:28.756Z",
+      "startedAt": "2026-09-07T23:46:28.768Z",
+      "completedAt": "2026-09-07T23:47:47.002Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "02805aaa-3fe3-482b-b4f4-a86749bfd558",
+      "dedupeKey": "N08:notes/N08.md|596|1788824298394183932|16777234:201154955",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "N08"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:47:31.089Z",
+      "startedAt": "2026-09-07T23:47:31.096Z",
+      "completedAt": "2026-09-07T23:47:31.137Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "5ea6e574-187d-4f2b-a4cf-069810cdd891",
+      "dedupeKey": "N09:notes/N09.md|490|1788824298395399652|16777234:201154957",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "N09"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:47:31.206Z",
+      "startedAt": "2026-09-07T23:47:31.213Z",
+      "completedAt": "2026-09-07T23:47:31.251Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "a9d21ec8-f51c-4cca-8a9f-a41b4538f7b1",
+      "dedupeKey": "N10:notes/N10.md|475|1788824298395984616|16777234:201154958",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "N10"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:47:31.322Z",
+      "startedAt": "2026-09-07T23:47:31.334Z",
+      "completedAt": "2026-09-07T23:47:31.372Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "70f397fa-e090-4b4f-b384-f5bb9468fbbd",
+      "dedupeKey": "N11:notes/N11.md|372|1788824298396541330|16777234:201154959",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "N11"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:47:31.450Z",
+      "startedAt": "2026-09-07T23:47:31.456Z",
+      "completedAt": "2026-09-07T23:47:31.494Z",
+      "error": null,
+      "resultHandle": null
+    },
+    {
+      "jobId": "48d19b69-ee99-4122-b384-5418db9afa7b",
+      "dedupeKey": "P95:notes/P95.md|512|1788824298394686562|16777234:201154956",
+      "jobType": "prepare:stable_snapshot",
+      "sourceIds": [
+        "P95"
+      ],
+      "status": "completed",
+      "progress": {
+        "completed": 1,
+        "total": 1,
+        "stage": "completed"
+      },
+      "createdAt": "2026-09-07T23:47:31.565Z",
+      "startedAt": "2026-09-07T23:47:31.571Z",
+      "completedAt": "2026-09-07T23:47:31.610Z",
+      "error": null,
+      "resultHandle": null
+    }
+  ],
+  "updatedAt": "2026-09-07T23:47:47.091Z"
+}

@@ -1,0 +1,263 @@
+{
+  "caseId": "CW-ECTD_PAPERS-05",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "No, the higher specific activity of **T212S** does not mean it has a higher product titer. \n\nAccording to the data in **P152**, while **T212S** exhibits a higher specific activity (2.40 U/mg) compared to **A163V** (1.50 U/mg), it actually results in a lower product titer (3.90 g/L) than **A163V** (4.60 g/L) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1). This demonstrates that enzyme activity and fermentation titer are separate outcomes and do not necessarily correlate linearly in this system.",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "P152",
+          "sourceId": "P152",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "literature/P152.pdf",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P152",
+        "P131",
+        "P117",
+        "P52",
+        "P17"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X02",
+        "X03",
+        "X04",
+        "X01"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.5115,
+          "matchState": "novel",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "aggregate"
+        ],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "fast",
+        "escalated": false,
+        "reason": "medium-strong-exact-match"
+      }
+    },
+    "activity": [
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P117.pdf...",
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P52.pdf...",
+      "正在读取 P52.pdf 的源文件细节...",
+      "正在准备 P17.pdf...",
+      "正在读取 P17.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "Does the higher specific activity of T212S in P152 mean that it has the higher product titer?",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:01:12.960Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788825640922-54e55b2c13b41",
+          "role": "user",
+          "content": "Does the higher specific activity of T212S in P152 mean that it has the higher product titer?",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P152",
+              "P131",
+              "P117",
+              "P52",
+              "P17"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X02",
+              "X03",
+              "X04",
+              "X01"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.5115,
+                "matchState": "novel",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "aggregate"
+              ],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 2
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "fast",
+              "escalated": false,
+              "reason": "medium-strong-exact-match"
+            }
+          },
+          "createdAt": "2026-09-08T00:00:40.922Z"
+        },
+        {
+          "id": "1788825672930-a6568f8776c5d",
+          "role": "assistant",
+          "content": "No, the higher specific activity of **T212S** does not mean it has a higher product titer. \n\nAccording to the data in **P152**, while **T212S** exhibits a higher specific activity (2.40 U/mg) compared to **A163V** (1.50 U/mg), it actually results in a lower product titer (3.90 g/L) than **A163V** (4.60 g/L) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1). This demonstrates that enzyme activity and fermentation titer are separate outcomes and do not necessarily correlate linearly in this system.",
+          "activity": [
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P117.pdf...",
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P52.pdf...",
+            "正在读取 P52.pdf 的源文件细节...",
+            "正在准备 P17.pdf...",
+            "正在读取 P17.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "P152",
+              "sourceId": "P152",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P152.pdf",
+              "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-08T00:01:12.930Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 32008,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.5115,
+      "matchState": "novel",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "aggregate"
+    ],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 2
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "5988bdb35d6895ff4a30d19547444d00717516a189e5c01c6ccb584c78d0ea9a",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

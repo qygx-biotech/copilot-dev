@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "activeConversationId": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+  "conversations": [
+    {
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "请在 Side Chat 中查 P131 的 Km，只需直接查证，不要启动 Deep 或 Agent Command。",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:33:35.006Z",
+      "messageCount": 2
+    }
+  ],
+  "updatedAt": "2026-09-08T00:33:35.006Z"
+}

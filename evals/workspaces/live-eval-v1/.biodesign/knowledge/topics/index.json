@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "topics": [
+    {
+      "topicId": "hydrogels",
+      "label": "hydrogels",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P17",
+        "P31",
+        "P83"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:46:10.693Z",
+      "sourceVersions": {
+        "P17": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+        "P31": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+        "P83": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+      }
+    },
+    {
+      "topicId": "compressive-modulus",
+      "label": "Compressive modulus",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P31"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:43:54.324Z",
+      "sourceVersions": {
+        "P31": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e"
+      }
+    },
+    {
+      "topicId": "sodium-alginate",
+      "label": "Sodium alginate",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P31"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:43:54.324Z",
+      "sourceVersions": {
+        "P31": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e"
+      }
+    },
+    {
+      "topicId": "cellulose",
+      "label": "Cellulose",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P31"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:43:54.324Z",
+      "sourceVersions": {
+        "P31": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e"
+      }
+    },
+    {
+      "topicId": "review-of-p17-p31-and-p52",
+      "label": "review of P17, P31, and P52",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P74"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:44:57.857Z",
+      "sourceVersions": {
+        "P74": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931"
+      }
+    },
+    {
+      "topicId": "material-science",
+      "label": "Material science",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P52",
+        "P83"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:46:10.694Z",
+      "sourceVersions": {
+        "P52": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+        "P83": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802"
+      }
+    },
+    {
+      "topicId": "strain-engineering",
+      "label": "Strain Engineering",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P117",
+        "P131"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:30.997Z",
+      "sourceVersions": {
+        "P117": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+        "P131": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c"
+      }
+    },
+    {
+      "topicId": "enzyme-kinetics",
+      "label": "Enzyme kinetics",
+      "parentTopicIds": [
+        "strain-engineering"
+      ],
+      "paperIds": [
+        "P117",
+        "P131"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:30.997Z",
+      "sourceVersions": {
+        "P117": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+        "P131": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c"
+      }
+    },
+    {
+      "topicId": "fermentation",
+      "label": "Fermentation",
+      "parentTopicIds": [
+        "fermentation"
+      ],
+      "paperIds": [
+        "P117"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:46:27.844Z",
+      "sourceVersions": {
+        "P117": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d"
+      }
+    },
+    {
+      "topicId": "ectd",
+      "label": "EctD",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P117"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:46:27.844Z",
+      "sourceVersions": {
+        "P117": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d"
+      }
+    },
+    {
+      "topicId": "a163v",
+      "label": "A163V",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P117"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:46:27.844Z",
+      "sourceVersions": {
+        "P117": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d"
+      }
+    },
+    {
+      "topicId": "ectoine",
+      "label": "ectoine",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P117"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:46:27.844Z",
+      "sourceVersions": {
+        "P117": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d"
+      }
+    },
+    {
+      "topicId": "mutant-characterization",
+      "label": "Mutant characterization",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P131"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:30.997Z",
+      "sourceVersions": {
+        "P131": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c"
+      }
+    },
+    {
+      "topicId": "t212s",
+      "label": "T212S",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P131"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:30.997Z",
+      "sourceVersions": {
+        "P131": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c"
+      }
+    },
+    {
+      "topicId": "tetrahydropyrimidine",
+      "label": "tetrahydropyrimidine",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P131"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:30.997Z",
+      "sourceVersions": {
+        "P131": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c"
+      }
+    },
+    {
+      "topicId": "hydroxy-tetrahydropyrimidine",
+      "label": "hydroxy-tetrahydropyrimidine",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P131"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:30.997Z",
+      "sourceVersions": {
+        "P131": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c"
+      }
+    },
+    {
+      "topicId": "topic-5d971550",
+      "label": "羟基四氢嘧啶",
+      "parentTopicIds": [],
+      "paperIds": [
+        "P152"
+      ],
+      "summaryStatus": "stale",
+      "summaryVersion": null,
+      "summary": null,
+      "updatedAt": "2026-09-07T23:47:47.022Z",
+      "sourceVersions": {
+        "P152": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e"
+      }
+    }
+  ],
+  "updatedAt": "2026-09-07T23:47:47.022Z"
+}

@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P17",
+  "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+  "paperCardContentIdentity": "sha256:7083e7747d46d843a76f46fc6469d7b45953fde2d3716615fe6cdeb4a43c7fde",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P17",
+    "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+    "title": "CelluWeave A: Wet compression of cellulose–alginate sheets",
+    "relevance": "medium",
+    "themes": [
+      "hydrogels",
+      "cellulose–alginate hydrogel sheets"
+    ],
+    "researchQuestion": "Evaluation of the properties of nonliving cellulose–alginate hydrogel sheets under different calcium chloride concentrations.",
+    "findings": [
+      {
+        "claim": "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "Higher compressive modulus was associated with poorer shape retention.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      },
+      {
+        "claim": "Higher compressive modulus was associated with poorer shape retention.",
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "2.0% w/v alginate and 0.8% w/v cellulose",
+      "calcium chloride bath 50 mmol/L for 10 minutes",
+      "Compression was measured wet, after 24 hours of equilibration, at 10% strain"
+    ],
+    "organisms": [],
+    "genes": [],
+    "proteins": [],
+    "pathways": [],
+    "experimentalConditions": [
+      "50 mmol/L calcium chloride bath",
+      "75 mmol/L calcium chloride bath",
+      "10 minutes bath duration",
+      "24 hours equilibration"
+    ],
+    "measurements": [
+      "compressive modulus",
+      "shape retention",
+      "water uptake"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "Only two calcium concentrations and one cellulose fraction were evaluated",
+      "No cost, biodegradation, cytotoxicity, cell viability, or printer throughput data are available"
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:7083e7747d46d843a76f46fc6469d7b45953fde2d3716615fe6cdeb4a43c7fde",
+    "statSignature": "literature/P17.pdf|51254|1788824298375436003|16777234:201154910"
+  },
+  "updatedAt": "2026-09-08T00:26:35.941Z"
+}

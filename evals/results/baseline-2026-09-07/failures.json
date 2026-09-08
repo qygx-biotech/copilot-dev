@@ -1,0 +1,5055 @@
+[
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-08",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-08",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-08",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-LOOKUP-08",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-02",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0.6666666666666666,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0.6666666666666666,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0.6666666666666666,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0.6666666666666666,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-05",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-05",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-06",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0.5,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-06",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0.75,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-06",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0.5,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-06",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0.75,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-07",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-DISCOVERY-08",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CORPUS-05",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-CORPUS-05",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-06",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-06",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-CROSS_SOURCE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-01",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-01",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-02",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-02",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-03",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-03",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-04",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-04",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-05",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-05",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-06",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-06",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-07",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-07",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-08",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MEMORY_PERMISSIONS-08",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 0,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.paper.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall5",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-03",
+    "repeat": 1,
+    "primaryCategory": "RETRIEVAL",
+    "metric": "retrieval.evidence.recall10",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-MULTILINGUAL-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-05",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "error",
+    "detail": [
+      {
+        "code": "ETIMEDOUT",
+        "message": "Controlled timeout at experiment.query"
+      }
+    ]
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-05",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "error",
+    "detail": [
+      {
+        "code": "ETIMEDOUT",
+        "message": "Controlled timeout at experiment.query"
+      }
+    ]
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": [
+      {
+        "code": "MUTATION_UNSUPPORTED",
+        "message": "Unsupported fixture mutation sync."
+      }
+    ]
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-SYNC_FAILURE-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-01",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-02",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-03",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-04",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-05",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-06",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-07",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 0,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "type": "valid_source_rows",
+    "required": true,
+    "status": "fail",
+    "detail": "Observed or missing primitive result source rows differ from frozen gold."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.valueAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.unitAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.aggregationAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.filtersAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.groupByAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.sourceRowsAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.fieldAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_EXPERIMENTS-08",
+    "repeat": 1,
+    "primaryCategory": "EXPERIMENT_NORMALIZATION",
+    "metric": "experiment.exactAccuracy",
+    "value": 0,
+    "status": "observed_deficit",
+    "detail": "Metric below full frozen-gold coverage; see raw output. This is not alone a semantic-answer judgment."
+  },
+  {
+    "caseId": "CW-ECTD_WORKFLOWS-04",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-ECTD_WORKFLOWS-04",
+    "repeat": 1,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": []
+  },
+  {
+    "caseId": "CW-ECTD_WORKFLOWS-06",
+    "repeat": 0,
+    "primaryCategory": "ROBUSTNESS",
+    "status": "blocked",
+    "detail": [
+      {
+        "code": "MUTATION_UNSUPPORTED",
+        "message": "Unsupported fixture mutation add_file."
+      }
+    ]
+  }
+]

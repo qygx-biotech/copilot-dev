@@ -87,8 +87,8 @@
     };
   }
   const markdownLabel = (value) => value.replace(/[\\`*_[\]<>|]/g, "\\$&").replace(/[\r\n]/g, " ");
-  // Only explicit citation syntax is transformed. Ordinary prose, URLs, inline
-  // code, indented code, and fenced code retain their exact text.
+  // Internal local:N handles in prose, including a code span containing only
+  // that handle, are citations too. Preserve URLs, code expressions and blocks.
   function resolveAnswer(answer, registry = createRegistry([]), existingCitations = []) {
     const citations = normalizeCitations(existingCitations), byReference = new Map();
     // Keep saved identities and reserve dangling links too, so a newly repaired
@@ -138,9 +138,14 @@
         fence = fenced[1]; fenceIndent = contentIndent;
         return line;
       }
-      const tokens = /(`+)[\s\S]*?\1|\[(?:\\.|[^\[\]\n]|\[[^\]\n]*\])*\]\([^\n]*?\)|(\[(?:\s*\[cite:[^\]\n]+\]\s*[,;]?\s*)+\])|\[cite:([^\]\n]+)\]|\[([^\]\n]+)\]/g;
-      return line.replace(tokens, (whole, code, group, explicit, bracket) => {
-        if (code || (!group && !explicit && bracket === undefined)) return whole;
+      const tokens = /(`+)[\s\S]*?\1|\[(?:\\.|[^\[\]\n]|\[[^\]\n]*\])*\]\([^\n]*?\)|(?:[a-z][a-z\d+.-]*:\/\/|www\.)[^\s<>]+|<[^>]*>|(\[(?:\s*\[cite:[^\]\n]+\]\s*[,;]?\s*)+\])|\[cite:([^\]\n]+)\]|\[([^\]\n]+)\]|(?<![\w:/\\.@-])(local:\d+)(?![\w:/\\@-]|\.\w)/g;
+      return line.replace(tokens, (whole, code, group, explicit, bracket, local) => {
+        if (code) {
+          const reference = whole.slice(code.length, -code.length).trim();
+          return /^local:\d+$/.test(reference) || registry.has(reference) || byReference.has(reference) ? citation(reference) : whole;
+        }
+        if (local) return citation(local);
+        if (!group && !explicit && bracket === undefined) return whole;
         if (group || explicit) {
           const references = group ? [...group.matchAll(/\[cite:([^\]\n]+)\]/g)].map(match => match[1]) : [explicit];
           return [...new Set(references.flatMap(value => value.split(/\s*[,;]\s*/)).map(value => value.trim().replace(/^cite:/, "")))].map(citation).join(", ");

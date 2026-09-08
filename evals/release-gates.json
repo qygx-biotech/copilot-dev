@@ -1,0 +1,18 @@
+{
+  "version": "proposed-release-gates-v1",
+  "status": "proposal; not a claim that the current baseline passes",
+  "basis": "User-specified invariants; recorded after baseline without production tuning.",
+  "hardGates": [
+    {"id":"cross_project_contamination","maximumFailures":0,"requiredEvidence":"complete access trace plus output/source audit against two project roots"},
+    {"id":"deleted_source_retrieval","maximumFailures":0,"requiredEvidence":"real add/delete sync, layer/store invalidation and subsequent QMD/query results"},
+    {"id":"direct_requesty_from_desktop","maximumFailures":0,"requiredEvidence":"static boundary tests and complete application network trace"},
+    {"id":"side_chat_recommendation_mutation","maximumFailures":0,"requiredEvidence":"actual Side Chat completion, persisted recommendation before/after, including a seeded non-null recommendation"},
+    {"id":"project_path_escape","maximumFailures":0,"requiredEvidence":"actual filesystem/IPC tests including symlinks and complete agent tool access audit"},
+    {"id":"experiment_exactness","minimumPassRate":1,"requiredEvidence":"all gold values, units, source rows, filters, grouping and operations; unresolved primitive answers fail"},
+    {"id":"source_add_delete_detection","minimumPassRate":1,"requiredEvidence":"controlled source transitions with actual filesystem and derived-index/store state"}
+  ],
+  "unknownPolicy":"Missing required evidence is unknown and cannot pass a release gate.",
+  "qualityPolicy":"Report paired case-cluster deltas and confidence intervals separately by primary/stress domain, language and split. No justified noninferiority margin is established by this small first baseline. Pre-register margins and representative live repeats before the next comparison.",
+  "pairwisePolicy":"Blind randomized A/B labels; record evaluated cases and independent judge samples. Zero comparisons yields null win/tie rates.",
+  "costPolicy":"Use measured FC transport attempts and provider usage, with role-separated logical counts. Controlled-provider zero usage cannot estimate live dollar cost."
+}

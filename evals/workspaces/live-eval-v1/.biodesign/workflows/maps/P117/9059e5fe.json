@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P117",
+  "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+  "paperCardContentIdentity": "sha256:22e0d9168d8f2ac75651c4078036d3ce482a2f804490abe631e7cc5777362377",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P117",
+    "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+    "title": "EctD A163V: Temperature-controlled kinetic and titer study",
+    "relevance": "medium",
+    "themes": [
+      "Enzyme kinetics",
+      "Fermentation",
+      "EctD",
+      "ectoine hydroxylation",
+      "A163V"
+    ],
+    "researchQuestion": "What are the kinetic and fermentation properties of the EctD variant A163V in the catalysis of ectoine hydroxylation?",
+    "findings": [
+      {
+        "claim": "Variant A163V exhibits a lower Michaelis constant (Km) for ectoine compared to the wild-type enzyme.",
+        "evidenceRefs": [
+          "P117:p1:P117-P1-C1"
+        ]
+      },
+      {
+        "claim": "Fermentation using variant A163V at 30°C for 48 hours produced a product titer of 4.80 g/L.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      },
+      {
+        "claim": "The specific activity of variant A163V was 1.80 U/mg.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      },
+      {
+        "claim": "The product yield for variant A163V was 0.40 g/g substrate.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      },
+      {
+        "claim": "The volumetric productivity for variant A163V was 0.100 g/L/h.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "Variant A163V exhibits a lower Michaelis constant (Km) for ectoine compared to the wild-type enzyme.",
+        "evidenceRefs": [
+          "P117:p1:P117-P1-C1"
+        ]
+      },
+      {
+        "claim": "Fermentation using variant A163V at 30°C for 48 hours produced a product titer of 4.80 g/L.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      },
+      {
+        "claim": "The specific activity of variant A163V was 1.80 U/mg.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      },
+      {
+        "claim": "The product yield for variant A163V was 0.40 g/g substrate.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      },
+      {
+        "claim": "The volumetric productivity for variant A163V was 0.100 g/L/h.",
+        "evidenceRefs": [
+          "P117:p2:P117-P2-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "Kinetic assay",
+      "Fermentation"
+    ],
+    "organisms": [],
+    "genes": [
+      "EctD"
+    ],
+    "proteins": [
+      "EctD",
+      "A163V"
+    ],
+    "pathways": [
+      "ectoine hydroxylation"
+    ],
+    "experimentalConditions": [
+      "30°C",
+      "48 h"
+    ],
+    "measurements": [
+      "Michaelis constant (Km)",
+      "product titer",
+      "specific activity",
+      "product yield",
+      "volumetric productivity"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "The study did not test 35°C or 42°C cultivation.",
+      "Lower Km alone does not prove higher whole-process productivity.",
+      "No universal best variant is established."
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:22e0d9168d8f2ac75651c4078036d3ce482a2f804490abe631e7cc5777362377",
+    "statSignature": "literature/P117.pdf|51139|1788824298377011809|16777234:201154912"
+  },
+  "updatedAt": "2026-09-08T00:26:36.008Z"
+}

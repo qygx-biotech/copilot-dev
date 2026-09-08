@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "search-plan",
+  "cacheKey": "60a24e83ebb37c5fb9d8b786f072ab792c166833eb6000f1d1055b8de3c8dd17",
+  "configurationSignature": "a7c8442df3c3f8e1840be7bc8fb43dde6ebabfbe2c1aa154aae3786101cd83d6",
+  "value": {
+    "queries": [
+      "Table X04 titer 42°C",
+      "average titer mutant 42°C",
+      "variant titer titre 42°C",
+      "X04 table mutant titer",
+      "highest average titer 42 degrees Celsius"
+    ],
+    "identifiers": [
+      "X04"
+    ],
+    "sourceLanguage": "zh",
+    "reasoningSummary": "The user is requesting specific quantitative data from a table identified as 'X04' to determine which mutant exhibits the highest average titer at 42°C. The search strategy focuses on the table identifier, the temperature condition, and the metric 'titer' (including its variant spelling 'titre')."
+  }
+}

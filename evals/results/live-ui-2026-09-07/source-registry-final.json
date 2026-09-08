@@ -1,0 +1,1569 @@
+{
+  "schemaVersion": 2,
+  "sources": [
+    {
+      "sourceId": "X01",
+      "sourceKind": "experiment",
+      "path": "experiments/X01.xlsx",
+      "displayName": "X01.xlsx",
+      "extension": ".xlsx",
+      "sizeBytes": 25296,
+      "mtimeNs": "1788824298392728210",
+      "filesystemFileId": "16777234:201154949",
+      "statSignature": "experiments/X01.xlsx|25296|1788824298392728210|16777234:201154949",
+      "contentHash": "sha256:096d9a1cfe136bc54a45f85ab3dbfb276c5a0f6cf21467db6cf73f7ecf9bf204",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "not_started",
+      "indexStatus": "not_started",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "ready",
+      "contentVersion": "sha256:096d9a1cfe136bc54a45f85ab3dbfb276c5a0f6cf21467db6cf73f7ecf9bf204",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:22:48.093Z",
+      "error": null,
+      "artifacts": {
+        "experimentData": {
+          "path": ".biodesign/sources/artifacts/X01/sha256-096d9a1cfe136bc54a45f85ab3dbfb276c5a0f6cf21467db6cf73f7ecf9bf204/experiment-data.json",
+          "contentHash": "sha256:096d9a1cfe136bc54a45f85ab3dbfb276c5a0f6cf21467db6cf73f7ecf9bf204",
+          "normalizerVersion": "canonical-tabular-v2",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "experimentNote": {
+          "path": ".biodesign/knowledge/experiment_notes/X01.md",
+          "contentHash": "sha256:096d9a1cfe136bc54a45f85ab3dbfb276c5a0f6cf21467db6cf73f7ecf9bf204",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "X01",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298392.7283,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:096d9a1cfe136bc54a45f85ab3dbfb276c5a0f6cf21467db6cf73f7ecf9bf204",
+        "statSignature": "experiments/X01.xlsx|25296|1788824298392728210|16777234:201154949",
+        "stages": {
+          "structuredData": "ready",
+          "descriptor": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:42:34.105Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "X02",
+      "sourceKind": "experiment",
+      "path": "experiments/X02.xlsx",
+      "displayName": "X02.xlsx",
+      "extension": ".xlsx",
+      "sizeBytes": 17627,
+      "mtimeNs": "1788824298392247580",
+      "filesystemFileId": "16777234:201154948",
+      "statSignature": "experiments/X02.xlsx|17627|1788824298392247580|16777234:201154948",
+      "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "not_started",
+      "indexStatus": "not_started",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "ready",
+      "contentVersion": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:22:48.727Z",
+      "error": null,
+      "artifacts": {
+        "experimentData": {
+          "path": ".biodesign/sources/artifacts/X02/sha256-3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7/experiment-data.json",
+          "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "normalizerVersion": "canonical-tabular-v2",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "experimentNote": {
+          "path": ".biodesign/knowledge/experiment_notes/X02.md",
+          "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "X02",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298392.2476,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+        "statSignature": "experiments/X02.xlsx|17627|1788824298392247580|16777234:201154948",
+        "stages": {
+          "structuredData": "ready",
+          "descriptor": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:42:34.081Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "X03",
+      "sourceKind": "experiment",
+      "path": "experiments/X03.xlsx",
+      "displayName": "X03.xlsx",
+      "extension": ".xlsx",
+      "sizeBytes": 17146,
+      "mtimeNs": "1788824298391799659",
+      "filesystemFileId": "16777234:201154947",
+      "statSignature": "experiments/X03.xlsx|17146|1788824298391799659|16777234:201154947",
+      "contentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "not_started",
+      "indexStatus": "not_started",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "ready",
+      "contentVersion": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:22:49.124Z",
+      "error": null,
+      "artifacts": {
+        "experimentData": {
+          "path": ".biodesign/sources/artifacts/X03/sha256-efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e/experiment-data.json",
+          "contentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "normalizerVersion": "canonical-tabular-v2",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "experimentNote": {
+          "path": ".biodesign/knowledge/experiment_notes/X03.md",
+          "contentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "X03",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298391.7996,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+        "statSignature": "experiments/X03.xlsx|17146|1788824298391799659|16777234:201154947",
+        "stages": {
+          "structuredData": "ready",
+          "descriptor": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:42:34.947Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "X04",
+      "sourceKind": "experiment",
+      "path": "experiments/X04.xlsx",
+      "displayName": "X04.xlsx",
+      "extension": ".xlsx",
+      "sizeBytes": 17152,
+      "mtimeNs": "1788824298391287279",
+      "filesystemFileId": "16777234:201154946",
+      "statSignature": "experiments/X04.xlsx|17152|1788824298391287279|16777234:201154946",
+      "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "not_started",
+      "indexStatus": "not_started",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "ready",
+      "contentVersion": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:22:49.458Z",
+      "error": null,
+      "artifacts": {
+        "experimentData": {
+          "path": ".biodesign/sources/artifacts/X04/sha256-64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf/experiment-data.json",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "normalizerVersion": "canonical-tabular-v2",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "experimentNote": {
+          "path": ".biodesign/knowledge/experiment_notes/X04.md",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "X04",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298391.2874,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+        "statSignature": "experiments/X04.xlsx|17152|1788824298391287279|16777234:201154946",
+        "stages": {
+          "structuredData": "ready",
+          "descriptor": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:42:34.688Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P17",
+      "sourceKind": "paper",
+      "path": "literature/P17.pdf",
+      "displayName": "P17.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 51254,
+      "mtimeNs": "1788824298375436003",
+      "filesystemFileId": "16777234:201154910",
+      "statSignature": "literature/P17.pdf|51254|1788824298375436003|16777234:201154910",
+      "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:29:34.200Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P17/sha256-6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e/paper-text.json",
+          "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P17.md",
+          "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P17.json",
+          "sourceId": "P17",
+          "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P17\",\"contentHash\":\"sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P17.md",
+          "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P17",
+          "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+          "schemaVersion": 1,
+          "topicIds": [
+            "hydrogels"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P17.pdf",
+          "title": "CelluWeave A: Wet compression of cellulose–alginate sheets",
+          "authors": [
+            "A. Vale",
+            "B. Lin"
+          ],
+          "year": 2024,
+          "topics": [
+            "hydrogels"
+          ],
+          "keywords": [
+            "cellulose–alginate hydrogel sheets"
+          ],
+          "identifiers": [],
+          "shortDescription": "This study evaluated the compressive modulus, shape retention, and water uptake of cellulose-alginate hydrogel sheets crosslinked with 50 mmol/L and 75 mmol/L calcium chloride."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P17.json",
+        "paperCardPath": ".biodesign/literature/summaries/P17.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298375.436,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+        "statSignature": "literature/P17.pdf|51254|1788824298375436003|16777234:201154910",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:43:54.054Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P31",
+      "sourceKind": "paper",
+      "path": "literature/P31.pdf",
+      "displayName": "P31.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 100734,
+      "mtimeNs": "1788824298379338373",
+      "filesystemFileId": "16777234:201154916",
+      "statSignature": "literature/P31.pdf|100734|1788824298379338373|16777234:201154916",
+      "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:29:34.200Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P31/sha256-5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e/paper-text.json",
+          "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P31.md",
+          "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P31.json",
+          "sourceId": "P31",
+          "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P31\",\"contentHash\":\"sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P31.md",
+          "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P31",
+          "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "schemaVersion": 1,
+          "topicIds": [
+            "hydrogels",
+            "compressive-modulus",
+            "sodium-alginate",
+            "cellulose"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P31.pdf",
+          "title": "CelluWeave B：湿态压缩条件与测量时点",
+          "authors": [
+            "陈禾",
+            "林沐"
+          ],
+          "year": 2025,
+          "topics": [
+            "Hydrogels",
+            "Compressive modulus",
+            "Sodium alginate",
+            "Cellulose"
+          ],
+          "keywords": [],
+          "identifiers": [],
+          "shortDescription": "This study reports that a hydrogel formulation of 2.0% sodium alginate and 0.8% cellulose, crosslinked with 50 mmol/L calcium chloride, exhibits an average compressive modulus of 48.0 kPa at 15% strain and a shape retention rate of 94%."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P31.json",
+        "paperCardPath": ".biodesign/literature/summaries/P31.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298379.3384,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+        "statSignature": "literature/P31.pdf|100734|1788824298379338373|16777234:201154916",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:43:54.380Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P52",
+      "sourceKind": "paper",
+      "path": "literature/P52.pdf",
+      "displayName": "P52.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 50982,
+      "mtimeNs": "1788824298377600023",
+      "filesystemFileId": "16777234:201154913",
+      "statSignature": "literature/P52.pdf|50982|1788824298377600023|16777234:201154913",
+      "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:29:34.211Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P52/sha256-e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851/paper-text.json",
+          "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P52.md",
+          "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P52.json",
+          "sourceId": "P52",
+          "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P52\",\"contentHash\":\"sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P52.md",
+          "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P52",
+          "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+          "schemaVersion": 1,
+          "topicIds": [
+            "material-science"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P52.pdf",
+          "title": "CelluWeave C: Added cellulose and swelling tradeoffs",
+          "authors": [
+            "C. Moss"
+          ],
+          "year": 2025,
+          "topics": [
+            "Material science"
+          ],
+          "keywords": [
+            "hydrogel",
+            "alginate",
+            "cellulose",
+            "compressive modulus"
+          ],
+          "identifiers": [],
+          "shortDescription": "This study characterizes a nonliving hydrogel composed of 2.0% w/v alginate and 1.2% w/v cellulose, reporting a mean compressive modulus of 51.0 kPa and water uptake of 12.5 g/g."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P52.json",
+        "paperCardPath": ".biodesign/literature/summaries/P52.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298377.6,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+        "statSignature": "literature/P52.pdf|50982|1788824298377600023|16777234:201154913",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:45:09.704Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P74",
+      "sourceKind": "paper",
+      "path": "literature/P74.pdf",
+      "displayName": "P74.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 49956,
+      "mtimeNs": "1788824298376217677",
+      "filesystemFileId": "16777234:201154911",
+      "statSignature": "literature/P74.pdf|49956|1788824298376217677|16777234:201154911",
+      "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:29:34.217Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P74/sha256-804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931/paper-text.json",
+          "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P74.md",
+          "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P74.json",
+          "sourceId": "P74",
+          "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P74\",\"contentHash\":\"sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P74.md",
+          "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P74",
+          "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+          "schemaVersion": 1,
+          "topicIds": [
+            "review-of-p17-p31-and-p52"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P74.pdf",
+          "title": "CelluWeave evidence map: Three small synthetic studies",
+          "authors": [],
+          "year": null,
+          "topics": [
+            "review of P17, P31, and P52"
+          ],
+          "keywords": [
+            "narrative review"
+          ],
+          "identifiers": [],
+          "shortDescription": "A narrative review summarizing strain conditions for papers P17, P31, and P52."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P74.json",
+        "paperCardPath": ".biodesign/literature/summaries/P74.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298376.2175,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+        "statSignature": "literature/P74.pdf|49956|1788824298376217677|16777234:201154911",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:44:57.897Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P83",
+      "sourceKind": "paper",
+      "path": "literature/P83.pdf",
+      "displayName": "P83.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 103188,
+      "mtimeNs": "1788824298378755576",
+      "filesystemFileId": "16777234:201154915",
+      "statSignature": "literature/P83.pdf|103188|1788824298378755576|16777234:201154915",
+      "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:29:34.227Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P83/sha256-aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802/paper-text.json",
+          "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P83.md",
+          "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P83.json",
+          "sourceId": "P83",
+          "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P83\",\"contentHash\":\"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P83.md",
+          "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P83",
+          "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+          "schemaVersion": 1,
+          "topicIds": [
+            "hydrogels",
+            "material-science"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P83.pdf",
+          "title": "CelluWeave D：低温储存后的可逆性",
+          "authors": [
+            "周澄"
+          ],
+          "year": 2026,
+          "topics": [
+            "hydrogels",
+            "material science"
+          ],
+          "keywords": [
+            "sodium alginate",
+            "cellulose",
+            "compression modulus",
+            "storage stability"
+          ],
+          "identifiers": [],
+          "shortDescription": "This study evaluated a sodium alginate and cellulose hydrogel, finding that after 7 days of storage at 4°C, it retained 95% of its shape and experienced only an 8% decrease in compression modulus."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P83.json",
+        "paperCardPath": ".biodesign/literature/summaries/P83.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298378.7556,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+        "statSignature": "literature/P83.pdf|103188|1788824298378755576|16777234:201154915",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:46:10.759Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P117",
+      "sourceKind": "paper",
+      "path": "literature/P117.pdf",
+      "displayName": "P117.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 51139,
+      "mtimeNs": "1788824298377011809",
+      "filesystemFileId": "16777234:201154912",
+      "statSignature": "literature/P117.pdf|51139|1788824298377011809|16777234:201154912",
+      "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:33:17.764Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P117/sha256-b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d/paper-text.json",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P117.md",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P117.json",
+          "sourceId": "P117",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P117\",\"contentHash\":\"sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P117.md",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P117",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "schemaVersion": 1,
+          "topicIds": [
+            "enzyme-kinetics",
+            "strain-engineering",
+            "fermentation",
+            "ectd",
+            "a163v",
+            "ectoine"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P117.pdf",
+          "title": "EctD A163V: Temperature-controlled kinetic and titer study",
+          "authors": [
+            "R. Aspen",
+            "J. Brook"
+          ],
+          "year": 2024,
+          "topics": [
+            "Enzyme kinetics",
+            "Fermentation"
+          ],
+          "keywords": [
+            "EctD",
+            "ectoine hydroxylation",
+            "A163V"
+          ],
+          "identifiers": [
+            "EctD",
+            "A163V",
+            "ectoine hydroxylation",
+            "ectoine"
+          ],
+          "shortDescription": "Characterization of EctD variant A163V showing a reduced Km for ectoine (0.42 mM vs 0.80 mM for wild-type) and specific fermentation metrics including a titer of 4.80 g/L at 30°C."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P117.json",
+        "paperCardPath": ".biodesign/literature/summaries/P117.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298377.0117,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+        "statSignature": "literature/P117.pdf|51139|1788824298377011809|16777234:201154912",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:46:27.913Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P131",
+      "sourceKind": "paper",
+      "path": "literature/P131.pdf",
+      "displayName": "P131.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 89780,
+      "mtimeNs": "1788824298378176571",
+      "filesystemFileId": "16777234:201154914",
+      "statSignature": "literature/P131.pdf|89780|1788824298378176571|16777234:201154914",
+      "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:33:17.747Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P131/sha256-a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c/paper-text.json",
+          "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P131.md",
+          "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P131.json",
+          "sourceId": "P131",
+          "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P131\",\"contentHash\":\"sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P131.md",
+          "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P131",
+          "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+          "schemaVersion": 1,
+          "topicIds": [
+            "mutant-characterization",
+            "enzyme-kinetics",
+            "strain-engineering",
+            "t212s",
+            "tetrahydropyrimidine",
+            "hydroxy-tetrahydropyrimidine"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P131.pdf",
+          "title": "EctD T212S：35°C 条件下的产物滴度与动力学",
+          "authors": [
+            "顾禾",
+            "李澄"
+          ],
+          "year": null,
+          "topics": [
+            "Mutant characterization",
+            "Enzyme kinetics"
+          ],
+          "keywords": [
+            "T212S",
+            "tetrahydropyrimidine",
+            "hydroxy-tetrahydropyrimidine"
+          ],
+          "identifiers": [
+            "T212S",
+            "tetrahydropyrimidine",
+            "hydroxy-tetrahydropyrimidine"
+          ],
+          "shortDescription": "This paper reports the characterization of mutant T212S using tetrahydropyrimidine as a substrate at 35°C, providing data on Km, titer, specific activity, yield, and productivity, and comparing these results to P117."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P131.json",
+        "paperCardPath": ".biodesign/literature/summaries/P131.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298378.1765,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+        "statSignature": "literature/P131.pdf|89780|1788824298378176571|16777234:201154914",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:31.070Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P152",
+      "sourceKind": "paper",
+      "path": "literature/P152.pdf",
+      "displayName": "P152.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 56976,
+      "mtimeNs": "1788824298381675021",
+      "filesystemFileId": "16777234:201154917",
+      "statSignature": "literature/P152.pdf|56976|1788824298381675021|16777234:201154917",
+      "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "ready",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-08T00:29:34.253Z",
+      "error": null,
+      "artifacts": {
+        "paperText": {
+          "path": ".biodesign/sources/artifacts/P152/sha256-c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e/paper-text.json",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "extractorVersion": "local-source-v1",
+          "schemaVersion": 1,
+          "validationStatus": "validated"
+        },
+        "knowledgeMarkdown": {
+          "path": ".biodesign/knowledge/literature/P152.md",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "representationVersion": 1,
+          "validationStatus": "validated"
+        },
+        "paperCard": {
+          "path": ".biodesign/literature/summaries/P152.json",
+          "sourceId": "P152",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "schemaVersion": 2,
+          "model": "google/gemma-4-31b-it",
+          "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+          "promptVersion": "canonical-paper-card-v2",
+          "generationStrategy": "native-pdf-combined-text-v2",
+          "generationContractVersion": 2,
+          "generationMode": "combined-text",
+          "fallbackReason": "native-structured-output-unsupported",
+          "nativePdfSchemaVersion": 1,
+          "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+          "nativePdfModelSignature": "not-applicable",
+          "combinedTextSupported": true,
+          "combinedTextMaxCharacters": 200000,
+          "combinedTextSchemaVersion": 1,
+          "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+          "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+          "sourceArtifactSchemaVersion": 1,
+          "extractorVersion": "local-source-v1",
+          "validationStatus": "validated",
+          "cacheKey": "{\"version\":4,\"sourceId\":\"P152\",\"contentHash\":\"sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+        },
+        "paperCardMarkdown": {
+          "path": ".biodesign/knowledge/paper_cards/P152.md",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "cardSchemaVersion": 2,
+          "validationStatus": "validated"
+        },
+        "topicMembership": {
+          "sourceId": "P152",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "schemaVersion": 1,
+          "topicIds": [
+            "topic-5d971550"
+          ]
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "fileName": "P152.pdf",
+          "title": "EctD variants at 42°C: Opposing activity and titer rankings",
+          "authors": [],
+          "year": null,
+          "topics": [],
+          "keywords": [],
+          "identifiers": [
+            "羟基四氢嘧啶"
+          ],
+          "shortDescription": "A comparison of A163V and T212S variants at 42°C for the production of 羟基四氢嘧啶 showed that T212S had higher specific activity (2.40 U/mg) while A163V had a higher product titer (4.60 g/L)."
+        },
+        "summaryPath": ".biodesign/literature/summaries/P152.json",
+        "paperCardPath": ".biodesign/literature/summaries/P152.json"
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298381.675,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+        "statSignature": "literature/P152.pdf|56976|1788824298381675021|16777234:201154917",
+        "stages": {
+          "l1": "ready",
+          "l2": "ready",
+          "l3": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:47.062Z"
+      },
+      "knowledgeError": null,
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "N08",
+      "sourceKind": "document",
+      "path": "notes/N08.md",
+      "displayName": "N08.md",
+      "extension": ".md",
+      "sizeBytes": 596,
+      "mtimeNs": "1788824298394183932",
+      "filesystemFileId": "16777234:201154955",
+      "statSignature": "notes/N08.md|596|1788824298394183932|16777234:201154955",
+      "contentHash": "sha256:f90602544bd8ad4ed0481d5aa7072675ddde7fa0943782fde9bbe4ac940159d2",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:f90602544bd8ad4ed0481d5aa7072675ddde7fa0943782fde9bbe4ac940159d2",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-07T23:47:31.145Z",
+      "error": null,
+      "artifacts": {
+        "documentMarkdown": {
+          "path": ".biodesign/knowledge/memory/source-N08.md",
+          "sourceId": "N08",
+          "contentHash": "sha256:f90602544bd8ad4ed0481d5aa7072675ddde7fa0943782fde9bbe4ac940159d2",
+          "schemaVersion": 1,
+          "extractorVersion": "local-source-v1"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "Project brief / 项目要求",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298394.1838,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:f90602544bd8ad4ed0481d5aa7072675ddde7fa0943782fde9bbe4ac940159d2",
+        "statSignature": "notes/N08.md|596|1788824298394183932|16777234:201154955",
+        "stages": {
+          "l1": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:31.189Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "N09",
+      "sourceKind": "document",
+      "path": "notes/N09.md",
+      "displayName": "N09.md",
+      "extension": ".md",
+      "sizeBytes": 490,
+      "mtimeNs": "1788824298395399652",
+      "filesystemFileId": "16777234:201154957",
+      "statSignature": "notes/N09.md|490|1788824298395399652|16777234:201154957",
+      "contentHash": "sha256:2141686ba4157d803fc00fac0c7d4bf1517a3690220647e0dbd60568bc69a1d7",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:2141686ba4157d803fc00fac0c7d4bf1517a3690220647e0dbd60568bc69a1d7",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-07T23:47:31.260Z",
+      "error": null,
+      "artifacts": {
+        "documentMarkdown": {
+          "path": ".biodesign/knowledge/memory/source-N09.md",
+          "sourceId": "N09",
+          "contentHash": "sha256:2141686ba4157d803fc00fac0c7d4bf1517a3690220647e0dbd60568bc69a1d7",
+          "schemaVersion": 1,
+          "extractorVersion": "local-source-v1"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "Draft lab meeting notes / 实验讨论草稿",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298395.3997,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:2141686ba4157d803fc00fac0c7d4bf1517a3690220647e0dbd60568bc69a1d7",
+        "statSignature": "notes/N09.md|490|1788824298395399652|16777234:201154957",
+        "stages": {
+          "l1": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:31.305Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "N10",
+      "sourceKind": "document",
+      "path": "notes/N10.md",
+      "displayName": "N10.md",
+      "extension": ".md",
+      "sizeBytes": 475,
+      "mtimeNs": "1788824298395984616",
+      "filesystemFileId": "16777234:201154958",
+      "statSignature": "notes/N10.md|475|1788824298395984616|16777234:201154958",
+      "contentHash": "sha256:4972081c96a8611c54b9fcc2701e12a5f3e22b8a00d68ad14d2b3cde94d718cf",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:4972081c96a8611c54b9fcc2701e12a5f3e22b8a00d68ad14d2b3cde94d718cf",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-07T23:47:31.385Z",
+      "error": null,
+      "artifacts": {
+        "documentMarkdown": {
+          "path": ".biodesign/knowledge/memory/source-N10.md",
+          "sourceId": "N10",
+          "contentHash": "sha256:4972081c96a8611c54b9fcc2701e12a5f3e22b8a00d68ad14d2b3cde94d718cf",
+          "schemaVersion": 1,
+          "extractorVersion": "local-source-v1"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "Verified meeting correction",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298395.9846,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:4972081c96a8611c54b9fcc2701e12a5f3e22b8a00d68ad14d2b3cde94d718cf",
+        "statSignature": "notes/N10.md|475|1788824298395984616|16777234:201154958",
+        "stages": {
+          "l1": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:31.433Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "N11",
+      "sourceKind": "document",
+      "path": "notes/N11.md",
+      "displayName": "N11.md",
+      "extension": ".md",
+      "sizeBytes": 372,
+      "mtimeNs": "1788824298396541330",
+      "filesystemFileId": "16777234:201154959",
+      "statSignature": "notes/N11.md|372|1788824298396541330|16777234:201154959",
+      "contentHash": "sha256:e364c33c5b5c5e1d7e0f72635aea3403306f159ea39edc0e5f67494293e56ab5",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:e364c33c5b5c5e1d7e0f72635aea3403306f159ea39edc0e5f67494293e56ab5",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-07T23:47:31.502Z",
+      "error": null,
+      "artifacts": {
+        "documentMarkdown": {
+          "path": ".biodesign/knowledge/memory/source-N11.md",
+          "sourceId": "N11",
+          "contentHash": "sha256:e364c33c5b5c5e1d7e0f72635aea3403306f159ea39edc0e5f67494293e56ab5",
+          "schemaVersion": 1,
+          "extractorVersion": "local-source-v1"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "Ambiguous shorthand notes",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298396.5415,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:e364c33c5b5c5e1d7e0f72635aea3403306f159ea39edc0e5f67494293e56ab5",
+        "statSignature": "notes/N11.md|372|1788824298396541330|16777234:201154959",
+        "stages": {
+          "l1": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:31.547Z"
+      },
+      "pathMetadataDirty": false
+    },
+    {
+      "sourceId": "P95",
+      "sourceKind": "document",
+      "path": "notes/P95.md",
+      "displayName": "P95.md",
+      "extension": ".md",
+      "sizeBytes": 512,
+      "mtimeNs": "1788824298394686562",
+      "filesystemFileId": "16777234:201154956",
+      "statSignature": "notes/P95.md|512|1788824298394686562|16777234:201154956",
+      "contentHash": "sha256:8e37adda864142791cf620862a1d28f33f518076fbfbf31ac00b548bcf267ee7",
+      "hashAlgorithm": "sha256",
+      "hashStatus": "ready",
+      "catalogStatus": "discovered",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "not_started",
+      "qmdVectorStatus": "not_started",
+      "paperCardStatus": "not_applicable",
+      "structuredDataStatus": "not_applicable",
+      "contentVersion": "sha256:8e37adda864142791cf620862a1d28f33f518076fbfbf31ac00b548bcf267ee7",
+      "firstSeenAt": "2026-09-07T23:26:46.847Z",
+      "lastSeenAt": "2026-09-08T00:33:16.311Z",
+      "lastUsedAt": "2026-09-07T23:47:31.618Z",
+      "error": null,
+      "artifacts": {
+        "documentMarkdown": {
+          "path": ".biodesign/knowledge/memory/source-P95.md",
+          "sourceId": "P95",
+          "contentHash": "sha256:8e37adda864142791cf620862a1d28f33f518076fbfbf31ac00b548bcf267ee7",
+          "schemaVersion": 1,
+          "extractorVersion": "local-source-v1"
+        }
+      },
+      "legacy": {
+        "discovery": {
+          "title": "Untrusted appendix with injected instructions",
+          "authors": [],
+          "topics": [],
+          "keywords": []
+        }
+      },
+      "syncPending": null,
+      "mtimeMs": 1788824298394.6865,
+      "knowledgeSync": {
+        "schemaVersion": 1,
+        "status": "SYNC_READY",
+        "contentHash": "sha256:8e37adda864142791cf620862a1d28f33f518076fbfbf31ac00b548bcf267ee7",
+        "statSignature": "notes/P95.md|512|1788824298394686562|16777234:201154956",
+        "stages": {
+          "l1": "ready"
+        },
+        "failure": null,
+        "updatedAt": "2026-09-07T23:47:31.663Z"
+      },
+      "pathMetadataDirty": false
+    }
+  ],
+  "aliases": {
+    "ectd": [
+      "EctD",
+      "ectD"
+    ],
+    "hydroxyectoine": [
+      "hydroxyectoine",
+      "hydroxy-ectoine",
+      "5-hydroxyectoine",
+      "羟基依克多因"
+    ],
+    "wild_type": [
+      "WT",
+      "wild type",
+      "wild-type",
+      "野生型"
+    ],
+    "bl21": [
+      "BL21",
+      "BL21(DE3)"
+    ],
+    "kcat": [
+      "kcat",
+      "turnover number"
+    ],
+    "km": [
+      "Km",
+      "Michaelis constant"
+    ],
+    "titer": [
+      "titer",
+      "titre"
+    ],
+    "yield": [
+      "yield"
+    ],
+    "productivity": [
+      "productivity"
+    ]
+  },
+  "settings": {
+    "idleWarmingEnabled": false,
+    "idleWarmingConcurrency": 1
+  },
+  "metrics": {
+    "reconciliationCount": 16,
+    "lastReconciliationMs": 1,
+    "lastStatCalls": 17,
+    "fullHashCallsDuringReconciliation": 0,
+    "llmCallsDuringReconciliation": 0
+  },
+  "updatedAt": "2026-09-08T00:33:17.764Z"
+}

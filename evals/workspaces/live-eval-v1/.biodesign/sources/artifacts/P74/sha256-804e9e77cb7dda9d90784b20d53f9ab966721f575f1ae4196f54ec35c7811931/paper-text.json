@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "extractorVersion": "local-source-v1",
+  "sourceId": "P74",
+  "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+  "pageCount": 2,
+  "metadataTitle": "CelluWeave evidence map: Three small synthetic studies",
+  "truncated": false,
+  "pages": [
+    {
+      "page": 1,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nPaper P74 is an invented narrative review, not a new experiment. It describes P17, P31, and P52 and contributes zero independent\nsheets. P17 compares calcium baths; P31 uses a different measurement protocol; P52 increases cellulose fraction."
+    },
+    {
+      "page": 2,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nEvidence map: P17 and P52 use 10% strain after 24 hours wet equilibration; P31 uses 15% strain after 1 hour. No source in this\nreview establishes cell viability, biodegradation, cost, industrial print speed, or clinical suitability. Counting this review as another\nexperimental sample would double-count its underlying studies."
+    }
+  ],
+  "chunks": [
+    {
+      "chunkId": "P74-P1-C1",
+      "page": 1,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nPaper P74 is an invented narrative review, not a new experiment. It describes P17, P31, and P52 and contributes zero independent\nsheets. P17 compares calcium baths; P31 uses a different measurement protocol; P52 increases cellulose fraction."
+    },
+    {
+      "chunkId": "P74-P2-C1",
+      "page": 2,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nEvidence map: P17 and P52 use 10% strain after 24 hours wet equilibration; P31 uses 15% strain after 1 hour. No source in this\nreview establishes cell viability, biodegradation, cost, industrial print speed, or clinical suitability. Counting this review as another\nexperimental sample would double-count its underlying studies."
+    }
+  ],
+  "extractedCharacters": 840,
+  "createdAt": "2026-09-07T23:43:54.745Z"
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "search-plan",
+  "cacheKey": "095c1dc2fbc94900b9c4214feaacf26b612d02c149d0d9ff97c817a52dadbdda",
+  "configurationSignature": "a7c8442df3c3f8e1840be7bc8fb43dde6ebabfbe2c1aa154aae3786101cd83d6",
+  "value": {
+    "queries": [
+      "X02 T212S activity 35°C",
+      "X02 mutant T212S enzymatic activity",
+      "T212S mutation activity 35 degrees Celsius",
+      "X02 T212S mean activity",
+      "T212S variant activity temperature dependence"
+    ],
+    "identifiers": [
+      "X02",
+      "T212S"
+    ],
+    "sourceLanguage": "en",
+    "reasoningSummary": "The search targets scientific evidence regarding the biological or enzymatic activity of the T212S mutation within the X02 variant, specifically at a temperature of 35°C, while distinguishing activity from titer."
+  }
+}

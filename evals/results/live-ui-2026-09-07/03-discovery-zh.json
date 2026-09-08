@@ -1,0 +1,259 @@
+{
+  "caseId": "CW-ECTD_PAPERS-02",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "在 30°C 测定 EctD A163V 动力学参数的论文是 **P117** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P117.pdf](biodesign-citation:citation-1)。\n\n该论文指出 A163V 变体在 30°C 下进行了表征，其针对 ectoine 的米氏常数 ($K_m$) 为 0.42 mM（而野生型的 $K_m$ 在相同测定条件下为 0.80 mM）[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P117.pdf](biodesign-citation:citation-1)。",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "P117",
+          "sourceId": "P117",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "literature/P117.pdf",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P117",
+        "P152",
+        "P131"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X01",
+        "X02",
+        "X03",
+        "X04"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.7847,
+          "matchState": "uncertain",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "search"
+        ],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "fast",
+        "escalated": false,
+        "reason": "medium-strong-exact-match"
+      }
+    },
+    "activity": [
+      "已采用快速检索结果。",
+      "正在搜索本地证据...",
+      "本地搜索已就绪。",
+      "正在准备 P117.pdf...",
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P152.pdf...",
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "找出在 30°C 测定 A163V 动力学参数的 EctD 论文。",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-07T23:58:47.011Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788825505752-05e0765233cc1",
+          "role": "user",
+          "content": "找出在 30°C 测定 A163V 动力学参数的 EctD 论文。",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P117",
+              "P152",
+              "P131"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X01",
+              "X02",
+              "X03",
+              "X04"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.7847,
+                "matchState": "uncertain",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "search"
+              ],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 2
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "fast",
+              "escalated": false,
+              "reason": "medium-strong-exact-match"
+            }
+          },
+          "createdAt": "2026-09-07T23:58:25.752Z"
+        },
+        {
+          "id": "1788825526953-819e5529df9ad",
+          "role": "assistant",
+          "content": "在 30°C 测定 EctD A163V 动力学参数的论文是 **P117** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P117.pdf](biodesign-citation:citation-1)。\n\n该论文指出 A163V 变体在 30°C 下进行了表征，其针对 ectoine 的米氏常数 ($K_m$) 为 0.42 mM（而野生型的 $K_m$ 在相同测定条件下为 0.80 mM）[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P117.pdf](biodesign-citation:citation-1)。",
+          "activity": [
+            "已采用快速检索结果。",
+            "正在搜索本地证据...",
+            "本地搜索已就绪。",
+            "正在准备 P117.pdf...",
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P152.pdf...",
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "P117",
+              "sourceId": "P117",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P117.pdf",
+              "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-07T23:58:46.953Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 21201,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.7847,
+      "matchState": "uncertain",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "search"
+    ],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 2
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "a83578c94df9735c670e3088b5d6591a4c1666d77f072f72aea5b3cc3c9e0ec0",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

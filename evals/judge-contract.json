@@ -1,0 +1,40 @@
+{
+  "version": "independent-judge-v1",
+  "inputBoundary": "Only question, frozen gold evidence, allowed sources, candidate answer/artifact and its supplied citation metadata, and this rubric. No production code, traces, chain-of-thought, producing-agent narrative, branch identity, model labels, or self-evaluation.",
+  "scale": {
+    "1": "Fundamental failure: contradicts the central evidence/goal, fabricates key support, or cannot support the requested conclusion.",
+    "2": "Major defects: some relevant content, but central claims, evidence, or requested components are wrong or missing.",
+    "3": "Mixed: central task partly addressed, with meaningful omissions, imprecise claims, or insufficiently qualified interpretation.",
+    "4": "Strong: scientifically faithful and useful with only limited omissions or minor clarity/qualification issues.",
+    "5": "Fully satisfies this criterion against the supplied evidence; no material defect identified. This does not assert universal scientific truth."
+  },
+  "criteria": {
+    "correctness": "Scientific interpretation is consistent with the frozen supplied evidence; distinguish titer, yield, productivity, activity, assay conditions, and study types.",
+    "faithfulness": "Cited source/page actually supports the associated claim; no stronger conclusion than evidence permits.",
+    "completeness": "Covers material requested components, major themes, contradictions, and relevant limitations. Length is not a proxy.",
+    "relevance": "Responds to the actual request and source scope with useful content.",
+    "uncertaintyHandling": "Calibrates absent evidence, incomparable methods, small samples, and causal uncertainty without generic hedging.",
+    "synthesis": "Connects sources fairly, explains agreement/disagreement and heterogeneity without collapsing measurements. Use null if genuinely inapplicable.",
+    "clarity": "Readable, well-organized, precise language and traceable references; no verbosity reward.",
+    "overall": "Anchored holistic judgment, never used to average away hard permission/security failures."
+  },
+  "requiredOutput": ["packetId", "artifactType", "correctness", "faithfulness", "completeness", "relevance", "uncertaintyHandling", "synthesis", "clarity", "overall", "criticalErrors", "missingPoints", "lowScoreEvidence", "claimAudits", "numericClaims", "confidence"],
+  "outputContract": {
+    "artifactType": ["final_answer", "corpus_artifact"],
+    "integerScores": "1 through 5; synthesis alone may be null when inapplicable",
+    "confidence": ["low", "medium", "high"],
+    "criticalErrors": "Array of {candidateSpan, goldEvidenceIds, issue}. Exact candidate span required; no vague criticism.",
+    "missingPoints": "Array of {goldRequirement, goldEvidenceIds, omission}.",
+    "lowScoreEvidence": "Array of {criterion, candidateSpan, goldRequirement, goldEvidenceIds, issue}; required for EVERY criterion <=3. For omission use candidateSpan empty and identify exact gold requirement.",
+    "claimAudits": "Exhaustive important factual claims: {candidateSpan, citedEvidenceIds, supportingEvidenceIds, verdict:'supported'|'contradicted'|'unsupported'|'uncertain', requiredGoldClaimIds:[]}. citedEvidenceIds may use gold.allowedEvidenceIds or literal id/reference/sourceId fields from supplied candidateCitations entries whose sourceId occurs in supplied sources. Preserve source-level citations; page:null must not become an invented page locator. supportingEvidenceIds and all goldEvidenceIds remain restricted to gold.allowedEvidenceIds. Citation validity alone is not entailment: a known source citation may still be unsupported. For fabricated or unresolved citations outside these IDs, preserve the exact candidateSpan and audit it as unsupported with citedEvidenceIds empty; do not add invented gold evidence. Mark uncertain when evidence is insufficient for judgment.",
+    "numericClaims": "Extraction only, not arithmetic scoring: {candidateSpan, subject, metric, value, unit, sourceIds, sourceRows}. Deterministic code verifies values and provenance afterward. Do not use LLM intuition to decide arithmetic.",
+    "canonical": "Strict JSON object only; no additional properties, Markdown wrapping, chain-of-thought, or free-form canonical score."
+  },
+  "pairwise": {
+    "blinding": "Use independently randomized A/B order, store mapping separately, compare only same frozen case/setup with gold evidence. Never disclose candidate/baseline identity.",
+    "requiredOutput": ["packetId", "winner", "reasons", "confidence"],
+    "winner": ["A", "B", "tie", "unjudgeable"],
+    "reasons": "Array of {criterion, answerASpan, answerBSpan, goldEvidenceIds, explanation}; concise evidence-grounded justification only.",
+    "report": "Candidate win/baseline win/tie rates with n and case-cluster bootstrap CI. No pairwise rates without actual two-system judgments."
+  }
+}

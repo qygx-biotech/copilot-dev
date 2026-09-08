@@ -1,0 +1,247 @@
+{
+  "schemaVersion": "regression-candidates-v1",
+  "policy": "Keep these frozen cases after any future fix. New expected behavior requires a new suite version; no heldout threshold tuning.",
+  "candidates": [
+    {
+      "id": "ADR-B01",
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "lane": "controlled-local",
+      "title": "Activity request with explicit titer negation selects titer and wrong units",
+      "primaryTaxonomy": "SEMANTIC_INTERPRETATION",
+      "secondaryTaxonomy": [
+        "EXPERIMENT_NORMALIZATION",
+        "TOOL_PLANNING"
+      ],
+      "severity": "high",
+      "reproduction": "Read the cited query, canonicalField, aggregation and experiment provenance. Independently mean raw X02 activity values 2.2 and 2.3 = 2.25 U/mg. The returned 4.075 equals (4.1+4.3+3.9+4.0)/4 g/L.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B02",
+      "caseId": "CW-ECTD_EXPERIMENTS-06",
+      "lane": "controlled-local",
+      "title": "X02-only titer mean silently substitutes X03 and X04 rows",
+      "primaryTaxonomy": "EXPERIMENT_NORMALIZATION",
+      "secondaryTaxonomy": [
+        "SEMANTIC_INTERPRETATION",
+        "GROUNDING"
+      ],
+      "severity": "high",
+      "reproduction": "Compare returned sourceRows to gold.sourceRowIds. Recalculate requested (4.8+4.9)/2=4.85 and returned (4.8+4.9+4.6+4.7)/4=4.75.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B03",
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "lane": "controlled-local",
+      "title": "42°C table comparison includes 30°C and 35°C observations",
+      "primaryTaxonomy": "EXPERIMENT_NORMALIZATION",
+      "secondaryTaxonomy": [
+        "SEMANTIC_INTERPRETATION",
+        "REASONING"
+      ],
+      "severity": "high",
+      "reproduction": "Resolve returned rows in frozen experiments.json: X03 A163V temperatures are 30°C and T212S temperatures 35°C; all X04 rows are 42°C. Recalculate means on X04 rows only.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B04",
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "lane": "controlled-local",
+      "title": "English table numeric headers remain unnormalized and yield no numeric result",
+      "primaryTaxonomy": "EXPERIMENT_NORMALIZATION",
+      "secondaryTaxonomy": [
+        "ROBUSTNESS",
+        "LANGUAGE"
+      ],
+      "severity": "high",
+      "reproduction": "Inspect packet 20 record 23 for actual imported X02-R1 raw cells, then packets 160/161 structuredQuery. Compare with gold mean 4.85 g/L from X02-R1/R2.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B05",
+      "caseId": "CW-DISCOVERY-02",
+      "lane": "controlled-local",
+      "title": "Chinese calcium-study discovery loses the relevant paper while English finds it first",
+      "primaryTaxonomy": "LANGUAGE",
+      "secondaryTaxonomy": [
+        "RETRIEVAL",
+        "SEMANTIC_INTERPRETATION"
+      ],
+      "severity": "high",
+      "reproduction": "Compare the two pairId=discover_calcium queries, ranked IDs and evidence IDs. Verify P17:p2 reports both calcium conditions and retention. For case 30, inspect P17:p2 and P52:p2 water uptake.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B06",
+      "caseId": "CW-DISCOVERY-07",
+      "lane": "controlled-local",
+      "title": "Refrigerated-storage discovery retrieves temperature distractors and omits P83",
+      "primaryTaxonomy": "RETRIEVAL",
+      "secondaryTaxonomy": [
+        "SEMANTIC_INTERPRETATION",
+        "LANGUAGE"
+      ],
+      "severity": "high",
+      "reproduction": "Verify P83:p2 is the 4°C/7-day source. Compare packet retrieval IDs and P83 ready/version fields. Do not use absence from retrieval to infer failed ingestion.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B07",
+      "caseId": "CW-LOOKUP-03",
+      "lane": "controlled-local",
+      "title": "Direct corrected-P31 lookup finds a candidate but supplies no source context",
+      "primaryTaxonomy": "EVIDENCE_SELECTION",
+      "secondaryTaxonomy": [
+        "RETRIEVAL",
+        "TOOL_PLANNING"
+      ],
+      "severity": "high",
+      "reproduction": "Inspect candidatePaperIds versus paperIds/evidenceIds and ready/version state for P31. Verify gold P31:p2:v2=48 kPa. This is not evidence that the stale 62 kPa value was asserted.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B08",
+      "caseId": "CW-MULTILINGUAL-05",
+      "lane": "controlled-local",
+      "title": "Explicit literature-only request still queries all experiment records",
+      "primaryTaxonomy": "TOOL_PLANNING",
+      "secondaryTaxonomy": [
+        "SEMANTIC_INTERPRETATION",
+        "RETRIEVAL"
+      ],
+      "severity": "medium",
+      "reproduction": "Read the query and forbidden_capability requirement, then the non-null structuredQuery and record provenance. Do not confuse normal source-maintenance reads with this actual query result.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B09",
+      "caseId": "CW-CORPUS-01",
+      "lane": "controlled-local",
+      "title": "First corpus run loses requested P31 evidence after an EEXIST map error",
+      "primaryTaxonomy": "PAPER_MAPPING",
+      "secondaryTaxonomy": [
+        "ROBUSTNESS",
+        "EVIDENCE_SELECTION"
+      ],
+      "severity": "high",
+      "reproduction": "Inspect failures stage=map/code=EEXIST and compare analyzedPaperIds/evidenceIds before and after the repeat. No source-read fault was declared for this case.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-B10",
+      "caseId": "CW-LOOKUP-05",
+      "lane": "controlled-local",
+      "title": "Exact-title negative lookup returns unrelated candidates instead of empty retrieval",
+      "primaryTaxonomy": "RETRIEVAL",
+      "secondaryTaxonomy": [
+        "SEMANTIC_INTERPRETATION"
+      ],
+      "severity": "medium",
+      "reproduction": "Compare requested exact title with each actual result title and the frozen corpus title manifest; none matches. Evaluate retrieval_empty only, leaving final abstention unknown.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-L01",
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "lane": "live-ui",
+      "title": "Live answer falsely denies existing completed X02 activity rows",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EXPERIMENT_NORMALIZATION",
+        "SEMANTIC_INTERPRETATION",
+        "REASONING"
+      ],
+      "severity": "high",
+      "reproduction": "Read the final answer in 08-experiment-activity.json. In frozen fixtures/experiments.json, select sourceId X02 and raw variant=T212S, temperature_C=35, status=complete. X02-R3/R4 both match; average activity_U_mg 2.2 and 2.3.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-L02",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "lane": "live-ui",
+      "title": "Correct uncertainty conclusion is expanded into an uncited mechanistic explanation",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION",
+        "REASONING"
+      ],
+      "severity": "medium",
+      "reproduction": "Read the cited passages and citations=[]; compare P117 pages 1–3. The fixture reports kinetic parameters and the explicit process-productivity limitation, but no binding-affinity measurements, turnover tradeoff evidence, or downstream mechanistic data.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-L03",
+      "caseId": "CW-CORPUS-01",
+      "lane": "live-ui",
+      "title": "Both corpus answers falsely label reported sample counts as missing",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "PAPER_MAPPING",
+        "EVIDENCE_SELECTION",
+        "REASONING"
+      ],
+      "severity": "high",
+      "reproduction": "Compare the quoted final-answer spans in both saved files against frozen P17:p2:v1 and P52:p2:v1. No inference from LLM numeric scores is required.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-L04",
+      "caseId": "CW-CORPUS-01",
+      "lane": "live-ui",
+      "title": "Corpus answers use one explicitly unresolved citation instead of accessible source evidence",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "PAPER_MAPPING",
+        "EVIDENCE_SELECTION"
+      ],
+      "severity": "high",
+      "reproduction": "Inspect actual.answer.citations[0] in both files: sourceId=catalog:local:1, status=missing, contentHash=\"\". Contrast with resolved paper citations in the other live answers and required P17/P31/P52 page evidence.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-L05",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "lane": "live-ui",
+      "title": "Recommendation leaves the recorded current objective unresolved",
+      "primaryTaxonomy": "REASONING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION",
+        "GROUNDING"
+      ],
+      "severity": "medium",
+      "reproduction": "Compare the conditional opening and two recommendation branches to M06 and gold selected_resource=A163V. The answer cites only P152/X04, neither of which establishes the current user objective.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    },
+    {
+      "id": "ADR-L06",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "lane": "live-ui",
+      "title": "Recommendation treats the unrelated CelluWeave evaluation domain as an EctD integration target",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "REASONING",
+        "SEMANTIC_INTERPRETATION"
+      ],
+      "severity": "medium",
+      "reproduction": "Locate the quoted answer clause and its P152 citation. Read all three P152 pages and the project metadata/domain names; no CelluWeave integration or enzyme-domain architecture is reported.",
+      "expectedSource": "Frozen biodesign-eval-v1 gold; never rewritten in response to candidate output",
+      "status": "observed-baseline-failure; no production fix implemented"
+    }
+  ]
+}

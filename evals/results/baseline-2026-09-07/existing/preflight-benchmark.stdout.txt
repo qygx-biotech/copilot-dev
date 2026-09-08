@@ -1,0 +1,67 @@
+{
+  "benchmark": "150 unchanged synchronized source fixtures",
+  "runtime": "v24.18.1",
+  "platform": "darwin/arm64",
+  "iterations": 10,
+  "reconciliationMs": {
+    "median": 4.1492920000018785,
+    "p95": 4.418792000000394,
+    "min": 3.7130830000023707,
+    "max": 4.418792000000394
+  },
+  "mainAgentStartMs": {
+    "median": 4.192250000000058,
+    "p95": 4.468791999999667,
+    "min": 3.756375000000844,
+    "max": 4.468791999999667
+  },
+  "operations": {
+    "rawReads": 0,
+    "hashes": 0,
+    "cards": 0,
+    "qmdUpdates": 0
+  },
+  "limitations": "Real Electron ProjectFilesystem tree/stat and production registry/gate; synthetic source content, fixture setup parser/provider/QMD; no live provider or end-to-end answer latency measured.",
+  "samples": [
+    {
+      "reconciliationMs": 4.346624999998312,
+      "mainAgentStartMs": 4.424624999999651
+    },
+    {
+      "reconciliationMs": 3.7130830000023707,
+      "mainAgentStartMs": 3.756375000000844
+    },
+    {
+      "reconciliationMs": 3.772499999999127,
+      "mainAgentStartMs": 3.817957999999635
+    },
+    {
+      "reconciliationMs": 4.152083000000857,
+      "mainAgentStartMs": 4.1950419999993755
+    },
+    {
+      "reconciliationMs": 4.1149160000022675,
+      "mainAgentStartMs": 4.152875000003405
+    },
+    {
+      "reconciliationMs": 4.03595900000073,
+      "mainAgentStartMs": 4.074083999999857
+    },
+    {
+      "reconciliationMs": 4.418792000000394,
+      "mainAgentStartMs": 4.468791999999667
+    },
+    {
+      "reconciliationMs": 4.163958000001003,
+      "mainAgentStartMs": 4.216208000001643
+    },
+    {
+      "reconciliationMs": 4.1492920000018785,
+      "mainAgentStartMs": 4.192250000000058
+    },
+    {
+      "reconciliationMs": 3.819666999999754,
+      "mainAgentStartMs": 3.8520000000025902
+    }
+  ]
+}

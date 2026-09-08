@@ -1,0 +1,238 @@
+{
+  "caseId": "CW-ECTD_WORKFLOWS-07",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "根据文献 [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P131.pdf](biodesign-citation:citation-1) 的记录，以四氢嘧啶为底物时，P131 的 $K_m$ 值为 0.55 mM。",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "P131",
+          "sourceId": "P131",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "literature/P131.pdf",
+          "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P131",
+        "P117"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0,
+          "matchState": "novel",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 0,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "fast",
+        "escalated": false,
+        "reason": "medium-strong-exact-match"
+      }
+    },
+    "activity": [
+      "知识库已是最新",
+      "正在理解请求",
+      "正在检索证据",
+      "正在搜索本地证据...",
+      "本地搜索已就绪。",
+      "已采用快速检索结果。",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P117.pdf...",
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "请在 Side Chat 中查 P131 的 Km，只需直接查证，不要启动 Deep 或 Agent Command。",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:33:35.006Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788827596251-eac889046fa308",
+          "role": "user",
+          "content": "请在 Side Chat 中查 P131 的 Km，只需直接查证，不要启动 Deep 或 Agent Command。",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P131",
+              "P117"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0,
+                "matchState": "novel",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 0,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 2
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "fast",
+              "escalated": false,
+              "reason": "medium-strong-exact-match"
+            }
+          },
+          "createdAt": "2026-09-08T00:33:16.251Z"
+        },
+        {
+          "id": "1788827614987-91a93b1910db08",
+          "role": "assistant",
+          "content": "根据文献 [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P131.pdf](biodesign-citation:citation-1) 的记录，以四氢嘧啶为底物时，P131 的 $K_m$ 值为 0.55 mM。",
+          "activity": [
+            "知识库已是最新",
+            "正在理解请求",
+            "正在检索证据",
+            "正在搜索本地证据...",
+            "本地搜索已就绪。",
+            "已采用快速检索结果。",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P117.pdf...",
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "P131",
+              "sourceId": "P131",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P131.pdf",
+              "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-08T00:33:34.987Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 18736,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0,
+      "matchState": "novel",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 0,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 2
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "ca4f59deb35f2e9b3393bac5bd01eb8e7c9540cf3738552db670ca259bdcff82",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

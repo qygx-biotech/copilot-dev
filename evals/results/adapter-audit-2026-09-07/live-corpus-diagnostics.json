@@ -1,0 +1,660 @@
+{
+  "createdAt": "2026-09-08T00:43:45.802Z",
+  "role": "post-independent-judge-source-diagnostic",
+  "priorIndependentScores": {
+    "first": 2,
+    "repeat": 2,
+    "firstSha256": "8a99f2233488422b9902eda394d04215b709cfd814c280489ba76c162200c5fb",
+    "repeatSha256": "2aa48623a6c9c86ade61928169dac46f46f70e074a668969234309542c5df26c"
+  },
+  "boundary": "No new application query, provider call, score change, or production edit. Deterministic preview reconstruction is labeled and is not a captured deployed request or model tool-read history.",
+  "query": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+  "corpusScope": "entire-project",
+  "coverage": {
+    "papersDiscovered": 8,
+    "papersIncludedInSnapshot": 8,
+    "papersSuccessfullyPrepared": 8,
+    "papersPreparationCacheHits": 8,
+    "papersSuccessfullyAnalyzed": 8,
+    "papersFailed": 0,
+    "papersMissing": 0,
+    "includedPaperIds": [
+      "P17",
+      "P31",
+      "P52",
+      "P74",
+      "P83",
+      "P117",
+      "P131",
+      "P152"
+    ],
+    "preparedPaperIds": [
+      "P17",
+      "P31",
+      "P52",
+      "P74",
+      "P83",
+      "P117",
+      "P131",
+      "P152"
+    ],
+    "analyzedPaperIds": [
+      "P17",
+      "P31",
+      "P52",
+      "P74",
+      "P83",
+      "P117",
+      "P131",
+      "P152"
+    ],
+    "failedPaperIds": [],
+    "missingPaperIds": [],
+    "changedPaperIds": []
+  },
+  "stageEvidence": {
+    "cards": {
+      "P17": {
+        "model": "google/gemma-4-31b-it",
+        "generationMode": "combined-text",
+        "evidenceFindings": [
+          {
+            "claim": "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "Higher compressive modulus was associated with poorer shape retention.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          }
+        ],
+        "importantResults": [
+          "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+          "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+          "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+          "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+          "Higher compressive modulus was associated with poorer shape retention."
+        ],
+        "limitations": [
+          "Only two calcium concentrations and one cellulose fraction were evaluated",
+          "No cost, biodegradation, cytotoxicity, cell viability, or printer throughput data are available"
+        ]
+      },
+      "P31": {
+        "model": "google/gemma-4-31b-it",
+        "generationMode": "combined-text",
+        "evidenceFindings": [
+          {
+            "claim": "The average compressive modulus of the material is 48.0 kPa.",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          },
+          {
+            "claim": "The shape retention rate of the material is 94%.",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          },
+          {
+            "claim": "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          },
+          {
+            "claim": "The shape retention rate is 94%.",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          }
+        ],
+        "importantResults": [
+          "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+          "The shape retention rate is 94%.",
+          "The average compressive modulus of the material is 48.0 kPa.",
+          "The shape retention rate of the material is 94%."
+        ],
+        "limitations": [
+          "Differences in strain (15% vs 10%) and equilibrium duration (1 hour vs 24 hours) compared to P17 prevent assertions of superior material performance",
+          "Water absorption rate, cell viability, and cost were not reported"
+        ]
+      },
+      "P52": {
+        "model": "google/gemma-4-31b-it",
+        "generationMode": "combined-text",
+        "evidenceFindings": [
+          {
+            "claim": "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+            "evidenceRefs": [
+              "P52:p2:P52-P2-C1"
+            ]
+          },
+          {
+            "claim": "The hydrogel demonstrated 93% shape retention.",
+            "evidenceRefs": [
+              "P52:p2:P52-P2-C1"
+            ]
+          },
+          {
+            "claim": "The water uptake of the hydrogel was 12.5 g/g.",
+            "evidenceRefs": [
+              "P52:p2:P52-P2-C1"
+            ]
+          },
+          {
+            "claim": "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+            "evidenceRefs": [
+              "P52:p3:P52-P3-C1"
+            ]
+          },
+          {
+            "claim": "Water uptake increased from 10.0 to 12.5 g/g relative to P17.",
+            "evidenceRefs": [
+              "P52:p3:P52-P3-C1"
+            ]
+          }
+        ],
+        "importantResults": [
+          "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+          "Water uptake increased from 10.0 to 12.5 g/g relative to P17.",
+          "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+          "The hydrogel demonstrated 93% shape retention.",
+          "The water uptake of the hydrogel was 12.5 g/g."
+        ],
+        "limitations": [
+          "One of six sheets exhibited visible brittle cracking during handling",
+          "The study did not establish a crack-rate confidence interval",
+          "No living-cell or safety testing occurred"
+        ]
+      }
+    },
+    "maps": {
+      "P17": {
+        "generationMode": "paper-card-cache",
+        "findings": [
+          {
+            "claim": "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          },
+          {
+            "claim": "Higher compressive modulus was associated with poorer shape retention.",
+            "evidenceRefs": [
+              "P17:p2:P17-P2-C1"
+            ]
+          }
+        ],
+        "limitations": [
+          "Only two calcium concentrations and one cellulose fraction were evaluated",
+          "No cost, biodegradation, cytotoxicity, cell viability, or printer throughput data are available"
+        ]
+      },
+      "P31": {
+        "generationMode": "paper-card-cache",
+        "findings": [
+          {
+            "claim": "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          },
+          {
+            "claim": "The average compressive modulus of the material is 48.0 kPa.",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          },
+          {
+            "claim": "The shape retention rate of the material is 94%.",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          },
+          {
+            "claim": "The shape retention rate is 94%.",
+            "evidenceRefs": [
+              "P31:p2:P31-P2-C1"
+            ]
+          }
+        ],
+        "limitations": [
+          "Differences in strain (15% vs 10%) and equilibrium duration (1 hour vs 24 hours) compared to P17 prevent assertions of superior material performance",
+          "Water absorption rate, cell viability, and cost were not reported"
+        ]
+      },
+      "P52": {
+        "generationMode": "paper-card-cache",
+        "findings": [
+          {
+            "claim": "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+            "evidenceRefs": [
+              "P52:p3:P52-P3-C1"
+            ]
+          },
+          {
+            "claim": "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+            "evidenceRefs": [
+              "P52:p2:P52-P2-C1"
+            ]
+          },
+          {
+            "claim": "Water uptake increased from 10.0 to 12.5 g/g relative to P17.",
+            "evidenceRefs": [
+              "P52:p3:P52-P3-C1"
+            ]
+          },
+          {
+            "claim": "The hydrogel demonstrated 93% shape retention.",
+            "evidenceRefs": [
+              "P52:p2:P52-P2-C1"
+            ]
+          },
+          {
+            "claim": "The water uptake of the hydrogel was 12.5 g/g.",
+            "evidenceRefs": [
+              "P52:p2:P52-P2-C1"
+            ]
+          }
+        ],
+        "limitations": [
+          "One of six sheets exhibited visible brittle cracking during handling",
+          "The study did not establish a crack-rate confidence interval",
+          "No living-cell or safety testing occurred"
+        ]
+      }
+    },
+    "originalVerification": [
+      {
+        "claim": "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+        "supportingPaperIds": [
+          "P17"
+        ],
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P17:p2:P17-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape\nretention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample\nSD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+        "supportingPaperIds": [
+          "P17"
+        ],
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P17:p2:P17-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape\nretention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample\nSD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+        "supportingPaperIds": [
+          "P17"
+        ],
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P17:p2:P17-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape\nretention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample\nSD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+        "supportingPaperIds": [
+          "P17"
+        ],
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P17:p2:P17-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape\nretention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample\nSD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+        "supportingPaperIds": [
+          "P31"
+        ],
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P31:p2:P31-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0\nkPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The average compressive modulus of the material is 48.0 kPa.",
+        "supportingPaperIds": [
+          "P31"
+        ],
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P31:p2:P31-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0\nkPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The hydrogel demonstrated 93% shape retention.",
+        "supportingPaperIds": [
+          "P52"
+        ],
+        "evidenceRefs": [
+          "P52:p2:P52-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P52:p2:P52-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3. Mean compressive modulus 51.0 kPa, sample SD 3.0 kPa, n=6 independent sheets. Shape retention 93%; water uptake\n12.5 g/g. One of six sheets exhibited visible brittle cracking during handling. The study did not establish a crack-rate confidence\ninterval."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The hydrogel exhibited a mean compressive modulus of 51.0 kPa.",
+        "supportingPaperIds": [
+          "P52"
+        ],
+        "evidenceRefs": [
+          "P52:p2:P52-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P52:p2:P52-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3. Mean compressive modulus 51.0 kPa, sample SD 3.0 kPa, n=6 independent sheets. Shape retention 93%; water uptake\n12.5 g/g. One of six sheets exhibited visible brittle cracking during handling. The study did not establish a crack-rate confidence\ninterval."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The reported mean compressive modulus of 51.0 kPa is 9.0 kPa higher than the P17 reported mean of 42.0 kPa.",
+        "supportingPaperIds": [
+          "P52"
+        ],
+        "evidenceRefs": [
+          "P52:p3:P52-P3-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P52:p3:P52-P3-C1",
+            "page": 3,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nDiscussion. Relative to the P17 reported mean of 42.0 kPa, the reported mean is 9.0 kPa higher (approximately 21.43%). Water\nuptake also increases from 10.0 to 12.5 g/g. These cross-study descriptive comparisons do not establish statistical significance or\nuniversal superiority. No living-cell or safety testing occurred."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The shape retention rate is 94%.",
+        "supportingPaperIds": [
+          "P31"
+        ],
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P31:p2:P31-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0\nkPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The shape retention rate of the material is 94%.",
+        "supportingPaperIds": [
+          "P31"
+        ],
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P31:p2:P31-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0\nkPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "The water uptake of the hydrogel was 12.5 g/g.",
+        "supportingPaperIds": [
+          "P52"
+        ],
+        "evidenceRefs": [
+          "P52:p2:P52-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P52:p2:P52-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3. Mean compressive modulus 51.0 kPa, sample SD 3.0 kPa, n=6 independent sheets. Shape retention 93%; water uptake\n12.5 g/g. One of six sheets exhibited visible brittle cracking during handling. The study did not establish a crack-rate confidence\ninterval."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "Water uptake increased from 10.0 to 12.5 g/g relative to P17.",
+        "supportingPaperIds": [
+          "P52"
+        ],
+        "evidenceRefs": [
+          "P52:p3:P52-P3-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P52:p3:P52-P3-C1",
+            "page": 3,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nDiscussion. Relative to the P17 reported mean of 42.0 kPa, the reported mean is 9.0 kPa higher (approximately 21.43%). Water\nuptake also increases from 10.0 to 12.5 g/g. These cross-study descriptive comparisons do not establish statistical significance or\nuniversal superiority. No living-cell or safety testing occurred."
+          }
+        ],
+        "status": "original-evidence-located"
+      },
+      {
+        "claim": "Higher compressive modulus was associated with poorer shape retention.",
+        "supportingPaperIds": [
+          "P17"
+        ],
+        "evidenceRefs": [
+          "P17:p2:P17-P2-C1"
+        ],
+        "locatedEvidence": [
+          {
+            "evidenceRef": "P17:p2:P17-P2-C1",
+            "page": 2,
+            "excerpt": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape\nretention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample\nSD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented."
+          }
+        ],
+        "status": "original-evidence-located"
+      }
+    ],
+    "previewReconstruction": {
+      "entrypoint": "SourceResultStore.compact",
+      "serializedJournalCharacters": 165989,
+      "previewCharacters": 48643,
+      "firstP17MeanOffset": 5917,
+      "firstP52MeanOffset": 6901,
+      "firstP31N6Offset": 9787,
+      "firstP17N5Offset": 42950,
+      "firstP52N6IndependentSheetsOffset": 47732,
+      "verificationOffset": 35349,
+      "readWorkspaceItemDefaultCharacters": 12000,
+      "readWorkspaceItemMaximumCharacters": 16000,
+      "actualDeployedReadOffsets": null
+    },
+    "citations": [
+      {
+        "cacheState": "warm",
+        "citation": {
+          "id": "citation-1",
+          "reference": "local:1",
+          "sourceId": "catalog:local:1",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": ".biodesign/results/cba0eae8-0400-4765-87a3-23d4660a062f.json",
+          "contentHash": "",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "missing"
+        },
+        "fileExists": true,
+        "byteLength": 269544,
+        "sha256": "0ab0d646909cbfebc44e8045cba82348c734e0711ec3332ebd5bcd4ce2f96a69",
+        "registeredSource": null
+      },
+      {
+        "cacheState": "warm",
+        "citation": {
+          "id": "citation-1",
+          "reference": "local:1",
+          "sourceId": "catalog:local:1",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": ".biodesign/results/cb552341-42d0-4079-8f37-0b7def072c22.json",
+          "contentHash": "",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "missing"
+        },
+        "fileExists": true,
+        "byteLength": 269544,
+        "sha256": "0ffc04bd2e661edc7df185842830fb2b29a8a8ceaf8dc2faf1b5eccff4c4a923",
+        "registeredSource": null
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "coverage_not_question_completeness",
+      "conclusion": "The workflow prepared/analyzed8/8 project papers, including all three requested originals. Successful coverage does not establish that each requested metric/sample count survives the answer path. The natural query names three papers while corpusScope remains entire-project."
+    },
+    {
+      "id": "canonical_card_omission_then_reuse",
+      "conclusion": "P17 and P52 canonical evidence findings omit explicit sample counts; P31 retains n=6. P52 limitations mention one of six sheets cracked, but this is not represented as the requested sample-count finding. All maps reuse Paper Cards and preserve the same omissions. Verification still locates original text explicitly containing P17 n=5 and P52 n=6."
+    },
+    {
+      "id": "pagination_position_risk",
+      "conclusion": "The deterministic preview puts requested means and P31 n=6 within its first12k characters, while P17 n=5 and P52 n=6 occur beyond42k/47k. A first bounded read can expose the same asymmetry as the final answer. The logs report read_workspace_item/read_paper_evidence capabilities but omit offsets, pagination and returned tool content, so the exact model read history remains unproven."
+    },
+    {
+      "id": "derived_result_citation_identity_mismatch",
+      "conclusion": "Both result JSON files exist physically. The sole saved citation uses catalog:local:1, which is absent from the source registry. The FC catalog permits a derived item identity while host bindToWorkspace/navigation require a registered source identity. The saved citation is therefore missing/unresolvable. This diagnosis does not change the independent judge result or make the citation valid."
+    }
+  ],
+  "sourceReferences": [
+    {
+      "path": "docs/source-system.js",
+      "line": 1957,
+      "relevance": "Result compaction/preview ordering and first20 verification entries"
+    },
+    {
+      "path": "docs/source-system.js",
+      "line": 5945,
+      "relevance": "Canonical Paper Card map reuse"
+    },
+    {
+      "path": "docs/project-context-service.js",
+      "line": 1641,
+      "relevance": "Corpus result passed as derived local evidence item"
+    },
+    {
+      "path": "alibaba-fc/side-chat-agent.js",
+      "line": 1172,
+      "relevance": "Offset read default12000/max16000"
+    },
+    {
+      "path": "alibaba-fc/side-chat-agent.js",
+      "line": 939,
+      "relevance": "Fallback catalog:item source identity"
+    },
+    {
+      "path": "shared/source-citations.js",
+      "line": 54,
+      "relevance": "Host registry-bound citation validation"
+    }
+  ],
+  "artifactHashes": {
+    "journal": "5bbd45bfffe2a51d17fc55f93eaa30f26199bc642271a89d115f47e48fc9250d",
+    "registry": "23df045014c093b4e0de4897937072bc4fdadb532cdc830f30d0191f29d71c0a"
+  }
+}

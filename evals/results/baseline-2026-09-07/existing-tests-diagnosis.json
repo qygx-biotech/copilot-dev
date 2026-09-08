@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-07T23:34:10.218Z",
+  "scope": "Post-scoring diagnosis of six existing regression failures only. Failed output was inspected before related implementation. Original baseline files and production code were not edited.",
+  "baseline": {
+    "fc": {
+      "tests": 324,
+      "pass": 319,
+      "fail": 5
+    },
+    "desktop": {
+      "tests": 30,
+      "pass": 29,
+      "fail": 1
+    },
+    "qmd": {
+      "tests": 7,
+      "pass": 7,
+      "fail": 0
+    }
+  },
+  "conclusions": {
+    "fc": "All five failed streaming cases pass after permitting the local test server bind; no product defect reproduced by those cases.",
+    "desktop": "The original child process aborted during macOS application registration before renderer scenarios. Environment startup failure is strongly supported; a renderer pass has not yet been verified because the parent agent is using the live UI.",
+    "productDefectsEstablishedByTheseFailures": 0,
+    "originalScoresUnchanged": true
+  },
+  "failures": [
+    {
+      "baselineTestNumber": 300,
+      "name": "the HTTP streaming adapter preserves authentication and validation before opening SSE",
+      "source": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/alibaba-fc/test/streaming.test.js:72:1",
+      "baselineOutputLine": 54342,
+      "baselineError": "listen EPERM: operation not permitted 127.0.0.1",
+      "classification": "environment_confirmed",
+      "confidence": "high",
+      "cause": "The fixture attempts a loopback server bind while filesystem/network sandbox restrictions are active. The bind fails before the callback containing product assertions begins.",
+      "causeSource": "alibaba-fc/test/streaming.test.js:64-68",
+      "diagnosticRerun": {
+        "result": "pass",
+        "environmentChange": "Authorized require_escalated execution; same Electron executable in ELECTRON_RUN_AS_NODE=1 mode.",
+        "productionChanges": false
+      }
+    },
+    {
+      "baselineTestNumber": 301,
+      "name": "real HTTP delivery streams before completion, runs tool calls, and finalizes verified citations",
+      "source": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/alibaba-fc/test/streaming.test.js:84:1",
+      "baselineOutputLine": 54357,
+      "baselineError": "listen EPERM: operation not permitted 127.0.0.1",
+      "classification": "environment_confirmed",
+      "confidence": "high",
+      "cause": "The fixture attempts a loopback server bind while filesystem/network sandbox restrictions are active. The bind fails before the callback containing product assertions begins.",
+      "causeSource": "alibaba-fc/test/streaming.test.js:64-68",
+      "diagnosticRerun": {
+        "result": "pass",
+        "environmentChange": "Authorized require_escalated execution; same Electron executable in ELECTRON_RUN_AS_NODE=1 mode.",
+        "productionChanges": false
+      }
+    },
+    {
+      "baselineTestNumber": 302,
+      "name": "Agent Command streams readable reply text while its structured result waits for validation",
+      "source": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/alibaba-fc/test/streaming.test.js:118:1",
+      "baselineOutputLine": 54372,
+      "baselineError": "listen EPERM: operation not permitted 127.0.0.1",
+      "classification": "environment_confirmed",
+      "confidence": "high",
+      "cause": "The fixture attempts a loopback server bind while filesystem/network sandbox restrictions are active. The bind fails before the callback containing product assertions begins.",
+      "causeSource": "alibaba-fc/test/streaming.test.js:64-68",
+      "diagnosticRerun": {
+        "result": "pass",
+        "environmentChange": "Authorized require_escalated execution; same Electron executable in ELECTRON_RUN_AS_NODE=1 mode.",
+        "productionChanges": false
+      }
+    },
+    {
+      "baselineTestNumber": 303,
+      "name": "disconnecting the app aborts the in-flight provider request",
+      "source": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/alibaba-fc/test/streaming.test.js:133:1",
+      "baselineOutputLine": 54387,
+      "baselineError": "listen EPERM: operation not permitted 127.0.0.1",
+      "classification": "environment_confirmed",
+      "confidence": "high",
+      "cause": "The fixture attempts a loopback server bind while filesystem/network sandbox restrictions are active. The bind fails before the callback containing product assertions begins.",
+      "causeSource": "alibaba-fc/test/streaming.test.js:64-68",
+      "diagnosticRerun": {
+        "result": "pass",
+        "environmentChange": "Authorized require_escalated execution; same Electron executable in ELECTRON_RUN_AS_NODE=1 mode.",
+        "productionChanges": false
+      }
+    },
+    {
+      "baselineTestNumber": 304,
+      "name": "a truncated provider reply produces an HTTP stream error, never a completed fallback",
+      "source": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/alibaba-fc/test/streaming.test.js:152:1",
+      "baselineOutputLine": 54402,
+      "baselineError": "listen EPERM: operation not permitted 127.0.0.1",
+      "classification": "environment_confirmed",
+      "confidence": "high",
+      "cause": "The fixture attempts a loopback server bind while filesystem/network sandbox restrictions are active. The bind fails before the callback containing product assertions begins.",
+      "causeSource": "alibaba-fc/test/streaming.test.js:64-68",
+      "diagnosticRerun": {
+        "result": "pass",
+        "environmentChange": "Authorized require_escalated execution; same Electron executable in ELECTRON_RUN_AS_NODE=1 mode.",
+        "productionChanges": false
+      }
+    },
+    {
+      "baselineTestNumber": 30,
+      "name": "Side Chat editor and citation navigation behave correctly in the sandboxed Electron renderer",
+      "source": "desktop/test/side-chat-renderer.test.mjs:9",
+      "baselineOutput": "existing/desktop-regressions.stdout.txt:333-352",
+      "baselineError": "execFile Electron child failed without fixture stderr or SIDE_CHAT_RESULT output.",
+      "classification": "environment_likely",
+      "confidence": "high_for_native_startup_failure; sandbox_cause_not_yet_rerun_confirmed",
+      "cause": "Matching macOS crash report records SIGABRT while registering the NSApplication, before the JavaScript fixture can execute its behavior scenarios.",
+      "relevantCode": [
+        {
+          "source": "desktop/test/side-chat-renderer.test.mjs:13-15",
+          "detail": "Deletes ELECTRON_RUN_AS_NODE and launches GUI Electron as child."
+        },
+        {
+          "source": "desktop/test/side-chat-renderer.test.mjs:11",
+          "detail": "Display availability skip only covers Linux with missing DISPLAY; macOS launch restrictions are not preflighted."
+        },
+        {
+          "source": "desktop/test/side-chat-fixture/main.cjs:8-10",
+          "detail": "Independent temporary userData profile; background networking disabled."
+        },
+        {
+          "source": "desktop/test/side-chat-fixture/main.cjs:105-106",
+          "detail": "Waits for app readiness and creates hidden sandboxed BrowserWindow."
+        },
+        {
+          "source": "desktop/test/side-chat-fixture/main.cjs:119-121",
+          "detail": "Behavior scenarios execute only after renderer startup and fixture loading."
+        }
+      ],
+      "crashEvidence": {
+        "source": "/Users/wei/Library/Logs/DiagnosticReports/Electron-2026-09-07-192846.ips",
+        "launchTime": "2026-09-07 19:28:41.1716 -0400",
+        "captureTime": "2026-09-07 19:28:41.6332 -0400",
+        "processId": 464,
+        "electronVersion": "44.0.0",
+        "exception": "EXC_CRASH",
+        "signal": "SIGABRT",
+        "termination": "Abort trap: 6",
+        "relevantFrames": [
+          "___RegisterApplication_block_invoke",
+          "_RegisterApplication",
+          "_NSInitializeAppContext",
+          "-[NSApplication init]",
+          "+[NSApplication sharedApplication]"
+        ],
+        "note": "Native crash timing matches baseline test start (19:28:41) and approximately 408 ms duration. Raw OS report is not copied, to avoid unrelated device metadata."
+      },
+      "diagnosticRerun": {
+        "result": "not_run_pending_parent_ui_coordination",
+        "reason": "Parent explicitly requested no Electron GUI launch during concurrent live UI evaluation."
+      }
+    }
+  ],
+  "reruns": [
+    {
+      "id": "fc-streaming-loopback-permitted",
+      "command": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --test --test-reporter=tap '--test-name-pattern=the HTTP streaming adapter|real HTTP delivery|Agent Command streams|disconnecting the app|a truncated provider reply produces' alibaba-fc/test/streaming.test.js",
+      "authorization": "require_escalated accepted for loopback-only fixture test",
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "exitCode": 0,
+      "stdout": "fc-streaming-diagnostic-rerun.stdout.txt",
+      "stderr": "fc-streaming-diagnostic-rerun.stderr.txt",
+      "provider": "Mocked in streaming.test.js; no live model invoked.",
+      "productionChanges": false
+    }
+  ],
+  "protocolAssumptions": [
+    {
+      "classification": "environment_prerequisite",
+      "sources": [
+        "alibaba-fc/test/streaming.test.js:64-68",
+        "evals/run.mjs:37-52"
+      ],
+      "finding": "The runner records test failures faithfully but does not distinguish loopback permission errors from product assertion failures. Report them as blocked infrastructure coverage until a permitted rerun; do not count them as passing in the frozen baseline."
+    },
+    {
+      "classification": "controlled_provider_coverage_limit",
+      "sources": [
+        "alibaba-fc/test/streaming.test.js:7-12",
+        "alibaba-fc/test/streaming.test.js:88-97",
+        "alibaba-fc/test/streaming.test.js:121-123",
+        "alibaba-fc/test/streaming.test.js:137-143",
+        "alibaba-fc/test/streaming.test.js:154-155"
+      ],
+      "finding": "The HTTP adapter, authentication, streaming parser, event ordering, cancellation, and final citation plumbing are exercised with synthetic provider frames and fixture credentials. A pass does not establish real provider compliance, deployed FC streaming behavior, proxy buffering, model answer quality, or real source evidence quality."
+    },
+    {
+      "classification": "renderer_harness_coverage_limit",
+      "sources": [
+        "desktop/test/side-chat-fixture/main.cjs:15-29",
+        "desktop/test/side-chat-fixture/main.cjs:50-54",
+        "desktop/test/side-chat-fixture/main.cjs:65-99",
+        "desktop/test/side-chat-fixture/main.cjs:109"
+      ],
+      "finding": "The fixture extracts production UI functions into a minimal HTML page, while persistence, workspace catalog, context construction, network responses, recommendation normalization, and some event dependencies are mocked. These choices can hide integration defects even when renderer checks pass; no actual hidden integration defect is established by this failure."
+    },
+    {
+      "classification": "native_startup_coverage_limit",
+      "sources": [
+        "desktop/test/side-chat-renderer.test.mjs:11-20"
+      ],
+      "finding": "Linux without DISPLAY is skipped, while macOS native startup failures reject execFile before its result assertions. The current baseline does not silently pass or skip this failure. A GUI-capable environment is necessary to assess the 43 renderer scenarios."
+    },
+    {
+      "classification": "existing_suite_scope",
+      "sources": [
+        "evals/run.mjs:57-64"
+      ],
+      "finding": "Existing desktop coverage is an explicit six-file subset rather than the complete desktop test directory. Retrieval replay uses the --fixture lexical model. Passing totals are scoped to selected controlled regression tests and should not be described as an end-to-end production certification."
+    }
+  ],
+  "baselineArtifactSha256AfterDiagnosis": {
+    "baseline.json": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+    "existing/fc-regressions.stdout.txt": "f92f86ad9ed84cdcc4f21e6917b9fbc32d6741606926a186e2f6da547aba6446",
+    "existing/fc-regressions.stderr.txt": "e8b1b5828c51f6fc4859126cf3a6ac89bcfbd6e7023b36e0ac1636c0e7b1ee19",
+    "existing/desktop-regressions.stdout.txt": "447164182339a134d35d404a7f9caf53e24d790c26e4d880e41a753547a4fb63",
+    "existing/desktop-regressions.stderr.txt": "f67fac48b0c9c9715b245ce44865af8e1ac2bcc1349caa9d62a696bea1c308bf",
+    "existing/summary.json": "eb57e2d7039d416613bd590d9e11b7c67bfe3f8926f2f0566c8427310aa28b8c"
+  },
+  "productionEdits": [],
+  "originalBaselineEdits": []
+}

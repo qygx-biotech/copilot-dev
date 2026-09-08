@@ -1,0 +1,11 @@
+=== PAGE 1 | P83:p1:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+论文 P83，虚构作者周澄。2026 年合成文献。配方为海藻酸钠 2.0% 和纤维素 1.2%，氯化钙 50 mmol/L 固化 10 分钟。研究对象是不含活细胞的材料。
+
+=== PAGE 2 | P83:p2:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+表 1：4°C 储存 7 天后，湿态 24 小时平衡、10% 应变下，压缩模量均值为 46.0 kPa，样本标准差 2.0 kPa，n=4。形状保持率 95%。同批新鲜样品均值为 50.0 kPa，n=4。报告的均值下降为 4.0 kPa，即 8.0%。
+
+=== PAGE 3 | P83:p3:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+限制：没有进行冻融循环；没有测量细胞存活或微生物污染。7 天冷藏结果不能推广至冷冻条件或长期储存。

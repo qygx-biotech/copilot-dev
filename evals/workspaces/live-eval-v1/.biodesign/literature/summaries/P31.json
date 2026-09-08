@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P31",
+  "documentId": "P31",
+  "fileName": "P31.pdf",
+  "generatedAt": "2026-09-07T23:43:54.223Z",
+  "source": {
+    "filename": "P31.pdf",
+    "relativePath": "literature/P31.pdf",
+    "size": 100734,
+    "lastModified": "1788824298379338373",
+    "hash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+    "pageCount": 3,
+    "processedCharacters": 720,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 4,
+    "nativeEvidenceCitationsVerified": 4,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 4,
+    "evidenceFindingsVerified": 4,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P31\",\"contentHash\":\"sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "CelluWeave B：湿态压缩条件与测量时点",
+  "authors": [
+    "陈禾",
+    "林沐"
+  ],
+  "year": 2025,
+  "abstractSummary": null,
+  "researchQuestion": "Evaluation of the compressive modulus and shape retention of a hydrogel formulation consisting of sodium alginate and cellulose.",
+  "mainFindings": [
+    "The average compressive modulus of the material is 48.0 kPa.",
+    "The shape retention rate of the material is 94%.",
+    "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+    "The shape retention rate is 94%."
+  ],
+  "methods": [
+    "Preparation of a formulation with 2.0% (w/v) sodium alginate and 0.8% (w/v) cellulose",
+    "Crosslinking using 50 mmol/L calcium chloride for 10 minutes",
+    "Equilibration in a wet state for 1 hour",
+    "Measurement of compressive modulus at 15% strain"
+  ],
+  "methodsSummary": "The study utilized a hydrogel composed of 2.0% (w/v) sodium alginate and 0.8% (w/v) cellulose, cured with 50 mmol/L calcium chloride for 10 minutes. After 1 hour of wet state equilibrium, the compressive modulus was measured at 15% strain.",
+  "organisms": [],
+  "genes": [],
+  "proteins": [],
+  "pathways": [],
+  "metabolites": [],
+  "experimentalConditions": [
+    "Sodium alginate 2.0% (w/v)",
+    "Cellulose 0.8% (w/v)",
+    "Calcium chloride 50 mmol/L",
+    "Curing time: 10 minutes",
+    "Wet state equilibrium: 1 hour",
+    "Strain: 15%"
+  ],
+  "measurements": [
+    "Compressive modulus",
+    "Shape retention rate"
+  ],
+  "importantResults": [
+    "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+    "The shape retention rate is 94%.",
+    "The average compressive modulus of the material is 48.0 kPa.",
+    "The shape retention rate of the material is 94%."
+  ],
+  "limitations": [
+    "Differences in strain (15% vs 10%) and equilibrium duration (1 hour vs 24 hours) compared to P17 prevent assertions of superior material performance",
+    "Water absorption rate, cell viability, and cost were not reported"
+  ],
+  "keywords": [],
+  "topics": [
+    "Hydrogels",
+    "Compressive modulus",
+    "Sodium alginate",
+    "Cellulose"
+  ],
+  "shortSummary": "This study reports that a hydrogel formulation of 2.0% sodium alginate and 0.8% cellulose, crosslinked with 50 mmol/L calcium chloride, exhibits an average compressive modulus of 48.0 kPa at 15% strain and a shape retention rate of 94%.",
+  "summary": "This study reports that a hydrogel formulation of 2.0% sodium alginate and 0.8% cellulose, crosslinked with 50 mmol/L calcium chloride, exhibits an average compressive modulus of 48.0 kPa at 15% strain and a shape retention rate of 94%.",
+  "keyResults": [
+    "The average compressive modulus of the material is 48.0 kPa.",
+    "The shape retention rate of the material is 94%.",
+    "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+    "The shape retention rate is 94%."
+  ],
+  "mainConclusion": "The specified sodium alginate and cellulose formulation results in a material with a compressive modulus of 48.0 kPa and 94% shape retention under the tested conditions.",
+  "evidenceFindings": [
+    {
+      "claim": "The average compressive modulus of the material is 48.0 kPa.",
+      "evidenceRefs": [
+        "P31:p2:P31-P2-C1"
+      ]
+    },
+    {
+      "claim": "The shape retention rate of the material is 94%.",
+      "evidenceRefs": [
+        "P31:p2:P31-P2-C1"
+      ]
+    },
+    {
+      "claim": "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+      "evidenceRefs": [
+        "P31:p2:P31-P2-C1"
+      ]
+    },
+    {
+      "claim": "The shape retention rate is 94%.",
+      "evidenceRefs": [
+        "P31:p2:P31-P2-C1"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,5 @@
 import {
   app,
-  autoUpdater,
   BrowserWindow,
   dialog,
   ipcMain,
@@ -15,8 +14,8 @@ import channels from "../ipc/channels.cjs";
 import { ProjectSessionManager } from "../services/project-session.mjs";
 import {
   BIO_DESIGN_APP_USER_MODEL_ID,
-  getBetaUpdateEligibility,
-  startWindowsAutoUpdates,
+  getWindowsUpdateEligibility,
+  startWindowsBinaryUpdates,
 } from "./windows-updater.mjs";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -130,7 +129,7 @@ async function runSmoke(window) {
     window.webContents.once("did-fail-load", (_event, code, description) => reject(new Error(`${code}: ${description}`)));
   });
   const runtime = await window.webContents.executeJavaScript("window.biodesignDesktop.runtime.info()");
-  const betaUpdates = getBetaUpdateEligibility({
+  const updates = getWindowsUpdateEligibility({
     platform: process.platform,
     packaged: app.isPackaged,
     version: app.getVersion(),
@@ -139,13 +138,13 @@ async function runSmoke(window) {
   });
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
     const deadline = Date.now() + 5000;
-    const waitForBetaState = () => {
+    const waitForUpdateState = () => {
       const button = document.getElementById("betaUpdateButton");
-      if (button && button.disabled === ${!betaUpdates.eligible}) return resolve(true);
-      if (Date.now() >= deadline) return reject(new Error("Beta update button state did not initialize."));
-      window.setTimeout(waitForBetaState, 25);
+      if (button && button.disabled === ${!updates.eligible}) return resolve(true);
+      if (Date.now() >= deadline) return reject(new Error("Update button state did not initialize."));
+      window.setTimeout(waitForUpdateState, 25);
     };
-    waitForBetaState();
+    waitForUpdateState();
   })`);
   const headerLayout = await window.webContents.executeJavaScript(`(() => {
     const shell = document.getElementById("appShell");
@@ -173,10 +172,10 @@ async function runSmoke(window) {
     title: document.title,
     loginVisible: !document.getElementById("loginPanel")?.hidden,
     aboutButtonCount: document.querySelectorAll(".about-trigger").length,
-    betaButtonPresent: Boolean(document.getElementById("betaUpdateButton")),
+    updateButtonPresent: Boolean(document.getElementById("betaUpdateButton")),
     debugConsolePresent: Boolean(document.getElementById("debugConsoleOutput")) && typeof window.BioDesignRuntimeLog?.record === "function",
     debugConsoleButtonCount: document.querySelectorAll("[data-debug-open]").length,
-    betaButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true,
+    updateButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true,
     retrievalProfilePresent: Boolean(document.getElementById("retrievalProfileSelect")),
     retrievalProfileValue: document.getElementById("retrievalProfileSelect")?.value,
     retrievalProfileOptions: [...(document.getElementById("retrievalProfileSelect")?.options || [])]
@@ -191,9 +190,9 @@ async function runSmoke(window) {
     rendererLoaded: renderer.bridge &&
       acceptedSmokeTitles.has(renderer.title) &&
       renderer.aboutButtonCount === 3 &&
-      renderer.betaButtonPresent &&
+      renderer.updateButtonPresent &&
       renderer.debugConsolePresent && renderer.debugConsoleButtonCount === 3 &&
-      renderer.betaButtonDisabled === !betaUpdates.eligible &&
+      renderer.updateButtonDisabled === !updates.eligible &&
       renderer.retrievalProfilePresent &&
       renderer.retrievalProfileValue === "light" &&
       JSON.stringify(renderer.retrievalProfileOptions) === JSON.stringify(["light", "medium", "high"]) &&
@@ -266,11 +265,11 @@ app.whenReady().then(async () => {
     }
   });
   if (!smokeTest) {
-    updaterController = startWindowsAutoUpdates({
+    updaterController = startWindowsBinaryUpdates({
       app,
-      autoUpdater,
       dialog,
       processArguments: process.argv,
+      updateDirectory: path.join(app.getPath("userData"), "updates"),
       getWorkState: () => ({
         projectOpen: Boolean(sessionManager?.active),
         runningJobs: sessionManager?.hasRunningJobs() || false,
@@ -278,10 +277,10 @@ app.whenReady().then(async () => {
       prepareForUpdate: async () => {
         await sessionManager?.close();
       },
-      onBetaStatus: (status) => {
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channels.betaUpdateStatus, status);
+      onUpdateStatus: (status) => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channels.updateStatus, status);
       },
-      logEvent: (event) => { void log(event); },
+      logEvent: (event, details) => { void log(event, details); },
     });
   }
   unregisterHandlers = registerIpcHandlers({
@@ -298,7 +297,7 @@ app.whenReady().then(async () => {
       packaged: app.isPackaged,
       platform: process.platform,
       architecture: process.arch,
-      betaUpdates: updaterController?.getBetaUpdateCapability() || getBetaUpdateEligibility({
+      updates: updaterController?.getUpdateCapability() || getWindowsUpdateEligibility({
         platform: process.platform,
         packaged: app.isPackaged,
         version: app.getVersion(),

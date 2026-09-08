@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "1",
+  "artifactType": "evaluation_scorer_correction_per_case_deltas",
+  "scoreVersion": "1.0.1",
+  "previousScoreVersion": "1.0.0",
+  "createdAt": "2026-09-07T23:57:34.213Z",
+  "baseline": "baseline.json",
+  "baselineRunId": "2026-09-07T23-24-41-852Z",
+  "baselineSha256": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "rawObservationsSha256": "020d83630e87d582406a0531303d220d3ddcedf29ec1a8c04085ed8d0bd46c75",
+  "archivedScorer": {
+    "path": "../adapter-audit-2026-09-07/scoring.v1.0.0.mjs",
+    "sha256": "17bce606eb158d4576e53c5ce09c9ebdef48f7146fd1853e80f0df1acb2b15b1"
+  },
+  "correctedScorer": {
+    "path": "../../lib/scoring.mjs",
+    "sha256": "16f9688a7b05228e3312721bd5508be084d882615e0c3931988904d22b6f6262"
+  },
+  "correction": "Disambiguate multiple same-field/same-operation grouped entries by their declared single grouping field and singleton equality filter. The production ontology explicitly aliases variant to mutation. Numeric values are not used for identity; filter, grouping, row and value correctness remain separately scored.",
+  "scope": "Evaluation implementation correction only. Recomputed from exactly the immutable baseline observations and frozen testCases; no new application execution, production change, expected-answer retuning, tolerance change, aggregate summary replacement, or baseline rewrite.",
+  "perCaseDeltas": [
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "repeat": 0,
+      "cacheState": "cold",
+      "metricDeltas": {
+        "experiment.unitAccuracy": {
+          "before": 0,
+          "after": 1,
+          "delta": 1
+        },
+        "experiment.aggregationAccuracy": {
+          "before": 0,
+          "after": 1,
+          "delta": 1
+        },
+        "experiment.fieldAccuracy": {
+          "before": 0,
+          "after": 1,
+          "delta": 1
+        }
+      },
+      "entryDeltas": [
+        {
+          "name": "A163V_mean_titer",
+          "matched": {
+            "before": false,
+            "after": true
+          },
+          "fields": {
+            "unit": {
+              "before": false,
+              "after": true
+            },
+            "aggregation": {
+              "before": false,
+              "after": true
+            },
+            "field": {
+              "before": false,
+              "after": true
+            }
+          }
+        },
+        {
+          "name": "T212S_mean_titer",
+          "matched": {
+            "before": false,
+            "after": true
+          },
+          "fields": {
+            "unit": {
+              "before": false,
+              "after": true
+            },
+            "aggregation": {
+              "before": false,
+              "after": true
+            },
+            "field": {
+              "before": false,
+              "after": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "repeat": 1,
+      "cacheState": "warm",
+      "metricDeltas": {
+        "experiment.unitAccuracy": {
+          "before": 0,
+          "after": 1,
+          "delta": 1
+        },
+        "experiment.aggregationAccuracy": {
+          "before": 0,
+          "after": 1,
+          "delta": 1
+        },
+        "experiment.fieldAccuracy": {
+          "before": 0,
+          "after": 1,
+          "delta": 1
+        }
+      },
+      "entryDeltas": [
+        {
+          "name": "A163V_mean_titer",
+          "matched": {
+            "before": false,
+            "after": true
+          },
+          "fields": {
+            "unit": {
+              "before": false,
+              "after": true
+            },
+            "aggregation": {
+              "before": false,
+              "after": true
+            },
+            "field": {
+              "before": false,
+              "after": true
+            }
+          }
+        },
+        {
+          "name": "T212S_mean_titer",
+          "matched": {
+            "before": false,
+            "after": true
+          },
+          "fields": {
+            "unit": {
+              "before": false,
+              "after": true
+            },
+            "aggregation": {
+              "before": false,
+              "after": true
+            },
+            "field": {
+              "before": false,
+              "after": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "invariants": {
+    "all192ObservationsRescored": true,
+    "allHardChecksAndHardFailuresUnchanged": true,
+    "allExactFulfillmentScoresUnchanged": true,
+    "changedCasesValueAndExactRemainZero": true,
+    "unaffectedObservationCount": 190,
+    "protectedFilesUnchanged": {
+      "evals/results/baseline-2026-09-07/baseline.json": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+      "evals/results/baseline-2026-09-07/summary.json": "b8aa86735e7df3d7de600a6ceca5f00db48fdf70a0430a99dc9ebd0e42a8afb3",
+      "evals/results/baseline-2026-09-07/frozen-cases.jsonl": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e",
+      "evals/biodesign-eval-v1/cases.jsonl": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e"
+    }
+  },
+  "futureComparisonRule": "Numeric report comparison now requires matching declared scorer versions. This sidecar records evaluator correction deltas and is not evidence of a production improvement; rescore both original observations into separate artifacts under one scorer version before comparing production candidates.",
+  "validation": {
+    "command": "node --test evals/test/scoring.test.mjs",
+    "passed": 27,
+    "failed": 0,
+    "appOrElectronExecution": false
+  }
+}

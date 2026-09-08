@@ -1,0 +1,932 @@
+{
+  "schemaVersion": 1,
+  "normalizerVersion": "canonical-tabular-v2",
+  "sourceId": "X03",
+  "contentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+  "sheets": [
+    {
+      "name": "EctD",
+      "rows": [
+        [
+          "行号",
+          "突变体",
+          "滴度 (g/L)",
+          "比活性 (U/mg)",
+          "得率 (g/g)",
+          "生产强度 (g/L/h)",
+          "温度 (°C)",
+          "状态"
+        ],
+        [
+          "X03-R1",
+          "A163V",
+          4.8,
+          1.8,
+          0.4,
+          0.1,
+          30,
+          "已完成"
+        ],
+        [
+          "X03-R2",
+          "A163V",
+          4.9,
+          1.9,
+          0.42,
+          0.10208333333333335,
+          30,
+          "已完成"
+        ],
+        [
+          "X03-R3",
+          "T212S",
+          4.1,
+          2.2,
+          0.5,
+          0.08541666666666665,
+          35,
+          "已完成"
+        ],
+        [
+          "X03-R4",
+          "T212S",
+          4.3,
+          2.3,
+          0.52,
+          0.08958333333333333,
+          35,
+          "已完成"
+        ]
+      ]
+    }
+  ],
+  "schemas": [
+    {
+      "version": 1,
+      "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+      "sourceId": "X03",
+      "sheet": "EctD",
+      "columns": [
+        {
+          "rawHeader": "行号",
+          "sourceLanguage": "zh",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c1",
+          "columnIndex": 0,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:c4b8b0612fdd2ca1:232",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"行号\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"行号\",\"突变体\",\"滴度 (g/L)\"],\"valueTypes\":[\"string\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "string"
+          ],
+          "examples": [
+            "X03-R1",
+            "X03-R2",
+            "X03-R3"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "突变体",
+          "sourceLanguage": "zh",
+          "canonicalField": "mutation",
+          "candidateFields": [],
+          "dataType": "string",
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c2",
+          "columnIndex": 1,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:464caa0b539b50ff:246",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"突变体\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"行号\",\"突变体\",\"滴度 (g/L)\",\"比活性 (U/mg)\"],\"valueTypes\":[\"string\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "string"
+          ],
+          "examples": [
+            "A163V",
+            "A163V",
+            "T212S"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "滴度 (g/L)",
+          "sourceLanguage": "zh",
+          "canonicalField": "titer",
+          "candidateFields": [],
+          "dataType": "number",
+          "canonicalUnit": "g/L",
+          "unit": "g/L",
+          "normalizedUnit": "g/L",
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c3",
+          "columnIndex": 2,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:432bb63df302241:263",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"滴度 (g/L)\",\"occurrence\":0,\"unit\":\"g/L\",\"units\":[],\"neighbors\":[\"行号\",\"突变体\",\"滴度 (g/L)\",\"比活性 (U/mg)\",\"得率 (g/g)\"],\"valueTypes\":[\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "number"
+          ],
+          "examples": [
+            "4.8",
+            "4.9",
+            "4.1"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "比活性 (U/mg)",
+          "sourceLanguage": "zh",
+          "canonicalField": "specific_activity",
+          "candidateFields": [],
+          "dataType": "number",
+          "canonicalUnit": "U/mg",
+          "unit": "U/mg",
+          "normalizedUnit": "U/mg",
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c4",
+          "columnIndex": 3,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:974fa55a1688a9fe:276",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"比活性 (U/mg)\",\"occurrence\":0,\"unit\":\"U/mg\",\"units\":[],\"neighbors\":[\"突变体\",\"滴度 (g/L)\",\"比活性 (U/mg)\",\"得率 (g/g)\",\"生产强度 (g/L/h)\"],\"valueTypes\":[\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "number"
+          ],
+          "examples": [
+            "1.8",
+            "1.9",
+            "2.2"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "得率 (g/g)",
+          "sourceLanguage": "zh",
+          "canonicalField": "yield",
+          "candidateFields": [],
+          "dataType": "number",
+          "canonicalUnit": "g/g",
+          "unit": "g/g",
+          "normalizedUnit": "g/g",
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c5",
+          "columnIndex": 4,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:c72867d530510a81:277",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"得率 (g/g)\",\"occurrence\":0,\"unit\":\"g/g\",\"units\":[],\"neighbors\":[\"滴度 (g/L)\",\"比活性 (U/mg)\",\"得率 (g/g)\",\"生产强度 (g/L/h)\",\"温度 (°C)\"],\"valueTypes\":[\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "number"
+          ],
+          "examples": [
+            "0.4",
+            "0.42",
+            "0.5"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "生产强度 (g/L/h)",
+          "sourceLanguage": "zh",
+          "canonicalField": "productivity",
+          "candidateFields": [],
+          "dataType": "number",
+          "canonicalUnit": "g/L/h",
+          "unit": "g/L/h",
+          "normalizedUnit": "g/L/h",
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c6",
+          "columnIndex": 5,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:9ae5cdc18edf7b15:277",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"生产强度 (g/L/h)\",\"occurrence\":0,\"unit\":\"g/L/h\",\"units\":[],\"neighbors\":[\"比活性 (U/mg)\",\"得率 (g/g)\",\"生产强度 (g/L/h)\",\"温度 (°C)\",\"状态\"],\"valueTypes\":[\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "number"
+          ],
+          "examples": [
+            "0.1",
+            "0.10208333333333335",
+            "0.08541666666666665"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "温度 (°C)",
+          "sourceLanguage": "zh",
+          "canonicalField": "temperature",
+          "candidateFields": [],
+          "dataType": "number",
+          "canonicalUnit": "degC",
+          "unit": "°C",
+          "normalizedUnit": "degC",
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c7",
+          "columnIndex": 6,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:2f1901098305299:256",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"温度 (°C)\",\"occurrence\":0,\"unit\":\"°C\",\"units\":[],\"neighbors\":[\"得率 (g/g)\",\"生产强度 (g/L/h)\",\"温度 (°C)\",\"状态\"],\"valueTypes\":[\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "number"
+          ],
+          "examples": [
+            "30",
+            "30",
+            "35"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "状态",
+          "sourceLanguage": "zh",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c8",
+          "columnIndex": 7,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:fd0ca1417d0e79:185",
+          "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+          "mappingKey": "schema-v1:c832877f347d323f:240",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X03\",\"sheet\":\"EctD\",\"rawHeader\":\"状态\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"生产强度 (g/L/h)\",\"温度 (°C)\",\"状态\"],\"valueTypes\":[\"string\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "string"
+          ],
+          "examples": [
+            "已完成",
+            "已完成",
+            "已完成"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        }
+      ]
+    }
+  ],
+  "records": [
+    {
+      "experimentId": "X03-R1",
+      "sourceId": "X03",
+      "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+      "raw": {
+        "column_1": "X03-R1",
+        "column_2": "A163V",
+        "(g_L)": 4.8,
+        "(U_mg)": 1.8,
+        "(g_g)": 0.4,
+        "(g_L_h)": 0.1,
+        "(_C)": 30,
+        "column_8": "已完成"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "行号",
+          "rawValue": "X03-R1",
+          "canonicalField": null,
+          "normalizedValue": "X03-R1",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "突变体",
+          "rawValue": "A163V",
+          "canonicalField": "mutation",
+          "normalizedValue": "A163V",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "滴度 (g/L)",
+          "rawValue": 4.8,
+          "canonicalField": "titer",
+          "normalizedValue": 4.8,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L",
+          "normalizedUnit": "g/L",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "比活性 (U/mg)",
+          "rawValue": 1.8,
+          "canonicalField": "specific_activity",
+          "normalizedValue": 1.8,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "U/mg",
+          "normalizedUnit": "U/mg",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "得率 (g/g)",
+          "rawValue": 0.4,
+          "canonicalField": "yield",
+          "normalizedValue": 0.4,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/g",
+          "normalizedUnit": "g/g",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "生产强度 (g/L/h)",
+          "rawValue": 0.1,
+          "canonicalField": "productivity",
+          "normalizedValue": 0.1,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L/h",
+          "normalizedUnit": "g/L/h",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "温度 (°C)",
+          "rawValue": 30,
+          "canonicalField": "temperature",
+          "normalizedValue": 30,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "°C",
+          "normalizedUnit": "degC",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "状态",
+          "rawValue": "已完成",
+          "canonicalField": null,
+          "normalizedValue": "已完成",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "A163V",
+        "titer": 4.8,
+        "specific_activity": 1.8,
+        "yield": 0.4,
+        "productivity": 0.1,
+        "temperature": 30
+      },
+      "canonicalUnits": {
+        "mutation": null,
+        "titer": "g/L",
+        "specific_activity": "U/mg",
+        "yield": "g/g",
+        "productivity": "g/L/h",
+        "temperature": "degC"
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "A163V"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X03.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A2:H2",
+        "row": 2
+      }
+    },
+    {
+      "experimentId": "X03-R2",
+      "sourceId": "X03",
+      "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+      "raw": {
+        "column_1": "X03-R2",
+        "column_2": "A163V",
+        "(g_L)": 4.9,
+        "(U_mg)": 1.9,
+        "(g_g)": 0.42,
+        "(g_L_h)": 0.10208333333333335,
+        "(_C)": 30,
+        "column_8": "已完成"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "行号",
+          "rawValue": "X03-R2",
+          "canonicalField": null,
+          "normalizedValue": "X03-R2",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "突变体",
+          "rawValue": "A163V",
+          "canonicalField": "mutation",
+          "normalizedValue": "A163V",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "滴度 (g/L)",
+          "rawValue": 4.9,
+          "canonicalField": "titer",
+          "normalizedValue": 4.9,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L",
+          "normalizedUnit": "g/L",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "比活性 (U/mg)",
+          "rawValue": 1.9,
+          "canonicalField": "specific_activity",
+          "normalizedValue": 1.9,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "U/mg",
+          "normalizedUnit": "U/mg",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "得率 (g/g)",
+          "rawValue": 0.42,
+          "canonicalField": "yield",
+          "normalizedValue": 0.42,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/g",
+          "normalizedUnit": "g/g",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "生产强度 (g/L/h)",
+          "rawValue": 0.10208333333333335,
+          "canonicalField": "productivity",
+          "normalizedValue": 0.10208333333333335,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L/h",
+          "normalizedUnit": "g/L/h",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "温度 (°C)",
+          "rawValue": 30,
+          "canonicalField": "temperature",
+          "normalizedValue": 30,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "°C",
+          "normalizedUnit": "degC",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "状态",
+          "rawValue": "已完成",
+          "canonicalField": null,
+          "normalizedValue": "已完成",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "A163V",
+        "titer": 4.9,
+        "specific_activity": 1.9,
+        "yield": 0.42,
+        "productivity": 0.10208333333333335,
+        "temperature": 30
+      },
+      "canonicalUnits": {
+        "mutation": null,
+        "titer": "g/L",
+        "specific_activity": "U/mg",
+        "yield": "g/g",
+        "productivity": "g/L/h",
+        "temperature": "degC"
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "A163V"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X03.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A3:H3",
+        "row": 3
+      }
+    },
+    {
+      "experimentId": "X03-R3",
+      "sourceId": "X03",
+      "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+      "raw": {
+        "column_1": "X03-R3",
+        "column_2": "T212S",
+        "(g_L)": 4.1,
+        "(U_mg)": 2.2,
+        "(g_g)": 0.5,
+        "(g_L_h)": 0.08541666666666665,
+        "(_C)": 35,
+        "column_8": "已完成"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "行号",
+          "rawValue": "X03-R3",
+          "canonicalField": null,
+          "normalizedValue": "X03-R3",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "突变体",
+          "rawValue": "T212S",
+          "canonicalField": "mutation",
+          "normalizedValue": "T212S",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "滴度 (g/L)",
+          "rawValue": 4.1,
+          "canonicalField": "titer",
+          "normalizedValue": 4.1,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L",
+          "normalizedUnit": "g/L",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "比活性 (U/mg)",
+          "rawValue": 2.2,
+          "canonicalField": "specific_activity",
+          "normalizedValue": 2.2,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "U/mg",
+          "normalizedUnit": "U/mg",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "得率 (g/g)",
+          "rawValue": 0.5,
+          "canonicalField": "yield",
+          "normalizedValue": 0.5,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/g",
+          "normalizedUnit": "g/g",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "生产强度 (g/L/h)",
+          "rawValue": 0.08541666666666665,
+          "canonicalField": "productivity",
+          "normalizedValue": 0.08541666666666665,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L/h",
+          "normalizedUnit": "g/L/h",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "温度 (°C)",
+          "rawValue": 35,
+          "canonicalField": "temperature",
+          "normalizedValue": 35,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "°C",
+          "normalizedUnit": "degC",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "状态",
+          "rawValue": "已完成",
+          "canonicalField": null,
+          "normalizedValue": "已完成",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "T212S",
+        "titer": 4.1,
+        "specific_activity": 2.2,
+        "yield": 0.5,
+        "productivity": 0.08541666666666665,
+        "temperature": 35
+      },
+      "canonicalUnits": {
+        "mutation": null,
+        "titer": "g/L",
+        "specific_activity": "U/mg",
+        "yield": "g/g",
+        "productivity": "g/L/h",
+        "temperature": "degC"
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "T212S"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X03.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A4:H4",
+        "row": 4
+      }
+    },
+    {
+      "experimentId": "X03-R4",
+      "sourceId": "X03",
+      "sourceContentHash": "sha256:efe49f17eca79a42687e0e0bf66fd78b90b251b88dc346ed5b742b46fa869b1e",
+      "raw": {
+        "column_1": "X03-R4",
+        "column_2": "T212S",
+        "(g_L)": 4.3,
+        "(U_mg)": 2.3,
+        "(g_g)": 0.52,
+        "(g_L_h)": 0.08958333333333333,
+        "(_C)": 35,
+        "column_8": "已完成"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "行号",
+          "rawValue": "X03-R4",
+          "canonicalField": null,
+          "normalizedValue": "X03-R4",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "突变体",
+          "rawValue": "T212S",
+          "canonicalField": "mutation",
+          "normalizedValue": "T212S",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "滴度 (g/L)",
+          "rawValue": 4.3,
+          "canonicalField": "titer",
+          "normalizedValue": 4.3,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L",
+          "normalizedUnit": "g/L",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "比活性 (U/mg)",
+          "rawValue": 2.3,
+          "canonicalField": "specific_activity",
+          "normalizedValue": 2.3,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "U/mg",
+          "normalizedUnit": "U/mg",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "得率 (g/g)",
+          "rawValue": 0.52,
+          "canonicalField": "yield",
+          "normalizedValue": 0.52,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/g",
+          "normalizedUnit": "g/g",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "生产强度 (g/L/h)",
+          "rawValue": 0.08958333333333333,
+          "canonicalField": "productivity",
+          "normalizedValue": 0.08958333333333333,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "g/L/h",
+          "normalizedUnit": "g/L/h",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "温度 (°C)",
+          "rawValue": 35,
+          "canonicalField": "temperature",
+          "normalizedValue": 35,
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": "°C",
+          "normalizedUnit": "degC",
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "状态",
+          "rawValue": "已完成",
+          "canonicalField": null,
+          "normalizedValue": "已完成",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "T212S",
+        "titer": 4.3,
+        "specific_activity": 2.3,
+        "yield": 0.52,
+        "productivity": 0.08958333333333333,
+        "temperature": 35
+      },
+      "canonicalUnits": {
+        "mutation": null,
+        "titer": "g/L",
+        "specific_activity": "U/mg",
+        "yield": "g/g",
+        "productivity": "g/L/h",
+        "temperature": "degC"
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "T212S"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X03.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A5:H5",
+        "row": 5
+      }
+    }
+  ],
+  "createdAt": "2026-09-07T23:42:34.287Z"
+}

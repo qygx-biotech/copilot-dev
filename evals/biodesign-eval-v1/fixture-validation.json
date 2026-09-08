@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "candidateExecutionOccurred": false,
+  "schemaValidation": "Required-field/type-domain validation passed; jsonschema runtime unavailable.",
+  "caseCount": 96,
+  "splitCounts": {
+    "dev": 72,
+    "heldout": 24
+  },
+  "domainCounts": {
+    "primary_ectd": 24,
+    "open_domain_celluweave": 72
+  },
+  "sameSplitPairedGroups": 7,
+  "arithmetic": "All mean/count entries were independently recalculated by the generation-time assertions from normalized raw fixture values. Derived entries carry explicit operands and formulas.",
+  "integrity": "Every required evidence ID and source row is within the declared selected-project allowed set; allowed and forbidden resources are disjoint."
+}

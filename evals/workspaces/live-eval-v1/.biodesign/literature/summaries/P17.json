@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P17",
+  "documentId": "P17",
+  "fileName": "P17.pdf",
+  "generatedAt": "2026-09-07T23:43:53.933Z",
+  "source": {
+    "filename": "P17.pdf",
+    "relativePath": "literature/P17.pdf",
+    "size": 51254,
+    "lastModified": "1788824298375436003",
+    "hash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+    "pageCount": 3,
+    "processedCharacters": 1425,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 5,
+    "nativeEvidenceCitationsVerified": 5,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 5,
+    "evidenceFindingsVerified": 5,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P17\",\"contentHash\":\"sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "CelluWeave A: Wet compression of cellulose–alginate sheets",
+  "authors": [
+    "A. Vale",
+    "B. Lin"
+  ],
+  "year": 2024,
+  "abstractSummary": null,
+  "researchQuestion": "Evaluation of the properties of nonliving cellulose–alginate hydrogel sheets under different calcium chloride concentrations.",
+  "mainFindings": [
+    "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+    "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+    "Higher compressive modulus was associated with poorer shape retention.",
+    "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+    "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention."
+  ],
+  "methods": [
+    "2.0% w/v alginate and 0.8% w/v cellulose",
+    "calcium chloride bath 50 mmol/L for 10 minutes",
+    "Compression was measured wet, after 24 hours of equilibration, at 10% strain"
+  ],
+  "methodsSummary": "Hydrogel sheets composed of 2.0% w/v alginate and 0.8% w/v cellulose were crosslinked in calcium chloride baths (50 or 75 mmol/L) for 10 minutes, equilibrated for 24 hours, and then tested for compression at 10% strain.",
+  "organisms": [],
+  "genes": [],
+  "proteins": [],
+  "pathways": [],
+  "metabolites": [],
+  "experimentalConditions": [
+    "50 mmol/L calcium chloride bath",
+    "75 mmol/L calcium chloride bath",
+    "10 minutes bath duration",
+    "24 hours equilibration"
+  ],
+  "measurements": [
+    "compressive modulus",
+    "shape retention",
+    "water uptake"
+  ],
+  "importantResults": [
+    "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+    "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+    "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+    "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+    "Higher compressive modulus was associated with poorer shape retention."
+  ],
+  "limitations": [
+    "Only two calcium concentrations and one cellulose fraction were evaluated",
+    "No cost, biodegradation, cytotoxicity, cell viability, or printer throughput data are available"
+  ],
+  "keywords": [
+    "cellulose–alginate hydrogel sheets"
+  ],
+  "topics": [
+    "hydrogels"
+  ],
+  "shortSummary": "This study evaluated the compressive modulus, shape retention, and water uptake of cellulose-alginate hydrogel sheets crosslinked with 50 mmol/L and 75 mmol/L calcium chloride.",
+  "summary": "This study evaluated the compressive modulus, shape retention, and water uptake of cellulose-alginate hydrogel sheets crosslinked with 50 mmol/L and 75 mmol/L calcium chloride.",
+  "keyResults": [
+    "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+    "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+    "Higher compressive modulus was associated with poorer shape retention.",
+    "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+    "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention."
+  ],
+  "mainConclusion": "Higher calcium concentration increases the compressive modulus but leads to poorer shape retention in cellulose-alginate hydrogel sheets.",
+  "evidenceFindings": [
+    {
+      "claim": "The 50 mmol/L condition resulted in a mean compressive modulus of 42.0 kPa, shape retention of 96%, and water uptake of 10.0 g water per g dry sheet.",
+      "evidenceRefs": [
+        "P17:p2:P17-P2-C1"
+      ]
+    },
+    {
+      "claim": "The 75 mmol/L condition resulted in a mean compressive modulus of 56.0 kPa and shape retention of 88%.",
+      "evidenceRefs": [
+        "P17:p2:P17-P2-C1"
+      ]
+    },
+    {
+      "claim": "Higher compressive modulus was associated with poorer shape retention.",
+      "evidenceRefs": [
+        "P17:p2:P17-P2-C1"
+      ]
+    },
+    {
+      "claim": "The 50 mmol/L condition had a mean compressive modulus of 42.0 kPa and 96% shape retention.",
+      "evidenceRefs": [
+        "P17:p2:P17-P2-C1"
+      ]
+    },
+    {
+      "claim": "The 75 mmol/L condition had a mean compressive modulus of 56.0 kPa and 88% shape retention.",
+      "evidenceRefs": [
+        "P17:p2:P17-P2-C1"
+      ]
+    }
+  ]
+}

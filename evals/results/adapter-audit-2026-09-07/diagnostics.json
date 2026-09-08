@@ -1,0 +1,1158 @@
+{
+  "createdAt": "2026-09-07T23:40:42.031Z",
+  "role": "post-score-diagnostic-agent",
+  "baseline": "evals/results/baseline-2026-09-07",
+  "baselineObservationsSha256": "3202b9bd0e641d4c68e772bb7e28fbbb46d56bd6bbbfdd30111f89e2b7a7403c",
+  "baselineScoreRowsSha256": "30f192094db42b43f8e3f4ac210774d380d6eb4d2d582012cd056ffea9a023c7",
+  "frozenManifestSha256": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "boundary": "Source inspection followed saved deterministic scores. No production or frozen suite edits. These controlled-provider observations do not establish authenticated FC answer quality. Findings never feed back to frozen cases or scoring.",
+  "findings": [
+    {
+      "id": "local_generic_definition_discards_source_lookup",
+      "classification": "observed-production-local-routing-gap",
+      "cases": [
+        "CW-LOOKUP-03"
+      ],
+      "observation": {
+        "query": "What is the current corrected mean modulus in P31? Cite the page.",
+        "routing": {
+          "useLiterature": false,
+          "paperIds": [],
+          "useProjectMemory": false,
+          "memoryIds": [],
+          "reason": "Local bounded routing fallback was used.",
+          "mode": "local"
+        },
+        "semanticIR": {
+          "version": 1,
+          "inputLanguage": "en",
+          "answerLanguage": "en",
+          "matchedPattern": null,
+          "patternConfidence": 0.5115,
+          "goal": "What is the current corrected mean modulus in P31? Cite the page.",
+          "operations": [
+            "aggregate"
+          ],
+          "objects": [],
+          "entities": [],
+          "metrics": [],
+          "scope": {
+            "papers": null,
+            "experiments": null
+          },
+          "filters": [],
+          "constraints": [],
+          "comparisonVariables": [],
+          "requestedOutput": {
+            "type": "open-response",
+            "limit": null
+          },
+          "capabilityHints": [],
+          "unresolvedSlots": [
+            "target_object"
+          ]
+        },
+        "retrievedCandidates": [
+          "P17",
+          "P52",
+          "P31",
+          "P74",
+          "P117"
+        ],
+        "finalPaperIds": [],
+        "evidenceIds": [],
+        "sourceReady": {
+          "sourceId": "P31",
+          "sourceKind": "paper",
+          "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "contentVersion": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+          "verifiedFixtureVersion": 2,
+          "catalogStatus": "discovered",
+          "hashStatus": "ready",
+          "parseStatus": "ready",
+          "indexStatus": "ready",
+          "qmdLexStatus": "ready",
+          "structuredDataStatus": "not_applicable",
+          "knowledgeSync": {
+            "schemaVersion": 1,
+            "status": "SYNC_READY",
+            "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+            "statSignature": "literature/P31.pdf|100734|1788823483349999904|16777234:201098124",
+            "stages": {
+              "l1": "ready",
+              "l2": "ready",
+              "l3": "ready"
+            },
+            "failure": null,
+            "updatedAt": "2026-09-07T23:24:49.215Z"
+          },
+          "artifacts": {
+            "paperText": {
+              "path": ".biodesign/sources/artifacts/P31/sha256-5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e/paper-text.json",
+              "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+              "extractorVersion": "local-source-v1",
+              "schemaVersion": 1,
+              "validationStatus": "validated"
+            },
+            "knowledgeMarkdown": {
+              "path": ".biodesign/knowledge/literature/P31.md",
+              "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+              "representationVersion": 1,
+              "validationStatus": "validated"
+            },
+            "paperCard": {
+              "path": ".biodesign/literature/summaries/P31.json",
+              "sourceId": "P31",
+              "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+              "schemaVersion": 2,
+              "model": null,
+              "modelSignature": "eval-extractive-card-v1",
+              "promptVersion": "eval-extractive-card-v1",
+              "generationStrategy": "text-map-reduce-v1",
+              "generationContractVersion": 0,
+              "generationMode": "map-reduce",
+              "fallbackReason": null,
+              "nativePdfSchemaVersion": 0,
+              "nativePdfPromptVersion": "not-applicable",
+              "nativePdfModelSignature": "not-applicable",
+              "combinedTextSupported": false,
+              "combinedTextMaxCharacters": 0,
+              "combinedTextSchemaVersion": 0,
+              "combinedTextPromptVersion": "not-applicable",
+              "combinedTextModelSignature": "not-applicable",
+              "sourceArtifactSchemaVersion": 1,
+              "extractorVersion": "local-source-v1",
+              "validationStatus": "validated",
+              "cacheKey": "{\"version\":4,\"sourceId\":\"P31\",\"contentHash\":\"sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e\",\"schemaVersion\":2,\"modelSignature\":\"eval-extractive-card-v1\",\"promptVersion\":\"eval-extractive-card-v1\",\"generationStrategy\":\"text-map-reduce-v1\",\"generationContractVersion\":0,\"nativePdfSchemaVersion\":0,\"nativePdfPromptVersion\":\"not-applicable\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":0,\"combinedTextSchemaVersion\":0,\"combinedTextPromptVersion\":\"not-applicable\",\"combinedTextModelSignature\":\"not-applicable\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"
+            },
+            "paperCardMarkdown": {
+              "path": ".biodesign/knowledge/paper_cards/P31.md",
+              "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+              "cardSchemaVersion": 2,
+              "validationStatus": "validated"
+            },
+            "topicMembership": {
+              "sourceId": "P31",
+              "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+              "schemaVersion": 1,
+              "topicIds": []
+            }
+          }
+        }
+      },
+      "cause": "The broad GENERIC_DEFINITION_PATTERN matches a what-is fact request without a literature keyword; localRoutingDecision returns useLiterature:false even with search matches. P31 is third in candidates but is not routed into final evidence.",
+      "sourceReferences": [
+        {
+          "path": "docs/project-context-service.js",
+          "line": 61
+        },
+        {
+          "path": "docs/project-context-service.js",
+          "line": 1017
+        },
+        {
+          "path": "docs/project-context-service.js",
+          "line": 1447
+        }
+      ],
+      "limits": "Medium local fallback without remote semantic parser, planner, or reranker; open-domain CelluWeave case. A live semantic parser could choose literature and change this outcome."
+    },
+    {
+      "id": "ectd_local_schema_scope_and_filters",
+      "classification": "observed-production-local-semantic-normalization-gap",
+      "cases": [
+        "CW-ECTD_EXPERIMENTS-01",
+        "CW-ECTD_EXPERIMENTS-02"
+      ],
+      "observation": {
+        "en": {
+          "ir": {
+            "version": 1,
+            "inputLanguage": "en",
+            "answerLanguage": "en",
+            "matchedPattern": null,
+            "patternConfidence": 0.5115,
+            "goal": "In the English EctD table X02, what is the mean completed A163V titer?",
+            "operations": [
+              "aggregate"
+            ],
+            "objects": [],
+            "entities": [
+              {
+                "type": "identifier",
+                "canonicalId": "EctD",
+                "mention": "EctD"
+              },
+              {
+                "type": "mutation",
+                "canonicalId": "A163V",
+                "mention": "A163V"
+              }
+            ],
+            "metrics": [
+              {
+                "canonicalField": "titer",
+                "direction": null
+              }
+            ],
+            "scope": {
+              "papers": null,
+              "experiments": null
+            },
+            "filters": [],
+            "constraints": [],
+            "comparisonVariables": [],
+            "requestedOutput": {
+              "type": "open-response",
+              "limit": null
+            },
+            "capabilityHints": [],
+            "unresolvedSlots": [
+              "target_object"
+            ]
+          },
+          "result": {
+            "status": "unresolved",
+            "metric": {
+              "canonicalField": "titer",
+              "direction": "maximize"
+            },
+            "aggregation": null,
+            "groups": [],
+            "records": [],
+            "unresolved": [
+              "no_numeric_values:titer"
+            ],
+            "unappliedConstraints": [],
+            "provenance": {
+              "sourceIds": [
+                "X01",
+                "X02",
+                "X03",
+                "X04"
+              ],
+              "totalRecords": 37,
+              "matchedRecords": 0,
+              "returnedRecords": 0
+            }
+          }
+        },
+        "zh": {
+          "ir": {
+            "version": 1,
+            "inputLanguage": "zh",
+            "answerLanguage": "zh",
+            "matchedPattern": null,
+            "patternConfidence": 0.5115,
+            "goal": "英文 EctD 台账 X02 里，A163V 已完成重复的平均滴度是多少？",
+            "operations": [
+              "aggregate"
+            ],
+            "objects": [],
+            "entities": [
+              {
+                "type": "identifier",
+                "canonicalId": "EctD",
+                "mention": "EctD"
+              },
+              {
+                "type": "mutation",
+                "canonicalId": "A163V",
+                "mention": "A163V"
+              }
+            ],
+            "metrics": [
+              {
+                "canonicalField": "titer",
+                "direction": null
+              }
+            ],
+            "scope": {
+              "papers": null,
+              "experiments": null
+            },
+            "filters": [],
+            "constraints": [],
+            "comparisonVariables": [],
+            "requestedOutput": {
+              "type": "open-response",
+              "limit": null
+            },
+            "capabilityHints": [],
+            "unresolvedSlots": [
+              "target_object"
+            ]
+          },
+          "result": {
+            "status": "unresolved",
+            "metric": {
+              "canonicalField": "titer",
+              "direction": "maximize"
+            },
+            "aggregation": null,
+            "groups": [],
+            "records": [],
+            "unresolved": [
+              "no_numeric_values:titer"
+            ],
+            "unappliedConstraints": [],
+            "provenance": {
+              "sourceIds": [
+                "X02",
+                "X03",
+                "X04"
+              ],
+              "totalRecords": 14,
+              "matchedRecords": 0,
+              "returnedRecords": 0
+            }
+          }
+        },
+        "sourceRow": {
+          "experimentId": "X02-R1",
+          "sourceId": "X02",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "raw": {
+            "row_id": "X02-R1",
+            "variant": "A163V",
+            "titer_g_L": 4.8,
+            "activity_U_mg": 1.8,
+            "yield_g_g": 0.4,
+            "productivity_g_L_h": 0.1,
+            "temperature_C": 30,
+            "status": "complete"
+          },
+          "rawCells": [
+            {
+              "columnId": "c1",
+              "rawHeader": "row_id",
+              "rawValue": "X02-R1",
+              "canonicalField": null,
+              "normalizedValue": "X02-R1",
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            },
+            {
+              "columnId": "c2",
+              "rawHeader": "variant",
+              "rawValue": "A163V",
+              "canonicalField": "mutation",
+              "normalizedValue": "A163V",
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "confirmed",
+              "confidence": 1
+            },
+            {
+              "columnId": "c3",
+              "rawHeader": "titer_g_L",
+              "rawValue": 4.8,
+              "canonicalField": null,
+              "normalizedValue": 4.8,
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            },
+            {
+              "columnId": "c4",
+              "rawHeader": "activity_U_mg",
+              "rawValue": 1.8,
+              "canonicalField": null,
+              "normalizedValue": 1.8,
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            },
+            {
+              "columnId": "c5",
+              "rawHeader": "yield_g_g",
+              "rawValue": 0.4,
+              "canonicalField": null,
+              "normalizedValue": 0.4,
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            },
+            {
+              "columnId": "c6",
+              "rawHeader": "productivity_g_L_h",
+              "rawValue": 0.1,
+              "canonicalField": null,
+              "normalizedValue": 0.1,
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            },
+            {
+              "columnId": "c7",
+              "rawHeader": "temperature_C",
+              "rawValue": 30,
+              "canonicalField": null,
+              "normalizedValue": 30,
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            },
+            {
+              "columnId": "c8",
+              "rawHeader": "status",
+              "rawValue": "complete",
+              "canonicalField": null,
+              "normalizedValue": "complete",
+              "sourceId": "X02",
+              "sheet": "EctD",
+              "unit": null,
+              "normalizedUnit": null,
+              "status": "unresolved",
+              "confidence": 0
+            }
+          ],
+          "canonical": {
+            "mutation": "A163V"
+          },
+          "canonicalUnits": {
+            "mutation": null
+          },
+          "ambiguousCanonicalFields": [],
+          "entities": {
+            "proteins": [],
+            "genes": [],
+            "mutations": [
+              "A163V"
+            ],
+            "strains": []
+          },
+          "provenance": {
+            "sourceFile": "experiments/X02.xlsx",
+            "sourceSheet": "EctD",
+            "sourceRange": "A2:H2",
+            "row": 2
+          }
+        }
+      },
+      "causes": [
+        "Raw frozen headers titer_g_L, activity_U_mg, yield_g_g, productivity_g_L_h, temperature_C stay unresolved in local schema normalization. Only variant maps to mutation; original source rows remain intact.",
+        "Local semantic IR omits prose source X02 and completed-status constraints: scope.experiments:null, filters:[], constraints:[]. Actual candidate datasets differ across EN/ZH.",
+        "executeSemanticQuery requires EctD in each row canonical/entities, while this fixture carries EctD only in sheet/table context. Rows have mutation but no protein/gene. Entity matching also eliminates rows before numeric aggregation."
+      ],
+      "sourceReferences": [
+        {
+          "path": "shared/experiment-semantics.js",
+          "line": 12
+        },
+        {
+          "path": "shared/experiment-semantics.js",
+          "line": 128
+        },
+        {
+          "path": "docs/source-system.js",
+          "line": 4121
+        },
+        {
+          "path": "docs/source-system.js",
+          "line": 4175
+        }
+      ],
+      "artifact": {
+        "path": "evals/results/adapter-audit-2026-09-07/diagnostic-artifacts/X02-experiment-data.json",
+        "sha256": "044cf1b3c16538aeb8d391b0f3f15aca533b087eb1d1111cd2b5fda0bb1d8b3d",
+        "sourceHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+        "origin": "Retained post-freeze adapter observation; source content hash matches immutable baseline X02."
+      },
+      "limits": "Not arithmetic computation failure: production returns unresolved/no_numeric_values:titer and no aggregation. No authenticated semantic parser or schema mapper was available. Do not inject gold filters or count unresolved output as a false numeric claim."
+    },
+    {
+      "id": "concurrent_map_directory_creation",
+      "classification": "observed-production-filesystem-concurrency-gap-in-adapter-path",
+      "observations": [
+        {
+          "caseId": "CW-DISCOVERY-05",
+          "cacheState": "cold",
+          "failures": {
+            "P17": {
+              "code": "EEXIST",
+              "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-GFwffq/.biodesign/workflows/maps'",
+              "stage": "map",
+              "sourceReady": true,
+              "retryable": false,
+              "attempts": 0,
+              "fallbackAttempted": false
+            }
+          },
+          "coverage": {
+            "papersDiscovered": 8,
+            "papersIncludedInSnapshot": 8,
+            "papersSuccessfullyPrepared": 8,
+            "papersPreparationCacheHits": 8,
+            "papersSuccessfullyAnalyzed": 7,
+            "papersFailed": 1,
+            "papersMissing": 0,
+            "includedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "preparedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "analyzedPaperIds": [
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "failedPaperIds": [
+              "P17"
+            ],
+            "missingPaperIds": [],
+            "changedPaperIds": []
+          }
+        },
+        {
+          "caseId": "CW-CORPUS-01",
+          "cacheState": "cold",
+          "failures": {
+            "P31": {
+              "code": "EEXIST",
+              "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-xncZWY/.biodesign/workflows/maps'",
+              "stage": "map",
+              "sourceReady": true,
+              "retryable": false,
+              "attempts": 0,
+              "fallbackAttempted": false
+            }
+          },
+          "coverage": {
+            "papersDiscovered": 8,
+            "papersIncludedInSnapshot": 8,
+            "papersSuccessfullyPrepared": 8,
+            "papersPreparationCacheHits": 8,
+            "papersSuccessfullyAnalyzed": 7,
+            "papersFailed": 1,
+            "papersMissing": 0,
+            "includedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "preparedPaperIds": [
+              "P31",
+              "P17",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "analyzedPaperIds": [
+              "P17",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "failedPaperIds": [
+              "P31"
+            ],
+            "missingPaperIds": [],
+            "changedPaperIds": []
+          }
+        },
+        {
+          "caseId": "CW-CORPUS-04",
+          "cacheState": "cold",
+          "failures": {
+            "P31": {
+              "code": "EEXIST",
+              "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-PXmHDT/.biodesign/workflows/maps'",
+              "stage": "map",
+              "sourceReady": true,
+              "retryable": false,
+              "attempts": 0,
+              "fallbackAttempted": false
+            }
+          },
+          "coverage": {
+            "papersDiscovered": 8,
+            "papersIncludedInSnapshot": 8,
+            "papersSuccessfullyPrepared": 8,
+            "papersPreparationCacheHits": 8,
+            "papersSuccessfullyAnalyzed": 7,
+            "papersFailed": 1,
+            "papersMissing": 0,
+            "includedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "preparedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "analyzedPaperIds": [
+              "P17",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "failedPaperIds": [
+              "P31"
+            ],
+            "missingPaperIds": [],
+            "changedPaperIds": []
+          }
+        },
+        {
+          "caseId": "CW-ECTD_WORKFLOWS-04",
+          "cacheState": "cold",
+          "failures": {
+            "P17": {
+              "code": "EEXIST",
+              "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-CDGS3K/.biodesign/workflows/maps'",
+              "stage": "map",
+              "sourceReady": true,
+              "retryable": false,
+              "attempts": 0,
+              "fallbackAttempted": false
+            }
+          },
+          "coverage": {
+            "papersDiscovered": 8,
+            "papersIncludedInSnapshot": 8,
+            "papersSuccessfullyPrepared": 8,
+            "papersPreparationCacheHits": 8,
+            "papersSuccessfullyAnalyzed": 7,
+            "papersFailed": 1,
+            "papersMissing": 0,
+            "includedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "preparedPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "analyzedPaperIds": [
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "failedPaperIds": [
+              "P17"
+            ],
+            "missingPaperIds": [],
+            "changedPaperIds": []
+          }
+        }
+      ],
+      "cause": "Concurrent corpus canonical-paper projections write maps into a missing common directory. ProjectFilesystem.ensureDirectory checks lstat, then mkdir without accepting concurrent EEXIST. Observed cold corpus workflows each lose one map; warm workflows have the directory and analyze all eight.",
+      "sourceReferences": [
+        {
+          "path": "desktop/services/project-filesystem.mjs",
+          "line": 134
+        },
+        {
+          "path": "desktop/services/project-filesystem.mjs",
+          "line": 149
+        },
+        {
+          "path": "docs/source-system.js",
+          "line": 6000
+        }
+      ],
+      "limits": "Actual production ProjectFilesystem code is used by the adapter. Renderer/UI persistence may serialize differently, so UI impact remains unverified. No production patch applied.",
+      "independentReproducer": {
+        "path": "evals/results/adapter-audit-2026-09-07/filesystem-race-reproducer.json",
+        "coldRejected": 21,
+        "warmRejected": 0,
+        "runtime": "v26.3.0"
+      }
+    },
+    {
+      "id": "malformed_mapper_fault_not_reached",
+      "classification": "failure-injection-protocol-coverage-gap",
+      "cases": [
+        "CW-ECTD_WORKFLOWS-04"
+      ],
+      "observation": {
+        "status": "blocked",
+        "counters": {
+          "qmdSearches": 0,
+          "qmdUpdates": 34,
+          "cards": 8,
+          "maps": 0,
+          "nativePdf": 0
+        },
+        "coverage": {
+          "papersDiscovered": 8,
+          "papersIncludedInSnapshot": 8,
+          "papersSuccessfullyPrepared": 8,
+          "papersPreparationCacheHits": 8,
+          "papersSuccessfullyAnalyzed": 7,
+          "papersFailed": 1,
+          "papersMissing": 0,
+          "includedPaperIds": [
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152"
+          ],
+          "preparedPaperIds": [
+            "P17",
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152"
+          ],
+          "analyzedPaperIds": [
+            "P31",
+            "P52",
+            "P74",
+            "P83",
+            "P117",
+            "P131",
+            "P152"
+          ],
+          "failedPaperIds": [
+            "P17"
+          ],
+          "missingPaperIds": [],
+          "changedPaperIds": []
+        },
+        "mapGenerationModes": [
+          "paper-card-cache"
+        ],
+        "limitations": [
+          "Final answer provider unavailable: raw production context/tool outputs are recorded; answer quality is not scored as a generated answer.",
+          "Requested controlled fault was not reached or is unsupported; failure-injection coverage is blocked."
+        ]
+      },
+      "cause": "Declared missing cards regenerate during preflight. Corpus reuses valid cards through canonical projection, so the malformed corpus.map provider hook is never called. Unrelated cold EEXIST is not the expected InvalidLlmResponse failure.",
+      "sourceReferences": [
+        {
+          "path": "docs/source-system.js",
+          "line": 5945
+        },
+        {
+          "path": "docs/source-system.js",
+          "line": 5986
+        }
+      ],
+      "limits": "Frozen setup and declared provider injection remain unchanged. Do not count this as validated invalid-output handling; a named existing regression can cover the protocol separately."
+    },
+    {
+      "id": "ectd_wrong_aggregation_semantics",
+      "classification": "observed-production-local-incorrect-result-semantics",
+      "cases": [
+        "CW-ECTD_EXPERIMENTS-04",
+        "CW-ECTD_EXPERIMENTS-06",
+        "CW-ECTD_EXPERIMENTS-07"
+      ],
+      "observations": [
+        {
+          "id": "CW-ECTD_EXPERIMENTS-04",
+          "query": "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer.",
+          "expected": [
+            {
+              "name": "T212S_mean_activity",
+              "value": 2.25,
+              "unit": "U/mg",
+              "aggregation": "mean",
+              "field": "activity",
+              "filters": {
+                "sourceId": "X02",
+                "variant": "T212S",
+                "status": "complete",
+                "temperature": 35
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X02-R3",
+                "X02-R4"
+              ],
+              "tolerance": 1e-8
+            }
+          ],
+          "actual": [
+            {
+              "name": "titer",
+              "field": "titer",
+              "groupValue": null,
+              "value": 4.074999999999999,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "filters": [],
+              "groupBy": [],
+              "sourceRows": [
+                "X03-R3",
+                "X03-R4",
+                "X04-R3",
+                "X04-R4"
+              ],
+              "count": 4,
+              "min": 3.9,
+              "max": 4.3
+            }
+          ],
+          "semanticIR": {
+            "version": 1,
+            "inputLanguage": "en",
+            "answerLanguage": "en",
+            "matchedPattern": null,
+            "patternConfidence": 0.5115,
+            "goal": "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer.",
+            "operations": [
+              "aggregate"
+            ],
+            "objects": [],
+            "entities": [
+              {
+                "type": "mutation",
+                "canonicalId": "T212S",
+                "mention": "T212S"
+              }
+            ],
+            "metrics": [
+              {
+                "canonicalField": "titer",
+                "direction": null
+              }
+            ],
+            "scope": {
+              "papers": null,
+              "experiments": null
+            },
+            "filters": [],
+            "constraints": [],
+            "comparisonVariables": [],
+            "requestedOutput": {
+              "type": "open-response",
+              "limit": null
+            },
+            "capabilityHints": [],
+            "unresolvedSlots": [
+              "target_object"
+            ]
+          }
+        },
+        {
+          "id": "CW-ECTD_EXPERIMENTS-06",
+          "query": "Compute A163V mean titer in X02, excluding failed and pending rows even if their values are extreme or empty.",
+          "expected": [
+            {
+              "name": "A163V_mean_titer",
+              "value": 4.85,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "field": "titer",
+              "filters": {
+                "sourceId": "X02",
+                "variant": "A163V",
+                "status": "complete"
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ],
+              "tolerance": 1e-8
+            }
+          ],
+          "actual": [
+            {
+              "name": "titer",
+              "field": "titer",
+              "groupValue": null,
+              "value": 4.75,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "filters": [],
+              "groupBy": [],
+              "sourceRows": [
+                "X03-R1",
+                "X03-R2",
+                "X04-R1",
+                "X04-R2"
+              ],
+              "count": 4,
+              "min": 4.6,
+              "max": 4.9
+            }
+          ],
+          "semanticIR": {
+            "version": 1,
+            "inputLanguage": "en",
+            "answerLanguage": "en",
+            "matchedPattern": null,
+            "patternConfidence": 0.3437,
+            "goal": "Compute A163V mean titer in X02, excluding failed and pending rows even if their values are extreme or empty.",
+            "operations": [
+              "read",
+              "filter",
+              "aggregate"
+            ],
+            "objects": [],
+            "entities": [
+              {
+                "type": "mutation",
+                "canonicalId": "A163V",
+                "mention": "A163V"
+              }
+            ],
+            "metrics": [
+              {
+                "canonicalField": "titer",
+                "direction": null
+              }
+            ],
+            "scope": {
+              "papers": null,
+              "experiments": null
+            },
+            "filters": [],
+            "constraints": [],
+            "comparisonVariables": [],
+            "requestedOutput": {
+              "type": "open-response",
+              "limit": null
+            },
+            "capabilityHints": [],
+            "unresolvedSlots": [
+              "target_object"
+            ]
+          }
+        },
+        {
+          "id": "CW-ECTD_EXPERIMENTS-07",
+          "query": "在 mixed-header 的 X04 表中，42°C 下哪个突变体的平均滴度最高？同时列出两个均值。",
+          "expected": [
+            {
+              "name": "A163V_mean_titer",
+              "value": 4.65,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "field": "titer",
+              "filters": {
+                "sourceId": "X04",
+                "variant": "A163V",
+                "status": "complete",
+                "temperature": 42
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X04-R1",
+                "X04-R2"
+              ],
+              "tolerance": 1e-8
+            },
+            {
+              "name": "T212S_mean_titer",
+              "value": 3.95,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "field": "titer",
+              "filters": {
+                "sourceId": "X04",
+                "variant": "T212S",
+                "status": "complete",
+                "temperature": 42
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X04-R3",
+                "X04-R4"
+              ],
+              "tolerance": 1e-8
+            }
+          ],
+          "actual": [
+            {
+              "name": "A163V",
+              "field": "titer",
+              "groupValue": "A163V",
+              "value": 4.75,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "filters": [],
+              "groupBy": [
+                "mutation"
+              ],
+              "sourceRows": [
+                "X03-R1",
+                "X03-R2",
+                "X04-R1",
+                "X04-R2"
+              ],
+              "count": 4,
+              "min": 4.6,
+              "max": 4.9
+            },
+            {
+              "name": "T212S",
+              "field": "titer",
+              "groupValue": "T212S",
+              "value": 4.074999999999999,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "filters": [],
+              "groupBy": [
+                "mutation"
+              ],
+              "sourceRows": [
+                "X03-R3",
+                "X03-R4",
+                "X04-R3",
+                "X04-R4"
+              ],
+              "count": 4,
+              "min": 3.9,
+              "max": 4.3
+            }
+          ],
+          "semanticIR": {
+            "version": 1,
+            "inputLanguage": "zh",
+            "answerLanguage": "zh",
+            "matchedPattern": "experiment.rank",
+            "patternConfidence": 0.8669,
+            "goal": "在 mixed-header 的 X04 表中，42°C 下哪个突变体的平均滴度最高？同时列出两个均值。",
+            "operations": [
+              "aggregate",
+              "rank",
+              "filter"
+            ],
+            "objects": [
+              "experiments"
+            ],
+            "entities": [],
+            "metrics": [
+              {
+                "canonicalField": "titer",
+                "direction": "maximize"
+              }
+            ],
+            "scope": {
+              "papers": null,
+              "experiments": "current-project"
+            },
+            "filters": [],
+            "constraints": [],
+            "comparisonVariables": [],
+            "requestedOutput": {
+              "type": "ranked-comparison",
+              "limit": null
+            },
+            "capabilityHints": [
+              "query_experiment_results"
+            ],
+            "unresolvedSlots": []
+          }
+        }
+      ],
+      "cause": "These paths do produce aggregates, which the adapter preserves with exact row provenance. IR fails to bind prose X02/X04 scope and temperature/status constraints. Case04 also selects titer despite explicit not-titer negation. Production then correctly averages the wrong selected data; this is a semantic-selection failure, not a lost adapter result or floating-point arithmetic error.",
+      "limits": "Controlled local context/tool path only, no final answer. Case04 gold calls its U/mg metric activity while production canonical field is specific_activity; this naming mismatch alone would require separately documented gold/scoring audit in a new suite, but actual04 is titer in g/L and wrong rows, so current failure is not solely a name mismatch."
+    }
+  ],
+  "adapterDefects": {
+    "replayed": [
+      "CW-SYNC_FAILURE-02",
+      "CW-SYNC_FAILURE-08",
+      "CW-ECTD_WORKFLOWS-06",
+      "CW-CORPUS-05",
+      "CW-CROSS_SOURCE-06",
+      "CW-MEMORY_PERMISSIONS-01",
+      "CW-MEMORY_PERMISSIONS-02",
+      "CW-MEMORY_PERMISSIONS-03",
+      "CW-MEMORY_PERMISSIONS-04",
+      "CW-MEMORY_PERMISSIONS-05",
+      "CW-MEMORY_PERMISSIONS-06",
+      "CW-MEMORY_PERMISSIONS-07",
+      "CW-MEMORY_PERMISSIONS-08"
+    ],
+    "pendingReplay": [],
+    "note": "All affected setup/status cases replayed separately after the original baseline; no production or frozen suite changes."
+  },
+  "finalAnswerLimit": "Local observations lack final provider answer; grounding, prose citations, answer-level safety, and blind quality remain unmeasured.",
+  "structuredObservations": "evals/results/adapter-audit-2026-09-07/ectd-structured-observations.json"
+}

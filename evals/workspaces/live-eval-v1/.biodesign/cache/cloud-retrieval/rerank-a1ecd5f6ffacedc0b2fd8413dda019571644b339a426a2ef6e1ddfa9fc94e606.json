@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "rerank",
+  "cacheKey": "a1ecd5f6ffacedc0b2fd8413dda019571644b339a426a2ef6e1ddfa9fc94e606",
+  "configurationSignature": "90306a728333b05adadde32c1b77a833fb60e615b6f35a429d9157d22df44d6c",
+  "value": [
+    {
+      "candidateId": "candidate-30b6acbb0eb3f834cf7fb9039a09967d94e15e87565455df4b6f2e457d2dc959",
+      "score": 1,
+      "reason": "This candidate specifically provides data for the T212S variant at exactly 35°C, including the specific activity (2.20 U/mg) and distinguishing it from the product titer (4.10 g/L), which directly addresses the query."
+    },
+    {
+      "candidateId": "candidate-0cd7cedfdb0008bacdc0a97374b0af594f8d0d4ca39486a8ac376c8daa40e94a",
+      "score": 0,
+      "reason": "This candidate provides data for T212S at 42°C, not the requested 35°C."
+    }
+  ]
+}

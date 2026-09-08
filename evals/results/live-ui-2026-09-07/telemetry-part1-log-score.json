@@ -1,0 +1,1009 @@
+{
+  "scoredAt": "2026-09-08T00:21:14.717Z",
+  "phase": "log-only before implementation inspection",
+  "eventCount": 974,
+  "ignoredNonEventLines": 101,
+  "eventNames": {
+    "app.ready": 1,
+    "source_registry_reconciled": 9,
+    "request-context.started": 8,
+    "preflight.started": 8,
+    "preflight.stage": 251,
+    "source_job_queued": 38,
+    "source_job_started": 38,
+    "sync-agent.started": 1,
+    "source_readiness_transition": 37,
+    "source_job_completed": 38,
+    "backend-request.started": 61,
+    "backend-request.failed": 39,
+    "backend-request.completed": 22,
+    "paper-card.configuration": 8,
+    "paper-card.request-queued": 8,
+    "paper-card.slot-acquired": 8,
+    "request-context.waiting": 25,
+    "preflight.waiting": 18,
+    "sync-agent.waiting": 18,
+    "backend-request.waiting": 42,
+    "sync-agent.completed": 1,
+    "preflight.completed": 8,
+    "context.stage": 116,
+    "source_readiness_cache_hit": 104,
+    "request-context.completed": 8,
+    "main-agent.started": 8,
+    "main-agent.waiting": 19,
+    "main-agent.buffered-response": 8,
+    "backend.capability-reported": 9,
+    "main-agent.completed": 8,
+    "sync-agent.skipped": 7
+  },
+  "backendCounts": {
+    "backend-request.started": 61,
+    "backend-request.failed": 39,
+    "backend-request.completed": 22,
+    "backend-request.waiting": 42
+  },
+  "mainAgentCounts": {
+    "main-agent.started": 8,
+    "main-agent.waiting": 19,
+    "main-agent.buffered-response": 8,
+    "main-agent.completed": 8
+  },
+  "backendRolesStarted": {
+    "schema_mapper /api/semantic/map-schema": 32,
+    "unlabeled /api/literature/config": 8,
+    "combined_text_paper_card /api/literature/create-paper-card-from-text": 8,
+    "semantic_parser /api/semantic/interpret": 7,
+    "unlabeled /api/knowledge/config": 2,
+    "search_planner /api/knowledge/plan-search": 2,
+    "reranker /api/knowledge/rerank": 2
+  },
+  "failureGroups": {
+    "502 SchemaMapperUnavailable schema_mapper providerAttempts=0": 32,
+    "502 SemanticParserUnavailable semantic_parser providerAttempts=0": 7
+  },
+  "failures": [
+    {
+      "timestamp": "2026-09-07T23:42:33.833Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824552615-5",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1218
+      },
+      "line": 140
+    },
+    {
+      "timestamp": "2026-09-07T23:42:33.872Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824552568-4",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1304
+      },
+      "line": 141
+    },
+    {
+      "timestamp": "2026-09-07T23:42:34.599Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824554305-7",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 294
+      },
+      "line": 178
+    },
+    {
+      "timestamp": "2026-09-07T23:42:34.870Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824554287-6",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 583
+      },
+      "line": 196
+    },
+    {
+      "timestamp": "2026-09-07T23:47:47.432Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788824867119-24",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 313
+      },
+      "line": 655
+    },
+    {
+      "timestamp": "2026-09-07T23:47:48.106Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824867785-25",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 321
+      },
+      "line": 680
+    },
+    {
+      "timestamp": "2026-09-07T23:47:48.410Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824868154-26",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 256
+      },
+      "line": 684
+    },
+    {
+      "timestamp": "2026-09-07T23:47:48.674Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824868425-27",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 249
+      },
+      "line": 688
+    },
+    {
+      "timestamp": "2026-09-07T23:47:48.965Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788824868688-28",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 277
+      },
+      "line": 692
+    },
+    {
+      "timestamp": "2026-09-07T23:51:36.535Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788825095509-32",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1026
+      },
+      "line": 709
+    },
+    {
+      "timestamp": "2026-09-07T23:51:37.223Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825096877-33",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 346
+      },
+      "line": 733
+    },
+    {
+      "timestamp": "2026-09-07T23:51:37.585Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825097309-34",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 276
+      },
+      "line": 737
+    },
+    {
+      "timestamp": "2026-09-07T23:51:37.863Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825097609-35",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 254
+      },
+      "line": 741
+    },
+    {
+      "timestamp": "2026-09-07T23:51:38.134Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825097882-36",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 252
+      },
+      "line": 745
+    },
+    {
+      "timestamp": "2026-09-07T23:58:27.835Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788825505900-40",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1935
+      },
+      "line": 760
+    },
+    {
+      "timestamp": "2026-09-07T23:58:28.503Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825508263-41",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 240
+      },
+      "line": 778
+    },
+    {
+      "timestamp": "2026-09-07T23:58:28.833Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825508587-42",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 246
+      },
+      "line": 782
+    },
+    {
+      "timestamp": "2026-09-07T23:58:29.105Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825508866-43",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 239
+      },
+      "line": 786
+    },
+    {
+      "timestamp": "2026-09-07T23:58:29.361Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825509120-44",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 241
+      },
+      "line": 790
+    },
+    {
+      "timestamp": "2026-09-08T00:00:42.162Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788825641017-48",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1145
+      },
+      "line": 806
+    },
+    {
+      "timestamp": "2026-09-08T00:00:42.633Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825642362-49",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 271
+      },
+      "line": 817
+    },
+    {
+      "timestamp": "2026-09-08T00:00:42.988Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825642637-50",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 351
+      },
+      "line": 819
+    },
+    {
+      "timestamp": "2026-09-08T00:00:43.266Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825642991-51",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 275
+      },
+      "line": 821
+    },
+    {
+      "timestamp": "2026-09-08T00:00:43.543Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825643268-52",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 275
+      },
+      "line": 823
+    },
+    {
+      "timestamp": "2026-09-08T00:04:47.375Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825886235-56",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1140
+      },
+      "line": 867
+    },
+    {
+      "timestamp": "2026-09-08T00:04:47.676Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825887380-57",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 296
+      },
+      "line": 869
+    },
+    {
+      "timestamp": "2026-09-08T00:04:47.968Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825887680-58",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 288
+      },
+      "line": 871
+    },
+    {
+      "timestamp": "2026-09-08T00:04:48.539Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788825887970-59",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 569
+      },
+      "line": 873
+    },
+    {
+      "timestamp": "2026-09-08T00:05:59.332Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825958903-1e4ddd7d3edf5",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788825958940-63",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 392
+      },
+      "line": 912
+    },
+    {
+      "timestamp": "2026-09-08T00:08:27.935Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788826106815-67",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1120
+      },
+      "line": 938
+    },
+    {
+      "timestamp": "2026-09-08T00:08:28.351Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826108067-68",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 284
+      },
+      "line": 949
+    },
+    {
+      "timestamp": "2026-09-08T00:08:28.639Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826108353-69",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 286
+      },
+      "line": 951
+    },
+    {
+      "timestamp": "2026-09-08T00:08:28.928Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826108643-70",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 285
+      },
+      "line": 953
+    },
+    {
+      "timestamp": "2026-09-08T00:08:29.218Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826108934-71",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 284
+      },
+      "line": 955
+    },
+    {
+      "timestamp": "2026-09-08T00:14:14.622Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "operationId": "op-1788826453506-78",
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1116
+      },
+      "line": 1009
+    },
+    {
+      "timestamp": "2026-09-08T00:14:15.109Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826454760-79",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 349
+      },
+      "line": 1020
+    },
+    {
+      "timestamp": "2026-09-08T00:14:15.403Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826455111-80",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 292
+      },
+      "line": 1022
+    },
+    {
+      "timestamp": "2026-09-08T00:14:15.697Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826455405-81",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 292
+      },
+      "line": 1024
+    },
+    {
+      "timestamp": "2026-09-08T00:14:15.993Z",
+      "level": "ERROR",
+      "name": "backend-request.failed",
+      "data": {
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "operationId": "op-1788826455702-82",
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 291
+      },
+      "line": 1026
+    }
+  ],
+  "observations": [
+    {
+      "file": "01-discovery-en-cold.json",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "cacheState": "cold",
+      "latestUser": "1788824552291-df9a1f56fdf228",
+      "latestUserAt": "2026-09-07T23:42:32.291Z",
+      "latestAssistantAt": "2026-09-07T23:48:13.145Z",
+      "timing": {
+        "latencyMs": 340854,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "cold",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 3
+      }
+    },
+    {
+      "file": "02-discovery-en-warm.json",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "cacheState": "warm",
+      "latestUser": "1788825095467-63e053e4c7318",
+      "latestUserAt": "2026-09-07T23:51:35.467Z",
+      "latestAssistantAt": "2026-09-07T23:51:53.900Z",
+      "timing": {
+        "latencyMs": 18433,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 2
+      }
+    },
+    {
+      "file": "03-discovery-zh.json",
+      "caseId": "CW-ECTD_PAPERS-02",
+      "cacheState": "warm",
+      "latestUser": "1788825505752-05e0765233cc1",
+      "latestUserAt": "2026-09-07T23:58:25.752Z",
+      "latestAssistantAt": "2026-09-07T23:58:46.953Z",
+      "timing": {
+        "latencyMs": 21201,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 2
+      }
+    },
+    {
+      "file": "04-metric-reasoning.json",
+      "caseId": "CW-ECTD_PAPERS-05",
+      "cacheState": "warm",
+      "latestUser": "1788825640922-54e55b2c13b41",
+      "latestUserAt": "2026-09-08T00:00:40.922Z",
+      "latestAssistantAt": "2026-09-08T00:01:12.930Z",
+      "timing": {
+        "latencyMs": 32008,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 2
+      }
+    },
+    {
+      "file": "05-heldout-p152.json",
+      "caseId": "CW-ECTD_PAPERS-07",
+      "cacheState": "warm",
+      "latestUser": "1788825886043-77787d0e653fa8",
+      "latestUserAt": "2026-09-08T00:04:46.044Z",
+      "latestAssistantAt": "2026-09-08T00:05:14.457Z",
+      "timing": {
+        "latencyMs": 28413,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 0,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 2
+      }
+    },
+    {
+      "file": "06-heldout-uncertainty.json",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "cacheState": "warm",
+      "latestUser": "1788825958903-1e4ddd7d3edf5",
+      "latestUserAt": "2026-09-08T00:05:58.903Z",
+      "latestAssistantAt": "2026-09-08T00:06:42.266Z",
+      "timing": {
+        "latencyMs": 43363,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 0,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 1
+      }
+    },
+    {
+      "file": "07-experiment-x02.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "cacheState": "warm",
+      "latestUser": "1788826106772-751f8ebf79152",
+      "latestUserAt": "2026-09-08T00:08:26.772Z",
+      "latestAssistantAt": "2026-09-08T00:10:21.709Z",
+      "timing": {
+        "latencyMs": 114937,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 5
+      }
+    },
+    {
+      "file": "08-experiment-activity.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "cacheState": "warm",
+      "latestUser": "1788826453462-16b1866783dcc8",
+      "latestUserAt": "2026-09-08T00:14:13.462Z",
+      "latestAssistantAt": "2026-09-08T00:17:37.301Z",
+      "timing": {
+        "latencyMs": 203839,
+        "timeToFirstVisibleMs": null,
+        "cacheState": "warm",
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      "cloudCalls": {
+        "semantic_parser": 1,
+        "schema_mapper": 4,
+        "search_planner": 0,
+        "reranker": 0,
+        "corpus_mapper": 0,
+        "native_pdf": 0,
+        "combined_text_paper_card": 0,
+        "image_understanding": 0,
+        "answer": 6
+      }
+    }
+  ]
+}

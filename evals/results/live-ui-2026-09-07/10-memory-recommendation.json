@@ -1,0 +1,288 @@
+{
+  "caseId": "CW-ECTD_WORKFLOWS-02",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "Based on the evidence from **P152** and internal experiment **X04** at 42°C, the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume:\n\n### Variant Comparison at 42°C\n| Variant | Specific Activity | Product Titer | Performance Lead |\n| :--- | :--- | :--- | :--- |\n| **A163V** | 1.50 U/mg [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **4.60 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **Product Titer** |\n| **T212S** | **2.40 U/mg** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | 3.90 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | **Specific Activity** |\n\n### Recommendation\n*   **For Production Maximization:** Recommend **A163V**. It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L), making it the superior choice if the primary goal is increasing the final amount of hydroxy-tetrahydropyrimidine produced [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1).\n*   **For Enzyme Engineering/Activity:** Recommend **T212S**. It exhibits substantially higher specific activity (2.40 U/mg vs 1.50 U/mg), which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme or integrate it with the CelluWeave novel domain [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1).\n\n**Next Step Suggestion:** If the objective is to combine high activity with high titer, a follow-up design could explore a double mutant combining both **A163V** and **T212S** to determine if these beneficial traits are additive at 42°C.",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "P152",
+          "sourceId": "P152",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "literature/P152.pdf",
+          "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        },
+        {
+          "id": "citation-2",
+          "reference": "local:4",
+          "sourceId": "X04",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "experiments/X04.xlsx",
+          "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P152",
+        "P117",
+        "P17",
+        "P131",
+        "P31"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X01",
+        "X02",
+        "X03",
+        "X04"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.8182,
+          "matchState": "uncertain",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results",
+          "read_project_context"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "fast",
+        "escalated": false,
+        "reason": "medium-strong-exact-match"
+      }
+    },
+    "activity": [
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P117.pdf...",
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P17.pdf...",
+      "正在读取 P17.pdf 的源文件细节...",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P31.pdf...",
+      "正在读取 P31.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "Using my current objective and P152 at 42°C, recommend a variant for follow-up from Side Chat.",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:23:46.249Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788826967413-f4a1a62d307bc",
+          "role": "user",
+          "content": "Using my current objective and P152 at 42°C, recommend a variant for follow-up from Side Chat.",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P152",
+              "P117",
+              "P17",
+              "P131",
+              "P31"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X01",
+              "X02",
+              "X03",
+              "X04"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.8182,
+                "matchState": "uncertain",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results",
+                "read_project_context"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 2
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "fast",
+              "escalated": false,
+              "reason": "medium-strong-exact-match"
+            }
+          },
+          "createdAt": "2026-09-08T00:22:47.413Z"
+        },
+        {
+          "id": "1788827026113-cccb802476d638",
+          "role": "assistant",
+          "content": "Based on the evidence from **P152** and internal experiment **X04** at 42°C, the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume:\n\n### Variant Comparison at 42°C\n| Variant | Specific Activity | Product Titer | Performance Lead |\n| :--- | :--- | :--- | :--- |\n| **A163V** | 1.50 U/mg [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **4.60 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **Product Titer** |\n| **T212S** | **2.40 U/mg** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | 3.90 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | **Specific Activity** |\n\n### Recommendation\n*   **For Production Maximization:** Recommend **A163V**. It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L), making it the superior choice if the primary goal is increasing the final amount of hydroxy-tetrahydropyrimidine produced [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1).\n*   **For Enzyme Engineering/Activity:** Recommend **T212S**. It exhibits substantially higher specific activity (2.40 U/mg vs 1.50 U/mg), which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme or integrate it with the CelluWeave novel domain [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1).\n\n**Next Step Suggestion:** If the objective is to combine high activity with high titer, a follow-up design could explore a double mutant combining both **A163V** and **T212S** to determine if these beneficial traits are additive at 42°C.",
+          "activity": [
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P117.pdf...",
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P17.pdf...",
+            "正在读取 P17.pdf 的源文件细节...",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P31.pdf...",
+            "正在读取 P31.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "P152",
+              "sourceId": "P152",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P152.pdf",
+              "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            },
+            {
+              "id": "citation-2",
+              "reference": "local:4",
+              "sourceId": "X04",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X04.xlsx",
+              "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-08T00:23:46.113Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 58700,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.8182,
+      "matchState": "uncertain",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results",
+      "read_project_context"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 2
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "a43f83b7dbf593e2558e886c97c8b4547902594c142f7cf9ee0005f18ffec3d7",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

@@ -46,6 +46,36 @@ test("only a registered current parsed-artifact handle establishes a page", () =
   assert.equal(citations.resolveAnswer("[[cite:paper-a:p5:chunk-9]]", registry(context)).citations[0].status, "missing");
 });
 
+test("corpus workflow reads direct citations to original sources instead of the derived result", () => {
+  const context = fixture();
+  context.inventory = [];
+  context.files = [{
+    name: "summarize-paper-corpus", relativePath: ".biodesign/results/result.json",
+    evidenceType: "corpus-workflow", analysisStatus: "processed",
+    content: JSON.stringify({ evidenceRefs: ["paper-a:p5:chunk-9"] }),
+  }];
+  const knowledgeBase = agent.createSideChatKnowledgeBase({ localWorkspaceContext: sanitizeLocalWorkspaceContext(context) });
+  const sourceRegistry = agent.buildSourceCitationRegistry(knowledgeBase);
+  const item = JSON.parse(agent.executeSideChatTool({
+    id: "read-corpus", type: "function", function: {
+      name: "read_workspace_item", arguments: JSON.stringify({ item_id: "local:1" }),
+    },
+  }, knowledgeBase));
+  assert.equal(item.content, context.files[0].content);
+  assert.equal(Object.hasOwn(item, "citation"), false, "A result without a registered source identity cannot supply a source citation");
+  assert.match(item.citation_guidance, /original.*evidenceRefs/);
+  assert.match(agent.buildSideChatCatalog(knowledgeBase), /corpus-workflow.*original.*evidence/i);
+  assert.equal(sourceRegistry.has("local:1"), false);
+  assert.equal(sourceRegistry.has("catalog:local:1"), false);
+  const resolved = citations.resolveAnswer("[[cite:paper-a:p5:chunk-9]]", sourceRegistry);
+  const bound = citations.bindToWorkspace(resolved.citations, {
+    workspaceId: "w", getSource: id => context.sourceMap.paperSources.find(source => source.sourceId === id),
+  });
+  assert.equal(bound[0].status, "resolved");
+  assert.equal(bound[0].sourceId, "paper-a");
+  assert.equal(bound[0].page, 5);
+});
+
 test("missing, stale, and ambiguous references are explicit and cannot be navigated", () => {
   const context = fixture(); context.sourceMap.paperSources[0].catalogStatus = "missing";
   const result = citations.resolveAnswer("[local:1] [local:999]", registry(context));
@@ -61,13 +91,38 @@ test("missing, stale, and ambiguous references are explicit and cannot be naviga
 
 test("citation resolution preserves ordinary IDs, code, links, and exact tool handles", () => {
   const protectedText = [
-    "A variable named local:1.", "`[local:1]` and ``[[cite:paper-a]]``",
+    "A variable named local:1_value.", "`[local:1]` and ``[[cite:paper-a]]``",
+    "`const local = 1;` and `read(local:1)`", "https://example.com/local:1?value=local:2 and file:///local:3",
     "[local:1](https://example.com)", "    [local:1]", "\t[[cite:paper-a]]",
     "```js", "[local:1]", "``` not a closing fence", "[[cite:paper-a]]", "```",
     "~~~", "[local:1]", "~~~",
   ].join("\n");
   assert.equal(citations.resolveAnswer(protectedText, registry()).reply, protectedText);
   assert.equal(citations.resolveAnswer(protectedText, registry()).citations.length, 0);
+});
+
+test("bare and code-formatted catalog handles resolve in prose, lists and tables", () => {
+  const answer = "根据证据（特别是 `local:1`），模型如下。\n\n- 参考local:2，另见 **local:3**。\n\n| Source | Finding |\n| --- | --- |\n| `` local:1 `` | Result |\n\nAlso [local:1].";
+  const result = citations.resolveAnswer(answer, registry());
+  assert.deepEqual(result.citations.map(entry => entry.sourceId), ["paper-a", "paper-b", "paper-c"]);
+  assert.equal((result.reply.match(/biodesign-citation:/g) || []).length, 5);
+  assert.doesNotMatch(result.reply, /local:\d/);
+  assert.deepEqual(citations.resolveAnswer(result.reply, registry(), result.citations), result);
+  const missing = citations.resolveAnswer("Unknown `local:999` or local:998.", registry());
+  assert.ok(missing.citations.every(entry => entry.status === "missing"));
+  assert.doesNotMatch(missing.reply, /local:\d/);
+});
+
+test("saved inline aliases reuse their original citation even after catalog order changes", () => {
+  const context = { workspaceId: "w", workspaceName: "Project Folder", getSource: id => fixture().sourceMap.paperSources.find(s => s.sourceId === id), files: fixture().sourceMap.paperSources.map(s => ({ type: "file", relativePath: s.path })) };
+  const saved = citations.bindToWorkspace(citations.resolveAnswer("[local:1]", registry()).citations, context);
+  const answer = "根据证据（特别是 `local:1`），模型如下。 See [Existing source](biodesign-citation:citation-1).";
+  const result = citations.resolveForDisplay(answer, saved, context);
+  assert.deepEqual(result.citations, saved);
+  assert.equal((result.reply.match(/biodesign-citation:citation-1/g) || []).length, 2);
+  assert.doesNotMatch(result.reply, /local:1/);
+  assert.equal(citations.navigationTarget(result.citations[0], context).relativePath, fixture().sourceMap.paperSources[0].path);
+  assert.equal(citations.resolveForDisplay("`local:1`", [], context).citations[0].status, "missing", "Never infer a historical alias from the current catalog");
 });
 
 test("experimental record IDs resolve verified workbook, sheet, and cell range", () => {
@@ -124,12 +179,14 @@ test("agent final response resolves citations deterministically while tool catal
     surface: "side_chat", conversationMessages: [{ role: "user", content: "Read evidence" }],
     workspaceContext: { localWorkspaceContext: sanitizeLocalWorkspaceContext(fixture()) },
     systemPrompt: "Answer with evidence", parseFinalAnswer: content => ({ reply: content }),
-    requestTurn: async ({ messages }) => { catalog = JSON.stringify(messages); return { ok: true, message: { content: "Result [local:1] [[cite:paper-a:p5:chunk-9]]" } }; },
+    requestTurn: async ({ messages }) => { catalog = JSON.stringify(messages); return { ok: true, message: { content: "Result `local:1` [[cite:paper-a:p5:chunk-9]] and local:2." } }; },
   });
   assert.equal(result.ok, true);
   assert.match(catalog, /local:1/);
   assert.equal(result.data.citations[1].reference, "paper-a:p5:chunk-9");
   assert.match(result.data.reply, /Project Folder \/ literature \/ subfolder \/ paper.pdf — p\. 5/);
+  assert.equal(result.data.citations[2].relativePath, fixture().sourceMap.paperSources[1].path);
+  assert.doesNotMatch(result.data.reply, /local:\d/);
   assert.doesNotMatch(catalog, /private\/root/);
 });
 

@@ -1,0 +1,84 @@
+{
+  "packetId": "337f87c5b25f49fc",
+  "artifactType": "final_answer",
+  "correctness": 5,
+  "faithfulness": 5,
+  "completeness": 5,
+  "relevance": 5,
+  "uncertaintyHandling": 5,
+  "synthesis": null,
+  "clarity": 5,
+  "overall": 5,
+  "criticalErrors": [],
+  "missingPoints": [],
+  "lowScoreEvidence": [],
+  "claimAudits": [
+    {
+      "candidateSpan": "At 42°C in P152",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p1:v1", "P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "**Specific Activity:** **T212S** leads with 2.40 U/mg",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": ["activity_leader"]
+    },
+    {
+      "candidateSpan": "**Product Titer:** **A163V** leads with 4.60 g/L",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": ["titer_leader"]
+    },
+    {
+      "candidateSpan": "A measured **yield** was not reported for these 42°C conditions",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": ["yield_available"]
+    }
+  ],
+  "numericClaims": [
+    {
+      "candidateSpan": "At 42°C in P152",
+      "subject": "P152",
+      "metric": "temperature",
+      "value": 42,
+      "unit": "°C",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "**Specific Activity:** **T212S** leads with 2.40 U/mg",
+      "subject": "T212S",
+      "metric": "specific activity",
+      "value": 2.40,
+      "unit": "U/mg",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "**Product Titer:** **A163V** leads with 4.60 g/L",
+      "subject": "A163V",
+      "metric": "product titer",
+      "value": 4.60,
+      "unit": "g/L",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "A measured **yield** was not reported for these 42°C conditions",
+      "subject": "P152",
+      "metric": "temperature",
+      "value": 42,
+      "unit": "°C",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    }
+  ],
+  "confidence": "high"
+}

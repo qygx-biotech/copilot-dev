@@ -1,0 +1,1200 @@
+{
+  "schemaVersion": 1,
+  "normalizerVersion": "canonical-tabular-v2",
+  "sourceId": "X02",
+  "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+  "sheets": [
+    {
+      "name": "EctD",
+      "rows": [
+        [
+          "row_id",
+          "variant",
+          "titer_g_L",
+          "activity_U_mg",
+          "yield_g_g",
+          "productivity_g_L_h",
+          "temperature_C",
+          "status"
+        ],
+        [
+          "X02-R1",
+          "A163V",
+          4.8,
+          1.8,
+          0.4,
+          0.1,
+          30,
+          "complete"
+        ],
+        [
+          "X02-R2",
+          "A163V",
+          4.9,
+          1.9,
+          0.42,
+          0.10208333333333335,
+          30,
+          "complete"
+        ],
+        [
+          "X02-R3",
+          "T212S",
+          4.1,
+          2.2,
+          0.5,
+          0.08541666666666665,
+          35,
+          "complete"
+        ],
+        [
+          "X02-R4",
+          "T212S",
+          4.3,
+          2.3,
+          0.52,
+          0.08958333333333333,
+          35,
+          "complete"
+        ],
+        [
+          "X02-R5",
+          "A163V",
+          99,
+          99,
+          99,
+          99,
+          30,
+          "failed"
+        ],
+        [
+          "X02-R6",
+          "A163V",
+          "",
+          "",
+          "",
+          "",
+          30,
+          "pending"
+        ]
+      ]
+    }
+  ],
+  "schemas": [
+    {
+      "version": 1,
+      "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+      "sourceId": "X02",
+      "sheet": "EctD",
+      "columns": [
+        {
+          "rawHeader": "row_id",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c1",
+          "columnIndex": 0,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:f45d2e5b55b6dbeb:245",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"row_id\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"row_id\",\"variant\",\"titer_g_L\"],\"valueTypes\":[\"string\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "string"
+          ],
+          "examples": [
+            "X02-R1",
+            "X02-R2",
+            "X02-R3"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "variant",
+          "sourceLanguage": "en",
+          "canonicalField": "mutation",
+          "candidateFields": [],
+          "dataType": "string",
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 1,
+          "status": "confirmed",
+          "method": "field-alias",
+          "columnId": "c2",
+          "columnIndex": 1,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:7cddad903210ba24:262",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"variant\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"row_id\",\"variant\",\"titer_g_L\",\"activity_U_mg\"],\"valueTypes\":[\"string\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "string"
+          ],
+          "examples": [
+            "A163V",
+            "A163V",
+            "T212S"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "titer_g_L",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c3",
+          "columnIndex": 2,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:704f0c3cca670288:284",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"titer_g_L\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"row_id\",\"variant\",\"titer_g_L\",\"activity_U_mg\",\"yield_g_g\"],\"valueTypes\":[\"empty\",\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "empty",
+            "number"
+          ],
+          "examples": [
+            "4.8",
+            "4.9",
+            "4.1"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "activity_U_mg",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c4",
+          "columnIndex": 3,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:3492c96fb482e7b3:300",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"activity_U_mg\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"variant\",\"titer_g_L\",\"activity_U_mg\",\"yield_g_g\",\"productivity_g_L_h\"],\"valueTypes\":[\"empty\",\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "empty",
+            "number"
+          ],
+          "examples": [
+            "1.8",
+            "1.9",
+            "2.2"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "yield_g_g",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c5",
+          "columnIndex": 4,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:1037133fd14360f:302",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"yield_g_g\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"titer_g_L\",\"activity_U_mg\",\"yield_g_g\",\"productivity_g_L_h\",\"temperature_C\"],\"valueTypes\":[\"empty\",\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "empty",
+            "number"
+          ],
+          "examples": [
+            "0.4",
+            "0.42",
+            "0.5"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "productivity_g_L_h",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c6",
+          "columnIndex": 5,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:aee24fbb8050e07f:308",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"productivity_g_L_h\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"activity_U_mg\",\"yield_g_g\",\"productivity_g_L_h\",\"temperature_C\",\"status\"],\"valueTypes\":[\"empty\",\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "empty",
+            "number"
+          ],
+          "examples": [
+            "0.1",
+            "0.10208333333333335",
+            "0.08541666666666665"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "temperature_C",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c7",
+          "columnIndex": 6,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:ef83ceb0764819b4:279",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"temperature_C\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"yield_g_g\",\"productivity_g_L_h\",\"temperature_C\",\"status\"],\"valueTypes\":[\"number\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "number"
+          ],
+          "examples": [
+            "30",
+            "30",
+            "35"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        },
+        {
+          "rawHeader": "status",
+          "sourceLanguage": "en",
+          "canonicalField": null,
+          "candidateFields": [],
+          "dataType": null,
+          "canonicalUnit": null,
+          "unit": null,
+          "normalizedUnit": null,
+          "confidence": 0,
+          "status": "unresolved",
+          "method": "unresolved",
+          "columnId": "c8",
+          "columnIndex": 7,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "schemaSignature": "schema-v1:f4057e6480cf1b2:214",
+          "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "mappingKey": "schema-v1:d22642d3d9a59f27:260",
+          "contextIdentity": "{\"version\":1,\"registryVersion\":1,\"sourceId\":\"X02\",\"sheet\":\"EctD\",\"rawHeader\":\"status\",\"occurrence\":0,\"unit\":null,\"units\":[],\"neighbors\":[\"productivity_g_L_h\",\"temperature_C\",\"status\"],\"valueTypes\":[\"string\"],\"productContext\":\"\",\"ontologyLabels\":[],\"module\":\"\"}",
+          "valueTypes": [
+            "string"
+          ],
+          "examples": [
+            "complete",
+            "complete",
+            "complete"
+          ],
+          "unitColumnIndex": null,
+          "cacheHit": true
+        }
+      ]
+    }
+  ],
+  "records": [
+    {
+      "experimentId": "X02-R1",
+      "sourceId": "X02",
+      "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "raw": {
+        "row_id": "X02-R1",
+        "variant": "A163V",
+        "titer_g_L": 4.8,
+        "activity_U_mg": 1.8,
+        "yield_g_g": 0.4,
+        "productivity_g_L_h": 0.1,
+        "temperature_C": 30,
+        "status": "complete"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "row_id",
+          "rawValue": "X02-R1",
+          "canonicalField": null,
+          "normalizedValue": "X02-R1",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "variant",
+          "rawValue": "A163V",
+          "canonicalField": "mutation",
+          "normalizedValue": "A163V",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "titer_g_L",
+          "rawValue": 4.8,
+          "canonicalField": null,
+          "normalizedValue": 4.8,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "activity_U_mg",
+          "rawValue": 1.8,
+          "canonicalField": null,
+          "normalizedValue": 1.8,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "yield_g_g",
+          "rawValue": 0.4,
+          "canonicalField": null,
+          "normalizedValue": 0.4,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "productivity_g_L_h",
+          "rawValue": 0.1,
+          "canonicalField": null,
+          "normalizedValue": 0.1,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "temperature_C",
+          "rawValue": 30,
+          "canonicalField": null,
+          "normalizedValue": 30,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "status",
+          "rawValue": "complete",
+          "canonicalField": null,
+          "normalizedValue": "complete",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "A163V"
+      },
+      "canonicalUnits": {
+        "mutation": null
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "A163V"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X02.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A2:H2",
+        "row": 2
+      }
+    },
+    {
+      "experimentId": "X02-R2",
+      "sourceId": "X02",
+      "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "raw": {
+        "row_id": "X02-R2",
+        "variant": "A163V",
+        "titer_g_L": 4.9,
+        "activity_U_mg": 1.9,
+        "yield_g_g": 0.42,
+        "productivity_g_L_h": 0.10208333333333335,
+        "temperature_C": 30,
+        "status": "complete"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "row_id",
+          "rawValue": "X02-R2",
+          "canonicalField": null,
+          "normalizedValue": "X02-R2",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "variant",
+          "rawValue": "A163V",
+          "canonicalField": "mutation",
+          "normalizedValue": "A163V",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "titer_g_L",
+          "rawValue": 4.9,
+          "canonicalField": null,
+          "normalizedValue": 4.9,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "activity_U_mg",
+          "rawValue": 1.9,
+          "canonicalField": null,
+          "normalizedValue": 1.9,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "yield_g_g",
+          "rawValue": 0.42,
+          "canonicalField": null,
+          "normalizedValue": 0.42,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "productivity_g_L_h",
+          "rawValue": 0.10208333333333335,
+          "canonicalField": null,
+          "normalizedValue": 0.10208333333333335,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "temperature_C",
+          "rawValue": 30,
+          "canonicalField": null,
+          "normalizedValue": 30,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "status",
+          "rawValue": "complete",
+          "canonicalField": null,
+          "normalizedValue": "complete",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "A163V"
+      },
+      "canonicalUnits": {
+        "mutation": null
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "A163V"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X02.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A3:H3",
+        "row": 3
+      }
+    },
+    {
+      "experimentId": "X02-R3",
+      "sourceId": "X02",
+      "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "raw": {
+        "row_id": "X02-R3",
+        "variant": "T212S",
+        "titer_g_L": 4.1,
+        "activity_U_mg": 2.2,
+        "yield_g_g": 0.5,
+        "productivity_g_L_h": 0.08541666666666665,
+        "temperature_C": 35,
+        "status": "complete"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "row_id",
+          "rawValue": "X02-R3",
+          "canonicalField": null,
+          "normalizedValue": "X02-R3",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "variant",
+          "rawValue": "T212S",
+          "canonicalField": "mutation",
+          "normalizedValue": "T212S",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "titer_g_L",
+          "rawValue": 4.1,
+          "canonicalField": null,
+          "normalizedValue": 4.1,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "activity_U_mg",
+          "rawValue": 2.2,
+          "canonicalField": null,
+          "normalizedValue": 2.2,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "yield_g_g",
+          "rawValue": 0.5,
+          "canonicalField": null,
+          "normalizedValue": 0.5,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "productivity_g_L_h",
+          "rawValue": 0.08541666666666665,
+          "canonicalField": null,
+          "normalizedValue": 0.08541666666666665,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "temperature_C",
+          "rawValue": 35,
+          "canonicalField": null,
+          "normalizedValue": 35,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "status",
+          "rawValue": "complete",
+          "canonicalField": null,
+          "normalizedValue": "complete",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "T212S"
+      },
+      "canonicalUnits": {
+        "mutation": null
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "T212S"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X02.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A4:H4",
+        "row": 4
+      }
+    },
+    {
+      "experimentId": "X02-R4",
+      "sourceId": "X02",
+      "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "raw": {
+        "row_id": "X02-R4",
+        "variant": "T212S",
+        "titer_g_L": 4.3,
+        "activity_U_mg": 2.3,
+        "yield_g_g": 0.52,
+        "productivity_g_L_h": 0.08958333333333333,
+        "temperature_C": 35,
+        "status": "complete"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "row_id",
+          "rawValue": "X02-R4",
+          "canonicalField": null,
+          "normalizedValue": "X02-R4",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "variant",
+          "rawValue": "T212S",
+          "canonicalField": "mutation",
+          "normalizedValue": "T212S",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "titer_g_L",
+          "rawValue": 4.3,
+          "canonicalField": null,
+          "normalizedValue": 4.3,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "activity_U_mg",
+          "rawValue": 2.3,
+          "canonicalField": null,
+          "normalizedValue": 2.3,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "yield_g_g",
+          "rawValue": 0.52,
+          "canonicalField": null,
+          "normalizedValue": 0.52,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "productivity_g_L_h",
+          "rawValue": 0.08958333333333333,
+          "canonicalField": null,
+          "normalizedValue": 0.08958333333333333,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "temperature_C",
+          "rawValue": 35,
+          "canonicalField": null,
+          "normalizedValue": 35,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "status",
+          "rawValue": "complete",
+          "canonicalField": null,
+          "normalizedValue": "complete",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "T212S"
+      },
+      "canonicalUnits": {
+        "mutation": null
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "T212S"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X02.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A5:H5",
+        "row": 5
+      }
+    },
+    {
+      "experimentId": "X02-R5",
+      "sourceId": "X02",
+      "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "raw": {
+        "row_id": "X02-R5",
+        "variant": "A163V",
+        "titer_g_L": 99,
+        "activity_U_mg": 99,
+        "yield_g_g": 99,
+        "productivity_g_L_h": 99,
+        "temperature_C": 30,
+        "status": "failed"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "row_id",
+          "rawValue": "X02-R5",
+          "canonicalField": null,
+          "normalizedValue": "X02-R5",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "variant",
+          "rawValue": "A163V",
+          "canonicalField": "mutation",
+          "normalizedValue": "A163V",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "titer_g_L",
+          "rawValue": 99,
+          "canonicalField": null,
+          "normalizedValue": 99,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "activity_U_mg",
+          "rawValue": 99,
+          "canonicalField": null,
+          "normalizedValue": 99,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "yield_g_g",
+          "rawValue": 99,
+          "canonicalField": null,
+          "normalizedValue": 99,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "productivity_g_L_h",
+          "rawValue": 99,
+          "canonicalField": null,
+          "normalizedValue": 99,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "temperature_C",
+          "rawValue": 30,
+          "canonicalField": null,
+          "normalizedValue": 30,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "status",
+          "rawValue": "failed",
+          "canonicalField": null,
+          "normalizedValue": "failed",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "A163V"
+      },
+      "canonicalUnits": {
+        "mutation": null
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "A163V"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X02.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A6:H6",
+        "row": 6
+      }
+    },
+    {
+      "experimentId": "X02-R6",
+      "sourceId": "X02",
+      "sourceContentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+      "raw": {
+        "row_id": "X02-R6",
+        "variant": "A163V",
+        "titer_g_L": "",
+        "activity_U_mg": "",
+        "yield_g_g": "",
+        "productivity_g_L_h": "",
+        "temperature_C": 30,
+        "status": "pending"
+      },
+      "rawCells": [
+        {
+          "columnId": "c1",
+          "rawHeader": "row_id",
+          "rawValue": "X02-R6",
+          "canonicalField": null,
+          "normalizedValue": "X02-R6",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c2",
+          "rawHeader": "variant",
+          "rawValue": "A163V",
+          "canonicalField": "mutation",
+          "normalizedValue": "A163V",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "confirmed",
+          "confidence": 1
+        },
+        {
+          "columnId": "c3",
+          "rawHeader": "titer_g_L",
+          "rawValue": "",
+          "canonicalField": null,
+          "normalizedValue": "",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c4",
+          "rawHeader": "activity_U_mg",
+          "rawValue": "",
+          "canonicalField": null,
+          "normalizedValue": "",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c5",
+          "rawHeader": "yield_g_g",
+          "rawValue": "",
+          "canonicalField": null,
+          "normalizedValue": "",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c6",
+          "rawHeader": "productivity_g_L_h",
+          "rawValue": "",
+          "canonicalField": null,
+          "normalizedValue": "",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c7",
+          "rawHeader": "temperature_C",
+          "rawValue": 30,
+          "canonicalField": null,
+          "normalizedValue": 30,
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        },
+        {
+          "columnId": "c8",
+          "rawHeader": "status",
+          "rawValue": "pending",
+          "canonicalField": null,
+          "normalizedValue": "pending",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "unit": null,
+          "normalizedUnit": null,
+          "status": "unresolved",
+          "confidence": 0
+        }
+      ],
+      "canonical": {
+        "mutation": "A163V"
+      },
+      "canonicalUnits": {
+        "mutation": null
+      },
+      "ambiguousCanonicalFields": [],
+      "entities": {
+        "proteins": [],
+        "genes": [],
+        "mutations": [
+          "A163V"
+        ],
+        "strains": []
+      },
+      "provenance": {
+        "sourceFile": "experiments/X02.xlsx",
+        "sourceSheet": "EctD",
+        "sourceRange": "A7:H7",
+        "row": 7
+      }
+    }
+  ],
+  "createdAt": "2026-09-07T23:42:32.615Z"
+}

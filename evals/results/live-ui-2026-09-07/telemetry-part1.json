@@ -1,0 +1,5450 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-08T00:26:23.292Z",
+  "inputs": [
+    {
+      "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+      "sha256": "47b589a3d412340528321418e775cbc4fdc47043b1cb7189410f7f39fef25f6a",
+      "lines": 1075,
+      "eventOccurrences": 974,
+      "ignoredNonEventLines": 101
+    }
+  ],
+  "rawEventOccurrences": 974,
+  "deduplicatedExactEvents": 0,
+  "uniqueEventCount": 974,
+  "malformedEventLines": [],
+  "logWindow": {
+    "first": "2026-09-07T23:39:54.114Z",
+    "last": "2026-09-08T00:17:37.299Z",
+    "appReadyPresent": true
+  },
+  "eventHistogram": {
+    "app.ready": 1,
+    "source_registry_reconciled": 9,
+    "request-context.started": 8,
+    "preflight.started": 8,
+    "preflight.stage": 251,
+    "source_job_queued": 38,
+    "source_job_started": 38,
+    "sync-agent.started": 1,
+    "source_readiness_transition": 37,
+    "source_job_completed": 38,
+    "backend-request.started": 61,
+    "backend-request.failed": 39,
+    "backend-request.completed": 22,
+    "paper-card.configuration": 8,
+    "paper-card.request-queued": 8,
+    "paper-card.slot-acquired": 8,
+    "request-context.waiting": 25,
+    "preflight.waiting": 18,
+    "sync-agent.waiting": 18,
+    "backend-request.waiting": 42,
+    "sync-agent.completed": 1,
+    "preflight.completed": 8,
+    "context.stage": 116,
+    "source_readiness_cache_hit": 104,
+    "request-context.completed": 8,
+    "main-agent.started": 8,
+    "main-agent.waiting": 19,
+    "main-agent.buffered-response": 8,
+    "backend.capability-reported": 9,
+    "main-agent.completed": 8,
+    "sync-agent.skipped": 7
+  },
+  "accountingDefinitions": {
+    "backendRequest": "One distinct backend-request.started operation is one observed client transport attempt. Waiting events are not calls.",
+    "mainAgent": "main-agent.started /chat operations are tracked separately from auxiliary backend requests.",
+    "logicalCounts": "Saved telemetry records logical endpoint roles and backend answer-model steps, not uniformly client attempts.",
+    "deduplication": "Identical trimmed timestamp + level + event + JSON lines are deduplicated across supplied files; references to every occurrence remain.",
+    "attribution": "User message ID joins saved turns exactly. Missing IDs are assigned only to a unique enclosing context/preflight interval and explicitly marked inferred."
+  },
+  "backendRequests": {
+    "started": 61,
+    "completed": 22,
+    "failed": 39,
+    "cancelled": 0,
+    "incomplete": 0,
+    "terminalWithoutStart": 0,
+    "duplicateStartOrTerminalOperations": [],
+    "httpStatusCounts": {
+      "200": 22,
+      "502": 39
+    },
+    "attemptsGreaterThanOne": 0,
+    "attemptFieldCounts": {
+      "1": 61
+    },
+    "reportedProviderAttempts": {
+      "sum": 12,
+      "operationsReporting": 61,
+      "operationsWithoutField": 0,
+      "verifiedUpstreamAttempts": null,
+      "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+    },
+    "durationMs": {
+      "n": 61,
+      "min": 239,
+      "median": 329,
+      "mean": 11883.540983606557,
+      "p95NearestRank": 78127,
+      "max": 79228
+    },
+    "byRoleEndpoint": [
+      {
+        "key": "schema_mapper /api/semantic/map-schema",
+        "role": "schema_mapper",
+        "endpoint": "/api/semantic/map-schema",
+        "started": 32,
+        "completed": 0,
+        "failed": 32,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 32
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 32
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 32,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 32,
+          "min": 239,
+          "median": 285.5,
+          "mean": 388.25,
+          "p95NearestRank": 1218,
+          "max": 1304
+        }
+      },
+      {
+        "key": "unlabeled /api/literature/config",
+        "role": null,
+        "endpoint": "/api/literature/config",
+        "started": 8,
+        "completed": 8,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 8
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 8
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 8,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 8,
+          "min": 269,
+          "median": 326,
+          "mean": 326.5,
+          "p95NearestRank": 380,
+          "max": 380
+        }
+      },
+      {
+        "key": "combined_text_paper_card /api/literature/create-paper-card-from-text",
+        "role": "combined_text_paper_card",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "started": 8,
+        "completed": 8,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 8
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 8
+        },
+        "reportedProviderAttempts": {
+          "sum": 8,
+          "operationsReporting": 8,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 8,
+          "min": 62529,
+          "median": 77629,
+          "mean": 74987.875,
+          "p95NearestRank": 79228,
+          "max": 79228
+        }
+      },
+      {
+        "key": "semantic_parser /api/semantic/interpret",
+        "role": "semantic_parser",
+        "endpoint": "/api/semantic/interpret",
+        "started": 7,
+        "completed": 0,
+        "failed": 7,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 7
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 7
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 7,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 7,
+          "min": 313,
+          "median": 1116,
+          "mean": 1006.7142857142857,
+          "p95NearestRank": 1935,
+          "max": 1935
+        }
+      },
+      {
+        "key": "unlabeled /api/knowledge/config",
+        "role": null,
+        "endpoint": "/api/knowledge/config",
+        "started": 2,
+        "completed": 2,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 2
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 2
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 2,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 2,
+          "min": 289,
+          "median": 323.5,
+          "mean": 323.5,
+          "p95NearestRank": 358,
+          "max": 358
+        }
+      },
+      {
+        "key": "search_planner /api/knowledge/plan-search",
+        "role": "search_planner",
+        "endpoint": "/api/knowledge/plan-search",
+        "started": 2,
+        "completed": 2,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 2
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 2
+        },
+        "reportedProviderAttempts": {
+          "sum": 2,
+          "operationsReporting": 2,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 2,
+          "min": 19898,
+          "median": 21747,
+          "mean": 21747,
+          "p95NearestRank": 23596,
+          "max": 23596
+        }
+      },
+      {
+        "key": "reranker /api/knowledge/rerank",
+        "role": "reranker",
+        "endpoint": "/api/knowledge/rerank",
+        "started": 2,
+        "completed": 2,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 2
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 2
+        },
+        "reportedProviderAttempts": {
+          "sum": 2,
+          "operationsReporting": 2,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 2,
+          "min": 23553,
+          "median": 29384.5,
+          "mean": 29384.5,
+          "p95NearestRank": 35216,
+          "max": 35216
+        }
+      }
+    ],
+    "failures": [
+      {
+        "key": "502 SchemaMapperUnavailable schema_mapper",
+        "count": 32,
+        "operationIds": [
+          "op-1788824552568-4",
+          "op-1788824552615-5",
+          "op-1788824554287-6",
+          "op-1788824554305-7",
+          "op-1788824867785-25",
+          "op-1788824868154-26",
+          "op-1788824868425-27",
+          "op-1788824868688-28",
+          "op-1788825096877-33",
+          "op-1788825097309-34",
+          "op-1788825097609-35",
+          "op-1788825097882-36",
+          "op-1788825508263-41",
+          "op-1788825508587-42",
+          "op-1788825508866-43",
+          "op-1788825509120-44",
+          "op-1788825642362-49",
+          "op-1788825642637-50",
+          "op-1788825642991-51",
+          "op-1788825643268-52",
+          "op-1788825886235-56",
+          "op-1788825887380-57",
+          "op-1788825887680-58",
+          "op-1788825887970-59",
+          "op-1788826108067-68",
+          "op-1788826108353-69",
+          "op-1788826108643-70",
+          "op-1788826108934-71",
+          "op-1788826454760-79",
+          "op-1788826455111-80",
+          "op-1788826455405-81",
+          "op-1788826455702-82"
+        ],
+        "reportedProviderAttempts": 0,
+        "verifiedUpstreamAttempts": null
+      },
+      {
+        "key": "502 SemanticParserUnavailable semantic_parser",
+        "count": 7,
+        "operationIds": [
+          "op-1788824867119-24",
+          "op-1788825095509-32",
+          "op-1788825505900-40",
+          "op-1788825641017-48",
+          "op-1788825958940-63",
+          "op-1788826106815-67",
+          "op-1788826453506-78"
+        ],
+        "reportedProviderAttempts": 0,
+        "verifiedUpstreamAttempts": null
+      }
+    ],
+    "operations": [
+      {
+        "operationId": "op-1788824552568-4",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1304,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:32.568Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 137
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:42:33.872Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 141
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824552615-5",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1218,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:32.615Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 139
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:42:33.833Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 140
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824554287-6",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 583,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:34.287Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 175
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:42:34.870Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 196
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824554305-7",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 294,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:34.305Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 177
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:42:34.599Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 178
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824555431-8",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 269,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:35.431Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 220
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:42:35.700Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 228
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824555645-9",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 302,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:35.645Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 227
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:42:35.947Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 238
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824555741-10",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P17",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 1,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 78173,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:35.741Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 237
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:43:53.914Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 273
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824555984-11",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P31",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 2,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 78196,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:42:35.984Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 247
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:43:54.180Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 296
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824634484-12",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 323,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:43:54.484Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 324
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:43:54.808Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 327
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824634856-13",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P52",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 1,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 74732,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:43:54.856Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 340
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:45:09.589Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 416
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824634857-14",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 329,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:43:54.857Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 342
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:43:55.186Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 343
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824635223-15",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P74",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 2,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 62529,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:43:55.223Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 352
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:44:57.752Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 373
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824698409-16",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 355,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:44:58.409Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 402
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:44:58.764Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 403
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824698805-17",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P83",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 2,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 71787,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:44:58.805Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 412
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:46:10.592Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 475
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824710203-18",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 380,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:45:10.203Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 445
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:45:10.583Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 446
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824710623-19",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P117",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 2,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 77131,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:45:10.623Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 455
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:46:27.754Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 521
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824771297-20",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 343,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:46:11.297Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 505
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:46:11.640Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 506
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824771677-21",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P131",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 2,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 79228,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:46:11.677Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 515
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:30.905Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 575
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824788445-22",
+        "endpoint": "/api/literature/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 311,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:46:28.445Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 550
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:46:28.756Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 551
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824788797-23",
+        "endpoint": "/api/literature/create-paper-card-from-text",
+        "paperId": "P152",
+        "turnId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+        "method": "POST",
+        "role": "combined_text_paper_card",
+        "attempt": 1,
+        "activeRequests": 2,
+        "concurrency": 2,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "structuredOutputMode": "combined-text_json_object",
+        "durationMs": 78127,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_sync_run_id_with_inferred_parent",
+          "syncRunId": "a742e30b-d975-4ceb-91ca-44e447e5d084"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:46:28.797Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 560
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:46.924Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 639
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824867119-24",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 313,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:47:47.119Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 654
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:47.432Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 655
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824867785-25",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 321,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:47:47.785Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 678
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:48.106Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 680
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824868154-26",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 256,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:47:48.154Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 683
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:48.410Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 684
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824868425-27",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 249,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:47:48.425Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 687
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:48.674Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 688
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788824868688-28",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 277,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788824552291-df9a1f56fdf228",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:47:48.688Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 691
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:48.965Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 692
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825095509-32",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1026,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825095467-63e053e4c7318",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:51:35.509Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 708
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:36.535Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 709
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825096877-33",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 346,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825095467-63e053e4c7318",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:51:36.877Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 732
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:37.223Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 733
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825097309-34",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 276,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825095467-63e053e4c7318",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:51:37.309Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 736
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:37.585Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 737
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825097609-35",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 254,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825095467-63e053e4c7318",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:51:37.613Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 740
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:37.863Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 741
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825097882-36",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825095467-63e053e4c7318",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 252,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825095467-63e053e4c7318",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:51:37.882Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 744
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:38.134Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 745
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825505900-40",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1935,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825505752-05e0765233cc1",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:58:25.900Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 759
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:27.835Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 760
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825508263-41",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 240,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825505752-05e0765233cc1",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:58:28.263Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 777
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:28.503Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 778
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825508587-42",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 246,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825505752-05e0765233cc1",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:58:28.587Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 781
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:28.833Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 782
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825508866-43",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 239,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825505752-05e0765233cc1",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:58:28.866Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 785
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:29.105Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 786
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825509120-44",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825505752-05e0765233cc1",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 241,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825505752-05e0765233cc1",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-07T23:58:29.120Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 789
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:29.361Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 790
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825641017-48",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1145,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825640922-54e55b2c13b41",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:00:41.017Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 805
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:00:42.162Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 806
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825642362-49",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 271,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825640922-54e55b2c13b41",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:00:42.362Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 816
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:00:42.633Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 817
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825642637-50",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 351,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825640922-54e55b2c13b41",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:00:42.637Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 818
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:00:42.988Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 819
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825642991-51",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 275,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825640922-54e55b2c13b41",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:00:42.991Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 820
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:00:43.266Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 821
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825643268-52",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 275,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825640922-54e55b2c13b41",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:00:43.268Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 822
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:00:43.543Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 823
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825886235-56",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1140,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825886043-77787d0e653fa8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:04:46.235Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 866
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:04:47.375Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 867
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825887380-57",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 296,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825886043-77787d0e653fa8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:04:47.380Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 868
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:04:47.676Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 869
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825887680-58",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 288,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825886043-77787d0e653fa8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:04:47.680Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 870
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:04:47.968Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 871
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825887970-59",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 569,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825886043-77787d0e653fa8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:04:47.970Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 872
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:04:48.539Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 873
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825958940-63",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788825958903-1e4ddd7d3edf5",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 392,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788825958903-1e4ddd7d3edf5",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:05:58.940Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 911
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:05:59.332Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 912
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826106815-67",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1120,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:26.815Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 937
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:27.935Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 938
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826108067-68",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 284,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:28.067Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 948
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:28.351Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 949
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826108353-69",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 286,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:28.353Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 950
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:28.639Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 951
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826108643-70",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 285,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:28.643Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 952
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:28.928Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 953
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826108934-71",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826106772-751f8ebf79152",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 284,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:28.934Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 954
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:29.218Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 955
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826109260-72",
+        "endpoint": "/api/knowledge/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 358,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:29.260Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 956
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:29.618Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 957
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826109639-73",
+        "endpoint": "/api/knowledge/plan-search",
+        "method": "POST",
+        "role": "search_planner",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "durationMs": 19898,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:29.639Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 958
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:49.537Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 961
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826129585-74",
+        "endpoint": "/api/knowledge/rerank",
+        "method": "POST",
+        "role": "reranker",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "durationMs": 35216,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788826106772-751f8ebf79152",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:08:49.585Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 962
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:09:24.801Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 967
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826453506-78",
+        "endpoint": "/api/semantic/interpret",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "semantic_parser",
+        "attempt": 1,
+        "status": 502,
+        "code": "SemanticParserUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 1116,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:13.506Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1008
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:14.622Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1009
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826454760-79",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 349,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:14.760Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1019
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:15.109Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1020
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826455111-80",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 292,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:15.111Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1021
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:15.403Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1022
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826455405-81",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 292,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:15.405Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1023
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:15.697Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1024
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826455702-82",
+        "endpoint": "/api/semantic/map-schema",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "method": "POST",
+        "role": "schema_mapper",
+        "attempt": 1,
+        "status": 502,
+        "code": "SchemaMapperUnavailable",
+        "retryable": false,
+        "providerAttempts": 0,
+        "durationMs": 291,
+        "outcome": "failed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "explicit_turn_id"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:15.702Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1025
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:15.993Z",
+          "event": "backend-request.failed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1026
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826456016-83",
+        "endpoint": "/api/knowledge/config",
+        "method": "GET",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 0,
+        "cached": false,
+        "durationMs": 289,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:16.016Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1027
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:16.305Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1028
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826456310-84",
+        "endpoint": "/api/knowledge/plan-search",
+        "method": "POST",
+        "role": "search_planner",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "durationMs": 23596,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:16.310Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1029
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:39.906Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1032
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826479988-85",
+        "endpoint": "/api/knowledge/rerank",
+        "method": "POST",
+        "role": "reranker",
+        "attempt": 1,
+        "status": 200,
+        "providerAttempts": 1,
+        "cached": false,
+        "durationMs": 23553,
+        "outcome": "completed",
+        "attribution": {
+          "turnId": "1788826453462-16b1866783dcc8",
+          "method": "inferred_unique_enclosing_request_context_interval"
+        },
+        "start": {
+          "timestamp": "2026-09-08T00:14:39.988Z",
+          "event": "backend-request.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1033
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:15:03.541Z",
+          "event": "backend-request.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1037
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "mainChatRequests": {
+    "started": 8,
+    "completed": 8,
+    "failed": 0,
+    "cancelled": 0,
+    "incomplete": 0,
+    "terminalWithoutStart": 0,
+    "duplicateStartOrTerminalOperations": [],
+    "httpStatusCounts": {
+      "200": 8
+    },
+    "attemptsGreaterThanOne": 0,
+    "attemptFieldCounts": {
+      "not_logged": 8
+    },
+    "reportedProviderAttempts": {
+      "sum": 0,
+      "operationsReporting": 0,
+      "operationsWithoutField": 8,
+      "verifiedUpstreamAttempts": null,
+      "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+    },
+    "durationMs": {
+      "n": 8,
+      "min": 15712,
+      "median": 27231,
+      "mean": 45614.75,
+      "p95NearestRank": 153564,
+      "max": 153564
+    },
+    "bufferedResponses": 8,
+    "firstTokenEvents": 0,
+    "operations": [
+      {
+        "operationId": "op-1788824869034-29",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 24106,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-07T23:47:49.034Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 694
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:48:13.140Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 699
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825098182-37",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788825095467-63e053e4c7318",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 15712,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-07T23:51:38.182Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 747
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:53.894Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 750
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825509400-45",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788825505752-05e0765233cc1",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 17541,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-07T23:58:29.400Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 792
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:46.941Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 796
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825643805-53",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 29100,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-08T00:00:43.805Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 848
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:01:12.905Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 852
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825889090-60",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 25362,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-08T00:04:49.090Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 898
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:05:14.453Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 902
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788825959429-64",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788825958903-1e4ddd7d3edf5",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 42835,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-08T00:05:59.429Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 924
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:06:42.264Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 928
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826165008-75",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788826106772-751f8ebf79152",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 56698,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-08T00:09:25.008Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 992
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:10:21.706Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 999
+            }
+          ]
+        }
+      },
+      {
+        "operationId": "op-1788826503735-86",
+        "agent": "SideChatAgent",
+        "surface": "side_chat",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "endpoint": "/chat",
+        "stage": "answer-received",
+        "status": 200,
+        "outputLength": 0,
+        "durationMs": 153564,
+        "outcome": "completed",
+        "start": {
+          "timestamp": "2026-09-08T00:15:03.735Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1062
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:17:37.299Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1075
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "combinedClientRequests": {
+    "observedAuxiliaryStarts": 61,
+    "observedMainChatStarts": 8,
+    "totalStarts": 69,
+    "ambiguousBackendChatOperations": [],
+    "rule": "Sum only auxiliary and separately instrumented main /chat requests. If backend-request also logs /chat, leave combined total unknown rather than double-count."
+  },
+  "savedTelemetryTotals": {
+    "roles": {
+      "semantic_parser": 7,
+      "schema_mapper": 28,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 23
+    },
+    "answerCountUnit": "backend model-loop steps, not HTTP requests",
+    "mismatches": [
+      {
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "caseId": "CW-ECTD_PAPERS-01",
+        "role": "schema_mapper",
+        "observedClientTransportAttempts": 8,
+        "savedLogicalCalls": 4,
+        "differenceObservedMinusSaved": 4
+      },
+      {
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "caseId": "CW-ECTD_PAPERS-01",
+        "role": "combined_text_paper_card",
+        "observedClientTransportAttempts": 8,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 8
+      },
+      {
+        "turnId": "1788826106772-751f8ebf79152",
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "role": "search_planner",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826106772-751f8ebf79152",
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "role": "reranker",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826453462-16b1866783dcc8",
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "role": "search_planner",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826453462-16b1866783dcc8",
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "role": "reranker",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      }
+    ]
+  },
+  "syncRunLinks": [
+    {
+      "runId": "a742e30b-d975-4ceb-91ca-44e447e5d084",
+      "turnId": "1788824552291-df9a1f56fdf228",
+      "attribution": "inferred_unique_enclosing_preflight_interval",
+      "start": {
+        "timestamp": "2026-09-07T23:42:32.395Z",
+        "event": "sync-agent.started",
+        "sources": [
+          {
+            "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+            "line": 111
+          }
+        ]
+      },
+      "end": {
+        "timestamp": "2026-09-07T23:47:47.091Z",
+        "event": "sync-agent.completed",
+        "sources": [
+          {
+            "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+            "line": 649
+          }
+        ]
+      }
+    }
+  ],
+  "turns": [
+    {
+      "turnId": "1788824552291-df9a1f56fdf228",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/01-discovery-en-cold.json",
+        "caseId": "CW-ECTD_PAPERS-01",
+        "repeat": 0,
+        "cacheState": "cold",
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "userTimestamp": "2026-09-07T23:42:32.291Z",
+        "assistantTimestamp": "2026-09-07T23:48:13.145Z",
+        "savedTiming": {
+          "latencyMs": 340854,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "cold",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 3
+        }
+      },
+      "backend": {
+        "started": 25,
+        "completed": 16,
+        "failed": 9,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 16,
+          "502": 9
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 25
+        },
+        "reportedProviderAttempts": {
+          "sum": 8,
+          "operationsReporting": 25,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 25,
+          "min": 249,
+          "median": 355,
+          "mean": 24293.2,
+          "p95NearestRank": 78196,
+          "max": 79228
+        },
+        "roleCounts": {
+          "schema_mapper": 8,
+          "unlabeled": 8,
+          "combined_text_paper_card": 8,
+          "semantic_parser": 1
+        },
+        "attributionCounts": {
+          "explicit_sync_run_id_with_inferred_parent": 12,
+          "inferred_unique_enclosing_request_context_interval": 8,
+          "explicit_turn_id": 5
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 24106,
+          "median": 24106,
+          "mean": 24106,
+          "p95NearestRank": 24106,
+          "max": 24106
+        }
+      },
+      "preflight": {
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788824552360-2",
+        "reconciliationMs": 9,
+        "changedSourceCount": 17,
+        "knowledgeSyncMs": 314722.2,
+        "l1UpdateCount": 8,
+        "l1UpdateMs": 3462.9,
+        "l2LlmCallCount": 8,
+        "l2LlmMs": 600135,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 433.9,
+        "experimentNormalizationCount": 4,
+        "experimentNormalizationMs": 3548,
+        "syncAgentSpawned": true,
+        "mainAgentStartMs": 314744,
+        "paperCardGenerationCount": 8,
+        "schemaMapperCalls": 4,
+        "hashCalls": 17,
+        "failureCount": 0,
+        "durationMs": 314748,
+        "start": {
+          "timestamp": "2026-09-07T23:42:32.360Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 105
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:47:47.108Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 652
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 67,
+        "requestContextDurationMs": 316653,
+        "preflightDurationMs": 314748,
+        "preflightRecordedMainAgentStartMs": 314744,
+        "userToActualMainAgentStartMs": 316743,
+        "contextStartToActualMainAgentStartMs": 316676,
+        "mainAgentDurationMs": 24106,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 340849,
+        "mainAgentStartToFirstResponseEventMs": 24106,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 340854,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-07T23:48:13.140Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 696
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-07T23:42:32.358Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 104
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-07T23:47:49.011Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 693
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-07T23:47:49.034Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 694
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-07T23:48:13.140Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 699
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 8,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 4
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 8,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 8
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 8,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 4
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 8,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 8
+          }
+        ],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 3,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788825095467-63e053e4c7318",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/02-discovery-en-warm.json",
+        "caseId": "CW-ECTD_PAPERS-01",
+        "repeat": 1,
+        "cacheState": "warm",
+        "turnId": "1788825095467-63e053e4c7318",
+        "userTimestamp": "2026-09-07T23:51:35.467Z",
+        "assistantTimestamp": "2026-09-07T23:51:53.900Z",
+        "savedTiming": {
+          "latencyMs": 18433,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "backend": {
+        "started": 5,
+        "completed": 0,
+        "failed": 5,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 5
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 5
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 5,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 5,
+          "min": 252,
+          "median": 276,
+          "mean": 430.8,
+          "p95NearestRank": 1026,
+          "max": 1026
+        },
+        "roleCounts": {
+          "semantic_parser": 1,
+          "schema_mapper": 4
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 5
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 15712,
+          "median": 15712,
+          "mean": 15712,
+          "p95NearestRank": 15712,
+          "max": 15712
+        }
+      },
+      "preflight": {
+        "turnId": "1788825095467-63e053e4c7318",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788825095497-31",
+        "reconciliationMs": 3.9,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 4.1,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 4,
+        "start": {
+          "timestamp": "2026-09-07T23:51:35.497Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 701
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:51:35.501Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 706
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 29,
+        "requestContextDurationMs": 2680,
+        "preflightDurationMs": 4,
+        "preflightRecordedMainAgentStartMs": 4.1,
+        "userToActualMainAgentStartMs": 2715,
+        "contextStartToActualMainAgentStartMs": 2686,
+        "mainAgentDurationMs": 15712,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 18427,
+        "mainAgentStartToFirstResponseEventMs": 15712,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 18433,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-07T23:51:53.894Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 748
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-07T23:51:35.496Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 700
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-07T23:51:38.176Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 746
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-07T23:51:38.182Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 747
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-07T23:51:53.894Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 750
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 4,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 2,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788825505752-05e0765233cc1",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/03-discovery-zh.json",
+        "caseId": "CW-ECTD_PAPERS-02",
+        "repeat": 0,
+        "cacheState": "warm",
+        "turnId": "1788825505752-05e0765233cc1",
+        "userTimestamp": "2026-09-07T23:58:25.752Z",
+        "assistantTimestamp": "2026-09-07T23:58:46.953Z",
+        "savedTiming": {
+          "latencyMs": 21201,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "backend": {
+        "started": 5,
+        "completed": 0,
+        "failed": 5,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 5
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 5
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 5,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 5,
+          "min": 239,
+          "median": 241,
+          "mean": 580.2,
+          "p95NearestRank": 1935,
+          "max": 1935
+        },
+        "roleCounts": {
+          "semantic_parser": 1,
+          "schema_mapper": 4
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 5
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 17541,
+          "median": 17541,
+          "mean": 17541,
+          "p95NearestRank": 17541,
+          "max": 17541
+        }
+      },
+      "preflight": {
+        "turnId": "1788825505752-05e0765233cc1",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788825505868-39",
+        "reconciliationMs": 14,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 14.1,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 15,
+        "start": {
+          "timestamp": "2026-09-07T23:58:25.868Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 752
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-07T23:58:25.883Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 757
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 113,
+        "requestContextDurationMs": 3522,
+        "preflightDurationMs": 15,
+        "preflightRecordedMainAgentStartMs": 14.1,
+        "userToActualMainAgentStartMs": 3648,
+        "contextStartToActualMainAgentStartMs": 3535,
+        "mainAgentDurationMs": 17541,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 21188,
+        "mainAgentStartToFirstResponseEventMs": 17540,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 21201,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-07T23:58:46.940Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 794
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-07T23:58:25.865Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 751
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-07T23:58:29.387Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 791
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-07T23:58:29.400Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 792
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-07T23:58:46.941Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 796
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 4,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 2,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788825640922-54e55b2c13b41",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+        "caseId": "CW-ECTD_PAPERS-05",
+        "repeat": 0,
+        "cacheState": "warm",
+        "turnId": "1788825640922-54e55b2c13b41",
+        "userTimestamp": "2026-09-08T00:00:40.922Z",
+        "assistantTimestamp": "2026-09-08T00:01:12.930Z",
+        "savedTiming": {
+          "latencyMs": 32008,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "backend": {
+        "started": 5,
+        "completed": 0,
+        "failed": 5,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 5
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 5
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 5,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 5,
+          "min": 271,
+          "median": 275,
+          "mean": 463.4,
+          "p95NearestRank": 1145,
+          "max": 1145
+        },
+        "roleCounts": {
+          "semantic_parser": 1,
+          "schema_mapper": 4
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 5
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 29100,
+          "median": 29100,
+          "mean": 29100,
+          "p95NearestRank": 29100,
+          "max": 29100
+        }
+      },
+      "preflight": {
+        "turnId": "1788825640922-54e55b2c13b41",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788825640992-47",
+        "reconciliationMs": 14.2,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 14.3,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 15,
+        "start": {
+          "timestamp": "2026-09-08T00:00:40.992Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 798
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:00:41.007Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 803
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 65,
+        "requestContextDurationMs": 2817,
+        "preflightDurationMs": 15,
+        "preflightRecordedMainAgentStartMs": 14.3,
+        "userToActualMainAgentStartMs": 2883,
+        "contextStartToActualMainAgentStartMs": 2818,
+        "mainAgentDurationMs": 29100,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 31980,
+        "mainAgentStartToFirstResponseEventMs": 29097,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 32008,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-08T00:01:12.902Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 850
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-08T00:00:40.987Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 797
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-08T00:00:43.804Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 847
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-08T00:00:43.805Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 848
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-08T00:01:12.905Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 852
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 4,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 2,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788825886043-77787d0e653fa8",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/05-heldout-p152.json",
+        "caseId": "CW-ECTD_PAPERS-07",
+        "repeat": 0,
+        "cacheState": "warm",
+        "turnId": "1788825886043-77787d0e653fa8",
+        "userTimestamp": "2026-09-08T00:04:46.044Z",
+        "assistantTimestamp": "2026-09-08T00:05:14.457Z",
+        "savedTiming": {
+          "latencyMs": 28413,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 0,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 2
+        }
+      },
+      "backend": {
+        "started": 4,
+        "completed": 0,
+        "failed": 4,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 4
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 4
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 4,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 4,
+          "min": 288,
+          "median": 432.5,
+          "mean": 573.25,
+          "p95NearestRank": 1140,
+          "max": 1140
+        },
+        "roleCounts": {
+          "schema_mapper": 4
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 4
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 25362,
+          "median": 25362,
+          "mean": 25362,
+          "p95NearestRank": 25362,
+          "max": 25362
+        }
+      },
+      "preflight": {
+        "turnId": "1788825886043-77787d0e653fa8",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788825886112-55",
+        "reconciliationMs": 17.5,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 17.6,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 20,
+        "start": {
+          "timestamp": "2026-09-08T00:04:46.112Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 854
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:04:46.132Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 859
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 66,
+        "requestContextDurationMs": 2976,
+        "preflightDurationMs": 20,
+        "preflightRecordedMainAgentStartMs": 17.6,
+        "userToActualMainAgentStartMs": 3046,
+        "contextStartToActualMainAgentStartMs": 2980,
+        "mainAgentDurationMs": 25362,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 28408,
+        "mainAgentStartToFirstResponseEventMs": 25362,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 28413,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-08T00:05:14.452Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 900
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-08T00:04:46.110Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 853
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-08T00:04:49.086Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 897
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-08T00:04:49.090Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 898
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-08T00:05:14.453Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 902
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 4,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 2,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788825958903-1e4ddd7d3edf5",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+        "caseId": "CW-ECTD_PAPERS-08",
+        "repeat": 0,
+        "cacheState": "warm",
+        "turnId": "1788825958903-1e4ddd7d3edf5",
+        "userTimestamp": "2026-09-08T00:05:58.903Z",
+        "assistantTimestamp": "2026-09-08T00:06:42.266Z",
+        "savedTiming": {
+          "latencyMs": 43363,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 0,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 1
+        }
+      },
+      "backend": {
+        "started": 1,
+        "completed": 0,
+        "failed": 1,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "502": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 1,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 392,
+          "median": 392,
+          "mean": 392,
+          "p95NearestRank": 392,
+          "max": 392
+        },
+        "roleCounts": {
+          "semantic_parser": 1
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 1
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 42835,
+          "median": 42835,
+          "mean": 42835,
+          "p95NearestRank": 42835,
+          "max": 42835
+        }
+      },
+      "preflight": {
+        "turnId": "1788825958903-1e4ddd7d3edf5",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788825958929-62",
+        "reconciliationMs": 3.3,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 3.9,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 5,
+        "start": {
+          "timestamp": "2026-09-08T00:05:58.929Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 904
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:05:58.934Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 909
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 26,
+        "requestContextDurationMs": 499,
+        "preflightDurationMs": 5,
+        "preflightRecordedMainAgentStartMs": 3.9,
+        "userToActualMainAgentStartMs": 526,
+        "contextStartToActualMainAgentStartMs": 500,
+        "mainAgentDurationMs": 42835,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 43360,
+        "mainAgentStartToFirstResponseEventMs": 42834,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 43363,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-08T00:06:42.263Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 927
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-08T00:05:58.929Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 903
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-08T00:05:59.428Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 923
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-08T00:05:59.429Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 924
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-08T00:06:42.264Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 928
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 1,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788826106772-751f8ebf79152",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/07-experiment-x02.json",
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "repeat": 0,
+        "cacheState": "warm",
+        "turnId": "1788826106772-751f8ebf79152",
+        "userTimestamp": "2026-09-08T00:08:26.772Z",
+        "assistantTimestamp": "2026-09-08T00:10:21.709Z",
+        "savedTiming": {
+          "latencyMs": 114937,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 5
+        }
+      },
+      "backend": {
+        "started": 8,
+        "completed": 3,
+        "failed": 5,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 3,
+          "502": 5
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 8
+        },
+        "reportedProviderAttempts": {
+          "sum": 2,
+          "operationsReporting": 8,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 8,
+          "min": 284,
+          "median": 322,
+          "mean": 7216.375,
+          "p95NearestRank": 35216,
+          "max": 35216
+        },
+        "roleCounts": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "unlabeled": 1,
+          "search_planner": 1,
+          "reranker": 1
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 5,
+          "inferred_unique_enclosing_request_context_interval": 3
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 56698,
+          "median": 56698,
+          "mean": 56698,
+          "p95NearestRank": 56698,
+          "max": 56698
+        }
+      },
+      "preflight": {
+        "turnId": "1788826106772-751f8ebf79152",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788826106806-66",
+        "reconciliationMs": 5,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 5.1,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 6,
+        "start": {
+          "timestamp": "2026-09-08T00:08:26.806Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 930
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:08:26.812Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 935
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 34,
+        "requestContextDurationMs": 58201,
+        "preflightDurationMs": 6,
+        "preflightRecordedMainAgentStartMs": 5.1,
+        "userToActualMainAgentStartMs": 58236,
+        "contextStartToActualMainAgentStartMs": 58202,
+        "mainAgentDurationMs": 56698,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 114934,
+        "mainAgentStartToFirstResponseEventMs": 56698,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 114937,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-08T00:10:21.706Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 996
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-08T00:08:26.806Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 929
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-08T00:09:25.007Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 991
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-08T00:09:25.008Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 992
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-08T00:10:21.706Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 999
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 4,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          }
+        ],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 5,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    },
+    {
+      "turnId": "1788826453462-16b1866783dcc8",
+      "observation": {
+        "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/08-experiment-activity.json",
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "repeat": 0,
+        "cacheState": "warm",
+        "turnId": "1788826453462-16b1866783dcc8",
+        "userTimestamp": "2026-09-08T00:14:13.462Z",
+        "assistantTimestamp": "2026-09-08T00:17:37.301Z",
+        "savedTiming": {
+          "latencyMs": 203839,
+          "timeToFirstVisibleMs": null,
+          "cacheState": "warm",
+          "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+        },
+        "savedCloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 6
+        }
+      },
+      "backend": {
+        "started": 8,
+        "completed": 3,
+        "failed": 5,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 3,
+          "502": 5
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "1": 8
+        },
+        "reportedProviderAttempts": {
+          "sum": 2,
+          "operationsReporting": 8,
+          "operationsWithoutField": 0,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 8,
+          "min": 289,
+          "median": 320.5,
+          "mean": 6222.25,
+          "p95NearestRank": 23596,
+          "max": 23596
+        },
+        "roleCounts": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "unlabeled": 1,
+          "search_planner": 1,
+          "reranker": 1
+        },
+        "attributionCounts": {
+          "explicit_turn_id": 5,
+          "inferred_unique_enclosing_request_context_interval": 3
+        }
+      },
+      "mainChat": {
+        "started": 1,
+        "completed": 1,
+        "failed": 0,
+        "cancelled": 0,
+        "incomplete": 0,
+        "terminalWithoutStart": 0,
+        "duplicateStartOrTerminalOperations": [],
+        "httpStatusCounts": {
+          "200": 1
+        },
+        "attemptsGreaterThanOne": 0,
+        "attemptFieldCounts": {
+          "not_logged": 1
+        },
+        "reportedProviderAttempts": {
+          "sum": 0,
+          "operationsReporting": 0,
+          "operationsWithoutField": 1,
+          "verifiedUpstreamAttempts": null,
+          "caveat": "These are client-log fields, not independently verified provider requests. Missing response.attempts can be defaulted to zero by the client."
+        },
+        "durationMs": {
+          "n": 1,
+          "min": 153564,
+          "median": 153564,
+          "mean": 153564,
+          "p95NearestRank": 153564,
+          "max": 153564
+        }
+      },
+      "preflight": {
+        "turnId": "1788826453462-16b1866783dcc8",
+        "surface": "side_chat",
+        "workspaceId": "synthetic_celluweave",
+        "operationId": "op-1788826453497-77",
+        "reconciliationMs": 3.2,
+        "changedSourceCount": 0,
+        "knowledgeSyncMs": 0,
+        "l1UpdateCount": 0,
+        "l1UpdateMs": 0,
+        "l2LlmCallCount": 0,
+        "l2LlmMs": 0,
+        "l3LlmCallCount": 0,
+        "l3LlmMs": 0,
+        "l3UpdateMs": 0,
+        "experimentNormalizationCount": 0,
+        "experimentNormalizationMs": 0,
+        "syncAgentSpawned": false,
+        "mainAgentStartMs": 3.2,
+        "paperCardGenerationCount": 0,
+        "schemaMapperCalls": 0,
+        "hashCalls": 0,
+        "failureCount": 0,
+        "durationMs": 4,
+        "start": {
+          "timestamp": "2026-09-08T00:14:13.497Z",
+          "event": "preflight.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1001
+            }
+          ]
+        },
+        "end": {
+          "timestamp": "2026-09-08T00:14:13.501Z",
+          "event": "preflight.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1006
+            }
+          ]
+        }
+      },
+      "timing": {
+        "userToContextStartMs": 35,
+        "requestContextDurationMs": 50237,
+        "preflightDurationMs": 4,
+        "preflightRecordedMainAgentStartMs": 3.2,
+        "userToActualMainAgentStartMs": 50273,
+        "contextStartToActualMainAgentStartMs": 50238,
+        "mainAgentDurationMs": 153564,
+        "responseMode": "buffered_response",
+        "userToFirstResponseEventMs": 203836,
+        "mainAgentStartToFirstResponseEventMs": 153563,
+        "timeToFirstVisibleMs": null,
+        "firstResponseCaveat": "Response-event timing is a client logging timestamp, not measured screen rendering or network first-byte latency. Buffered response is not streaming TTFT.",
+        "persistedUserToAssistantMs": 203839,
+        "persistedLatencyMatchesSaved": true,
+        "firstResponseEvent": {
+          "timestamp": "2026-09-08T00:17:37.298Z",
+          "event": "main-agent.buffered-response",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1073
+            }
+          ]
+        },
+        "contextStart": {
+          "timestamp": "2026-09-08T00:14:13.497Z",
+          "event": "request-context.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1000
+            }
+          ]
+        },
+        "contextEnd": {
+          "timestamp": "2026-09-08T00:15:03.734Z",
+          "event": "request-context.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1061
+            }
+          ]
+        },
+        "mainStart": {
+          "timestamp": "2026-09-08T00:15:03.735Z",
+          "event": "main-agent.started",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1062
+            }
+          ]
+        },
+        "mainEnd": {
+          "timestamp": "2026-09-08T00:17:37.299Z",
+          "event": "main-agent.completed",
+          "sources": [
+            {
+              "file": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/runtime-log-part1.txt",
+              "line": 1075
+            }
+          ]
+        }
+      },
+      "counterComparison": {
+        "roles": [
+          {
+            "role": "semantic_parser",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 1,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "schema_mapper",
+            "observedClientTransportAttempts": 4,
+            "savedLogicalCalls": 4,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          },
+          {
+            "role": "corpus_mapper",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "native_pdf",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "combined_text_paper_card",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          },
+          {
+            "role": "image_understanding",
+            "observedClientTransportAttempts": 0,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 0
+          }
+        ],
+        "mismatches": [
+          {
+            "role": "search_planner",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          },
+          {
+            "role": "reranker",
+            "observedClientTransportAttempts": 1,
+            "savedLogicalCalls": 0,
+            "differenceObservedMinusSaved": 1
+          }
+        ],
+        "answer": {
+          "observedClientChatRequests": 1,
+          "savedAnswerLogicalSteps": 6,
+          "comparable": false,
+          "explanation": "Saved answer counter can count backend agent model-loop steps; one /chat request can contain several. Do not add this number to client HTTP attempts."
+        }
+      }
+    }
+  ],
+  "unmatchedObservationFiles": [
+    "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/09-experiment-mixed.json",
+    "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/live-ui-2026-09-07/10-memory-recommendation.json"
+  ],
+  "timingByCacheState": [
+    {
+      "cacheState": "cold",
+      "n": 1,
+      "preflightMs": {
+        "n": 1,
+        "min": 314748,
+        "median": 314748,
+        "mean": 314748,
+        "p95NearestRank": 314748,
+        "max": 314748
+      },
+      "userToMainStartMs": {
+        "n": 1,
+        "min": 316743,
+        "median": 316743,
+        "mean": 316743,
+        "p95NearestRank": 316743,
+        "max": 316743
+      },
+      "firstResponseEventMs": {
+        "n": 1,
+        "min": 340849,
+        "median": 340849,
+        "mean": 340849,
+        "p95NearestRank": 340849,
+        "max": 340849
+      },
+      "persistedLatencyMs": {
+        "n": 1,
+        "min": 340854,
+        "median": 340854,
+        "mean": 340854,
+        "p95NearestRank": 340854,
+        "max": 340854
+      },
+      "caveat": "Different sequential queries share warming state; cache-group summaries are descriptive, not paired causal speedup estimates."
+    },
+    {
+      "cacheState": "warm",
+      "n": 7,
+      "preflightMs": {
+        "n": 7,
+        "min": 4,
+        "median": 6,
+        "mean": 9.857142857142858,
+        "p95NearestRank": 20,
+        "max": 20
+      },
+      "userToMainStartMs": {
+        "n": 7,
+        "min": 526,
+        "median": 3046,
+        "mean": 17332.428571428572,
+        "p95NearestRank": 58236,
+        "max": 58236
+      },
+      "firstResponseEventMs": {
+        "n": 7,
+        "min": 18427,
+        "median": 31980,
+        "mean": 66019,
+        "p95NearestRank": 203836,
+        "max": 203836
+      },
+      "persistedLatencyMs": {
+        "n": 7,
+        "min": 18433,
+        "median": 32008,
+        "mean": 66027.71428571429,
+        "p95NearestRank": 203839,
+        "max": 203839
+      },
+      "caveat": "Different sequential queries share warming state; cache-group summaries are descriptive, not paired causal speedup estimates."
+    }
+  ],
+  "tokensAndCost": {
+    "actualInputTokens": null,
+    "actualOutputTokens": null,
+    "usdCost": null,
+    "verifiedRequestyUpstreamAttempts": null,
+    "reason": "Sanitized client runtime telemetry does not establish token usage, upstream retries, deployed provider configuration or price. No inference from characters, durations or logical counts."
+  },
+  "implementationInterpretationAfterLogScoring": [
+    {
+      "finding": "Backend request operation is started per transport attempt; per-turn logical count is incremented before the retry loop. Semantic endpoints allow one client attempt.",
+      "sources": [
+        "docs/literature-module.js:1007-1028"
+      ]
+    },
+    {
+      "finding": "Missing response.attempts is converted to zero. Semantic failure responses omit attempts, so logged zero cannot prove no provider request. Unsupported strict-schema configuration is one possible local-code cause, but unavailable codes also hide other failures; deployed reason is unverified.",
+      "sources": [
+        "docs/literature-module.js:1043-1060",
+        "alibaba-fc/index.js:3720-3750",
+        "alibaba-fc/index.js:3775",
+        "alibaba-fc/index.js:3805"
+      ]
+    },
+    {
+      "finding": "Sync uses its own run ID for call accounting. Persisted user telemetry reads only the user message ID; cold card and sync-schema calls can be absent there.",
+      "sources": [
+        "docs/request-pipeline.js:224",
+        "docs/request-pipeline.js:353-357",
+        "docs/app.js:4802-4805"
+      ]
+    },
+    {
+      "finding": "Per-turn recorder drops calls without a valid turn ID. Planner/reranker events with missing turnId must remain explicitly inferred by timing when attributed to observations.",
+      "sources": [
+        "docs/literature-module.js:855-866",
+        "docs/literature-module.js:1015"
+      ]
+    },
+    {
+      "finding": "Backend answer telemetry overwrites the client answer counter with model-loop steps. The saved answer count and /chat count have different units.",
+      "sources": [
+        "docs/app.js:3580-3588",
+        "docs/app.js:4805",
+        "alibaba-fc/side-chat-agent.js:1924-1926",
+        "alibaba-fc/side-chat-agent.js:1946-1948"
+      ]
+    },
+    {
+      "finding": "outputLength counts streaming deltas only, so zero with buffered-response does not mean an empty answer. First response event does not measure actual DOM visibility.",
+      "sources": [
+        "docs/app.js:3593-3612"
+      ]
+    },
+    {
+      "finding": "Preflight mainAgentStartMs is stamped at preflight completion, before remaining context work and main-agent.started. It is not actual time to the /chat request.",
+      "sources": [
+        "docs/request-pipeline.js:362-367",
+        "docs/app.js:3581-3588"
+      ]
+    },
+    {
+      "finding": "Logger defaults to a 1000-event ring; subsequent parts can overlap or omit earlier events. Read all available parts and deduplicate exact entries; app.ready absence is a completeness warning.",
+      "sources": [
+        "docs/runtime-log.js:39-49",
+        "docs/runtime-log.js:63-68"
+      ]
+    }
+  ],
+  "limitations": [
+    "Local source inspection explains possible instrumentation behavior; the deployed FC revision is not attested by these logs.",
+    "A preflight failureCount of zero measures its sync report; it does not cancel or invalidate separately logged optional mapper/semantic HTTP failures.",
+    "Buffered-response is response availability in client code, not streaming TTFT or observed time-to-first-visible.",
+    "No application, Electron, network request or production mutation is performed by this analyzer."
+  ]
+}

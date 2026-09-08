@@ -5,8 +5,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 // capability allowlist self-contained and parity-test it against channels.cjs.
 const channels = Object.freeze({
   runtimeInfo: "biodesign:runtime:info",
-  betaUpdateCheck: "biodesign:updates:beta-check",
-  betaUpdateStatus: "biodesign:updates:beta-status",
+  updateCheck: "biodesign:updates:check",
+  updateStatus: "biodesign:updates:status",
   projectOpen: "biodesign:project:open",
   projectClose: "biodesign:project:close",
   projectStatus: "biodesign:project:status",
@@ -67,12 +67,12 @@ const api = {
     info: () => invoke(channels.runtimeInfo),
   },
   updates: {
-    requestBetaUpdateCheck: () => invoke(channels.betaUpdateCheck),
-    onBetaUpdateStatus(listener) {
-      if (typeof listener !== "function") throw new TypeError("A beta update status listener is required.");
+    requestUpdateCheck: () => invoke(channels.updateCheck),
+    onUpdateStatus(listener) {
+      if (typeof listener !== "function") throw new TypeError("An update status listener is required.");
       const wrapped = (_event, status) => listener(status);
-      ipcRenderer.on(channels.betaUpdateStatus, wrapped);
-      return () => ipcRenderer.removeListener(channels.betaUpdateStatus, wrapped);
+      ipcRenderer.on(channels.updateStatus, wrapped);
+      return () => ipcRenderer.removeListener(channels.updateStatus, wrapped);
     },
   },
   project: {

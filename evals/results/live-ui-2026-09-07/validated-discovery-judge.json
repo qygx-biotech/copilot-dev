@@ -1,0 +1,242 @@
+{
+  "schemaVersion": "independent-judge-results-v1",
+  "contractVersion": "independent-judge-v1",
+  "mode": "absolute",
+  "nSamples": 1,
+  "nIndependentCases": 1,
+  "byArtifactType": {
+    "final_answer": {
+      "nSamples": 1,
+      "nIndependentCases": 1,
+      "dimensions": {
+        "correctness": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "faithfulness": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "completeness": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "relevance": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "uncertaintyHandling": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "synthesis": {
+          "mean": null,
+          "median": null,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 0,
+          "nSamples": 0,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "nInapplicable": 1
+        },
+        "clarity": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "overall": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        }
+      },
+      "criticalErrorCount": 0,
+      "missingPointCount": 0,
+      "confidenceCounts": {
+        "low": 0,
+        "medium": 0,
+        "high": 1
+      }
+    }
+  },
+  "scores": [
+    {
+      "packetId": "f7d737d510b6c5ff",
+      "artifactType": "final_answer",
+      "correctness": 5,
+      "faithfulness": 5,
+      "completeness": 5,
+      "relevance": 5,
+      "uncertaintyHandling": 5,
+      "synthesis": null,
+      "clarity": 5,
+      "overall": 5,
+      "criticalErrors": [],
+      "missingPoints": [],
+      "lowScoreEvidence": [],
+      "claimAudits": [
+        {
+          "candidateSpan": "**P117** reports kinetic measurements for the EctD variant **A163V** at **30°C**",
+          "citedEvidenceIds": [
+            "P117"
+          ],
+          "supportingEvidenceIds": [
+            "P117:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "a Michaelis constant ($K_m$) for ectoine of **0.42 mM**",
+          "citedEvidenceIds": [
+            "P117"
+          ],
+          "supportingEvidenceIds": [
+            "P117:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "compared to **0.80 mM** for the wild-type enzyme",
+          "citedEvidenceIds": [
+            "P117"
+          ],
+          "supportingEvidenceIds": [
+            "P117:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "**30°C**",
+          "subject": "EctD A163V kinetic characterization in P117",
+          "metric": "assay temperature",
+          "value": 30,
+          "unit": "°C",
+          "sourceIds": [
+            "P117"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "a Michaelis constant ($K_m$) for ectoine of **0.42 mM**",
+          "subject": "EctD A163V in P117",
+          "metric": "Michaelis constant Km for ectoine",
+          "value": 0.42,
+          "unit": "mM",
+          "sourceIds": [
+            "P117"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "compared to **0.80 mM** for the wild-type enzyme",
+          "subject": "Wild-type EctD in P117",
+          "metric": "Michaelis constant Km for ectoine",
+          "value": 0.8,
+          "unit": "mM",
+          "sourceIds": [
+            "P117"
+          ],
+          "sourceRows": []
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "limitations": [
+    "Validation checks structure, exact spans and allowed references; it does not certify semantic entailment or exhaustiveness of claim audits.",
+    "Numeric claims are extraction only and require a separate deterministic arithmetic and provenance check.",
+    "Judge scores never override deterministic permission, security or other hard gates."
+  ]
+}

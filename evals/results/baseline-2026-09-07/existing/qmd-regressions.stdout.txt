@@ -1,0 +1,54 @@
+TAP version 13
+# [0907/192843.670066:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: manager pins QMD and keeps its database and collections inside the project
+ok 1 - manager pins QMD and keeps its database and collections inside the project
+  ---
+  duration_ms: 8.952041
+  type: 'test'
+  ...
+# Subtest: maintenance is serialized and embedding stays incremental by default
+ok 2 - maintenance is serialized and embedding stays incremental by default
+  ---
+  duration_ms: 17.119959
+  type: 'test'
+  ...
+# Subtest: search groups QMD sections by paper and enforces an explicit paper scope
+ok 3 - search groups QMD sections by paper and enforces an explicit paper scope
+  ---
+  duration_ms: 4.067
+  type: 'test'
+  ...
+# Subtest: deep candidate search remains lexical and never invokes local query expansion or reranking
+ok 4 - deep candidate search remains lexical and never invokes local query expansion or reranking
+  ---
+  duration_ms: 3.280708
+  type: 'test'
+  ...
+# Subtest: an embedding-model change blocks semantic search until a controlled rebuild
+ok 5 - an embedding-model change blocks semantic search until a controlled rebuild
+  ---
+  duration_ms: 3.562625
+  type: 'test'
+  ...
+# Subtest: partial embedding failures remain blocked across restarts
+ok 6 - partial embedding failures remain blocked across restarts
+  ---
+  duration_ms: 4.616584
+  type: 'test'
+  ...
+# [0907/192843.670088:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper mirror
+ok 7 - real QMD 2.8.3 SDK indexes and lexically retrieves a project-local paper mirror
+  ---
+  duration_ms: 113.517375
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 191.753125

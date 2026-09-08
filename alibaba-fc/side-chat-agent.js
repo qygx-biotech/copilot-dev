@@ -25,6 +25,7 @@ const MAX_DURABLE_PROJECT_CONTEXT_CHARACTERS = 24000;
 const AGENT_CONTEXT_CHARACTER_LIMIT = 220000;
 const KEEP_RECENT_TOOL_RESULTS = 3;
 const MAX_TOOL_CALL_ID_CHARACTERS = 160;
+const CORPUS_CITATION_GUIDANCE = "A corpus-workflow item is a derived result. Cite its original evidenceRefs or supportingPaperIds using [[cite:ID]]; its local item ID is for reading only.";
 const ToolEffect = Object.freeze({
   INFORMATIONAL: "informational",
   INTERNAL_STATE: "internal_state",
@@ -933,6 +934,7 @@ function buildSourceCitationRegistry(knowledgeBase) {
   const selectedExperiments = new Set(knowledgeBase.experiments?.selectedExperimentIds || []);
   for (const item of knowledgeBase.items) {
     if (item.source !== "local-workspace") continue;
+    if (item.evidenceType === "corpus-workflow") continue;
     const sourceId = item.metadata?.sourceId || item.metadata?.paperId;
     if (item.category === "reference") continue;
     if (item.category === "experiment" && selectedExperiments.size && !selectedExperiments.has(sourceId)) continue;
@@ -979,7 +981,9 @@ function itemCatalogEntry(item) {
     status: item.status,
     evidence_type: item.evidenceType,
     content_available: Boolean(item.content),
-    citation: `[[cite:${item.id}]]`
+    ...(item.evidenceType === "corpus-workflow"
+      ? { citation_guidance: CORPUS_CITATION_GUIDANCE }
+      : { citation: `[[cite:${item.id}]]` })
   };
 }
 
@@ -1049,7 +1053,8 @@ function buildSideChatCatalog(knowledgeBase) {
     `Scope: ${scope}`,
     registryState,
     "The catalog is metadata, not evidence. Load only the records needed for the current question.",
-    "Cite sources using [[cite:ID]], with the exact original evidence handle for pages or the exact experimentId for sheet/row provenance. Item/paper IDs cite only the file, never an inferred page. The host resolves these markers to verified workspace-relative source labels. Internal tool IDs are for tool execution. Never construct filesystem URLs or invent source paths or locations.",
+    "Cite sources using [[cite:ID]], with the exact original evidence handle for pages or the exact experimentId for sheet/row provenance. Item/paper IDs cite only the file, never an inferred page. The host resolves these markers to verified workspace-relative source labels. Internal tool IDs are for tool execution: never mention a bare or backtick-formatted local:N in the answer; use its citation marker instead, including in introductory prose. Never construct filesystem URLs or invent source paths or locations.",
+    ...(knowledgeBase.items.some((item) => item.evidenceType === "corpus-workflow") ? [CORPUS_CITATION_GUIDANCE] : []),
     "Workspace items:",
     itemLines,
     "Saved project-context catalog:",

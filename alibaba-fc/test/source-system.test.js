@@ -2152,6 +2152,69 @@ test("large tool results persist outside active context and reopen exactly", asy
   assert.deepEqual(await store.read(compact.resultHandle), value);
 });
 
+test("corpus result previews expose distinct original evidence before long reductions", async () => {
+  const workspace = new MemoryWorkspace();
+  const store = new SourceResultStore({ workspace, maxInlineCharacters: 120 });
+  const originalA = {
+    evidenceRef: "paper-a:p2:table-1",
+    page: 2,
+    excerpt: "The mean strength was 18 MPa, n=7 independent specimens.",
+  };
+  const originalB = {
+    evidenceRef: "paper-b:p4:table-2",
+    page: 4,
+    excerpt: "The mean strength was 21 MPa, n=9 independent specimens.",
+  };
+  const value = {
+    workflowId: "corpus-example",
+    question: "Compare the reported means and sample counts in the two studies.",
+    reduction: {
+      papersIncluded: 2,
+      papersFailed: 0,
+      themes: [],
+      groupSyntheses: [{ claims: [{ claim: "The studies report different means. ".repeat(500) }] }],
+      findings: [{ claim: "Mean strength was 18 MPa and 21 MPa." }],
+    },
+    verification: [
+      ...Array.from({ length: 24 }, (_, index) => ({
+        claim: `Finding ${index} from the first study.`,
+        status: "original-evidence-located",
+        locatedEvidence: [originalA],
+      })),
+      { claim: "A finding from the second study.", status: "original-evidence-located", locatedEvidence: [originalB] },
+    ],
+  };
+
+  const compact = await store.compact(value);
+  const firstRead = JSON.stringify(compact.preview).slice(0, 12000);
+  assert.match(firstRead, /n=7 independent specimens/);
+  assert.match(firstRead, /n=9 independent specimens/);
+  assert.match(firstRead, /paper-a:p2:table-1/);
+  assert.match(firstRead, /paper-b:p4:table-2/);
+  assert.deepEqual(compact.preview.originalEvidence, [originalA, originalB]);
+  assert.deepEqual(compact.preview.reduction, value.reduction);
+  assert.deepEqual(await store.read(compact.resultHandle), value);
+});
+
+test("corpus original evidence previews stay bounded and preserve source handles", async () => {
+  const workspace = new MemoryWorkspace();
+  const store = new SourceResultStore({ workspace, maxInlineCharacters: 120 });
+  const value = {
+    workflowId: "large-corpus-example",
+    verification: Array.from({ length: 100 }, (_, index) => ({
+      status: "original-evidence-located",
+      locatedEvidence: [{ evidenceRef: `paper-${index}:p3:chunk-1`, page: 3, excerpt: "x".repeat(600) }],
+    })),
+  };
+
+  const compact = await store.compact(value);
+  assert.ok(compact.preview.originalEvidence.length > 1);
+  assert.ok(compact.preview.originalEvidence.length < value.verification.length);
+  assert.ok(JSON.stringify(compact.preview.originalEvidence).length <= 8000);
+  assert.deepEqual(compact.preview.originalEvidence[0], value.verification[0].locatedEvidence[0]);
+  assert.deepEqual(await store.read(compact.resultHandle), value);
+});
+
 test("corpus workflow journals progress and resumes unchanged per-paper maps", async () => {
   const workspace = new MemoryWorkspace();
   workspace.setFile("literature/a.pdf", "EctD activity finding A.", 1000);

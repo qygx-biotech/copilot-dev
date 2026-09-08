@@ -1,0 +1,27 @@
+{
+  "selectedBeforeAnyLiveOutput": true,
+  "timestamp": "2026-09-07T23:42:15.038Z",
+  "caseIds": [
+    "CW-ECTD_PAPERS-01",
+    "CW-ECTD_PAPERS-02",
+    "CW-ECTD_PAPERS-05",
+    "CW-ECTD_PAPERS-07",
+    "CW-ECTD_PAPERS-08",
+    "CW-ECTD_EXPERIMENTS-01",
+    "CW-ECTD_EXPERIMENTS-04",
+    "CW-ECTD_EXPERIMENTS-07",
+    "CW-ECTD_WORKFLOWS-02",
+    "CW-CORPUS-01",
+    "CW-ECTD_WORKFLOWS-07"
+  ],
+  "repeatCaseIds": [
+    "CW-ECTD_PAPERS-01",
+    "CW-CORPUS-01"
+  ],
+  "workspace": "evals/workspaces/live-eval-v1",
+  "originalTextFixtures": true,
+  "rendererReloaded": true,
+  "fcRevision": null,
+  "mainProcessRevisionAttested": false,
+  "method": "normal UI, edit single user turn after preserving each observation; shared workspace artifacts warm sequentially"
+}

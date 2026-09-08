@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P83",
+  "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+  "paperCardContentIdentity": "sha256:0319dbcad6ba64d24953c3527bd96e914b2606698abecfd4cb1ece1f0b627394",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P83",
+    "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+    "title": "CelluWeave D：低温储存后的可逆性",
+    "relevance": "medium",
+    "themes": [
+      "hydrogels",
+      "material science",
+      "sodium alginate",
+      "cellulose",
+      "compression modulus",
+      "storage stability"
+    ],
+    "researchQuestion": "Evaluation of the mechanical stability and shape retention of a sodium alginate and cellulose hydrogel after cold storage.",
+    "findings": [
+      {
+        "claim": "The mean compression modulus decreased by 4.0 kPa, representing an 8.0% reduction compared to fresh samples.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "Fresh samples had a mean compression modulus of 50.0 kPa (n=4).",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "After 7 days of storage at 4°C, the mean compression modulus of the material was 46.0 kPa.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "The compression modulus mean was 46.0 kPa (SD 2.0 kPa, n=4) after 7 days of storage at 4°C.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "The shape retention rate of the material after 7 days of storage at 4°C was 95%.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "The mean compression modulus decreased by 4.0 kPa, representing an 8.0% reduction compared to fresh samples.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "Fresh samples had a mean compression modulus of 50.0 kPa (n=4).",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "After 7 days of storage at 4°C, the mean compression modulus of the material was 46.0 kPa.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "The compression modulus mean was 46.0 kPa (SD 2.0 kPa, n=4) after 7 days of storage at 4°C.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      },
+      {
+        "claim": "The shape retention rate of the material after 7 days of storage at 4°C was 95%.",
+        "evidenceRefs": [
+          "P83:p2:P83-P2-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "Formulation of sodium alginate 2.0% and cellulose 1.2%",
+      "Curing with 50 mmol/L calcium chloride for 10 minutes",
+      "Storage at 4°C for 7 days",
+      "Mechanical testing in wet state after 24-hour equilibrium at 10% strain"
+    ],
+    "organisms": [],
+    "genes": [],
+    "proteins": [],
+    "pathways": [],
+    "experimentalConditions": [
+      "4°C storage for 7 days",
+      "Wet state 24-hour equilibrium",
+      "10% strain"
+    ],
+    "measurements": [
+      "Compression modulus (kPa)",
+      "Shape retention rate (%)"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "No freeze-thaw cycles were performed",
+      "No measurements of cell viability or microbial contamination",
+      "Results from 7-day refrigeration cannot be generalized to freezing conditions or long-term storage"
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:0319dbcad6ba64d24953c3527bd96e914b2606698abecfd4cb1ece1f0b627394",
+    "statSignature": "literature/P83.pdf|103188|1788824298378755576|16777234:201154915"
+  },
+  "updatedAt": "2026-09-08T00:26:36.001Z"
+}

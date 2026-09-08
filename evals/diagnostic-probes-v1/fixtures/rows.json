@@ -1,0 +1,42 @@
+{
+  "before": [
+    [
+      "experiment_id",
+      "mutation",
+      "titer (g/L)"
+    ],
+    [
+      "PROBE-A",
+      "A163V",
+      2
+    ],
+    [
+      "PROBE-B",
+      "T212S",
+      9
+    ],
+    [
+      "PROBE-C",
+      "A163V",
+      4
+    ]
+  ],
+  "after": [
+    [
+      "experiment_id",
+      "mutation",
+      "titer (g/L)"
+    ],
+    [
+      "PROBE-A",
+      "A163V",
+      2
+    ],
+    [
+      "PROBE-C",
+      "A163V",
+      4
+    ]
+  ],
+  "deletedRowId": "PROBE-B"
+}

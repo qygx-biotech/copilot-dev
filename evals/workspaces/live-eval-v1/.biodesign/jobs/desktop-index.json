@@ -1,0 +1,881 @@
+{
+  "schemaVersion": 1,
+  "jobs": [
+    {
+      "id": "d3fa0e9d-9cb0-4a1f-a294-8d28b76ab4e6",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "syntheses"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-08T00:29:34.377Z",
+      "updatedAt": "2026-09-08T00:29:34.408Z",
+      "startedAt": "2026-09-08T00:29:34.384Z",
+      "completedAt": "2026-09-08T00:29:34.408Z",
+      "output": {
+        "collections": 1,
+        "indexed": 0,
+        "updated": 1,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 43
+      },
+      "error": null
+    },
+    {
+      "id": "a96953d8-19b5-4bd4-a8ca-dbb9f423622e",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "syntheses"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-08T00:26:36.734Z",
+      "updatedAt": "2026-09-08T00:26:36.756Z",
+      "startedAt": "2026-09-08T00:26:36.740Z",
+      "completedAt": "2026-09-08T00:26:36.756Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 43
+      },
+      "error": null
+    },
+    {
+      "id": "d6a5a332-186b-4337-812d-8b59756ed5a8",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:47.038Z",
+      "updatedAt": "2026-09-07T23:47:47.056Z",
+      "startedAt": "2026-09-07T23:47:47.044Z",
+      "completedAt": "2026-09-07T23:47:47.056Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 16,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 42
+      },
+      "error": null
+    },
+    {
+      "id": "7cb8859c-63db-4dc9-b8ab-8db59dcedeb4",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:46.956Z",
+      "updatedAt": "2026-09-07T23:47:46.980Z",
+      "startedAt": "2026-09-07T23:47:46.963Z",
+      "completedAt": "2026-09-07T23:47:46.980Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 7,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 41
+      },
+      "error": null
+    },
+    {
+      "id": "fb3e7899-e985-4319-9f53-3487d311fdd9",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "project-memory"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:31.634Z",
+      "updatedAt": "2026-09-07T23:47:31.647Z",
+      "startedAt": "2026-09-07T23:47:31.639Z",
+      "completedAt": "2026-09-07T23:47:31.647Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 4,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 40
+      },
+      "error": null
+    },
+    {
+      "id": "ab9b1663-163f-46c0-bf8e-e800d2ea3b9f",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "project-memory"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:31.518Z",
+      "updatedAt": "2026-09-07T23:47:31.532Z",
+      "startedAt": "2026-09-07T23:47:31.523Z",
+      "completedAt": "2026-09-07T23:47:31.532Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 3,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 39
+      },
+      "error": null
+    },
+    {
+      "id": "3641c622-ad03-47f2-8a20-22f0b230d635",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "project-memory"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:31.402Z",
+      "updatedAt": "2026-09-07T23:47:31.418Z",
+      "startedAt": "2026-09-07T23:47:31.409Z",
+      "completedAt": "2026-09-07T23:47:31.418Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 2,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 38
+      },
+      "error": null
+    },
+    {
+      "id": "62235121-8a1c-4a3b-8549-7b8ee4fae555",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "project-memory"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:31.275Z",
+      "updatedAt": "2026-09-07T23:47:31.290Z",
+      "startedAt": "2026-09-07T23:47:31.281Z",
+      "completedAt": "2026-09-07T23:47:31.290Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 1,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 37
+      },
+      "error": null
+    },
+    {
+      "id": "b7b478d8-d60a-473a-922d-19bfa5292cc9",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "project-memory"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:31.161Z",
+      "updatedAt": "2026-09-07T23:47:31.175Z",
+      "startedAt": "2026-09-07T23:47:31.167Z",
+      "completedAt": "2026-09-07T23:47:31.175Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 36
+      },
+      "error": null
+    },
+    {
+      "id": "ac61294e-3c33-4e15-98f0-40f84896b5cd",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:31.046Z",
+      "updatedAt": "2026-09-07T23:47:31.063Z",
+      "startedAt": "2026-09-07T23:47:31.052Z",
+      "completedAt": "2026-09-07T23:47:31.063Z",
+      "output": {
+        "collections": 1,
+        "indexed": 4,
+        "updated": 2,
+        "unchanged": 10,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 35
+      },
+      "error": null
+    },
+    {
+      "id": "6e850c19-d465-43a5-b218-d1cfb452e11b",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:47:30.933Z",
+      "updatedAt": "2026-09-07T23:47:30.950Z",
+      "startedAt": "2026-09-07T23:47:30.939Z",
+      "completedAt": "2026-09-07T23:47:30.950Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 6,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 31
+      },
+      "error": null
+    },
+    {
+      "id": "18c22fcf-ec79-4b97-b3b6-67b77adadeb4",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:46:28.395Z",
+      "updatedAt": "2026-09-07T23:46:28.409Z",
+      "startedAt": "2026-09-07T23:46:28.401Z",
+      "completedAt": "2026-09-07T23:46:28.409Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 7,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 30
+      },
+      "error": null
+    },
+    {
+      "id": "4fa27301-0825-447c-8368-9924e78f839f",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:46:27.887Z",
+      "updatedAt": "2026-09-07T23:46:27.907Z",
+      "startedAt": "2026-09-07T23:46:27.892Z",
+      "completedAt": "2026-09-07T23:46:27.907Z",
+      "output": {
+        "collections": 1,
+        "indexed": 6,
+        "updated": 0,
+        "unchanged": 6,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 29
+      },
+      "error": null
+    },
+    {
+      "id": "885d22c6-b414-47fb-a2e8-c961fcc59e59",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:46:27.787Z",
+      "updatedAt": "2026-09-07T23:46:27.802Z",
+      "startedAt": "2026-09-07T23:46:27.792Z",
+      "completedAt": "2026-09-07T23:46:27.802Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 5,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 23
+      },
+      "error": null
+    },
+    {
+      "id": "f749d85c-4cf4-47fc-bdb1-00af8084f94d",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:46:11.235Z",
+      "updatedAt": "2026-09-07T23:46:11.251Z",
+      "startedAt": "2026-09-07T23:46:11.241Z",
+      "completedAt": "2026-09-07T23:46:11.251Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 6,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 22
+      },
+      "error": null
+    },
+    {
+      "id": "8cea7ef3-ecbc-4752-81c0-0927ef62dce1",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:46:10.716Z",
+      "updatedAt": "2026-09-07T23:46:10.750Z",
+      "startedAt": "2026-09-07T23:46:10.722Z",
+      "completedAt": "2026-09-07T23:46:10.750Z",
+      "output": {
+        "collections": 1,
+        "indexed": 0,
+        "updated": 2,
+        "unchanged": 4,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 21
+      },
+      "error": null
+    },
+    {
+      "id": "bd9f7d91-2731-4756-b275-fe6f620c34a4",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:46:10.626Z",
+      "updatedAt": "2026-09-07T23:46:10.645Z",
+      "startedAt": "2026-09-07T23:46:10.631Z",
+      "completedAt": "2026-09-07T23:46:10.645Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 4,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 21
+      },
+      "error": null
+    },
+    {
+      "id": "2895f055-9c28-4c6f-80d4-16a9a85ce040",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:45:10.149Z",
+      "updatedAt": "2026-09-07T23:45:10.165Z",
+      "startedAt": "2026-09-07T23:45:10.155Z",
+      "completedAt": "2026-09-07T23:45:10.165Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 5,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 20
+      },
+      "error": null
+    },
+    {
+      "id": "c4dd2229-6c8d-4149-851b-9dba2b8b4480",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:45:09.681Z",
+      "updatedAt": "2026-09-07T23:45:09.696Z",
+      "startedAt": "2026-09-07T23:45:09.688Z",
+      "completedAt": "2026-09-07T23:45:09.696Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 5,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 19
+      },
+      "error": null
+    },
+    {
+      "id": "fcfbecc4-4948-43cd-9d23-825c8a0181ba",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:45:09.611Z",
+      "updatedAt": "2026-09-07T23:45:09.627Z",
+      "startedAt": "2026-09-07T23:45:09.618Z",
+      "completedAt": "2026-09-07T23:45:09.627Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 3,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 18
+      },
+      "error": null
+    },
+    {
+      "id": "114ea990-6f59-4d2c-92c6-cf0e6196c154",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:44:58.359Z",
+      "updatedAt": "2026-09-07T23:44:58.374Z",
+      "startedAt": "2026-09-07T23:44:58.364Z",
+      "completedAt": "2026-09-07T23:44:58.374Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 4,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 17
+      },
+      "error": null
+    },
+    {
+      "id": "5a8d8872-e685-4847-be6a-52eb9088364e",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:44:57.874Z",
+      "updatedAt": "2026-09-07T23:44:57.889Z",
+      "startedAt": "2026-09-07T23:44:57.879Z",
+      "completedAt": "2026-09-07T23:44:57.889Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 4,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 16
+      },
+      "error": null
+    },
+    {
+      "id": "a32fb26d-6d62-41e0-a4f4-feb9955105b6",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:44:57.792Z",
+      "updatedAt": "2026-09-07T23:44:57.810Z",
+      "startedAt": "2026-09-07T23:44:57.797Z",
+      "completedAt": "2026-09-07T23:44:57.810Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 2,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 15
+      },
+      "error": null
+    },
+    {
+      "id": "a4cbff69-241a-487d-881e-89e191ef750b",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:43:54.773Z",
+      "updatedAt": "2026-09-07T23:43:54.788Z",
+      "startedAt": "2026-09-07T23:43:54.779Z",
+      "completedAt": "2026-09-07T23:43:54.788Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 3,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 14
+      },
+      "error": null
+    },
+    {
+      "id": "9d6003d6-d8c8-499f-aeda-4925eaced5f3",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:43:54.418Z",
+      "updatedAt": "2026-09-07T23:43:54.440Z",
+      "startedAt": "2026-09-07T23:43:54.425Z",
+      "completedAt": "2026-09-07T23:43:54.440Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 2,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 13
+      },
+      "error": null
+    },
+    {
+      "id": "bb6c9258-e077-4289-94af-c93433eedf44",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:43:54.359Z",
+      "updatedAt": "2026-09-07T23:43:54.373Z",
+      "startedAt": "2026-09-07T23:43:54.363Z",
+      "completedAt": "2026-09-07T23:43:54.373Z",
+      "output": {
+        "collections": 1,
+        "indexed": 3,
+        "updated": 1,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 12
+      },
+      "error": null
+    },
+    {
+      "id": "f0d09ab4-c0be-443c-8c34-f1b9c9667589",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:43:54.244Z",
+      "updatedAt": "2026-09-07T23:43:54.256Z",
+      "startedAt": "2026-09-07T23:43:54.249Z",
+      "completedAt": "2026-09-07T23:43:54.256Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 1,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 9
+      },
+      "error": null
+    },
+    {
+      "id": "765c4120-faea-4683-8cd7-ae492be6f2f8",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "topics"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:43:54.034Z",
+      "updatedAt": "2026-09-07T23:43:54.047Z",
+      "startedAt": "2026-09-07T23:43:54.039Z",
+      "completedAt": "2026-09-07T23:43:54.047Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 8
+      },
+      "error": null
+    },
+    {
+      "id": "ffa1a482-adb9-492a-8711-d3519b5794f8",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "paper-cards"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:43:53.959Z",
+      "updatedAt": "2026-09-07T23:43:53.979Z",
+      "startedAt": "2026-09-07T23:43:53.969Z",
+      "completedAt": "2026-09-07T23:43:53.979Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 7
+      },
+      "error": null
+    },
+    {
+      "id": "9952501d-f5b5-40cf-b32a-68a61a350cc2",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:42:35.591Z",
+      "updatedAt": "2026-09-07T23:42:35.606Z",
+      "startedAt": "2026-09-07T23:42:35.596Z",
+      "completedAt": "2026-09-07T23:42:35.606Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 1,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 6
+      },
+      "error": null
+    },
+    {
+      "id": "41cd4daa-5225-4115-b38d-32de273ea71c",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "literature-evidence"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:42:35.324Z",
+      "updatedAt": "2026-09-07T23:42:35.344Z",
+      "startedAt": "2026-09-07T23:42:35.332Z",
+      "completedAt": "2026-09-07T23:42:35.344Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 5
+      },
+      "error": null
+    },
+    {
+      "id": "c2ad95a6-6b99-4967-ab97-b3c0ae4e5097",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "experiment-notes"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:42:34.900Z",
+      "updatedAt": "2026-09-07T23:42:34.915Z",
+      "startedAt": "2026-09-07T23:42:34.906Z",
+      "completedAt": "2026-09-07T23:42:34.915Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 3,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 4
+      },
+      "error": null
+    },
+    {
+      "id": "866c4291-ec83-498f-ab1b-050ea0e2d386",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "experiment-notes"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:42:34.642Z",
+      "updatedAt": "2026-09-07T23:42:34.658Z",
+      "startedAt": "2026-09-07T23:42:34.648Z",
+      "completedAt": "2026-09-07T23:42:34.658Z",
+      "output": {
+        "collections": 1,
+        "indexed": 1,
+        "updated": 0,
+        "unchanged": 2,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 3
+      },
+      "error": null
+    },
+    {
+      "id": "5f43d6b5-000c-4edd-92b5-986a99704e9a",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "experiment-notes"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:42:33.946Z",
+      "updatedAt": "2026-09-07T23:42:33.993Z",
+      "startedAt": "2026-09-07T23:42:33.956Z",
+      "completedAt": "2026-09-07T23:42:33.993Z",
+      "output": {
+        "collections": 1,
+        "indexed": 0,
+        "updated": 0,
+        "unchanged": 2,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 2
+      },
+      "error": null
+    },
+    {
+      "id": "7fe02ae9-0a9a-40ad-83ff-0ec3ae91f1a4",
+      "type": "knowledge-update",
+      "status": "completed",
+      "input": {
+        "collections": [
+          "experiment-notes"
+        ]
+      },
+      "progress": null,
+      "createdAt": "2026-09-07T23:42:33.943Z",
+      "updatedAt": "2026-09-07T23:42:33.985Z",
+      "startedAt": "2026-09-07T23:42:33.950Z",
+      "completedAt": "2026-09-07T23:42:33.985Z",
+      "output": {
+        "collections": 1,
+        "indexed": 2,
+        "updated": 0,
+        "unchanged": 0,
+        "removed": 0,
+        "skipped": 0,
+        "needsEmbedding": 2
+      },
+      "error": null
+    }
+  ],
+  "updatedAt": "2026-09-08T00:50:03.994Z"
+}

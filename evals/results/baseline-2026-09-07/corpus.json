@@ -1,0 +1,570 @@
+[
+  {
+    "caseId": "CW-DISCOVERY-05",
+    "repeat": 0,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-65b5ab3a",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "Which item is a review that adds no new experimental specimens?",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "7ad826a9",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "which item is a review that adds no new experimental specimens",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 7,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 7,
+        "papersFailed": 1,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "failedPaperIds": [
+          "P17"
+        ],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [
+        {
+          "paperId": "P17",
+          "filename": "P17.pdf",
+          "title": "",
+          "stage": "map",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-GFwffq/.biodesign/workflows/maps'",
+          "sourceReady": true,
+          "retryable": false,
+          "attempts": 0,
+          "fallbackAttempted": false
+        }
+      ],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:25:13.399Z"
+    }
+  },
+  {
+    "caseId": "CW-DISCOVERY-05",
+    "repeat": 1,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-65b5ab3a",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "Which item is a review that adds no new experimental specimens?",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "7ad826a9",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "which item is a review that adds no new experimental specimens",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 8,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 8,
+        "papersFailed": 0,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152",
+          "P17"
+        ],
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:25:14.090Z"
+    }
+  },
+  {
+    "caseId": "CW-CORPUS-01",
+    "repeat": 0,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-0866d379",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "84fdd304",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 7,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 7,
+        "papersFailed": 1,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P31",
+          "P17",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "failedPaperIds": [
+          "P31"
+        ],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [
+        {
+          "paperId": "P31",
+          "filename": "P31.pdf",
+          "title": "",
+          "stage": "map",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-xncZWY/.biodesign/workflows/maps'",
+          "sourceReady": true,
+          "retryable": false,
+          "attempts": 0,
+          "fallbackAttempted": false
+        }
+      ],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:25:44.542Z"
+    }
+  },
+  {
+    "caseId": "CW-CORPUS-01",
+    "repeat": 1,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-0866d379",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "84fdd304",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 8,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 8,
+        "papersFailed": 0,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P31",
+          "P17",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152",
+          "P31"
+        ],
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:25:44.972Z"
+    }
+  },
+  {
+    "caseId": "CW-CORPUS-04",
+    "repeat": 0,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-08413dca",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "P74 cites P17 and P52. May I count its review as another independent experiment in a meta-analysis?",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "1fc9658e",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "p74 cites p17 and p52. may i count its review as another independent experiment in a meta-analysis",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 7,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 7,
+        "papersFailed": 1,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "failedPaperIds": [
+          "P31"
+        ],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [
+        {
+          "paperId": "P31",
+          "filename": "P31.pdf",
+          "title": "",
+          "stage": "map",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-PXmHDT/.biodesign/workflows/maps'",
+          "sourceReady": true,
+          "retryable": false,
+          "attempts": 0,
+          "fallbackAttempted": false
+        }
+      ],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:25:51.953Z"
+    }
+  },
+  {
+    "caseId": "CW-CORPUS-04",
+    "repeat": 1,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-08413dca",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "P74 cites P17 and P52. May I count its review as another independent experiment in a meta-analysis?",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "1fc9658e",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "p74 cites p17 and p52. may i count its review as another independent experiment in a meta-analysis",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 8,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 8,
+        "papersFailed": 0,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152",
+          "P31"
+        ],
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:25:52.416Z"
+    }
+  },
+  {
+    "caseId": "CW-ECTD_WORKFLOWS-04",
+    "repeat": 0,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-6dafc985",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "Prepare a grounded corpus summary across P117, P131, and P152. If one paper map fails validation, identify the affected paper and preserve the evidence gap.",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "971a9ea5",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "prepare a grounded corpus summary across p117, p131, and p152. if one paper map fails validation, identify the affected paper and preserve the evidence gap",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 7,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 7,
+        "papersFailed": 1,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "failedPaperIds": [
+          "P17"
+        ],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [
+        {
+          "paperId": "P17",
+          "filename": "P17.pdf",
+          "title": "",
+          "stage": "map",
+          "code": "EEXIST",
+          "message": "EEXIST: file already exists, mkdir '/private/var/folders/l4/hx857ypj23x1fj_h181sgx5c0000gn/T/biodesign-eval-CDGS3K/.biodesign/workflows/maps'",
+          "sourceReady": true,
+          "retryable": false,
+          "attempts": 0,
+          "fallbackAttempted": false
+        }
+      ],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:28:24.946Z"
+    }
+  },
+  {
+    "caseId": "CW-ECTD_WORKFLOWS-04",
+    "repeat": 1,
+    "corpus": {
+      "workflowId": "summarize-paper-corpus-6dafc985",
+      "workflowType": "corpus_literature_synthesis",
+      "question": "Prepare a grounded corpus summary across P117, P131, and P152. If one paper map fails validation, identify the affected paper and preserve the evidence gap.",
+      "status": "completed",
+      "phase": "answer",
+      "corpusVersion": "971a9ea5",
+      "parentWorkflowId": null,
+      "normalizedSynthesisSignature": "prepare a grounded corpus summary across p117, p131, and p152. if one paper map fails validation, identify the affected paper and preserve the evidence gap",
+      "papersTotal": 8,
+      "papersPrepared": 8,
+      "papersAnalyzed": 8,
+      "corpusScope": "entire-project",
+      "coverage": {
+        "papersDiscovered": 8,
+        "papersIncludedInSnapshot": 8,
+        "papersSuccessfullyPrepared": 8,
+        "papersPreparationCacheHits": 8,
+        "papersSuccessfullyAnalyzed": 8,
+        "papersFailed": 0,
+        "papersMissing": 0,
+        "includedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "preparedPaperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "analyzedPaperIds": [
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152",
+          "P17"
+        ],
+        "failedPaperIds": [],
+        "missingPaperIds": [],
+        "changedPaperIds": []
+      },
+      "failures": [],
+      "retryablePaperIds": [],
+      "incrementalUpdate": null,
+      "updatedAt": "2026-09-07T23:28:25.260Z"
+    }
+  }
+]

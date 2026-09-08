@@ -173,9 +173,9 @@ jobs:
           @"
           Signed BioDesign Windows x64 stable release built from commit $env:GITHUB_SHA.
 
-          Existing v0.1.5 users must manually install this release once because v0.1.5 has no updater. After this bootstrap, future eligible stable releases download in the background and require no browser visit or manual installer download.
+          Existing v0.1.5 users must manually install this release once because v0.1.5 has no updater. After this bootstrap, Check for Updates finds newer stable releases and asks for approval before downloading or installing anything.
 
-          Automatic updates use the fixed https://update.electronjs.org/qygx-biotech/copilot-dev feed. Drafts and prereleases are not offered to stable installations. Offline or update-service failures do not block local startup or project work.
+          Binary-only updates use fixed public GitHub Releases metadata and download only BioDesign-Setup.exe after approval. The installer must match SHA256SUMS.txt before it is launched. Drafts and prereleases are not offered to stable installations. Network or validation failures do not block local startup or project work.
           "@ | Set-Content release-notes.md -Encoding utf8NoBOM
           gh release create $env:RELEASE_TAG `
             $env:SETUP_PATH `

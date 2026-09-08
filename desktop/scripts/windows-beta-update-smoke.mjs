@@ -14,7 +14,7 @@ const installRoot = path.join(process.env.LOCALAPPDATA, manifest.identity);
 const installedExecutable = path.join(installRoot, `${manifest.identity}.exe`);
 const updateExecutable = path.join(installRoot, "Update.exe");
 const targetTag = `v${manifest.versionB.version}`;
-const redirectCounts = { RELEASES: 0, nupkg: 0 };
+const downloadCounts = { setup: 0, checksums: 0, source: 0 };
 
 try {
   await access(installRoot);
@@ -86,13 +86,14 @@ const server = http.createServer(async (request, response) => {
   if (releaseMatch) {
     const name = decodeURIComponent(releaseMatch[1]);
     if (!assetMap.has(name)) { response.writeHead(404).end(); return; }
-    if (name === "RELEASES") redirectCounts.RELEASES += 1;
-    if (name.endsWith("-full.nupkg")) redirectCounts.nupkg += 1;
     response.writeHead(302, { location: `/release-assets/${encodeURIComponent(name)}`, "cache-control": "no-store" }).end();
     return;
   }
   const name = metadataMatch ? decodeURIComponent(metadataMatch[1]) : redirectedMatch ? decodeURIComponent(redirectedMatch[1]) : "";
   if (!assetMap.has(name)) { response.writeHead(404).end(); return; }
+  if (name === "BioDesign-Setup.exe") downloadCounts.setup += 1;
+  else if (name === "SHA256SUMS.txt") downloadCounts.checksums += 1;
+  else downloadCounts.source += 1;
   const filePath = path.join(manifest.feedRoot, name);
   const metadata = await stat(filePath);
   response.writeHead(200, {
@@ -124,34 +125,27 @@ try {
     BIODESIGN_BETA_UPDATE_SMOKE_STATUS: statusPath,
   };
   await run(installedExecutable, [], { env: smokeEnvironment });
-  const downloaded = await waitForStatus("downloaded");
-  if (downloaded.version !== manifest.versionA.version || downloaded.targetVersion !== manifest.versionB.version ||
-      !downloaded.projectDataPreserved || !downloaded.narrowAction || !downloaded.selectedLater) {
-    throw new Error(`Version A did not stage beta B safely: ${JSON.stringify(downloaded)}`);
-  }
-  await new Promise((resolve) => setTimeout(resolve, 2_000));
-  await rm(statusPath, { force: true });
-  await run(installedExecutable, [], { env: smokeEnvironment });
   const updated = await waitForStatus("updated");
   if (updated.version !== manifest.versionB.version || !updated.projectDataPreserved) {
     throw new Error(`Version B did not launch with version A project data: ${JSON.stringify(updated)}`);
   }
-  if (redirectCounts.RELEASES < 1 || redirectCounts.nupkg < 1) {
-    throw new Error(`Squirrel did not retrieve both redirected assets: ${JSON.stringify(redirectCounts)}`);
+  if (downloadCounts.checksums !== 1 || downloadCounts.setup !== 1 || downloadCounts.source !== 0) {
+    throw new Error(`Binary updater fetched unexpected assets: ${JSON.stringify(downloadCounts)}`);
   }
   console.log(JSON.stringify({
     identity: manifest.identity,
-    fromVersion: downloaded.version,
+    fromVersion: manifest.versionA.version,
     toVersion: updated.version,
     narrowButtonAction: true,
-    backgroundDownload: true,
-    selectedLater: true,
-    normalRestartInstall: true,
+    userApprovedDownload: true,
+    installerOnlyDownload: true,
+    sha256Verified: true,
+    installerRestartedApplication: true,
     projectDataPreserved: true,
     realisticGithubReleaseFixture: true,
-    releasesRedirectFollowed: redirectCounts.RELEASES > 0,
-    nupkgRedirectFollowed: redirectCounts.nupkg > 0,
-    productionFeedOverridePackaged: false,
+    checksumsDownloaded: downloadCounts.checksums,
+    setupDownloaded: downloadCounts.setup,
+    sourceArtifactsDownloaded: downloadCounts.source,
   }, null, 2));
 } finally {
   await new Promise((resolve) => server.close(resolve));

@@ -1,0 +1,557 @@
+{
+  "schemaVersion": "independent-judge-results-v1",
+  "contractVersion": "independent-judge-v1",
+  "mode": "absolute",
+  "nSamples": 1,
+  "nIndependentCases": 1,
+  "byArtifactType": {
+    "final_answer": {
+      "nSamples": 1,
+      "nIndependentCases": 1,
+      "dimensions": {
+        "correctness": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "faithfulness": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "completeness": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "relevance": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "uncertaintyHandling": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "synthesis": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "clarity": {
+          "mean": 4,
+          "median": 4,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "overall": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        }
+      },
+      "criticalErrorCount": 1,
+      "missingPointCount": 1,
+      "confidenceCounts": {
+        "low": 0,
+        "medium": 0,
+        "high": 1
+      }
+    }
+  },
+  "scores": [
+    {
+      "packetId": "8e55692ea8d31e73",
+      "artifactType": "final_answer",
+      "correctness": 3,
+      "faithfulness": 3,
+      "completeness": 2,
+      "relevance": 3,
+      "uncertaintyHandling": 2,
+      "synthesis": 3,
+      "clarity": 4,
+      "overall": 3,
+      "criticalErrors": [
+        {
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "issue": "The current objective is already specified by M06 as fermentation product titer, and M07 explicitly marks the activity preference superseded. Treating the objective as unresolved prevents a direct recommendation of A163V for the actual current goal."
+        }
+      ],
+      "missingPoints": [
+        {
+          "goldRequirement": "{\"type\":\"selected_resource\",\"value\":\"A163V\"}",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "omission": "Does not select A163V unequivocally for the current titer objective or explain that M06 supersedes the previous activity objective. A163V appears only as one conditional recommendation alongside T212S and a proposed double mutant."
+        }
+      ],
+      "lowScoreEvidence": [
+        {
+          "criterion": "correctness",
+          "candidateSpan": "It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L)",
+          "goldRequirement": "choice",
+          "goldEvidenceIds": [
+            "P152:p2:v1",
+            "P152:p3:v1"
+          ],
+          "issue": "The descriptive titer ranking is supported, but the supplied P152 evidence provides no inferential statistics establishing a significant difference. Elsewhere the answer also substitutes final production volume or total amount for concentration in g/L, although culture volume is not supplied."
+        },
+        {
+          "criterion": "faithfulness",
+          "candidateSpan": "which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme or integrate it with the CelluWeave novel domain",
+          "goldRequirement": "choice",
+          "goldEvidenceIds": [
+            "P152:p1:v1",
+            "P152:p2:v1",
+            "P152:p3:v1"
+          ],
+          "issue": "P152 supports an activity ranking under the tested conditions. It does not establish a better engineering scaffold or any integration with a CelluWeave domain; those extensions are attached to the P152 citation without supporting evidence."
+        },
+        {
+          "criterion": "completeness",
+          "candidateSpan": "",
+          "goldRequirement": "{\"type\":\"selected_resource\",\"value\":\"A163V\"}",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "issue": "The central requested use of the current objective is missing: M06 prioritizes titer and supersedes M07. The answer never resolves its alternative recommendations into the requested A163V selection."
+        },
+        {
+          "criterion": "relevance",
+          "candidateSpan": "**For Enzyme Engineering/Activity:** Recommend **T212S**.",
+          "goldRequirement": "choice",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "issue": "An alternative activity recommendation and the combined-objective next step divert the answer from the explicitly current titer objective. The activity comparison is useful context, but it is presented as an unresolved choice for this user."
+        },
+        {
+          "criterion": "uncertaintyHandling",
+          "candidateSpan": "It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L)",
+          "goldRequirement": "choice",
+          "goldEvidenceIds": [
+            "P152:p2:v1",
+            "P152:p3:v1"
+          ],
+          "issue": "The answer uses significance language without reported uncertainty or statistical testing and omits the limitation to the tested synthetic conditions. Meanwhile it introduces uncertainty about the user objective even though M06 resolves it."
+        },
+        {
+          "criterion": "synthesis",
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "goldRequirement": "choice",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "issue": "The answer correctly separates the two numerical rankings but fails to connect them to current versus superseded memory, which is the decisive synthesis needed to recommend the variant."
+        },
+        {
+          "criterion": "overall",
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "goldRequirement": "{\"type\":\"selected_resource\",\"value\":\"A163V\"}",
+          "goldEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1",
+            "P152:p2:v1"
+          ],
+          "issue": "The measurements and opposing rankings are useful and the follow-up remains proposed, but the central recommendation is left conditional despite a resolved current objective. Unsupported significance and engineering extensions further weaken the result."
+        }
+      ],
+      "claimAudits": [
+        {
+          "candidateSpan": "Based on the evidence from **P152** and internal experiment **X04** at 42°C",
+          "citedEvidenceIds": [
+            "P152",
+            "X04"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1",
+            "X04:EctD:r2",
+            "X04:EctD:r3",
+            "X04:EctD:r4",
+            "X04:EctD:r5"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "M06:record:v1",
+            "M07:record:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "choice"
+          ]
+        },
+        {
+          "candidateSpan": "| **A163V** | 1.50 U/mg [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **4.60 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1), [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X04.xlsx](biodesign-citation:citation-2) | **Product Titer** |",
+          "citedEvidenceIds": [
+            "P152",
+            "X04"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1",
+            "X04:EctD:r2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ]
+        },
+        {
+          "candidateSpan": "| **T212S** | **2.40 U/mg** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | 3.90 g/L [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P152.pdf](biodesign-citation:citation-1) | **Specific Activity** |",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**For Production Maximization:** Recommend **A163V**.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1",
+            "M06:record:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ]
+        },
+        {
+          "candidateSpan": "4.60 g/L vs 3.90 g/L",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ]
+        },
+        {
+          "candidateSpan": "It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": [
+            "choice"
+          ]
+        },
+        {
+          "candidateSpan": "making it the superior choice if the primary goal is increasing the final amount of hydroxy-tetrahydropyrimidine produced",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": [
+            "choice"
+          ]
+        },
+        {
+          "candidateSpan": "hydroxy-tetrahydropyrimidine",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**For Enzyme Engineering/Activity:** Recommend **T212S**.",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "It exhibits substantially higher specific activity (2.40 U/mg vs 1.50 U/mg)",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "or integrate it with the CelluWeave novel domain",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**Next Step Suggestion:** If the objective is to combine high activity with high titer, a follow-up design could explore a double mutant combining both **A163V** and **T212S** to determine if these beneficial traits are additive at 42°C.",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "Based on the evidence from **P152** and internal experiment **X04** at 42°C",
+          "subject": "P152 and X04 variant comparison",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "### Variant Comparison at 42°C",
+          "subject": "A163V and T212S comparison",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "| **A163V** | 1.50 U/mg",
+          "subject": "A163V at 42°C",
+          "metric": "specific_activity",
+          "value": 1.5,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**4.60 g/L**",
+          "subject": "A163V at 42°C",
+          "metric": "product_titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152",
+            "X04"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "| **T212S** | **2.40 U/mg**",
+          "subject": "T212S at 42°C",
+          "metric": "specific_activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "3.90 g/L",
+          "subject": "T212S at 42°C",
+          "metric": "product_titer",
+          "value": 3.9,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "4.60 g/L vs 3.90 g/L",
+          "subject": "A163V at 42°C",
+          "metric": "product_titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "4.60 g/L vs 3.90 g/L",
+          "subject": "T212S at 42°C",
+          "metric": "product_titer",
+          "value": 3.9,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "2.40 U/mg vs 1.50 U/mg",
+          "subject": "T212S at 42°C",
+          "metric": "specific_activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "2.40 U/mg vs 1.50 U/mg",
+          "subject": "A163V at 42°C",
+          "metric": "specific_activity",
+          "value": 1.5,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "to determine if these beneficial traits are additive at 42°C",
+          "subject": "Proposed A163V and T212S double mutant follow-up",
+          "metric": "proposed_temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [],
+          "sourceRows": []
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "limitations": [
+    "Validation checks structure, exact spans and allowed references; it does not certify semantic entailment or exhaustiveness of claim audits.",
+    "Numeric claims are extraction only and require a separate deterministic arithmetic and provenance check.",
+    "Judge scores never override deterministic permission, security or other hard gates."
+  ]
+}

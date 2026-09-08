@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "974 events preserved on duplicate input; 974 overlaps removed",
+    "61 starts = 22 completed + 39 failed",
+    "per-turn attributed request sum = 61",
+    "61 auxiliary + 8 main = 69",
+    "8 persisted timings match saved observations"
+  ],
+  "passed": true,
+  "checkedAt": "2026-09-08T00:26:47.343Z"
+}

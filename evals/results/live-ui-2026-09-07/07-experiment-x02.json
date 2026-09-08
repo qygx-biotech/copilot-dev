@@ -1,0 +1,266 @@
+{
+  "caseId": "CW-ECTD_EXPERIMENTS-01",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "In the EctD table of **X02.xlsx**, there are two completed entries for the **A163V** variant:\n*   **X02-R1**: 4.8 g/L\n*   **X02-R2**: 4.9 g/L\n\nThe mean completed A163V titer is **4.85 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X02.xlsx](biodesign-citation:citation-1).",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "local:2",
+          "sourceId": "X02",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "experiments/X02.xlsx",
+          "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P117",
+        "P152",
+        "P131",
+        "P52",
+        "P17"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X01",
+        "X02",
+        "X03",
+        "X04"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.5115,
+          "matchState": "novel",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "aggregate"
+        ],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results",
+          "read_workspace_item"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 5
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "deep",
+        "escalated": true,
+        "reason": "medium-insufficient-lexical-coverage"
+      }
+    },
+    "activity": [
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P152.pdf...",
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P52.pdf...",
+      "正在读取 P52.pdf 的源文件细节...",
+      "正在准备 P17.pdf...",
+      "正在读取 P17.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "In the English EctD table X02, what is the mean completed A163V titer?",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:10:21.713Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788826106772-751f8ebf79152",
+          "role": "user",
+          "content": "In the English EctD table X02, what is the mean completed A163V titer?",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P117",
+              "P152",
+              "P131",
+              "P52",
+              "P17"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X01",
+              "X02",
+              "X03",
+              "X04"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.5115,
+                "matchState": "novel",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "aggregate"
+              ],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results",
+                "read_workspace_item"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 5
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "deep",
+              "escalated": true,
+              "reason": "medium-insufficient-lexical-coverage"
+            }
+          },
+          "createdAt": "2026-09-08T00:08:26.772Z"
+        },
+        {
+          "id": "1788826221709-2b8c9d5b8d73d8",
+          "role": "assistant",
+          "content": "In the EctD table of **X02.xlsx**, there are two completed entries for the **A163V** variant:\n*   **X02-R1**: 4.8 g/L\n*   **X02-R2**: 4.9 g/L\n\nThe mean completed A163V titer is **4.85 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X02.xlsx](biodesign-citation:citation-1).",
+          "activity": [
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P152.pdf...",
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P52.pdf...",
+            "正在读取 P52.pdf 的源文件细节...",
+            "正在准备 P17.pdf...",
+            "正在读取 P17.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "local:2",
+              "sourceId": "X02",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X02.xlsx",
+              "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-08T00:10:21.709Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 114937,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.5115,
+      "matchState": "novel",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "aggregate"
+    ],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results",
+      "read_workspace_item"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 5
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "3f860f2b89d268fbc3b24598d33a9cc4d953f7f33420c9bd185a864c3de4a7aa",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

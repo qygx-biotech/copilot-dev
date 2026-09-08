@@ -1,7 +1,6 @@
 "use strict";
 
-const { app, autoUpdater: electronAutoUpdater } = require("electron");
-const { EventEmitter } = require("node:events");
+const { app } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -62,63 +61,48 @@ if (process.platform === "win32" && [
 
     const productionModule = await import("./windows-updater.mjs");
     const expectedTag = `v${versionB}`;
-    const expectedFeed = `${productionModule.WINDOWS_BETA_RELEASES_DOWNLOAD_BASE}/${expectedTag}`;
-    const updater = new EventEmitter();
-    for (const event of ["checking-for-update", "update-available", "update-not-available", "update-downloaded", "error"]) {
-      electronAutoUpdater.on(event, (...argumentsList) => updater.emit(event, ...argumentsList));
-    }
-    updater.setFeedURL = ({ url }) => {
-      if (url !== expectedFeed) throw new Error("Production beta updater selected an unexpected feed.");
-      electronAutoUpdater.setFeedURL({ url: `${fixtureOrigin}/releases/download/${expectedTag}` });
-    };
-    updater.checkForUpdates = () => electronAutoUpdater.checkForUpdates();
-    updater.quitAndInstall = () => electronAutoUpdater.quitAndInstall();
-
     const fixtureFetch = async (url, options = {}) => {
-      if (url === productionModule.WINDOWS_BETA_RELEASES_API_URL) {
+      if (url === productionModule.WINDOWS_RELEASES_API_URL) {
         return fetch(`${fixtureOrigin}/api/releases`, { ...options, redirect: "error" });
       }
-      if (url.startsWith(`${productionModule.WINDOWS_BETA_RELEASES_DOWNLOAD_BASE}/${expectedTag}/`)) {
+      if (url.startsWith(`${productionModule.WINDOWS_RELEASES_DOWNLOAD_BASE}/${expectedTag}/`)) {
         const name = new URL(url).pathname.split("/").pop();
         return new Response(null, {
           status: 302,
-          headers: { location: `https://${productionModule.WINDOWS_BETA_ASSET_REDIRECT_HOST}/fixture/${name}?signed=test-only` },
+          headers: { location: `https://${productionModule.WINDOWS_RELEASE_ASSET_REDIRECT_HOST}/fixture/${name}?signed=test-only` },
         });
       }
-      if (new URL(url).hostname === productionModule.WINDOWS_BETA_ASSET_REDIRECT_HOST) {
+      if (new URL(url).hostname === productionModule.WINDOWS_RELEASE_ASSET_REDIRECT_HOST) {
         const name = new URL(url).pathname.split("/").pop();
-        return fetch(`${fixtureOrigin}/metadata/${name}`, { ...options, redirect: "error" });
+        return fetch(`${fixtureOrigin}/release-assets/${name}`, { ...options, redirect: "error" });
       }
       throw new Error("The beta discovery fixture received an unexpected URL.");
     };
 
-    let normalQuitScheduled = false;
     const controller = new productionModule.WindowsUpdaterController({
       app,
-      autoUpdater: updater,
-      dialog: { showMessageBox: async () => ({ response: 1 }) },
+      dialog: { showMessageBox: async () => ({ response: 0 }) },
       platform: "win32",
       architecture: "x64",
       processArguments: [],
+      updateDirectory: path.join(app.getPath("userData"), "updates"),
       fetchImplementation: fixtureFetch,
-      getWorkState: () => ({ projectOpen: true, runningJobs: false }),
-      onBetaStatus: (status) => {
+      getWorkState: () => ({ projectOpen: false, runningJobs: false }),
+      onUpdateStatus: (status) => {
         if (status.state === "downloading") {
-          writeStatus({ phase: "downloading", version, projectDataPreserved: preserved, narrowAction: true });
+          writeStatus({ phase: "downloading", version, projectDataPreserved: preserved, narrowAction: true, progress: status.progress });
         }
-        if (status.state === "ready-to-restart" && !normalQuitScheduled) {
-          normalQuitScheduled = true;
-          writeStatus({ phase: "downloaded", version, targetVersion: status.version, projectDataPreserved: preserved, narrowAction: true, selectedLater: true });
-          setTimeout(() => app.quit(), 1000);
+        if (status.state === "launching") {
+          writeStatus({ phase: "installer-launched", version, targetVersion: status.version, projectDataPreserved: preserved, narrowAction: true, userApproved: true });
         }
-        if (status.state === "temporarily-unavailable" || status.state === "no-eligible-beta") {
+        if (status.state === "temporarily-unavailable" || status.state === "current") {
           writeStatus({ phase: "update-error", version, state: status.state, projectDataPreserved: preserved });
           app.exit(2);
         }
       },
     });
     controller.start();
-    setTimeout(() => { void controller.requestBetaUpdateCheck(); }, 2000);
+    setTimeout(() => { void controller.requestUpdateCheck(); }, 2000);
     setTimeout(() => {
       writeStatus({ phase: "timeout", version, projectDataPreserved: preserved });
       app.exit(5);

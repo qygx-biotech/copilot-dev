@@ -120,9 +120,9 @@ jobs:
 
           Fast retrieval is fully local and needs no model download. Deep retrieval requires Internet access and uses authenticated Alibaba Function Compute endpoints; only budgeted retrieval evidence is sent onward to Requesty. No Requesty credential or Alibaba FC source is packaged in the desktop application.
 
-          This unsigned build exposes Check for Beta Updates only when installed as a packaged Windows prerelease. Stable installations remain on the signed stable-only channel and can never opt into this beta feed.
+          Check for Updates is manual. A prerelease installation considers only newer public prereleases, downloads only BioDesign-Setup.exe after approval, verifies it against SHA256SUMS.txt, starts the verified installer, and exits. The updater never downloads source code, the release ZIP, or the NUPKG.
 
-          This workflow creates a draft prerelease. Installed beta clients cannot discover it while it is a draft. After validation, a maintainer must manually publish it as a public prerelease without changing the tag or assets. Required beta assets are BioDesign-Setup.exe, RELEASES, the matching BioDesign-*-full.nupkg, SHA256SUMS.txt, and the x64 ZIP.
+          This workflow creates a draft prerelease. Installed beta clients cannot discover it while it is a draft. After validation, a maintainer must manually publish it as a public prerelease without changing the tag or assets. Required assets remain BioDesign-Setup.exe, RELEASES, the matching BioDesign-*-full.nupkg, SHA256SUMS.txt, and the x64 ZIP; the extra Squirrel/diagnostic assets are not downloaded by the application updater.
           "@ | Set-Content release-notes.md -Encoding utf8NoBOM
           gh release create $env:GITHUB_REF_NAME `
             $env:SETUP_PATH `

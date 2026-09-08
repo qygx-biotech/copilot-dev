@@ -92,12 +92,12 @@ export function registerIpcHandlers(options) {
     return runtimeInfo();
   });
 
-  handle(channels.betaUpdateCheck, async (event, payload) => {
+  handle(channels.updateCheck, async (event, payload) => {
     assertOnlyKeys(payload, []);
     assertTrustedIpcSender(event, getWindow);
     const controller = getUpdaterController?.();
     if (!controller) return { state: "unsupported", reason: "packaged_windows_only" };
-    return controller.requestBetaUpdateCheck();
+    return controller.requestUpdateCheck();
   });
 
   handle(channels.projectOpen, async (_event, payload) => {

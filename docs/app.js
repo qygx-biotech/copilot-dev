@@ -4,6 +4,7 @@ const loginAccountInput = document.querySelector("#loginAccount");
 const loginPasswordInput = document.querySelector("#loginPassword");
 const loginButton = document.querySelector("#loginButton");
 const loginError = document.querySelector("#loginError");
+const windowsDownloadLink = document.querySelector("#windowsDownloadLink");
 const workspaceSelectionPanel = document.querySelector("#workspaceSelectionPanel");
 const selectWorkspaceButton = document.querySelector("#selectWorkspaceButton");
 const workspaceSelectionError = document.querySelector("#workspaceSelectionError");
@@ -37,6 +38,7 @@ const betaUpdateButton = document.querySelector("#betaUpdateButton");
 const betaUpdateStatus = document.querySelector("#betaUpdateStatus");
 const runtimeLog = window.BioDesignRuntimeLog;
 runtimeLog?.installPanel();
+if (windowsDownloadLink && window.biodesignDesktop) windowsDownloadLink.hidden = true;
 
 const projectContextInput = document.querySelector("#projectContext");
 const workspaceTreeContainer = document.querySelector("#workspaceTree");
@@ -145,19 +147,25 @@ const I18N = {
     aboutTitle: "About BioDesign",
     versionLabel: "Version",
     developmentPreview: "Development preview",
-    betaUpdateTitle: "Beta updates",
-    betaUpdateDescription: "Packaged Windows prerelease builds can manually check the public BioDesign beta channel.",
-    checkBetaUpdates: "Check for Beta Updates",
-    betaUpdateReady: "This prerelease build can check for a newer public beta.",
-    betaUpdateChecking: "Checking for an eligible beta update…",
-    betaUpdateDownloading: "BioDesign {version} is available and downloading in the background.",
-    betaUpdateNone: "No eligible newer beta is available.",
-    betaUpdateRestartReady: "BioDesign {version} is ready. Restart now or choose Later in the update prompt.",
-    betaUpdateUnavailable: "Beta updates are temporarily unavailable. You can keep working and try again later.",
-    betaUpdateFirstRun: "Beta checking will be available shortly after first-run setup finishes.",
-    betaUpdateStableDisabled: "Stable builds remain on the signed stable-only update channel.",
-    betaUpdateUnsupported: "Beta checking is available only in packaged Windows x64 prerelease builds.",
-    betaUnsignedWarning: "Beta builds are unsigned development builds and may trigger Windows Unknown publisher or SmartScreen warnings. Stable production releases still require trusted code signing.",
+    betaUpdateTitle: "Application updates",
+    betaUpdateDescription: "Packaged Windows builds can manually check their public BioDesign release channel.",
+    checkBetaUpdates: "Check for Updates",
+    betaUpdateReady: "Check GitHub Releases for a newer Windows installer.",
+    betaUpdateChecking: "Checking for an available update…",
+    betaUpdateAvailable: "BioDesign {version} is available. Review the update prompt to continue.",
+    betaUpdateDownloading: "Downloading BioDesign {version} ({progress}%).",
+    betaUpdateVerifying: "Verifying the BioDesign {version} installer…",
+    betaUpdateLaunching: "Starting the verified installer. BioDesign will close now.",
+    betaUpdateNone: "You are using the latest version.",
+    betaUpdateCancelled: "Update postponed. Your current installation was not changed.",
+    betaUpdateBlocked: "Save your work and close the current project before installing the update.",
+    betaUpdateUnavailable: "Updates are temporarily unavailable. You can keep working and try again later.",
+    betaUpdateChecksumFailed: "The installer failed integrity verification and was not run.",
+    betaUpdateLaunchFailed: "The verified installer could not be started. Your current installation was not changed.",
+    betaUpdatePermissionFailed: "BioDesign could not save the installer. Check folder permissions and try again.",
+    betaUpdateFirstRun: "Update checking will be available shortly after first-run setup finishes.",
+    betaUpdateUnsupported: "Update checking is available only in packaged Windows x64 builds.",
+    betaUnsignedWarning: "Every downloaded installer is verified with its release SHA-256 before it can run. Production releases also use Windows code signing.",
     closeButton: "Close",
     loginTitle: "BioDesign Copilot",
     loginEyebrow: "Account Login",
@@ -165,6 +173,7 @@ const I18N = {
     accountLabel: "Account",
     passwordLabel: "Password",
     loginButton: "Log In",
+    downloadWindows: "Download for Windows",
     loginBusy: "Logging in...",
     loginMissing: "Please enter account and password.",
     loginInvalid: "Incorrect account or password.",
@@ -524,19 +533,25 @@ const I18N = {
     aboutTitle: "关于 BioDesign",
     versionLabel: "版本",
     developmentPreview: "开发预览",
-    betaUpdateTitle: "Beta 更新",
-    betaUpdateDescription: "已打包的 Windows 预发布版本可以手动检查 BioDesign 公共 Beta 通道。",
-    checkBetaUpdates: "检查 Beta 更新",
-    betaUpdateReady: "此预发布版本可以检查更新的公共 Beta 版本。",
-    betaUpdateChecking: "正在检查可用的 Beta 更新…",
-    betaUpdateDownloading: "BioDesign {version} 已可用，正在后台下载。",
-    betaUpdateNone: "没有符合条件的更新 Beta 版本。",
-    betaUpdateRestartReady: "BioDesign {version} 已准备就绪。可在更新提示中立即重启或选择稍后。",
-    betaUpdateUnavailable: "Beta 更新暂时不可用。您可以继续工作并稍后重试。",
-    betaUpdateFirstRun: "首次运行设置完成后即可检查 Beta 更新。",
-    betaUpdateStableDisabled: "稳定版本继续使用已签名的稳定专用更新通道。",
-    betaUpdateUnsupported: "仅已打包的 Windows x64 预发布版本可以检查 Beta 更新。",
-    betaUnsignedWarning: "Beta 版本是未签名的开发版本，Windows 可能显示“未知发布者”或 SmartScreen 警告。稳定生产版本仍必须使用受信任的代码签名。",
+    betaUpdateTitle: "应用更新",
+    betaUpdateDescription: "已打包的 Windows 版本可以手动检查其 BioDesign 公共发布通道。",
+    checkBetaUpdates: "检查更新",
+    betaUpdateReady: "检查 GitHub Releases 中是否有更新的 Windows 安装程序。",
+    betaUpdateChecking: "正在检查可用更新…",
+    betaUpdateAvailable: "BioDesign {version} 已可用。请在更新提示中确认是否继续。",
+    betaUpdateDownloading: "正在下载 BioDesign {version}（{progress}%）。",
+    betaUpdateVerifying: "正在验证 BioDesign {version} 安装程序…",
+    betaUpdateLaunching: "正在启动已验证的安装程序，BioDesign 即将关闭。",
+    betaUpdateNone: "您正在使用最新版本。",
+    betaUpdateCancelled: "已暂缓更新，当前安装未发生更改。",
+    betaUpdateBlocked: "请保存工作并关闭当前项目，然后再安装更新。",
+    betaUpdateUnavailable: "更新暂时不可用。您可以继续工作并稍后重试。",
+    betaUpdateChecksumFailed: "安装程序完整性验证失败，未运行该文件。",
+    betaUpdateLaunchFailed: "无法启动已验证的安装程序，当前安装未发生更改。",
+    betaUpdatePermissionFailed: "BioDesign 无法保存安装程序。请检查文件夹权限后重试。",
+    betaUpdateFirstRun: "首次运行设置完成后即可检查更新。",
+    betaUpdateUnsupported: "仅已打包的 Windows x64 版本可以检查更新。",
+    betaUnsignedWarning: "每个下载的安装程序都会在运行前根据发布的 SHA-256 进行验证。生产版本还使用 Windows 代码签名。",
     closeButton: "关闭",
     loginTitle: "BioDesign Copilot",
     loginEyebrow: "账户登录",
@@ -544,6 +559,7 @@ const I18N = {
     accountLabel: "账号",
     passwordLabel: "密码",
     loginButton: "登录",
+    downloadWindows: "下载 Windows 版",
     loginBusy: "登录中...",
     loginMissing: "请输入账号和密码。",
     loginInvalid: "账号或密码不正确。",
@@ -971,7 +987,7 @@ betaUpdateButton.addEventListener("click", async () => {
   if (!betaUpdateCapability.eligible || !betaUpdateCapability.canCheck || betaUpdateButton.disabled) return;
   setBetaUpdateStatus({ state: "checking" });
   try {
-    const status = await window.biodesignDesktop.updates.requestBetaUpdateCheck();
+    const status = await window.biodesignDesktop.updates.requestUpdateCheck();
     setBetaUpdateStatus(status);
   } catch {
     setBetaUpdateStatus({ state: "temporarily-unavailable" });
@@ -1345,16 +1361,23 @@ function normalizeBetaUpdateStatus(status) {
   const allowedStates = new Set([
     "idle",
     "checking",
+    "update-available",
     "downloading",
-    "no-eligible-beta",
-    "ready-to-restart",
+    "verifying",
+    "launching",
+    "current",
+    "cancelled",
+    "blocked",
     "temporarily-unavailable",
     "unsupported",
   ]);
   const state = allowedStates.has(status?.state) ? status.state : "temporarily-unavailable";
   const reason = typeof status?.reason === "string" && status.reason.length <= 80 ? status.reason : "";
   const version = typeof status?.version === "string" && status.version.length <= 80 ? status.version : "";
-  return { state, ...(reason ? { reason } : {}), ...(version ? { version } : {}) };
+  const progress = Number.isInteger(status?.progress) && status.progress >= 0 && status.progress <= 100
+    ? status.progress
+    : 0;
+  return { state, ...(reason ? { reason } : {}), ...(version ? { version } : {}), progress };
 }
 
 function setBetaUpdateStatus(status) {
@@ -1371,44 +1394,53 @@ function renderBetaUpdateStatus() {
 
   const state = currentBetaUpdateStatus.state;
   const version = currentBetaUpdateStatus.version || "";
+  const progress = currentBetaUpdateStatus.progress || 0;
   let statusKey = "betaUpdateUnsupported";
   if (!betaUpdateCapability.eligible) {
-    statusKey = betaUpdateCapability.reason === "stable_build"
-      ? "betaUpdateStableDisabled"
-      : "betaUpdateUnsupported";
+    statusKey = "betaUpdateUnsupported";
   } else if (!betaUpdateCapability.canCheck && betaUpdateCapability.reason === "squirrel_first_run") {
     statusKey = "betaUpdateFirstRun";
   } else if (state === "idle") {
     statusKey = "betaUpdateReady";
   } else if (state === "checking") {
     statusKey = "betaUpdateChecking";
+  } else if (state === "update-available") {
+    statusKey = "betaUpdateAvailable";
   } else if (state === "downloading") {
     statusKey = "betaUpdateDownloading";
-  } else if (state === "no-eligible-beta") {
+  } else if (state === "verifying") {
+    statusKey = "betaUpdateVerifying";
+  } else if (state === "launching") {
+    statusKey = "betaUpdateLaunching";
+  } else if (state === "current") {
     statusKey = "betaUpdateNone";
-  } else if (state === "ready-to-restart") {
-    statusKey = "betaUpdateRestartReady";
+  } else if (state === "cancelled") {
+    statusKey = "betaUpdateCancelled";
+  } else if (state === "blocked") {
+    statusKey = "betaUpdateBlocked";
   } else if (state === "temporarily-unavailable") {
-    statusKey = currentBetaUpdateStatus.reason === "squirrel_first_run"
-      ? "betaUpdateFirstRun"
-      : "betaUpdateUnavailable";
+    if (currentBetaUpdateStatus.reason === "squirrel_first_run") statusKey = "betaUpdateFirstRun";
+    else if (currentBetaUpdateStatus.reason === "checksum_mismatch") statusKey = "betaUpdateChecksumFailed";
+    else if (currentBetaUpdateStatus.reason === "launch_failed") statusKey = "betaUpdateLaunchFailed";
+    else if (currentBetaUpdateStatus.reason === "permission_problem") statusKey = "betaUpdatePermissionFailed";
+    else statusKey = "betaUpdateUnavailable";
   }
-  betaUpdateStatus.textContent = t(statusKey, { version });
+  betaUpdateStatus.textContent = t(statusKey, { version, progress });
   betaUpdateButton.disabled = !betaUpdateCapability.eligible ||
     !betaUpdateCapability.canCheck ||
-    ["checking", "downloading", "ready-to-restart"].includes(state);
+    ["checking", "update-available", "downloading", "verifying", "launching"].includes(state);
 }
 
 async function initializeAboutPanel() {
   const desktop = window.biodesignDesktop;
-  if (!desktop?.runtime?.info || !desktop?.updates?.requestBetaUpdateCheck || !desktop?.updates?.onBetaUpdateStatus) {
+  if (!desktop?.runtime?.info || !desktop?.updates?.requestUpdateCheck || !desktop?.updates?.onUpdateStatus) {
     renderBetaUpdateStatus();
     return;
   }
-  desktop.updates.onBetaUpdateStatus((status) => setBetaUpdateStatus(status));
+  desktop.updates.onUpdateStatus((status) => setBetaUpdateStatus(status));
   try {
     desktopRuntimeInfo = await desktop.runtime.info();
-    const capability = desktopRuntimeInfo?.betaUpdates;
+    const capability = desktopRuntimeInfo?.updates;
     betaUpdateCapability = {
       eligible: capability?.eligible === true,
       canCheck: capability?.canCheck === true,
@@ -3614,7 +3646,10 @@ function createStreamingAnswer(container, scrollContainer = null) {
       else if (text[i] === "[") brackets.push(i);
       else if (text[i] === "]") brackets.pop();
     }
-    const display = brackets.length ? text.slice(0, brackets[0]) : text;
+    const completeBrackets = brackets.length ? text.slice(0, brackets[0]) : text;
+    // local:N may arrive without brackets or split across stream chunks. Wait
+    // for the token's boundary before exposing or resolving its partial ID.
+    const display = completeBrackets.replace(/(?<![\w:/\\.@-])`*local:\d*`*$/, "");
     const resolved = sourceCitationApi.resolveForDisplay(display, [], context);
     renderSideChatMarkdown(body, resolved.reply, resolved.citations);
     element.hidden = !text;

@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "biodesign-eval-v1",
+  "frozen": true,
+  "frozenAt": "2026-09-07T23:24:06.077488+00:00",
+  "caseCount": 96,
+  "splitCounts": {
+    "dev": 72,
+    "heldout": 24
+  },
+  "domainCounts": {
+    "primary_ectd": 24,
+    "open_domain_celluweave": 72
+  },
+  "synthetic": true,
+  "candidateOutputsInspected": false,
+  "candidateExecutedBeforeFreeze": false,
+  "mutationPolicy": "Immutable after freeze; any correction requires a new version and separate baseline.",
+  "files": {
+    "README.md": {
+      "sha256": "1fcc20c4c8de93ee9fa4fa3fb64ad8a1e0dd9783f1004a0406533e7cb4e97fc4",
+      "bytes": 4583
+    },
+    "augment_fixture.py": {
+      "sha256": "6d349b2e2cfa29561029a8e5a763df03f1e2016dc2bac59d408a673a98f081ad",
+      "bytes": 27806
+    },
+    "build_fixture.py": {
+      "sha256": "65c7e7ded74e6354ece66903db31021b5be32ab2dcef4b895f111a056d7abcbb",
+      "bytes": 52484
+    },
+    "cases.jsonl": {
+      "sha256": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e",
+      "bytes": 364519
+    },
+    "cases.schema.json": {
+      "sha256": "a897c0190149c13f11dabda1b602513825fa0d5b15f13e5442d7d5467438c314",
+      "bytes": 8416
+    },
+    "fixture-validation.json": {
+      "sha256": "5f1369168e2e49991df47860291a68b4c0607712acfdd36f7031c5e94905cf39",
+      "bytes": 712
+    },
+    "fixtures/ectd-experiments.json": {
+      "sha256": "57f6bde6322a44cf013fa23ae8675a864eb3b878bf58af47ed320a2427cf2fa7",
+      "bytes": 12793
+    },
+    "fixtures/experiments.json": {
+      "sha256": "6d1278e81665f75ac3e64e08fe743436069a508a65e1432c4192e47260df0be6",
+      "bytes": 59728
+    },
+    "fixtures/memories.json": {
+      "sha256": "b15268727c7c257f12fd50f89bb06d4650054f206a6f7d7fb556b09825da6d79",
+      "bytes": 2311
+    },
+    "fixtures/project.json": {
+      "sha256": "493d87ecd9a9511dbfb21cf33b6cc86284fcdd31c0c212f7e353a369977c6297",
+      "bytes": 19549
+    },
+    "fixtures/sources/N08.txt": {
+      "sha256": "464d3be49b3dd5d3d4d205317e64960b80bf96f64d1c2f3dcd2523894df1632b",
+      "bytes": 592
+    },
+    "fixtures/sources/N09.txt": {
+      "sha256": "7c68a0ab7b4252be5dc8a3b746925dec4d77e7d1e582869e584d05c8dd1f7db5",
+      "bytes": 470
+    },
+    "fixtures/sources/N10.txt": {
+      "sha256": "9ff10c4b9f4eb5dd13115fb892daa7614e63e9a2e40dc17af458c98cba956006",
+      "bytes": 472
+    },
+    "fixtures/sources/N11.txt": {
+      "sha256": "d7ad1bbb19064b0c72129339e028c5cd9ab710f0e1df1d14aa8529128c0472af",
+      "bytes": 371
+    },
+    "fixtures/sources/P117.txt": {
+      "sha256": "e88adb9ae7412c1c49abcb04f75a7e5f69caf88d0e1cfea7bd3d247a02417a37",
+      "bytes": 1322
+    },
+    "fixtures/sources/P131.txt": {
+      "sha256": "ded8482a2d3d9abab1b722741e0a31f5f55ce0f81a1a79d19a1c7db421e0f35f",
+      "bytes": 1126
+    },
+    "fixtures/sources/P152.txt": {
+      "sha256": "ab4ab13204eda64b5ede024c57155c1317af4f587a436d1b2f13772485f82305",
+      "bytes": 1148
+    },
+    "fixtures/sources/P17.txt": {
+      "sha256": "3792f5c1eb460b2ec13aa8d6b57ccb6e399caaeded8a98a6670632cb200f7625",
+      "bytes": 1488
+    },
+    "fixtures/sources/P31-v1.txt": {
+      "sha256": "232eea0e3532f9f75476f2c0385aa1a1a0f89c5575f054d88821019f57d7a4d0",
+      "bytes": 1087
+    },
+    "fixtures/sources/P31.txt": {
+      "sha256": "2a24383b891960dccb2c64cd229795631254435d6cbf5d976eb902462dfd8632",
+      "bytes": 1157
+    },
+    "fixtures/sources/P52.txt": {
+      "sha256": "83d7ae3079757a903a0b5c29d360253c3e810e7976f250c5b06b240e1a05d420",
+      "bytes": 1342
+    },
+    "fixtures/sources/P67.txt": {
+      "sha256": "d4b1df3f707f0e4640563011cdcb479358b6f90a05fb3c6a95496700e2cadb03",
+      "bytes": 315
+    },
+    "fixtures/sources/P74.txt": {
+      "sha256": "08f00b723b4483978897263ba9f1f730ffb359a43840297218cf871dcebf16fe",
+      "bytes": 881
+    },
+    "fixtures/sources/P83.txt": {
+      "sha256": "4252cb7163e007648e40667f553333a004ccd15912d6f25debb637fa24527252",
+      "bytes": 1048
+    },
+    "fixtures/sources/P90.txt": {
+      "sha256": "40b71f4b05324c4cf6a3f175ae06c4dfdda051d210f1c1acf61740cd7895d1ed",
+      "bytes": 419
+    },
+    "fixtures/sources/P95.txt": {
+      "sha256": "e829f9cd350403b34ad12750555922b66b31908b284cdf8d749d41cc07bac71e",
+      "bytes": 491
+    },
+    "fixtures/sync.json": {
+      "sha256": "6b6f6bc441876a17dfc46581dedfde290b23fb0f946cedf59fb3d231d94dc59d",
+      "bytes": 6710
+    },
+    "fixtures/tool-contract.json": {
+      "sha256": "e2397fc6344dd21b0a82a0641f27dde299ab430da0276f2d235a0508ada57121",
+      "bytes": 1962
+    },
+    "rubric.json": {
+      "sha256": "b885430a760a3609df93241f88ba7e5b9860842d97efd5cf7531ac07074d814f",
+      "bytes": 4838
+    },
+    "splits.json": {
+      "sha256": "ffa73d3cf955c0c2e18a5ace99b71ac6281359aec69d13a8152d95c8df7d45dd",
+      "bytes": 2596
+    }
+  }
+}

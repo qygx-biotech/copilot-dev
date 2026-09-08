@@ -1,0 +1,286 @@
+{
+  "caseId": "CW-CORPUS-01",
+  "repeat": 1,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "**覆盖范围：** 纳入 8 篇；成功分析 8/8；失败 0；缺失 0。\n\nBased on the available evidence from the processed corpus [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1), the reported main means (compressive modulus) and their sample counts for the specified studies are as follows:\n\n*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*\n*   **P31**: \n    *   **48.0 kPa**\n    *   *Sample count: n=6*\n*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "local:1",
+          "sourceId": "catalog:local:1",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": ".biodesign/results/cb552341-42d0-4079-8f37-0b7def072c22.json",
+          "contentHash": "",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "missing"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [],
+      "corpusWorkflowId": "summarize-paper-corpus-0866d379",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.85,
+          "matchState": "uncertain",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "aggregate",
+          "summarize",
+          "snapshot",
+          "prepare",
+          "map",
+          "group",
+          "reduce",
+          "verify"
+        ],
+        "capabilitiesUsed": [
+          "corpus_workflow",
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results",
+          "read_workspace_item"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 0,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 5
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "not-needed",
+        "escalated": false,
+        "reason": "literature-retrieval-not-needed"
+      }
+    },
+    "activity": [
+      "正在复用已缓存的论文分析 · 8/8",
+      "正在验证已缓存的论文分析 · 8/8",
+      "正在选择相关论文证据 · 8/8",
+      "正在归纳主题 · 45/45",
+      "正在综合主题 · 45/45",
+      "正在核验论断 · 34/34",
+      "正在生成回答 · 8/8",
+      "answer · 1/1",
+      "正在更新本地搜索索引...",
+      "本地搜索已就绪。",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:31:03.268Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788827372246-6fe56940a82478",
+          "role": "user",
+          "content": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [],
+            "corpusWorkflowId": "summarize-paper-corpus-0866d379",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.85,
+                "matchState": "uncertain",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "aggregate",
+                "summarize",
+                "snapshot",
+                "prepare",
+                "map",
+                "group",
+                "reduce",
+                "verify"
+              ],
+              "capabilitiesUsed": [
+                "corpus_workflow",
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results",
+                "read_workspace_item"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 0,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 5
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "not-needed",
+              "escalated": false,
+              "reason": "literature-retrieval-not-needed"
+            }
+          },
+          "createdAt": "2026-09-08T00:29:32.246Z"
+        },
+        {
+          "id": "1788827463126-f9013f401b3dd8",
+          "role": "assistant",
+          "content": "**覆盖范围：** 纳入 8 篇；成功分析 8/8；失败 0；缺失 0。\n\nBased on the available evidence from the processed corpus [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1), the reported main means (compressive modulus) and their sample counts for the specified studies are as follows:\n\n*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*\n*   **P31**: \n    *   **48.0 kPa**\n    *   *Sample count: n=6*\n*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "activity": [
+            "正在复用已缓存的论文分析 · 8/8",
+            "正在验证已缓存的论文分析 · 8/8",
+            "正在选择相关论文证据 · 8/8",
+            "正在归纳主题 · 45/45",
+            "正在综合主题 · 45/45",
+            "正在核验论断 · 34/34",
+            "正在生成回答 · 8/8",
+            "answer · 1/1",
+            "正在更新本地搜索索引...",
+            "本地搜索已就绪。",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "local:1",
+              "sourceId": "catalog:local:1",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": ".biodesign/results/cb552341-42d0-4079-8f37-0b7def072c22.json",
+              "contentHash": "",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "missing"
+            }
+          ],
+          "createdAt": "2026-09-08T00:31:03.126Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 90880,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.85,
+      "matchState": "uncertain",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "aggregate",
+      "summarize",
+      "snapshot",
+      "prepare",
+      "map",
+      "group",
+      "reduce",
+      "verify"
+    ],
+    "capabilitiesUsed": [
+      "corpus_workflow",
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results",
+      "read_workspace_item"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 0,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 5
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "4969ab3ab365a014100b739c2cad2693ec81fe0492f3187ae65eeec924da59a5",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

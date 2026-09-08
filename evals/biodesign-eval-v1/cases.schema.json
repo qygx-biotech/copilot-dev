@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BioDesign immutable eval case v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "split",
+    "domain",
+    "categories",
+    "suites",
+    "execution_mode",
+    "executionModeRequirements",
+    "pairId",
+    "query",
+    "language",
+    "setup",
+    "allowed_tools",
+    "gold",
+    "scoring"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CW-[A-Z_]+-[0-9]{2}$"
+    },
+    "split": {
+      "enum": [
+        "dev",
+        "heldout"
+      ]
+    },
+    "domain": {
+      "enum": [
+        "primary_ectd",
+        "open_domain_celluweave"
+      ]
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "suites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "execution_mode": {
+      "const": "application_e2e"
+    },
+    "executionModeRequirements": {
+      "type": "object",
+      "required": [
+        "productionEntryPoint",
+        "mockAnswersForbidden",
+        "liveModelRequired",
+        "requiredCapabilities"
+      ],
+      "properties": {
+        "productionEntryPoint": {
+          "const": true
+        },
+        "mockAnswersForbidden": {
+          "const": true
+        },
+        "liveModelRequired": {
+          "type": "boolean"
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "pairId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "query": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language": {
+      "enum": [
+        "en",
+        "zh",
+        "mixed"
+      ]
+    },
+    "setup": {
+      "type": "object",
+      "required": [
+        "principal",
+        "projectId",
+        "interactionMode",
+        "mutations",
+        "fault"
+      ],
+      "properties": {
+        "principal": {
+          "const": "local_user"
+        },
+        "projectId": {
+          "const": "synthetic_celluweave"
+        },
+        "interactionMode": {
+          "enum": [
+            "side_chat",
+            "agent_command"
+          ]
+        },
+        "syncState": {
+          "type": "string"
+        },
+        "initialSourceVersions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "sourceStates": {
+          "type": "object"
+        },
+        "turns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fault": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "mutations": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "paperCardState": {
+          "type": "string"
+        }
+      }
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "gold": {
+      "type": "object",
+      "required": [
+        "paperIds",
+        "evidenceIds",
+        "allowedEvidenceIds",
+        "claims",
+        "entries",
+        "sourceRowIds",
+        "allowedResourceIds",
+        "forbiddenResourceIds",
+        "hardChecks",
+        "answerRequirements",
+        "forbiddenClaims",
+        "permissionBoundary"
+      ],
+      "properties": {
+        "paperIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidenceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedEvidenceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "subject",
+              "predicate",
+              "value",
+              "evidenceIds"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "predicate": {
+                "type": "string"
+              },
+              "value": {},
+              "unit": {
+                "type": "string"
+              },
+              "evidenceIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "value",
+              "unit",
+              "aggregation",
+              "field",
+              "filters",
+              "groupBy",
+              "sourceRows",
+              "tolerance"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string"
+              },
+              "aggregation": {
+                "type": "string"
+              },
+              "field": {
+                "type": "string"
+              },
+              "filters": {
+                "type": "object"
+              },
+              "groupBy": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "sourceRows": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              "tolerance": {
+                "type": "number",
+                "minimum": 0
+              },
+              "operands": {
+                "type": "array"
+              },
+              "formula": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sourceRowIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedResourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbiddenResourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hardChecks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "required"
+            ],
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "required": {
+                "const": true
+              }
+            }
+          }
+        },
+        "answerRequirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type"
+            ]
+          }
+        },
+        "forbiddenClaims": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissionBoundary": {
+          "type": "object"
+        },
+        "expectedVersions": {
+          "type": "object"
+        },
+        "absentSourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expectedChangedSourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredSyncRuns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expectedCoverageSourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expectedFailedSourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expectedMissingSourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "required": [
+        "mustPass",
+        "relevance",
+        "grounding"
+      ]
+    }
+  }
+}

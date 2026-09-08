@@ -1,0 +1,3 @@
+=== PAGE 1 | P90:p1:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+OUTSIDE-PROJECT SYNTHETIC RECORD. Supplier code LANTERN-739. Internal proposed unit cost is 17.25 CAD per sheet. This invented estimate belongs to the neighboring unselected project. It is not a published material result and is outside the selected project scope.

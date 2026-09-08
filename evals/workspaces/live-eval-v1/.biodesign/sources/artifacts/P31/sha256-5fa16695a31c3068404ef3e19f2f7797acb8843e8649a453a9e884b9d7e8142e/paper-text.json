@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "extractorVersion": "local-source-v1",
+  "sourceId": "P31",
+  "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+  "pageCount": 3,
+  "metadataTitle": "CelluWeave B：湿态压缩条件与测量时点",
+  "truncated": false,
+  "pages": [
+    {
+      "page": 1,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P31，虚构作者陈禾、林沐。2025 年合成评测文献。配方：海藻酸钠 2.0%（w/v），纤维素 0.8%（w/v）；氯化钙 50\nmmol/L，固化 10 分钟。试样在湿态平衡 1 小时后，以 15% 应变测量压缩模量。"
+    },
+    {
+      "page": 2,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0\nkPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+    },
+    {
+      "page": 3,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n讨论：本研究与 P17 的应变（15% 对 10%）和平衡时长（1 小时对 24 小时）不同，不能据此断言本配方的材料性能优于\nP17。未报告吸水率、细胞存活率或成本。本文没有 DOI。"
+    }
+  ],
+  "chunks": [
+    {
+      "chunkId": "P31-P1-C1",
+      "page": 1,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P31，虚构作者陈禾、林沐。2025 年合成评测文献。配方：海藻酸钠 2.0%（w/v），纤维素 0.8%（w/v）；氯化钙 50\nmmol/L，固化 10 分钟。试样在湿态平衡 1 小时后，以 15% 应变测量压缩模量。"
+    },
+    {
+      "chunkId": "P31-P2-C1",
+      "page": 2,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0\nkPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+    },
+    {
+      "chunkId": "P31-P3-C1",
+      "page": 3,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n讨论：本研究与 P17 的应变（15% 对 10%）和平衡时长（1 小时对 24 小时）不同，不能据此断言本配方的材料性能优于\nP17。未报告吸水率、细胞存活率或成本。本文没有 DOI。"
+    }
+  ],
+  "extractedCharacters": 720,
+  "createdAt": "2026-09-07T23:42:35.566Z"
+}

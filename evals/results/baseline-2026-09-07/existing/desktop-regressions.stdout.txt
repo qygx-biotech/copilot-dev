@@ -1,0 +1,361 @@
+TAP version 13
+# [0907/192841.144458:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: Fast retrieval is offline lexical-only and default semantic mode does not initialize a model
+ok 1 - Fast retrieval is offline lexical-only and default semantic mode does not initialize a model
+  ---
+  duration_ms: 1.847042
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: 'c04e2aa9a5e9c01e9ded226a77d666199ebc15f9c401c997635e883f0538870b',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: 'c04e2aa9a5e9c01e9ded226a77d666199ebc15f9c401c997635e883f0538870b',
+#   cache: 'memory-hit'
+# }
+# Subtest: Deep retrieval uses authenticated FC planning/reranking, budgeted snippets, local reconstruction, and deterministic omission order
+ok 2 - Deep retrieval uses authenticated FC planning/reranking, budgeted snippets, local reconstruction, and deterministic omission order
+  ---
+  duration_ms: 9.640958
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '450d09b6d7e1847e68c2fc6301a43a3632ed3639172b88762b8e214fa0699479',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '450d09b6d7e1847e68c2fc6301a43a3632ed3639172b88762b8e214fa0699479',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '450d09b6d7e1847e68c2fc6301a43a3632ed3639172b88762b8e214fa0699479',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '450d09b6d7e1847e68c2fc6301a43a3632ed3639172b88762b8e214fa0699479',
+#   cache: 'miss'
+# }
+# Subtest: invalid cloud IDs and FC failures preserve deterministic local lexical fusion
+ok 3 - invalid cloud IDs and FC failures preserve deterministic local lexical fusion
+  ---
+  duration_ms: 2.606291
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '5bdea734f4909b329aab5eb2dfcdb255774e9ba8e2de239705b78b6cb6185a89',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '5bdea734f4909b329aab5eb2dfcdb255774e9ba8e2de239705b78b6cb6185a89',
+#   cache: 'in-flight-hit'
+# }
+# Subtest: equivalent planner inputs share one concurrent request across paper and collection scopes
+ok 4 - equivalent planner inputs share one concurrent request across paper and collection scopes
+  ---
+  duration_ms: 11.818709
+  type: 'test'
+  ...
+# Subtest: planner identity changes only for material query, intent, signature, prompt, schema, or validation inputs
+ok 5 - planner identity changes only for material query, intent, signature, prompt, schema, or validation inputs
+  ---
+  duration_ms: 0.393083
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '05face4a92ae83c7a23c4fcac2ef2c311fe75111aec8a01cd33654cbc7b64427',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '352994f0e48c38513509356bd7cd31baddecbdac880e5d99364ae916b7170d1a',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '341629a718cabb5073a389085438c5830590d6c7f272aeb7c94f715c2d203b0c',
+#   cache: 'miss'
+# }
+# Subtest: different normalized queries or intents produce separate cloud plans
+ok 6 - different normalized queries or intents produce separate cloud plans
+  ---
+  duration_ms: 1.089292
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '5a8fa7f4a065edc5e0d388f5599e3a2915293beaf33de24946a44a088fc83e51',
+#   cache: 'miss'
+# }
+# Subtest: planner signature and cached schema changes cannot reuse an older plan
+ok 7 - planner signature and cached schema changes cannot reuse an older plan
+  ---
+  duration_ms: 0.809375
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# Subtest: failed shared planner requests leave the in-flight registry and retry normally
+ok 8 - failed shared planner requests leave the in-flight registry and retry normally
+  ---
+  duration_ms: 0.639583
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'memory-hit'
+# }
+# Subtest: one cancelled planner consumer does not cancel or evict another consumer
+ok 9 - one cancelled planner consumer does not cancel or evict another consumer
+  ---
+  duration_ms: 0.646875
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '9a4f22bf1120dcb64a4cae09bb41f3ba7e40e7f8e8a75d4345b5d8a3c08b25a7',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '9a4f22bf1120dcb64a4cae09bb41f3ba7e40e7f8e8a75d4345b5d8a3c08b25a7',
+#   cache: 'in-flight-hit'
+# }
+# Subtest: shared planning preserves paper scope while single candidates bypass cloud reranking
+ok 10 - shared planning preserves paper scope while single candidates bypass cloud reranking
+  ---
+  duration_ms: 6.915084
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: 'workflow-generic-plan',
+#   callRole: 'search_planner',
+#   cacheKey: '66462ae00ad41ec9e277416aea8bd184141ef831e02db2df704bb35f106ca996',
+#   cache: 'miss'
+# }
+# corpus_shared_plan {
+#   workflowId: 'workflow-generic-plan',
+#   callRole: 'search_planner',
+#   cacheKey: '66462ae00ad41ec9e277416aea8bd184141ef831e02db2df704bb35f106ca996',
+#   state: 'planner-created'
+# }
+# Subtest: generic corpus reviews use the bounded scientific rubric and persist no provider reasoning
+ok 11 - generic corpus reviews use the bounded scientific rubric and persist no provider reasoning
+  ---
+  duration_ms: 1.923
+  type: 'test'
+  ...
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'memory-hit'
+# }
+# knowledge_plan_cache {
+#   workflowId: '',
+#   callRole: 'search_planner',
+#   cacheKey: '63a18a975dce49348acbc0cd3697b22073a45b506d706bb28b0003e22d39a2d2',
+#   cache: 'miss'
+# }
+# Subtest: an explicit planner refresh bypasses compatible resolved and workspace cache entries
+ok 12 - an explicit planner refresh bypasses compatible resolved and workspace cache entries
+  ---
+  duration_ms: 0.480459
+  type: 'test'
+  ...
+# [0907/192841.143953:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: desktop jobs persist sanitized structured state inside the project
+ok 13 - desktop jobs persist sanitized structured state inside the project
+  ---
+  duration_ms: 113.954459
+  type: 'test'
+  ...
+# Subtest: local execution rejects unregistered workflows and never accepts shell strings
+ok 14 - local execution rejects unregistered workflows and never accepts shell strings
+  ---
+  duration_ms: 0.436042
+  type: 'test'
+  ...
+# [0907/192841.144562:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: project filesystem reads, atomically writes, lists, and builds a safe tree
+ok 15 - project filesystem reads, atomically writes, lists, and builds a safe tree
+  ---
+  duration_ms: 112.307042
+  type: 'test'
+  ...
+# Subtest: absolute, parent, Windows, empty-segment, and NUL paths are rejected
+ok 16 - absolute, parent, Windows, empty-segment, and NUL paths are rejected
+  ---
+  duration_ms: 1.289208
+  type: 'test'
+  ...
+# Subtest: symlink traversal and symlink leaf access are rejected
+ok 17 - symlink traversal and symlink leaf access are rejected
+  ---
+  duration_ms: 2.93575
+  type: 'test'
+  ...
+# Subtest: two project instances cannot observe each other's relative paths
+ok 18 - two project instances cannot observe each other's relative paths
+  ---
+  duration_ms: 12.705208
+  type: 'test'
+  ...
+# Subtest: citation existence checks reject symlink escapes and remain scoped to the selected workspace
+ok 19 - citation existence checks reject symlink escapes and remain scoped to the selected workspace
+  ---
+  duration_ms: 9.203291
+  type: 'test'
+  ...
+# Subtest: metadata-only preflight gets identical nanosecond and filesystem identity fields from tree and stat
+ok 20 - metadata-only preflight gets identical nanosecond and filesystem identity fields from tree and stat
+  ---
+  duration_ms: 7.398958
+  type: 'test'
+  ...
+# [0907/192841.143967:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: Electron workspace adapter initializes the unchanged workspace schema through the bridge
+ok 21 - Electron workspace adapter initializes the unchanged workspace schema through the bridge
+  ---
+  duration_ms: 3.851958
+  type: 'test'
+  ...
+# Subtest: Electron knowledge adapter uses IPC and preserves bounded search response semantics
+ok 22 - Electron knowledge adapter uses IPC and preserves bounded search response semantics
+  ---
+  duration_ms: 0.339333
+  type: 'test'
+  ...
+# [0907/192841.144200:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: package audit normalizes ASAR entry separators before policy checks
+ok 23 - package audit normalizes ASAR entry separators before policy checks
+  ---
+  duration_ms: 0.450333
+  type: 'test'
+  ...
+# Subtest: BrowserWindow and preload enforce the Electron privilege boundary
+ok 24 - BrowserWindow and preload enforce the Electron privilege boundary
+  ---
+  duration_ms: 7.27075
+  type: 'test'
+  ...
+# Subtest: binary-only updates keep URLs, discovery, download, and launch in the main process
+ok 25 - binary-only updates keep URLs, discovery, download, and launch in the main process
+  ---
+  duration_ms: 4.456167
+  type: 'test'
+  ...
+# Subtest: desktop and renderer sources contain no direct Requesty host or credential
+ok 26 - desktop and renderer sources contain no direct Requesty host or credential
+  ---
+  duration_ms: 2314.918666
+  type: 'test'
+  ...
+# Subtest: renderer runtime libraries are local and production QMD has no localhost dependency
+ok 27 - renderer runtime libraries are local and production QMD has no localhost dependency
+  ---
+  duration_ms: 0.975292
+  type: 'test'
+  ...
+# Subtest: Forge excludes deployable server trees and unpacks native dependencies
+ok 28 - Forge excludes deployable server trees and unpacks native dependencies
+  ---
+  duration_ms: 0.4325
+  type: 'test'
+  ...
+# Subtest: desktop preparation patches sqlite-vec raw library paths for packaged Electron
+ok 29 - desktop preparation patches sqlite-vec raw library paths for packaged Electron
+  ---
+  duration_ms: 0.456333
+  type: 'test'
+  ...
+# [0907/192841.144347:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+# Subtest: Side Chat editor and citation navigation behave correctly in the sandboxed Electron renderer
+not ok 30 - Side Chat editor and citation navigation behave correctly in the sandboxed Electron renderer
+  ---
+  duration_ms: 408.101083
+  type: 'test'
+  location: '/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/desktop/test/side-chat-renderer.test.mjs:9:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Command failed: /Users/wei/Documents/Columbia University/PhD/AI4S/Dev/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron /Users/wei/Documents/Columbia University/PhD/AI4S/Dev/desktop/test/side-chat-fixture/main.cjs
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    genericNodeError (node:internal/errors:985:15)
+    wrappedFn (node:internal/errors:539:14)
+    ChildProcess.exithandler (node:child_process:417:12)
+    ChildProcess.emit (node:events:509:28)
+    maybeClose (node:internal/child_process:1124:16)
+    Socket.<anonymous> (node:internal/child_process:481:11)
+    Socket.emit (node:events:509:28)
+    Pipe.<anonymous> (node:net:351:12)
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 29
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2457.558625

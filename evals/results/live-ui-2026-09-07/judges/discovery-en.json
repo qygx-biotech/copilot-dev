@@ -1,0 +1,68 @@
+{
+  "packetId": "f7d737d510b6c5ff",
+  "artifactType": "final_answer",
+  "correctness": 5,
+  "faithfulness": 5,
+  "completeness": 5,
+  "relevance": 5,
+  "uncertaintyHandling": 5,
+  "synthesis": null,
+  "clarity": 5,
+  "overall": 5,
+  "criticalErrors": [],
+  "missingPoints": [],
+  "lowScoreEvidence": [],
+  "claimAudits": [
+    {
+      "candidateSpan": "**P117** reports kinetic measurements for the EctD variant **A163V** at **30°C**",
+      "citedEvidenceIds": ["P117"],
+      "supportingEvidenceIds": ["P117:p1:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "a Michaelis constant ($K_m$) for ectoine of **0.42 mM**",
+      "citedEvidenceIds": ["P117"],
+      "supportingEvidenceIds": ["P117:p1:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "compared to **0.80 mM** for the wild-type enzyme",
+      "citedEvidenceIds": ["P117"],
+      "supportingEvidenceIds": ["P117:p1:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": []
+    }
+  ],
+  "numericClaims": [
+    {
+      "candidateSpan": "**30°C**",
+      "subject": "EctD A163V kinetic characterization in P117",
+      "metric": "assay temperature",
+      "value": 30,
+      "unit": "°C",
+      "sourceIds": ["P117"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "a Michaelis constant ($K_m$) for ectoine of **0.42 mM**",
+      "subject": "EctD A163V in P117",
+      "metric": "Michaelis constant Km for ectoine",
+      "value": 0.42,
+      "unit": "mM",
+      "sourceIds": ["P117"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "compared to **0.80 mM** for the wild-type enzyme",
+      "subject": "Wild-type EctD in P117",
+      "metric": "Michaelis constant Km for ectoine",
+      "value": 0.80,
+      "unit": "mM",
+      "sourceIds": ["P117"],
+      "sourceRows": []
+    }
+  ],
+  "confidence": "high"
+}

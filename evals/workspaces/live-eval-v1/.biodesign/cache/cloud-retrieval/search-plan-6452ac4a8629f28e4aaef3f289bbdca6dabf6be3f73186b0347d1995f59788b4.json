@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "search-plan",
+  "cacheKey": "6452ac4a8629f28e4aaef3f289bbdca6dabf6be3f73186b0347d1995f59788b4",
+  "configurationSignature": "a7c8442df3c3f8e1840be7bc8fb43dde6ebabfbe2c1aa154aae3786101cd83d6",
+  "value": {
+    "queries": [
+      "EctD A163V titer",
+      "EctD A163V titre",
+      "EctD mutation A163V mean titer",
+      "EctD table X02 A163V",
+      "EctD protein A163V activity titer"
+    ],
+    "identifiers": [
+      "EctD",
+      "A163V"
+    ],
+    "sourceLanguage": "en",
+    "reasoningSummary": "The user is seeking a specific quantitative value (mean titer) for the A163V mutation of the EctD protein, referencing a specific table (X02). The search focuses on the protein identifier, the specific amino acid substitution, and titer measurements."
+  }
+}

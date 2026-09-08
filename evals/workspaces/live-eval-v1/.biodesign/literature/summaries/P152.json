@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P152",
+  "documentId": "P152",
+  "fileName": "P152.pdf",
+  "generatedAt": "2026-09-07T23:47:46.928Z",
+  "source": {
+    "filename": "P152.pdf",
+    "relativePath": "literature/P152.pdf",
+    "size": 56976,
+    "lastModified": "1788824298381675021",
+    "hash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+    "pageCount": 3,
+    "processedCharacters": 1051,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 3,
+    "nativeEvidenceCitationsVerified": 3,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 3,
+    "evidenceFindingsVerified": 3,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P152\",\"contentHash\":\"sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "EctD variants at 42°C: Opposing activity and titer rankings",
+  "authors": [],
+  "year": null,
+  "abstractSummary": null,
+  "researchQuestion": null,
+  "mainFindings": [
+    "T212S leads in specific activity while A163V leads in product titer at 42°C.",
+    "At 42°C, A163V exhibited a specific activity of 1.50 U/mg and a product titer of 4.60 g/L.",
+    "At 42°C, T212S exhibited a specific activity of 2.40 U/mg and a product titer of 3.90 g/L."
+  ],
+  "methods": [
+    "synthetic protocol"
+  ],
+  "methodsSummary": "synthetic protocol",
+  "organisms": [],
+  "genes": [],
+  "proteins": [],
+  "pathways": [],
+  "metabolites": [
+    "羟基四氢嘧啶"
+  ],
+  "experimentalConditions": [
+    "Temperature 42°C"
+  ],
+  "measurements": [
+    "Specific enzyme activity",
+    "fermentation product titer"
+  ],
+  "importantResults": [
+    "At 42°C, A163V exhibited a specific activity of 1.50 U/mg and a product titer of 4.60 g/L.",
+    "At 42°C, T212S exhibited a specific activity of 2.40 U/mg and a product titer of 3.90 g/L.",
+    "T212S leads in specific activity while A163V leads in product titer at 42°C."
+  ],
+  "limitations": [
+    "Yield and productivity were not reported for these 42°C conditions.",
+    "These synthetic data do not establish a universally superior variant, optimal temperature, or stability beyond the tested condition."
+  ],
+  "keywords": [],
+  "topics": [],
+  "shortSummary": "A comparison of A163V and T212S variants at 42°C for the production of 羟基四氢嘧啶 showed that T212S had higher specific activity (2.40 U/mg) while A163V had a higher product titer (4.60 g/L).",
+  "summary": "A comparison of A163V and T212S variants at 42°C for the production of 羟基四氢嘧啶 showed that T212S had higher specific activity (2.40 U/mg) while A163V had a higher product titer (4.60 g/L).",
+  "keyResults": [
+    "T212S leads in specific activity while A163V leads in product titer at 42°C.",
+    "At 42°C, A163V exhibited a specific activity of 1.50 U/mg and a product titer of 4.60 g/L.",
+    "At 42°C, T212S exhibited a specific activity of 2.40 U/mg and a product titer of 3.90 g/L."
+  ],
+  "mainConclusion": "The rankings depend on the chosen metric.",
+  "evidenceFindings": [
+    {
+      "claim": "T212S leads in specific activity while A163V leads in product titer at 42°C.",
+      "evidenceRefs": [
+        "P152:p2:P152-P2-C1"
+      ]
+    },
+    {
+      "claim": "At 42°C, A163V exhibited a specific activity of 1.50 U/mg and a product titer of 4.60 g/L.",
+      "evidenceRefs": [
+        "P152:p2:P152-P2-C1"
+      ]
+    },
+    {
+      "claim": "At 42°C, T212S exhibited a specific activity of 2.40 U/mg and a product titer of 3.90 g/L.",
+      "evidenceRefs": [
+        "P152:p2:P152-P2-C1"
+      ]
+    }
+  ]
+}

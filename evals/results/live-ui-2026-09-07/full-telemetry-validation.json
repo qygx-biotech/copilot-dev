@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "validatedAt": "2026-09-08T00:43:19.185Z",
+  "scope": "Independent parsing and invariant checks over saved log/observation/workflow/judge artifacts. The analyzer implementation was not called. No GUI or product code was executed.",
+  "status": "passed",
+  "inputs": [
+    {
+      "file": "runtime-log-part1.txt",
+      "sha256": "47b589a3d412340528321418e775cbc4fdc47043b1cb7189410f7f39fef25f6a",
+      "eventOccurrences": 974
+    },
+    {
+      "file": "runtime-log-part2.txt",
+      "sha256": "5bec3795203e93976bd351edc417d66afb807bcc1c6e8b049c4b2966f2539cb5",
+      "eventOccurrences": 1000
+    }
+  ],
+  "counts": {
+    "rawEventOccurrences": 1974,
+    "exactOverlap": 641,
+    "uniqueEvents": 1333,
+    "auxiliaryFCClientRequests": {
+      "started": 77,
+      "completed": 26,
+      "failed": 51
+    },
+    "mainChatClientRequests": {
+      "started": 13,
+      "completed": 13,
+      "http200": 13
+    },
+    "combinedObservedFCClientRequests": 90,
+    "failuresByCode": {
+      "SchemaMapperUnavailable": 40,
+      "SemanticParserUnavailable": 11
+    },
+    "allFailureHTTPStatuses": 502,
+    "bufferedResponses": 13,
+    "streamingFirstTokenEvents": 0,
+    "pairedObservedTurns": 13,
+    "missingOperationTerminals": 0,
+    "unmatchedSavedObservations": 0
+  },
+  "latency": [
+    {
+      "file": "01-discovery-en-cold.json",
+      "turnId": "1788824552291-df9a1f56fdf228",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "cacheState": "cold",
+      "preflightMs": 314748,
+      "userToMainStartMs": 316743,
+      "firstBufferedResponseMs": 340849,
+      "persistedLatencyMs": 340854
+    },
+    {
+      "file": "02-discovery-en-warm.json",
+      "turnId": "1788825095467-63e053e4c7318",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "cacheState": "warm",
+      "preflightMs": 4,
+      "userToMainStartMs": 2715,
+      "firstBufferedResponseMs": 18427,
+      "persistedLatencyMs": 18433
+    },
+    {
+      "file": "03-discovery-zh.json",
+      "turnId": "1788825505752-05e0765233cc1",
+      "caseId": "CW-ECTD_PAPERS-02",
+      "cacheState": "warm",
+      "preflightMs": 15,
+      "userToMainStartMs": 3648,
+      "firstBufferedResponseMs": 21188,
+      "persistedLatencyMs": 21201
+    },
+    {
+      "file": "04-metric-reasoning.json",
+      "turnId": "1788825640922-54e55b2c13b41",
+      "caseId": "CW-ECTD_PAPERS-05",
+      "cacheState": "warm",
+      "preflightMs": 15,
+      "userToMainStartMs": 2883,
+      "firstBufferedResponseMs": 31980,
+      "persistedLatencyMs": 32008
+    },
+    {
+      "file": "05-heldout-p152.json",
+      "turnId": "1788825886043-77787d0e653fa8",
+      "caseId": "CW-ECTD_PAPERS-07",
+      "cacheState": "warm",
+      "preflightMs": 20,
+      "userToMainStartMs": 3046,
+      "firstBufferedResponseMs": 28408,
+      "persistedLatencyMs": 28413
+    },
+    {
+      "file": "06-heldout-uncertainty.json",
+      "turnId": "1788825958903-1e4ddd7d3edf5",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "cacheState": "warm",
+      "preflightMs": 5,
+      "userToMainStartMs": 526,
+      "firstBufferedResponseMs": 43360,
+      "persistedLatencyMs": 43363
+    },
+    {
+      "file": "07-experiment-x02.json",
+      "turnId": "1788826106772-751f8ebf79152",
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "cacheState": "warm",
+      "preflightMs": 6,
+      "userToMainStartMs": 58236,
+      "firstBufferedResponseMs": 114934,
+      "persistedLatencyMs": 114937
+    },
+    {
+      "file": "08-experiment-activity.json",
+      "turnId": "1788826453462-16b1866783dcc8",
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "cacheState": "warm",
+      "preflightMs": 4,
+      "userToMainStartMs": 50273,
+      "firstBufferedResponseMs": 203836,
+      "persistedLatencyMs": 203839
+    },
+    {
+      "file": "09-experiment-mixed.json",
+      "turnId": "1788826854353-7e8a2ac1ecd8b",
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "cacheState": "warm",
+      "preflightMs": 15,
+      "userToMainStartMs": 24760,
+      "firstBufferedResponseMs": 60877,
+      "persistedLatencyMs": 60881
+    },
+    {
+      "file": "10-memory-recommendation.json",
+      "turnId": "1788826967413-f4a1a62d307bc",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "cacheState": "warm",
+      "preflightMs": 7,
+      "userToMainStartMs": 2433,
+      "firstBufferedResponseMs": 58687,
+      "persistedLatencyMs": 58700
+    },
+    {
+      "file": "11-corpus-cold.json",
+      "turnId": "1788827194252-deb29162eae2f8",
+      "caseId": "CW-CORPUS-01",
+      "cacheState": "warm",
+      "preflightMs": 3,
+      "userToMainStartMs": 2575,
+      "firstBufferedResponseMs": 84611,
+      "persistedLatencyMs": 84737
+    },
+    {
+      "file": "12-corpus-warm.json",
+      "turnId": "1788827372246-6fe56940a82478",
+      "caseId": "CW-CORPUS-01",
+      "cacheState": "warm",
+      "preflightMs": 11,
+      "userToMainStartMs": 2216,
+      "firstBufferedResponseMs": 90773,
+      "persistedLatencyMs": 90880
+    },
+    {
+      "file": "13-direct-zh.json",
+      "turnId": "1788827596251-eac889046fa308",
+      "caseId": "CW-ECTD_WORKFLOWS-07",
+      "cacheState": "warm",
+      "preflightMs": 14,
+      "userToMainStartMs": 1548,
+      "firstBufferedResponseMs": 18734,
+      "persistedLatencyMs": 18736
+    }
+  ],
+  "checks": [
+    "Exact event set independently recomputed from both copied UI logs; 974 + 1000 - 641 = 1333.",
+    "77 auxiliary starts have 26 completed and 51 failed terminals, with exactly one terminal per operation.",
+    "13 distinct stored user IDs match all 13 context/preflight/main-agent lifecycles and saved observations.",
+    "All 13 persisted latency measurements independently match stored user/assistant timestamp differences.",
+    "Actual main-start and first buffered-response timestamps independently match telemetry-complete.json for all 13 turns.",
+    "All 77 auxiliary starts are attributed in the saved report; inferred attribution remains inferred, not direct turn-ID proof.",
+    "13 separate /chat starts and completions are counted once, yielding 90 observed client FC requests.",
+    "No main-agent.first-token events; all 13 answers arrived as buffered responses."
+  ],
+  "corpus": {
+    "source": "corpus-workflow-final.json",
+    "workflowId": "summarize-paper-corpus-0866d379",
+    "coverage": {
+      "papersDiscovered": 8,
+      "papersIncludedInSnapshot": 8,
+      "papersSuccessfullyPrepared": 8,
+      "papersPreparationCacheHits": 8,
+      "papersSuccessfullyAnalyzed": 8,
+      "papersFailed": 0,
+      "papersMissing": 0,
+      "includedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "preparedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "analyzedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "failedPaperIds": [],
+      "missingPaperIds": [],
+      "changedPaperIds": []
+    },
+    "processingAccounting": {
+      "canonicalSourcesValidated": 8,
+      "canonicalArtifactsReused": 8,
+      "canonicalArtifactsCreated": 0,
+      "canonicalArtifactFailures": 0,
+      "logicalPaperCardGenerations": 0,
+      "paperCardCacheHits": 8,
+      "nativePdfEndpointCalls": 0,
+      "nativePdfProviderAttempts": 0,
+      "nativePaperCardSuccesses": 0,
+      "combinedTextEndpointCalls": 0,
+      "combinedTextProviderAttempts": 0,
+      "combinedTextPaperCardSuccesses": 0,
+      "mapReduceOperations": 0,
+      "mapReduceChunkCalls": 0,
+      "mapReduceSynthesisCalls": 0,
+      "textFallbackOperations": 0,
+      "textFallbackReasons": {},
+      "localQuestionProjections": 0,
+      "providerMapRequests": 0
+    },
+    "mapCount": 8,
+    "verificationEntries": 34,
+    "verificationStatus": "original-evidence-located",
+    "allEntriesHaveLocatedExcerpt": true,
+    "claimEntailmentEstablished": false,
+    "finalAnswerFaithfulnessEstablishedByLocatorCount": false,
+    "interpretation": "34/34 means source locators/excerpts were found for stored intermediate claims. It does not verify entailment or completeness of the subsequently generated final answer. The final workflow retains 8 maps, reused 8 canonical artifacts, created 0, and made 0 new provider map requests/local projections; this reuse did not make either final answer faithful.",
+    "savedFinalAnswerJudgments": [
+      {
+        "file": "validated-corpus-first.json",
+        "packetId": "d380743f8fb126cb",
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2,
+        "overall": 2,
+        "scaleMaximum": 5,
+        "kind": "Existing saved judge assessment, not independently rejudged in this validation"
+      },
+      {
+        "file": "validated-corpus-repeat.json",
+        "packetId": "d5939f4c17899961",
+        "correctness": 2,
+        "faithfulness": 2,
+        "completeness": 2,
+        "overall": 2,
+        "scaleMaximum": 5,
+        "kind": "Existing saved judge assessment, not independently rejudged in this validation"
+      }
+    ],
+    "concreteSeparation": {
+      "source": "corpus-workflow-final.json#/verification/11/locatedEvidence",
+      "sourceFact": "Located P17 excerpt explicitly reports n=5 independent sheets.",
+      "finalAnswerArtifacts": [
+        "11-corpus-cold.json#/actual/answer/text",
+        "12-corpus-warm.json#/actual/answer/text"
+      ],
+      "finalAnswerIssue": "Both saved corpus outputs claim P17 sample count is not reported despite that located source evidence."
+    }
+  },
+  "boundaries": {
+    "actualRequestyUpstreamAttempts": null,
+    "actualInputTokens": null,
+    "actualOutputTokens": null,
+    "usdCost": null,
+    "timeToFirstVisibleMs": null,
+    "reason": "Observed 90 is the client-to-FC HTTP request count, not Requesty requests. Missing provider attempts can default to zero; saved answer counters count model-loop steps. Buffered event timestamps do not measure screen rendering or streaming TTFT."
+  },
+  "sourceMetadata": {
+    "savedLogicalCounts": {
+      "semantic_parser": 11,
+      "schema_mapper": 36,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 38
+    },
+    "counterMismatches": [
+      {
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "caseId": "CW-ECTD_PAPERS-01",
+        "role": "schema_mapper",
+        "observedClientTransportAttempts": 8,
+        "savedLogicalCalls": 4,
+        "differenceObservedMinusSaved": 4
+      },
+      {
+        "turnId": "1788824552291-df9a1f56fdf228",
+        "caseId": "CW-ECTD_PAPERS-01",
+        "role": "combined_text_paper_card",
+        "observedClientTransportAttempts": 8,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 8
+      },
+      {
+        "turnId": "1788826106772-751f8ebf79152",
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "role": "search_planner",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826106772-751f8ebf79152",
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "role": "reranker",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826453462-16b1866783dcc8",
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "role": "search_planner",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826453462-16b1866783dcc8",
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "role": "reranker",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      },
+      {
+        "turnId": "1788826854353-7e8a2ac1ecd8b",
+        "caseId": "CW-ECTD_EXPERIMENTS-07",
+        "role": "search_planner",
+        "observedClientTransportAttempts": 1,
+        "savedLogicalCalls": 0,
+        "differenceObservedMinusSaved": 1
+      }
+    ],
+    "turnAttributionDefinitions": "User message ID joins saved turns exactly. Missing IDs are assigned only to a unique enclosing context/preflight interval and explicitly marked inferred."
+  },
+  "noChangesToExistingArtifacts": true
+}

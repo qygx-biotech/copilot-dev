@@ -463,6 +463,10 @@ textarea:focus {
   line-height: 1.5;
 }
 
+.windows-download-link {
+  text-decoration: none;
+}
+
 .status-pill,
 .account-chip,
 .review-status {

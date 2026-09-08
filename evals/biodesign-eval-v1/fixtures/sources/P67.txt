@@ -1,0 +1,3 @@
+=== PAGE 1 | P67:p1:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+WITHDRAWN SYNTHETIC RECORD. This preliminary note asserted 99 kPa without source rows. It is deleted in the current corpus and cannot support a current answer.

@@ -1,0 +1,91 @@
+{
+  "packetId": "78a5668efd3aea8f",
+  "artifactType": "final_answer",
+  "correctness": 4,
+  "faithfulness": 4,
+  "completeness": 5,
+  "relevance": 5,
+  "uncertaintyHandling": 4,
+  "synthesis": null,
+  "clarity": 5,
+  "overall": 4,
+  "criticalErrors": [],
+  "missingPoints": [],
+  "lowScoreEvidence": [],
+  "claimAudits": [
+    {
+      "candidateSpan": "No, the higher specific activity of **T212S** does not mean it has a higher product titer.",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p1:v1", "P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": ["actA", "actT", "titerA", "titerT"]
+    },
+    {
+      "candidateSpan": "**T212S** exhibits a higher specific activity (2.40 U/mg) compared to **A163V** (1.50 U/mg)",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": ["actT", "actA"]
+    },
+    {
+      "candidateSpan": "it actually results in a lower product titer (3.90 g/L) than **A163V** (4.60 g/L)",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": ["titerT", "titerA"]
+    },
+    {
+      "candidateSpan": "This demonstrates that enzyme activity and fermentation titer are separate outcomes",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": ["P152:p1:v1", "P152:p2:v1"],
+      "verdict": "supported",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "do not necessarily correlate linearly in this system.",
+      "citedEvidenceIds": ["P152"],
+      "supportingEvidenceIds": [],
+      "verdict": "uncertain",
+      "requiredGoldClaimIds": []
+    }
+  ],
+  "numericClaims": [
+    {
+      "candidateSpan": "**T212S** exhibits a higher specific activity (2.40 U/mg)",
+      "subject": "P152:T212S",
+      "metric": "specific_activity",
+      "value": 2.4,
+      "unit": "U/mg",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "**A163V** (1.50 U/mg)",
+      "subject": "P152:A163V",
+      "metric": "specific_activity",
+      "value": 1.5,
+      "unit": "U/mg",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "it actually results in a lower product titer (3.90 g/L)",
+      "subject": "P152:T212S",
+      "metric": "titer",
+      "value": 3.9,
+      "unit": "g/L",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "**A163V** (4.60 g/L)",
+      "subject": "P152:A163V",
+      "metric": "titer",
+      "value": 4.6,
+      "unit": "g/L",
+      "sourceIds": ["P152"],
+      "sourceRows": []
+    }
+  ],
+  "confidence": "high"
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "extractorVersion": "local-source-v1",
+  "sourceId": "P83",
+  "contentHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+  "pageCount": 3,
+  "metadataTitle": "CelluWeave D：低温储存后的可逆性",
+  "truncated": false,
+  "pages": [
+    {
+      "page": 1,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P83，虚构作者周澄。2026 年合成文献。配方为海藻酸钠 2.0% 和纤维素 1.2%，氯化钙 50 mmol/L 固化 10\n分钟。研究对象是不含活细胞的材料。"
+    },
+    {
+      "page": 2,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 1：4°C 储存 7 天后，湿态 24 小时平衡、10% 应变下，压缩模量均值为 46.0 kPa，样本标准差 2.0 kPa，n=4。形状保持率\n95%。同批新鲜样品均值为 50.0 kPa，n=4。报告的均值下降为 4.0 kPa，即 8.0%。"
+    },
+    {
+      "page": 3,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n限制：没有进行冻融循环；没有测量细胞存活或微生物污染。7 天冷藏结果不能推广至冷冻条件或长期储存。"
+    }
+  ],
+  "chunks": [
+    {
+      "chunkId": "P83-P1-C1",
+      "page": 1,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P83，虚构作者周澄。2026 年合成文献。配方为海藻酸钠 2.0% 和纤维素 1.2%，氯化钙 50 mmol/L 固化 10\n分钟。研究对象是不含活细胞的材料。"
+    },
+    {
+      "chunkId": "P83-P2-C1",
+      "page": 2,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 1：4°C 储存 7 天后，湿态 24 小时平衡、10% 应变下，压缩模量均值为 46.0 kPa，样本标准差 2.0 kPa，n=4。形状保持率\n95%。同批新鲜样品均值为 50.0 kPa，n=4。报告的均值下降为 4.0 kPa，即 8.0%。"
+    },
+    {
+      "chunkId": "P83-P3-C1",
+      "page": 3,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n限制：没有进行冻融循环；没有测量细胞存活或微生物污染。7 天冷藏结果不能推广至冷冻条件或长期储存。"
+    }
+  ],
+  "extractedCharacters": 670,
+  "createdAt": "2026-09-07T23:44:58.320Z"
+}

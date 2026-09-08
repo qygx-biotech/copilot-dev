@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P74",
+  "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+  "paperCardContentIdentity": "sha256:0388bd39926a7da6f4c52ca96d38cb0196a8bc9a41214f845d25ee0d5081862e",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P74",
+    "contentHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+    "title": "CelluWeave evidence map: Three small synthetic studies",
+    "relevance": "medium",
+    "themes": [
+      "review of P17, P31, and P52",
+      "narrative review"
+    ],
+    "researchQuestion": "",
+    "findings": [
+      {
+        "claim": "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+        "evidenceRefs": [
+          "P74:p2:P74-P2-C1"
+        ]
+      },
+      {
+        "claim": "P31 uses 15% strain after 1 hour.",
+        "evidenceRefs": [
+          "P74:p2:P74-P2-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "P17 and P52 use 10% strain after 24 hours wet equilibration.",
+        "evidenceRefs": [
+          "P74:p2:P74-P2-C1"
+        ]
+      },
+      {
+        "claim": "P31 uses 15% strain after 1 hour.",
+        "evidenceRefs": [
+          "P74:p2:P74-P2-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "narrative review"
+    ],
+    "organisms": [],
+    "genes": [],
+    "proteins": [],
+    "pathways": [],
+    "experimentalConditions": [
+      "10% strain after 24 hours wet equilibration",
+      "15% strain after 1 hour"
+    ],
+    "measurements": [
+      "strain"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "No source in this review establishes cell viability, biodegradation, cost, industrial print speed, or clinical suitability."
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:0388bd39926a7da6f4c52ca96d38cb0196a8bc9a41214f845d25ee0d5081862e",
+    "statSignature": "literature/P74.pdf|49956|1788824298376217677|16777234:201154911"
+  },
+  "updatedAt": "2026-09-08T00:26:35.982Z"
+}

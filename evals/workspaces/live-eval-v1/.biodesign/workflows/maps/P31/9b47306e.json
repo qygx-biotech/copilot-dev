@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P31",
+  "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+  "paperCardContentIdentity": "sha256:9fcba6108e4d9f7d7ff562b6425d9488555a77d7e17ecae0a09a45a832dedd0b",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P31",
+    "contentHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+    "title": "CelluWeave B：湿态压缩条件与测量时点",
+    "relevance": "medium",
+    "themes": [
+      "Hydrogels",
+      "Compressive modulus",
+      "Sodium alginate",
+      "Cellulose"
+    ],
+    "researchQuestion": "Evaluation of the compressive modulus and shape retention of a hydrogel formulation consisting of sodium alginate and cellulose.",
+    "findings": [
+      {
+        "claim": "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      },
+      {
+        "claim": "The average compressive modulus of the material is 48.0 kPa.",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      },
+      {
+        "claim": "The shape retention rate of the material is 94%.",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      },
+      {
+        "claim": "The shape retention rate is 94%.",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "The average compressive modulus is 48.0 kPa with a sample standard deviation of 3.0 kPa (n=6).",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      },
+      {
+        "claim": "The average compressive modulus of the material is 48.0 kPa.",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      },
+      {
+        "claim": "The shape retention rate of the material is 94%.",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      },
+      {
+        "claim": "The shape retention rate is 94%.",
+        "evidenceRefs": [
+          "P31:p2:P31-P2-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "Preparation of a formulation with 2.0% (w/v) sodium alginate and 0.8% (w/v) cellulose",
+      "Crosslinking using 50 mmol/L calcium chloride for 10 minutes",
+      "Equilibration in a wet state for 1 hour",
+      "Measurement of compressive modulus at 15% strain"
+    ],
+    "organisms": [],
+    "genes": [],
+    "proteins": [],
+    "pathways": [],
+    "experimentalConditions": [
+      "Sodium alginate 2.0% (w/v)",
+      "Cellulose 0.8% (w/v)",
+      "Calcium chloride 50 mmol/L",
+      "Curing time: 10 minutes",
+      "Wet state equilibrium: 1 hour",
+      "Strain: 15%"
+    ],
+    "measurements": [
+      "Compressive modulus",
+      "Shape retention rate"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "Differences in strain (15% vs 10%) and equilibrium duration (1 hour vs 24 hours) compared to P17 prevent assertions of superior material performance",
+      "Water absorption rate, cell viability, and cost were not reported"
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:9fcba6108e4d9f7d7ff562b6425d9488555a77d7e17ecae0a09a45a832dedd0b",
+    "statSignature": "literature/P31.pdf|100734|1788824298379338373|16777234:201154916"
+  },
+  "updatedAt": "2026-09-08T00:26:35.943Z"
+}

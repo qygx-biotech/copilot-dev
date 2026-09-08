@@ -1,0 +1,168 @@
+{
+  "synthetic": true,
+  "defaultSourceVersions": {
+    "P17": 1,
+    "P31": 2,
+    "P52": 1,
+    "P74": 1,
+    "P83": 1,
+    "P90": 1,
+    "P95": 1,
+    "N08": 1,
+    "N09": 1,
+    "N10": 1,
+    "N11": 1,
+    "P117": 1,
+    "P131": 1,
+    "P152": 1
+  },
+  "initialSourceVersions": {
+    "P17": 1,
+    "P31": 1,
+    "P52": 1,
+    "P74": 1,
+    "P83": 1,
+    "P90": 1,
+    "P95": 1,
+    "N08": 1,
+    "N09": 1,
+    "N10": 1,
+    "N11": 1,
+    "P67": 1
+  },
+  "currentSourceVersions": {
+    "P17": 1,
+    "P31": 2,
+    "P52": 1,
+    "P74": 1,
+    "P83": 1,
+    "P90": 1,
+    "P95": 1,
+    "N08": 1,
+    "N09": 1,
+    "N10": 1,
+    "N11": 1,
+    "P117": 1,
+    "P131": 1,
+    "P152": 1
+  },
+  "archivedSources": [
+    {
+      "id": "P31",
+      "title": "CelluWeave B：湿态压缩条件与测量时点",
+      "kind": "paper",
+      "language": "zh",
+      "path": "fixtures/sources/P31-v1.txt",
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "evidenceId": "P31:p1:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P31，虚构作者陈禾、林沐。2025 年合成评测文献。配方：海藻酸钠 2.0%（w/v），纤维素 0.8%（w/v）；氯化钙 50 mmol/L，固化 10 分钟。试样在湿态平衡 1 小时后，以 15% 应变测量压缩模量。"
+        },
+        {
+          "page": 2,
+          "evidenceId": "P31:p2:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 2, superseded version 1: average compressive modulus 62.0 kPa, SD 3.0 kPa, n=6. This obsolete version exists only to test synchronization."
+        },
+        {
+          "page": 3,
+          "evidenceId": "P31:p3:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n讨论：本研究与 P17 的应变（15% 对 10%）和平衡时长（1 小时对 24 小时）不同，不能据此断言本配方的材料性能优于 P17。未报告吸水率、细胞存活率或成本。本文没有 DOI。"
+        }
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "P67",
+      "title": "Withdrawn preliminary castability note",
+      "kind": "document",
+      "language": "en",
+      "path": "fixtures/sources/P67.txt",
+      "version": 1,
+      "pages": [
+        {
+          "page": 1,
+          "evidenceId": "P67:p1:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nWITHDRAWN SYNTHETIC RECORD. This preliminary note asserted 99 kPa without source rows. It is deleted in the current corpus and cannot support a current answer."
+        }
+      ],
+      "synthetic": true,
+      "projectId": "synthetic_celluweave"
+    }
+  ],
+  "operations": {
+    "update_p31": {
+      "operation": "replace",
+      "sourceId": "P31",
+      "fromVersion": 1,
+      "toVersion": 2,
+      "source": {
+        "id": "P31",
+        "title": "CelluWeave B：湿态压缩条件与测量时点",
+        "kind": "paper",
+        "language": "zh",
+        "path": "fixtures/sources/P31.txt",
+        "version": 2,
+        "pages": [
+          {
+            "page": 1,
+            "evidenceId": "P31:p1:v2",
+            "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P31，虚构作者陈禾、林沐。2025 年合成评测文献。配方：海藻酸钠 2.0%（w/v），纤维素 0.8%（w/v）；氯化钙 50 mmol/L，固化 10 分钟。试样在湿态平衡 1 小时后，以 15% 应变测量压缩模量。"
+          },
+          {
+            "page": 2,
+            "evidenceId": "P31:p2:v2",
+            "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 2（版本 2 更正）：平均压缩模量为 48.0 kPa，样本标准差 3.0 kPa，独立样本数 n=6；形状保持率 94%。旧版本误记为 62.0 kPa，已撤销。更正值 48.0 kPa 才是当前结果。"
+          },
+          {
+            "page": 3,
+            "evidenceId": "P31:p3:v2",
+            "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n讨论：本研究与 P17 的应变（15% 对 10%）和平衡时长（1 小时对 24 小时）不同，不能据此断言本配方的材料性能优于 P17。未报告吸水率、细胞存活率或成本。本文没有 DOI。"
+          }
+        ],
+        "synthetic": true,
+        "projectId": "synthetic_celluweave"
+      }
+    },
+    "add_p83": {
+      "operation": "add",
+      "sourceId": "P83",
+      "source": {
+        "id": "P83",
+        "title": "CelluWeave D：低温储存后的可逆性",
+        "kind": "paper",
+        "language": "zh",
+        "path": "fixtures/sources/P83.txt",
+        "version": 1,
+        "pages": [
+          {
+            "page": 1,
+            "evidenceId": "P83:p1:v1",
+            "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P83，虚构作者周澄。2026 年合成文献。配方为海藻酸钠 2.0% 和纤维素 1.2%，氯化钙 50 mmol/L 固化 10 分钟。研究对象是不含活细胞的材料。"
+          },
+          {
+            "page": 2,
+            "evidenceId": "P83:p2:v1",
+            "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n表 1：4°C 储存 7 天后，湿态 24 小时平衡、10% 应变下，压缩模量均值为 46.0 kPa，样本标准差 2.0 kPa，n=4。形状保持率 95%。同批新鲜样品均值为 50.0 kPa，n=4。报告的均值下降为 4.0 kPa，即 8.0%。"
+          },
+          {
+            "page": 3,
+            "evidenceId": "P83:p3:v1",
+            "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n限制：没有进行冻融循环；没有测量细胞存活或微生物污染。7 天冷藏结果不能推广至冷冻条件或长期储存。"
+          }
+        ],
+        "synthetic": true,
+        "projectId": "synthetic_celluweave"
+      }
+    },
+    "delete_p67": {
+      "operation": "delete",
+      "sourceId": "P67"
+    },
+    "noop": {
+      "operation": "sync",
+      "expectedChangedSourceIds": []
+    }
+  }
+}

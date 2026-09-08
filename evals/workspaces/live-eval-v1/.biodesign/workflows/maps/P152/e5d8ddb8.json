@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P152",
+  "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+  "paperCardContentIdentity": "sha256:bf412da002630949166ff6945d422f8aea52b85fff56d4ef3d270a2ee16c18f0",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P152",
+    "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+    "title": "EctD variants at 42°C: Opposing activity and titer rankings",
+    "relevance": "medium",
+    "themes": [],
+    "researchQuestion": "",
+    "findings": [
+      {
+        "claim": "At 42°C, A163V exhibited a specific activity of 1.50 U/mg and a product titer of 4.60 g/L.",
+        "evidenceRefs": [
+          "P152:p2:P152-P2-C1"
+        ]
+      },
+      {
+        "claim": "At 42°C, T212S exhibited a specific activity of 2.40 U/mg and a product titer of 3.90 g/L.",
+        "evidenceRefs": [
+          "P152:p2:P152-P2-C1"
+        ]
+      },
+      {
+        "claim": "T212S leads in specific activity while A163V leads in product titer at 42°C.",
+        "evidenceRefs": [
+          "P152:p2:P152-P2-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "At 42°C, A163V exhibited a specific activity of 1.50 U/mg and a product titer of 4.60 g/L.",
+        "evidenceRefs": [
+          "P152:p2:P152-P2-C1"
+        ]
+      },
+      {
+        "claim": "At 42°C, T212S exhibited a specific activity of 2.40 U/mg and a product titer of 3.90 g/L.",
+        "evidenceRefs": [
+          "P152:p2:P152-P2-C1"
+        ]
+      },
+      {
+        "claim": "T212S leads in specific activity while A163V leads in product titer at 42°C.",
+        "evidenceRefs": [
+          "P152:p2:P152-P2-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "synthetic protocol"
+    ],
+    "organisms": [],
+    "genes": [],
+    "proteins": [],
+    "pathways": [],
+    "experimentalConditions": [
+      "Temperature 42°C"
+    ],
+    "measurements": [
+      "Specific enzyme activity",
+      "fermentation product titer"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "Yield and productivity were not reported for these 42°C conditions.",
+      "These synthetic data do not establish a universally superior variant, optimal temperature, or stability beyond the tested condition."
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:bf412da002630949166ff6945d422f8aea52b85fff56d4ef3d270a2ee16c18f0",
+    "statSignature": "literature/P152.pdf|56976|1788824298381675021|16777234:201154917"
+  },
+  "updatedAt": "2026-09-08T00:26:36.027Z"
+}

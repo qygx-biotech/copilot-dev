@@ -1,0 +1,266 @@
+{
+  "caseId": "CW-ECTD_PAPERS-01",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "cold",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "Based on the available literature, **P117** reports kinetic measurements for the EctD variant **A163V** at **30°C**, specifically noting a Michaelis constant ($K_m$) for ectoine of **0.42 mM**, compared to **0.80 mM** for the wild-type enzyme [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P117.pdf](biodesign-citation:citation-1).",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "P117",
+          "sourceId": "P117",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": "literature/P117.pdf",
+          "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "resolved"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P117",
+        "P131",
+        "P152",
+        "P52",
+        "P83"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X01",
+        "X02",
+        "X03",
+        "X04"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.7118,
+          "matchState": "uncertain",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "search",
+          "read"
+        ],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 3
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "fast",
+        "escalated": false,
+        "reason": "medium-strong-exact-match"
+      }
+    },
+    "activity": [
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P131.pdf...",
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P152.pdf...",
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P52.pdf...",
+      "正在读取 P52.pdf 的源文件细节...",
+      "正在准备 P83.pdf...",
+      "正在读取 P83.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "Find EctD papers reporting A163V kinetic measurements at 30°C.",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-07T23:48:13.227Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788824552291-df9a1f56fdf228",
+          "role": "user",
+          "content": "Find EctD papers reporting A163V kinetic measurements at 30°C.",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P117",
+              "P131",
+              "P152",
+              "P52",
+              "P83"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X01",
+              "X02",
+              "X03",
+              "X04"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.7118,
+                "matchState": "uncertain",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "search",
+                "read"
+              ],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 3
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "fast",
+              "escalated": false,
+              "reason": "medium-strong-exact-match"
+            }
+          },
+          "createdAt": "2026-09-07T23:42:32.291Z"
+        },
+        {
+          "id": "1788824893145-f0fdb7cf09e49",
+          "role": "assistant",
+          "content": "Based on the available literature, **P117** reports kinetic measurements for the EctD variant **A163V** at **30°C**, specifically noting a Michaelis constant ($K_m$) for ectoine of **0.42 mM**, compared to **0.80 mM** for the wild-type enzyme [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / literature / P117.pdf](biodesign-citation:citation-1).",
+          "activity": [
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P131.pdf...",
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P152.pdf...",
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P52.pdf...",
+            "正在读取 P52.pdf 的源文件细节...",
+            "正在准备 P83.pdf...",
+            "正在读取 P83.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "P117",
+              "sourceId": "P117",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P117.pdf",
+              "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ],
+          "createdAt": "2026-09-07T23:48:13.145Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 340854,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "cold",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.7118,
+      "matchState": "uncertain",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "search",
+      "read"
+    ],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 3
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "1e1c9cd2dfc1aa33a294db4476a6e7f7d5c2537e5d1ce7f9394ae6dff28d0dda",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

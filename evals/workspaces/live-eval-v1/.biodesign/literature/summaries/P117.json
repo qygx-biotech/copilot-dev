@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 2,
+  "paperCardVersion": 2,
+  "paperId": "P117",
+  "documentId": "P117",
+  "fileName": "P117.pdf",
+  "generatedAt": "2026-09-07T23:46:27.759Z",
+  "source": {
+    "filename": "P117.pdf",
+    "relativePath": "literature/P117.pdf",
+    "size": 51139,
+    "lastModified": "1788824298377011809",
+    "hash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+    "pageCount": 3,
+    "processedCharacters": 1254,
+    "truncated": false,
+    "artifactSchemaVersion": 1,
+    "extractorVersion": "local-source-v1"
+  },
+  "model": "google/gemma-4-31b-it",
+  "modelSignature": "789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3",
+  "promptVersion": "canonical-paper-card-v2",
+  "generationStrategy": "native-pdf-combined-text-v2",
+  "generationContractVersion": 2,
+  "generationMode": "combined-text",
+  "fallbackReason": "native-structured-output-unsupported",
+  "nativePdfSchemaVersion": 1,
+  "nativePdfPromptVersion": "canonical-paper-card-native-v1",
+  "nativePdfModelSignature": "not-applicable",
+  "combinedTextSchemaVersion": 1,
+  "combinedTextSupported": true,
+  "combinedTextMaxCharacters": 200000,
+  "combinedTextPromptVersion": "canonical-paper-card-combined-text-v2",
+  "combinedTextModelSignature": "0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3",
+  "generationDiagnostics": {
+    "mode": "combined-text",
+    "route": "combined-text",
+    "fallbackReason": "native-structured-output-unsupported",
+    "mapReduceReason": null,
+    "nativePdfEndpointCalls": 0,
+    "nativePdfProviderAttempts": 0,
+    "combinedTextEndpointCalls": 1,
+    "combinedTextProviderAttempts": 1,
+    "mapReduceChunkCalls": 0,
+    "mapReduceSynthesisCalls": 0,
+    "nativeEvidenceCitationsSubmitted": 5,
+    "nativeEvidenceCitationsVerified": 5,
+    "nativeEvidenceCitationsDropped": 0,
+    "evidenceFindingsSubmitted": 5,
+    "evidenceFindingsVerified": 5,
+    "evidenceFindingsDropped": 0,
+    "textFallbackOperations": 0
+  },
+  "cacheKey": "{\"version\":4,\"sourceId\":\"P117\",\"contentHash\":\"sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d\",\"schemaVersion\":2,\"modelSignature\":\"789252d4bcb4c0c37b8d6c2efa56eeab6fcb02f944dbc67ce8ed5e99541b83f3\",\"promptVersion\":\"canonical-paper-card-v2\",\"generationStrategy\":\"native-pdf-combined-text-v2\",\"generationContractVersion\":2,\"nativePdfSchemaVersion\":1,\"nativePdfPromptVersion\":\"canonical-paper-card-native-v1\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":200000,\"combinedTextSchemaVersion\":1,\"combinedTextPromptVersion\":\"canonical-paper-card-combined-text-v2\",\"combinedTextModelSignature\":\"0e023c75e27595468dd536cbf3072e887a5885f9c5debe6e180443bfa408a4e3\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}",
+  "title": "EctD A163V: Temperature-controlled kinetic and titer study",
+  "authors": [
+    "R. Aspen",
+    "J. Brook"
+  ],
+  "year": 2024,
+  "abstractSummary": "The study characterizes the EctD variant A163V, which catalyzes ectoine hydroxylation, evaluating its kinetic parameters and fermentation performance at 30°C.",
+  "researchQuestion": "What are the kinetic and fermentation properties of the EctD variant A163V in the catalysis of ectoine hydroxylation?",
+  "mainFindings": [
+    "Variant A163V exhibits a lower Michaelis constant (Km) for ectoine compared to the wild-type enzyme.",
+    "Fermentation using variant A163V at 30°C for 48 hours produced a product titer of 4.80 g/L.",
+    "The specific activity of variant A163V was 1.80 U/mg.",
+    "The product yield for variant A163V was 0.40 g/g substrate.",
+    "The volumetric productivity for variant A163V was 0.100 g/L/h."
+  ],
+  "methods": [
+    "Kinetic assay",
+    "Fermentation"
+  ],
+  "methodsSummary": "The researchers characterized the A163V variant of EctD at 30°C, measuring the Michaelis constant (Km) for ectoine and evaluating fermentation metrics including titer, specific activity, yield, and volumetric productivity.",
+  "organisms": [],
+  "genes": [
+    "EctD"
+  ],
+  "proteins": [
+    "EctD",
+    "A163V"
+  ],
+  "pathways": [
+    "ectoine hydroxylation"
+  ],
+  "metabolites": [
+    "ectoine"
+  ],
+  "experimentalConditions": [
+    "30°C",
+    "48 h"
+  ],
+  "measurements": [
+    "Michaelis constant (Km)",
+    "product titer",
+    "specific activity",
+    "product yield",
+    "volumetric productivity"
+  ],
+  "importantResults": [
+    "The specific activity of variant A163V was 1.80 U/mg.",
+    "The product yield for variant A163V was 0.40 g/g substrate.",
+    "The volumetric productivity for variant A163V was 0.100 g/L/h.",
+    "Variant A163V exhibits a lower Michaelis constant (Km) for ectoine compared to the wild-type enzyme.",
+    "Fermentation using variant A163V at 30°C for 48 hours produced a product titer of 4.80 g/L."
+  ],
+  "limitations": [
+    "The study did not test 35°C or 42°C cultivation.",
+    "Lower Km alone does not prove higher whole-process productivity.",
+    "No universal best variant is established."
+  ],
+  "keywords": [
+    "EctD",
+    "ectoine hydroxylation",
+    "A163V"
+  ],
+  "topics": [
+    "Enzyme kinetics",
+    "Fermentation"
+  ],
+  "shortSummary": "Characterization of EctD variant A163V showing a reduced Km for ectoine (0.42 mM vs 0.80 mM for wild-type) and specific fermentation metrics including a titer of 4.80 g/L at 30°C.",
+  "summary": "Characterization of EctD variant A163V showing a reduced Km for ectoine (0.42 mM vs 0.80 mM for wild-type) and specific fermentation metrics including a titer of 4.80 g/L at 30°C.",
+  "keyResults": [
+    "Variant A163V exhibits a lower Michaelis constant (Km) for ectoine compared to the wild-type enzyme.",
+    "Fermentation using variant A163V at 30°C for 48 hours produced a product titer of 4.80 g/L.",
+    "The specific activity of variant A163V was 1.80 U/mg.",
+    "The product yield for variant A163V was 0.40 g/g substrate.",
+    "The volumetric productivity for variant A163V was 0.100 g/L/h."
+  ],
+  "mainConclusion": "Variant A163V of EctD shows improved substrate affinity (lower Km) and specific fermentation performance at 30°C.",
+  "evidenceFindings": [
+    {
+      "claim": "Variant A163V exhibits a lower Michaelis constant (Km) for ectoine compared to the wild-type enzyme.",
+      "evidenceRefs": [
+        "P117:p1:P117-P1-C1"
+      ]
+    },
+    {
+      "claim": "Fermentation using variant A163V at 30°C for 48 hours produced a product titer of 4.80 g/L.",
+      "evidenceRefs": [
+        "P117:p2:P117-P2-C1"
+      ]
+    },
+    {
+      "claim": "The specific activity of variant A163V was 1.80 U/mg.",
+      "evidenceRefs": [
+        "P117:p2:P117-P2-C1"
+      ]
+    },
+    {
+      "claim": "The product yield for variant A163V was 0.40 g/g substrate.",
+      "evidenceRefs": [
+        "P117:p2:P117-P2-C1"
+      ]
+    },
+    {
+      "claim": "The volumetric productivity for variant A163V was 0.100 g/L/h.",
+      "evidenceRefs": [
+        "P117:p2:P117-P2-C1"
+      ]
+    }
+  ]
+}

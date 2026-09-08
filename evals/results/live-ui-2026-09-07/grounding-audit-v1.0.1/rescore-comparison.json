@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "grounding-evaluator-correction-v1",
+  "classification": "Evaluation alias-deduplication correction; no new production output, judge verdict, gold, or arithmetic changed.",
+  "previousAggregationVersion": "1.0.0",
+  "aggregationVersion": "1.0.1",
+  "originalArtifactSha256": "185ae8b52bf30c3ceb053a34346cd1326fa203a28c689f8e8ef6b4b2bdd82440",
+  "originalMatchesArchivedHash": true,
+  "newArtifactSha256": "6189b360c9ad7d9c7c9b73ad225544f36ef5c41f91ce6e4cf5d12896e54bad95",
+  "correctedModuleSha256": "6e4c09ee7b425b986bca1e77939f41062b0c1077f89a45038ede2fe9b7df7639",
+  "sameInputArtifacts": true,
+  "allSummaryMetricsUnchanged": true,
+  "allPerCaseMetricsUnchanged": true,
+  "perCaseDeltas": [
+    {
+      "packetId": "d380743f8fb126cb",
+      "caseId": "CW-CORPUS-01",
+      "repeat": 0,
+      "metricChanges": {},
+      "countChanges": {}
+    },
+    {
+      "packetId": "d5939f4c17899961",
+      "caseId": "CW-CORPUS-01",
+      "repeat": 1,
+      "metricChanges": {},
+      "countChanges": {}
+    },
+    {
+      "packetId": "f7d737d510b6c5ff",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 0,
+      "metricChanges": {},
+      "countChanges": {}
+    },
+    {
+      "packetId": "337f87c5b25f49fc",
+      "caseId": "CW-ECTD_PAPERS-07",
+      "repeat": 0,
+      "metricChanges": {},
+      "countChanges": {}
+    },
+    {
+      "packetId": "5876e39aee828969",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "repeat": 0,
+      "metricChanges": {},
+      "countChanges": {}
+    },
+    {
+      "packetId": "8e55692ea8d31e73",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "repeat": 0,
+      "metricChanges": {},
+      "countChanges": {}
+    },
+    {
+      "packetId": "78a5668efd3aea8f",
+      "caseId": "CW-ECTD_PAPERS-05",
+      "repeat": 0,
+      "metricChanges": {},
+      "countChanges": {}
+    }
+  ],
+  "postFixObservedClaimCitationLinks": 26,
+  "postFixOverlappingUnderlyingCitationIndexes": [],
+  "validation": {
+    "command": "node --test evals/test/grounding.test.mjs evals/test/judge-results.test.mjs",
+    "passed": 22,
+    "failed": 0
+  }
+}

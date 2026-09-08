@@ -57,6 +57,12 @@
           </label>
 
           <button id="loginButton" type="submit" data-i18n="loginButton">Log In</button>
+          <a
+            id="windowsDownloadLink"
+            class="secondary-button windows-download-link"
+            href="https://github.com/qygx-biotech/copilot-dev/releases/latest/download/BioDesign-Setup.exe"
+            data-i18n="downloadWindows"
+          >Download for Windows</a>
           <p id="loginError" class="login-error" role="alert" aria-live="polite"></p>
         </div>
       </form>
@@ -119,17 +125,17 @@
           <strong id="aboutAppVersion">Development preview</strong>
         </p>
         <section class="beta-update-card" aria-labelledby="betaUpdateTitle">
-          <h3 id="betaUpdateTitle" data-i18n="betaUpdateTitle">Beta updates</h3>
+          <h3 id="betaUpdateTitle" data-i18n="betaUpdateTitle">Application updates</h3>
           <p data-i18n="betaUpdateDescription">
-            Packaged Windows prerelease builds can manually check the public BioDesign beta channel.
+            Packaged Windows builds can manually check their public BioDesign release channel.
           </p>
           <button id="betaUpdateButton" class="secondary-button" type="button" disabled data-i18n="checkBetaUpdates">
-            Check for Beta Updates
+            Check for Updates
           </button>
           <p id="betaUpdateStatus" class="beta-update-status" role="status" aria-live="polite"></p>
         </section>
         <p class="about-security-note" data-i18n="betaUnsignedWarning">
-          Beta builds are unsigned development builds and may trigger Windows Unknown publisher or SmartScreen warnings. Stable production releases still require trusted code signing.
+          Every downloaded installer is verified with its release SHA-256 before it can run. Production releases also use Windows code signing.
         </p>
         <div class="workspace-dialog-actions">
           <button class="primary-button" value="close" type="submit" data-i18n="closeButton">Close</button>

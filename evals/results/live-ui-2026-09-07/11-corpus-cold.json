@@ -1,0 +1,283 @@
+{
+  "caseId": "CW-CORPUS-01",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "**覆盖范围：** 纳入 8 篇；成功分析 8/8；失败 0；缺失 0。\n\nBased on the provided study data, the reported main means and their corresponding sample counts are as follows:\n\n*   **P17**:\n    *   Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)\n    *   Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)\n*   **P31**:\n    *   Average compressive modulus: **48.0 kPa** (**n=6**) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)\n*   **P52**:\n    *   Mean compressive modulus: **51.0 kPa** (sample count not reported) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+      "citations": [
+        {
+          "id": "citation-1",
+          "reference": "local:1",
+          "sourceId": "catalog:local:1",
+          "workspaceId": "synthetic_celluweave",
+          "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+          "relativePath": ".biodesign/results/cba0eae8-0400-4765-87a3-23d4660a062f.json",
+          "contentHash": "",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "status": "missing"
+        }
+      ],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [],
+      "corpusWorkflowId": "summarize-paper-corpus-0866d379",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.85,
+          "matchState": "uncertain",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "aggregate",
+          "summarize",
+          "snapshot",
+          "prepare",
+          "map",
+          "group",
+          "reduce",
+          "verify"
+        ],
+        "capabilitiesUsed": [
+          "corpus_workflow",
+          "search_papers",
+          "read_paper_evidence",
+          "read_workspace_item"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 0,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 4
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "not-needed",
+        "escalated": false,
+        "reason": "literature-retrieval-not-needed"
+      }
+    },
+    "activity": [
+      "正在选择相关论文证据 · 6/8",
+      "正在选择相关的缓存证据 · 0/0",
+      "正在选择相关论文证据 · 8/8",
+      "正在归纳主题 · 45/45",
+      "正在综合主题 · 45/45",
+      "正在核验论断 · 34/34",
+      "正在生成回答 · 8/8",
+      "answer · 1/1",
+      "正在更新本地搜索索引...",
+      "本地搜索已就绪。",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:27:59.099Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788827194252-deb29162eae2f8",
+          "role": "user",
+          "content": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P17",
+              "P31",
+              "P52",
+              "P74",
+              "P83",
+              "P117",
+              "P131",
+              "P152"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [],
+            "corpusWorkflowId": "summarize-paper-corpus-0866d379",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.85,
+                "matchState": "uncertain",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "aggregate",
+                "summarize",
+                "snapshot",
+                "prepare",
+                "map",
+                "group",
+                "reduce",
+                "verify"
+              ],
+              "capabilitiesUsed": [
+                "corpus_workflow",
+                "search_papers",
+                "read_paper_evidence",
+                "read_workspace_item"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 0,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 4
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "not-needed",
+              "escalated": false,
+              "reason": "literature-retrieval-not-needed"
+            }
+          },
+          "createdAt": "2026-09-08T00:26:34.252Z"
+        },
+        {
+          "id": "1788827278989-0024952d8092b",
+          "role": "assistant",
+          "content": "**覆盖范围：** 纳入 8 篇；成功分析 8/8；失败 0；缺失 0。\n\nBased on the provided study data, the reported main means and their corresponding sample counts are as follows:\n\n*   **P17**:\n    *   Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)\n    *   Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)\n*   **P31**:\n    *   Average compressive modulus: **48.0 kPa** (**n=6**) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)\n*   **P52**:\n    *   Mean compressive modulus: **51.0 kPa** (sample count not reported) [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+          "activity": [
+            "正在选择相关论文证据 · 6/8",
+            "正在选择相关的缓存证据 · 0/0",
+            "正在选择相关论文证据 · 8/8",
+            "正在归纳主题 · 45/45",
+            "正在综合主题 · 45/45",
+            "正在核验论断 · 34/34",
+            "正在生成回答 · 8/8",
+            "answer · 1/1",
+            "正在更新本地搜索索引...",
+            "本地搜索已就绪。",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [
+            {
+              "id": "citation-1",
+              "reference": "local:1",
+              "sourceId": "catalog:local:1",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": ".biodesign/results/cba0eae8-0400-4765-87a3-23d4660a062f.json",
+              "contentHash": "",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "missing"
+            }
+          ],
+          "createdAt": "2026-09-08T00:27:58.989Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 84737,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.85,
+      "matchState": "uncertain",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "aggregate",
+      "summarize",
+      "snapshot",
+      "prepare",
+      "map",
+      "group",
+      "reduce",
+      "verify"
+    ],
+    "capabilitiesUsed": [
+      "corpus_workflow",
+      "search_papers",
+      "read_paper_evidence",
+      "read_workspace_item"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 0,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 4
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "264b8c5203475944ec67de5a07e589234febbd44f6729b6376b88bb532a786f8",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

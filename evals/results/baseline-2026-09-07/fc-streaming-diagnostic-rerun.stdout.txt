@@ -1,0 +1,84 @@
+TAP version 13
+# Incoming request: { method: 'POST', path: '/chat' }
+# Incoming request: { method: 'GET', path: '/health' }
+# Incoming request: { method: 'POST', path: '/chat' }
+# Subtest: the HTTP streaming adapter preserves authentication and validation before opening SSE
+ok 1 - the HTTP streaming adapter preserves authentication and validation before opening SSE
+  ---
+  duration_ms: 44.877625
+  type: 'test'
+  ...
+# Incoming request: { method: 'POST', path: '/chat' }
+# Stored PDF chat routing complete: {
+#   stage: 'documentRoute',
+#   functionRequestId: 'local-http-adapter',
+#   mode: 'inventory',
+#   candidates: 0,
+#   summaries: 0,
+#   fullPdfs: 0
+# }
+# Subtest: real HTTP delivery streams before completion, runs tool calls, and finalizes verified citations
+ok 2 - real HTTP delivery streams before completion, runs tool calls, and finalizes verified citations
+  ---
+  duration_ms: 14.962417
+  type: 'test'
+  ...
+# Incoming request: { method: 'POST', path: '/chat' }
+# Stored PDF chat routing complete: {
+#   stage: 'documentRoute',
+#   functionRequestId: 'local-http-adapter',
+#   mode: 'inventory',
+#   candidates: 0,
+#   summaries: 0,
+#   fullPdfs: 0
+# }
+# Subtest: Agent Command streams readable reply text while its structured result waits for validation
+ok 3 - Agent Command streams readable reply text while its structured result waits for validation
+  ---
+  duration_ms: 4.92725
+  type: 'test'
+  ...
+# Incoming request: { method: 'POST', path: '/chat' }
+# Stored PDF chat routing complete: {
+#   stage: 'documentRoute',
+#   functionRequestId: 'local-http-adapter',
+#   mode: 'inventory',
+#   candidates: 0,
+#   summaries: 0,
+#   fullPdfs: 0
+# }
+# Subtest: disconnecting the app aborts the in-flight provider request
+ok 4 - disconnecting the app aborts the in-flight provider request
+  ---
+  duration_ms: 8.28225
+  type: 'test'
+  ...
+# Incoming request: { method: 'POST', path: '/chat' }
+# Stored PDF chat routing complete: {
+#   stage: 'documentRoute',
+#   functionRequestId: 'local-http-adapter',
+#   mode: 'inventory',
+#   candidates: 0,
+#   summaries: 0,
+#   fullPdfs: 0
+# }
+# Workspace agent failed: {
+#   stage: 'workspaceAgent',
+#   error: 'STREAM_INTERRUPTED',
+#   status: undefined
+# }
+# Subtest: a truncated provider reply produces an HTTP stream error, never a completed fallback
+ok 5 - a truncated provider reply produces an HTTP stream error, never a completed fallback
+  ---
+  duration_ms: 3.076708
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 332.13025

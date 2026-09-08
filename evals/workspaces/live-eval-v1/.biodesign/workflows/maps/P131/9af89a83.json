@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "workflowVersion": 2,
+  "mapSchemaVersion": 3,
+  "localMapVersion": "canonical-paper-projection-v2",
+  "normalizedQuestion": "across original p17, p31, and p52 studies, list each reported main mean and its sample count. do not add review samples",
+  "sourceId": "P131",
+  "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+  "paperCardContentIdentity": "sha256:d60f2795f1351ffc8e6ed11ca3957dd7357746ce7d07320aa5e98eb32570a4a1",
+  "result": {
+    "schemaVersion": 3,
+    "promptVersion": "query-specific-map-v2",
+    "modelVersion": "canonical-paper-projection-v2",
+    "paperId": "P131",
+    "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+    "title": "EctD T212S：35°C 条件下的产物滴度与动力学",
+    "relevance": "medium",
+    "themes": [
+      "Mutant characterization",
+      "Enzyme kinetics",
+      "T212S",
+      "tetrahydropyrimidine",
+      "hydroxy-tetrahydropyrimidine"
+    ],
+    "researchQuestion": "Determination of the properties of mutant T212S using tetrahydropyrimidine as a substrate.",
+    "findings": [
+      {
+        "claim": "Under cultivation at 35°C for 48 hours, the hydroxy-tetrahydropyrimidine titer is 4.10 g/L, specific activity is 2.20 U/mg, product yield is 0.50 g/g substrate, and volumetric productivity is 0.0854166667 g/L/h.",
+        "evidenceRefs": [
+          "P131:p2:P131-P2-C1"
+        ]
+      },
+      {
+        "claim": "Compared to P117, the titer is lower, but the yield and specific activity are higher.",
+        "evidenceRefs": [
+          "P131:p2:P131-P2-C1"
+        ]
+      },
+      {
+        "claim": "Hydroxy-tetrahydropyrimidine titer reached 4.10 g/L after 48 hours of cultivation at 35°C.",
+        "evidenceRefs": [
+          "P131:p2:P131-P2-C1"
+        ]
+      },
+      {
+        "claim": "Mutant T212S has a Km of 0.55 mM when using tetrahydropyrimidine as a substrate at a measurement temperature of 35°C.",
+        "evidenceRefs": [
+          "P131:p1:P131-P1-C1"
+        ]
+      },
+      {
+        "claim": "The Km for mutant T212S with tetrahydropyrimidine is 0.55 mM at 35°C.",
+        "evidenceRefs": [
+          "P131:p1:P131-P1-C1"
+        ]
+      }
+    ],
+    "majorFindings": [
+      {
+        "claim": "Under cultivation at 35°C for 48 hours, the hydroxy-tetrahydropyrimidine titer is 4.10 g/L, specific activity is 2.20 U/mg, product yield is 0.50 g/g substrate, and volumetric productivity is 0.0854166667 g/L/h.",
+        "evidenceRefs": [
+          "P131:p2:P131-P2-C1"
+        ]
+      },
+      {
+        "claim": "Compared to P117, the titer is lower, but the yield and specific activity are higher.",
+        "evidenceRefs": [
+          "P131:p2:P131-P2-C1"
+        ]
+      },
+      {
+        "claim": "Hydroxy-tetrahydropyrimidine titer reached 4.10 g/L after 48 hours of cultivation at 35°C.",
+        "evidenceRefs": [
+          "P131:p2:P131-P2-C1"
+        ]
+      },
+      {
+        "claim": "Mutant T212S has a Km of 0.55 mM when using tetrahydropyrimidine as a substrate at a measurement temperature of 35°C.",
+        "evidenceRefs": [
+          "P131:p1:P131-P1-C1"
+        ]
+      },
+      {
+        "claim": "The Km for mutant T212S with tetrahydropyrimidine is 0.55 mM at 35°C.",
+        "evidenceRefs": [
+          "P131:p1:P131-P1-C1"
+        ]
+      }
+    ],
+    "methods": [
+      "Cultivation at 35°C for 48 hours"
+    ],
+    "organisms": [],
+    "genes": [
+      "T212S"
+    ],
+    "proteins": [],
+    "pathways": [],
+    "experimentalConditions": [
+      "35°C",
+      "48 hours cultivation"
+    ],
+    "measurements": [
+      "Km",
+      "titer",
+      "specific activity",
+      "product yield",
+      "volumetric productivity"
+    ],
+    "experimentalStrategies": [],
+    "limitations": [
+      "Temperature difference of 5°C compared to P117",
+      "Lack of validation under identical temperature and conditions",
+      "No results reported for 42°C cultivation"
+    ],
+    "connectionsToOtherTopics": [],
+    "notes": null,
+    "usedPaperCard": true,
+    "generationMode": "paper-card-cache",
+    "projectionMode": "local-deterministic",
+    "paperCardContentIdentity": "sha256:d60f2795f1351ffc8e6ed11ca3957dd7357746ce7d07320aa5e98eb32570a4a1",
+    "statSignature": "literature/P131.pdf|89780|1788824298378176571|16777234:201154914"
+  },
+  "updatedAt": "2026-09-08T00:26:36.023Z"
+}

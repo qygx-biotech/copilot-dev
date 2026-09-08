@@ -1,0 +1,64 @@
+{
+  "sampleCount": 2,
+  "uniqueCases": 1,
+  "method": "Fresh independent contexts, same frozen answer packet, second sample excluded from primary six-case aggregate.",
+  "dimensions": {
+    "correctness": {
+      "samples": [
+        3,
+        4
+      ],
+      "absoluteGap": 1
+    },
+    "faithfulness": {
+      "samples": [
+        3,
+        3
+      ],
+      "absoluteGap": 0
+    },
+    "completeness": {
+      "samples": [
+        4,
+        4
+      ],
+      "absoluteGap": 0
+    },
+    "relevance": {
+      "samples": [
+        4,
+        4
+      ],
+      "absoluteGap": 0
+    },
+    "uncertaintyHandling": {
+      "samples": [
+        3,
+        3
+      ],
+      "absoluteGap": 0
+    },
+    "synthesis": {
+      "samples": [
+        null,
+        null
+      ],
+      "absoluteGap": null
+    },
+    "clarity": {
+      "samples": [
+        3,
+        4
+      ],
+      "absoluteGap": 1
+    },
+    "overall": {
+      "samples": [
+        3,
+        3
+      ],
+      "absoluteGap": 0
+    }
+  },
+  "limitation": "One duplicated case cannot establish judge reliability, model-bias independence, or a calibrated disagreement rate."
+}

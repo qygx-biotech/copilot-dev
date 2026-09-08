@@ -45,6 +45,28 @@ test("absolute, parent, Windows, empty-segment, and NUL paths are rejected", asy
   }
 });
 
+test("concurrent cold corpus map writes share newly created directories", async () => {
+  const root = await temporaryProject("biodesign-corpus-maps-");
+  const filesystem = await ProjectFilesystem.open(root);
+  const writes = await Promise.allSettled(Array.from({ length: 8 }, (_, index) =>
+    filesystem.writeText(`.biodesign/workflows/corpus/maps/paper-${index}.json`, JSON.stringify({ paperId: index })),
+  ));
+  assert.deepEqual(writes.map((result) => result.status), Array(8).fill("fulfilled"));
+  for (let index = 0; index < writes.length; index += 1) {
+    assert.deepEqual(JSON.parse(await filesystem.readText(`.biodesign/workflows/corpus/maps/paper-${index}.json`)), { paperId: index });
+  }
+});
+
+test("directory creation still rejects files and symlinks at the target", async () => {
+  const root = await temporaryProject();
+  const outside = await temporaryProject("biodesign-directory-outside-");
+  const filesystem = await ProjectFilesystem.open(root);
+  await writeFile(path.join(root, "occupied"), "file");
+  await symlink(outside, path.join(root, "linked"));
+  await assert.rejects(() => filesystem.ensureDirectory("occupied"), { code: "NOT_A_DIRECTORY" });
+  await assert.rejects(() => filesystem.ensureDirectory("linked"), { code: "SYMLINK_NOT_ALLOWED" });
+});
+
 test("symlink traversal and symlink leaf access are rejected", async () => {
   const root = await temporaryProject();
   const outside = await temporaryProject("biodesign-outside-");

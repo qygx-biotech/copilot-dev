@@ -140,14 +140,21 @@ export class ProjectFilesystem {
     let current = this.root;
     for (const segment of segments) {
       current = path.join(current, segment);
+      let info;
       try {
-        const info = await lstat(current);
-        if (info.isSymbolicLink()) throw new ValidationError("SYMLINK_NOT_ALLOWED", "Symbolic links are not allowed in project directories.");
-        if (!info.isDirectory()) throw new ValidationError("NOT_A_DIRECTORY", "A project path component is not a directory.");
+        info = await lstat(current);
       } catch (error) {
         if (error?.code !== "ENOENT") throw error;
-        await mkdir(current);
+        try {
+          await mkdir(current);
+        } catch (createError) {
+          // Another corpus worker may have created the shared parent first.
+          if (createError?.code !== "EEXIST") throw createError;
+        }
+        info = await lstat(current);
       }
+      if (info.isSymbolicLink()) throw new ValidationError("SYMLINK_NOT_ALLOWED", "Symbolic links are not allowed in project directories.");
+      if (!info.isDirectory()) throw new ValidationError("NOT_A_DIRECTORY", "A project path component is not a directory.");
     }
     return candidate;
   }

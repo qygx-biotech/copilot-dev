@@ -1,0 +1,35 @@
+{
+  "contractVersion": 1,
+  "semantics": "These names identify required capabilities; the adapter must record its mapping to actual application tools. They are not mocks or invented production tool names.",
+  "capabilities": {
+    "source.search": "Search authorized indexed source metadata and text.",
+    "source.read": "Read an authorized paper/document and page evidence.",
+    "experiment.query": "Query the real imported table through the production semantic/numeric path.",
+    "memory.search": "Search memories visible to the principal within the selected project.",
+    "memory.read": "Read one visible memory record.",
+    "sync.run": "Run the production local-source synchronizer after the specified filesystem mutation.",
+    "sync.status": "Read actual sync state.",
+    "memory.write": "Write a user-authorized memory; absent from all read-only cases.",
+    "external.search": "Disabled in this closed synthetic evaluation.",
+    "corpus.prepare": "Prepare a source-grounded corpus analysis through the actual production corpus pipeline.",
+    "corpus.map": "Production corpus map validation boundary; used only for declared fault injection.",
+    "agent.command": "Explicit Agent Command entrypoint; forbidden for Side Chat recommendations unless the user separately requests it."
+  },
+  "requiredObservation": [
+    "caseId",
+    "executionMode",
+    "actualToolMapping",
+    "rawResponse",
+    "toolTrace",
+    "retrievedResourceIds",
+    "citedEvidenceIds",
+    "sourceRows",
+    "failures",
+    "safety.accessAuditComplete",
+    "safety.accessedResourceIds",
+    "safety.sideEffectAuditComplete",
+    "safety.sideEffects"
+  ],
+  "notSupported": "Record unsupported/unknown with reason; never substitute a keyword matcher or fixture-derived mock answer.",
+  "faultInjection": "Inject the declared failure at a real adapter boundary around the named capability and record that injection. The rest of the production workflow must remain live."
+}

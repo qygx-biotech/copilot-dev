@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "goal": ""
+  },
+  "ui": {},
+  "agent": {
+    "currentRecommendation": null,
+    "sideChat": {
+      "activePaperIds": [
+        "P131",
+        "P117"
+      ],
+      "activeExperimentIds": [],
+      "activeWorkflowId": null,
+      "currentTopic": "请在 Side Chat 中查 P131 的 Km，只需直接查证，不要启动 Deep 或 Agent Command。",
+      "currentHypotheses": [],
+      "recentInternalUpdates": [
+        "project-metadata-refreshed"
+      ],
+      "updatedAt": "2026-09-08T00:33:17.788Z"
+    }
+  },
+  "memory": {
+    "records": [
+      {
+        "id": "M01",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "preference",
+        "text": "For this project, explain material comparisons in Chinese when the user does not choose a language; retain original units.",
+        "evidenceId": "M01:record:v1",
+        "memoryId": "M01",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M02",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "decision",
+        "text": "On 2026-04-05 we chose E102 for a follow-up repeat, subject to checking brittleness. This is a planning decision, not proof of validity.",
+        "evidenceId": "M02:record:v1",
+        "memoryId": "M02",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M05",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "retracted",
+        "text": "Retracted 2026-04-03: tentative E102 mean 55 kPa. Correct mean is 51 kPa from ledger.",
+        "evidenceId": "M05:record:v1",
+        "supersededBy": "N10",
+        "memoryId": "M05",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M06",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "current_metric",
+        "text": "Current EctD optimization objective, set 2026-04-06: prioritize fermentation product titer in g/L. Do not silently switch the objective to activity, yield, or productivity. A previous focus on specific activity is superseded.",
+        "evidenceId": "M06:record:v1",
+        "memoryId": "M06",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M07",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "superseded_metric",
+        "text": "Superseded EctD planning preference dated 2026-04-01: maximize specific activity in U/mg. Superseded by M06 on 2026-04-06.",
+        "evidenceId": "M07:record:v1",
+        "supersededBy": "M06",
+        "memoryId": "M07",
+        "status": "active",
+        "sourceIds": []
+      }
+    ]
+  },
+  "updatedAt": "2026-09-08T00:33:17.788Z",
+  "projectMetadata": {
+    "schemaVersion": 1,
+    "sourceCounts": {
+      "papersDiscovered": 8,
+      "papersSearchable": 8,
+      "papersWithCards": 8,
+      "papersQmdLexReady": 8,
+      "papersQmdVectorReady": 0,
+      "experimentsDiscovered": 4,
+      "experimentsReady": 4
+    },
+    "preparationFailures": 0,
+    "paperCardFailures": 0,
+    "corpusMapFailures": 0,
+    "experimentsReady": 4,
+    "corpusVersion": "565cddd3",
+    "parentWorkflowId": null,
+    "activeWorkflowId": "summarize-paper-corpus-0866d379",
+    "corpusCoverage": {
+      "papersDiscovered": 8,
+      "papersIncludedInSnapshot": 8,
+      "papersSuccessfullyPrepared": 8,
+      "papersPreparationCacheHits": 8,
+      "papersSuccessfullyAnalyzed": 8,
+      "papersFailed": 0,
+      "papersMissing": 0,
+      "includedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "preparedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "analyzedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83",
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "failedPaperIds": [],
+      "missingPaperIds": [],
+      "changedPaperIds": []
+    },
+    "lastProcessingAt": "2026-09-08T00:33:17.780Z",
+    "knowledge": {
+      "available": true,
+      "qmdPackageVersion": "2.8.3",
+      "embeddingModelId": "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf",
+      "embeddingModelVersion": "embeddinggemma-300M-Q8_0.gguf",
+      "rerankingModelId": null,
+      "queryExpansionModelId": null,
+      "databasePath": ".biodesign/knowledge/qmd/index.sqlite",
+      "metadataPath": ".biodesign/knowledge/qmd/metadata.json",
+      "collectionPaths": {
+        "literatureEvidence": ".biodesign/knowledge/literature",
+        "paperCards": ".biodesign/knowledge/paper_cards",
+        "topics": ".biodesign/knowledge/topics",
+        "syntheses": ".biodesign/knowledge/syntheses",
+        "experimentNotes": ".biodesign/knowledge/experiment_notes",
+        "projectMemory": ".biodesign/knowledge/memory"
+      },
+      "requiresVectorRebuild": false,
+      "documentCount": 43,
+      "pendingEmbeddings": 43,
+      "lastSearch": {
+        "at": "2026-09-08T00:33:17.725Z",
+        "durationMs": 1,
+        "mode": "fast",
+        "collections": [
+          "literature-evidence"
+        ],
+        "resultCount": 0
+      },
+      "error": null
+    }
+  }
+}

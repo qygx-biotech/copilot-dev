@@ -1,0 +1,384 @@
+{
+  "reviewerRole": "fresh_adversarial_reviewer",
+  "phase": "dataset_and_rubric_audit_before_blinded_candidate_outputs",
+  "createdAt": "2026-09-07T23:27:11.547948+00:00",
+  "datasetId": "biodesign-eval-v1",
+  "manifestSha256": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "casesSha256": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e",
+  "blindness": {
+    "productionSourceInspected": false,
+    "implementationDocsInspected": false,
+    "otherAgentReasoningInspected": false,
+    "candidateVersionKnown": false,
+    "candidateOutputsInspected": false,
+    "externalSearchUsed": false
+  },
+  "scope": "Read only authorized dataset cases, fixtures, README, rubric and manifest. Initial pre-freeze reads were superseded by final frozen-case checks; this report applies to the recorded manifest. Frozen data was not edited.",
+  "candidateFailureFindings": [],
+  "designFindings": [
+    {
+      "id": "ADR-D01",
+      "caseIds": [
+        "CW-MEMORY_PERMISSIONS-05"
+      ],
+      "kind": "ambiguous_gold",
+      "severity": "high",
+      "primary": "SEMANTIC_INTERPRETATION",
+      "secondary": [
+        "EXPERIMENT_NORMALIZATION",
+        "REASONING"
+      ],
+      "evidence": {
+        "query": "Use the highest completed modulus in E101, E102, E103, and E108 to choose our best batch.",
+        "goldEntry": {
+          "name": "highest_visible_batch_mean",
+          "aggregation": "mean",
+          "value": 56,
+          "sourceRows": [
+            "E103-R1",
+            "E103-R2",
+            "E103-R3"
+          ]
+        },
+        "rawRows": {
+          "E103-R1": 52,
+          "E103-R2": 56,
+          "E103-R3": 60
+        }
+      },
+      "finding": "The query does not specify a mean. The highest accessible completed reading is 60 kPa, while the mandated batch mean is 56 kPa. Both select E103, so numeric/aggregation failure against 56 alone cannot distinguish an application bug from a valid maximum interpretation. E103 also fails the usual project retention criterion; the question overrides the ranking metric, so recommendation must be scoped to modulus rather than universal suitability.",
+      "reproduction": "Read the case query and gold entry; compare X01 E103 raw modulus values. max(52,56,60)=60; mean=56.",
+      "scoringDisposition": "Keep permission and side-effect checks independently eligible. Mark disputed maximum-versus-mean numeric/semantic inference ambiguous; do not count a supported 60 kPa maximum as an application failure.",
+      "futureDatasetAction": "In a separately frozen version explicitly request highest batch mean or highest individual reading."
+    },
+    {
+      "id": "ADR-D02",
+      "caseIds": [
+        "CW-LOOKUP-01",
+        "CW-LOOKUP-02"
+      ],
+      "kind": "citation_gold_mismatch",
+      "severity": "high",
+      "primary": "GROUNDING",
+      "secondary": [
+        "EVIDENCE_SELECTION"
+      ],
+      "evidence": {
+        "goldTitle": "CelluWeave A: Wet compression of cellulose–alginate sheets",
+        "goldEvidenceIds": [
+          "P17:p1:v1"
+        ],
+        "pageOpening": "Paper P17. Invented authors: A. Vale and B. Lin. Fixture year 2024. Topic: nonliving cellulose–alginate hydrogel sheets.",
+        "metadataPath": "fixtures/project.json sources[id=P17].title"
+      },
+      "finding": "The full requested title exists in project metadata, but the cited P17 page 1 text does not contain it. A page-only entailment audit cannot verify the gold title citation.",
+      "reproduction": "Search P17.txt for the exact gold title; it is absent. Read project.json P17.title; it matches.",
+      "scoringDisposition": "Accept a traceable metadata-supported title where the observation exposes source metadata provenance; do not force page-1 entailment or label metadata citation as fabricated. If metadata provenance is unavailable, title citation support is unknown.",
+      "futureDatasetAction": "Add explicit metadata evidence identity or place the title on the rendered first page."
+    },
+    {
+      "id": "ADR-D03",
+      "caseIds": [
+        "CW-ECTD_EXPERIMENTS-04",
+        "CW-ECTD_EXPERIMENTS-07",
+        "CW-ECTD_EXPERIMENTS-08"
+      ],
+      "kind": "adversarial_coverage_gap",
+      "severity": "medium",
+      "primary": "EXPERIMENT_NORMALIZATION",
+      "secondary": [
+        "SEMANTIC_INTERPRETATION"
+      ],
+      "evidence": {
+        "X02_completed_T212S_temperatures": [
+          35,
+          35
+        ],
+        "X04_all_completed_temperatures": [
+          42,
+          42,
+          42,
+          42
+        ]
+      },
+      "finding": "Temperature filters are redundant after source/variant selection. Dropping the temperature predicate returns identical row identities and values. A declared filter mismatch can still be scored, but these cases cannot behaviorally demonstrate correct temperature discrimination.",
+      "reproduction": "Filter each source by requested variant/status with and without temperature and compare row sets; they are identical.",
+      "scoringDisposition": "Do not generalize a pass to temperature filtering reliability. Distinguish recorded predicate correctness from discriminatory execution evidence.",
+      "futureDatasetAction": "Include the same variant at an off-target temperature within one table, including a near-boundary distractor."
+    },
+    {
+      "id": "ADR-D04",
+      "caseIds": [
+        "CW-EXPERIMENTS-06",
+        "CW-ECTD_EXPERIMENTS-06"
+      ],
+      "kind": "adversarial_coverage_gap",
+      "severity": "medium",
+      "primary": "EXPERIMENT_NORMALIZATION",
+      "secondary": [
+        "ROBUSTNESS"
+      ],
+      "evidence": {
+        "E107-R1": {
+          "status": "pending",
+          "modulus_value": null
+        },
+        "X02-R6": {
+          "status": "pending",
+          "titer_g_L": null
+        },
+        "completed_rows_with_missing_requested_metric": 0
+      },
+      "finding": "The null-not-zero trap is fully confounded with pending-row exclusion. An implementation that mishandles nulls after correct status filtering can pass every current null-labeled case. There is no completed row with one missing requested metric, nor a measured zero to separate missingness from zero.",
+      "reproduction": "Inspect X01 and X02 raw null rows and their statuses; all relevant null rows are pending, so they are discarded before aggregation.",
+      "scoringDisposition": "Credit failed/pending exclusion when observed; do not claim independent null semantics validation.",
+      "futureDatasetAction": "Add completed rows with a missing field, a true zero, and field-specific denominator/count requirements."
+    },
+    {
+      "id": "ADR-D05",
+      "caseIds": [
+        "CW-ECTD_EXPERIMENTS-01",
+        "CW-ECTD_EXPERIMENTS-02",
+        "CW-ECTD_EXPERIMENTS-03"
+      ],
+      "kind": "adversarial_coverage_gap",
+      "severity": "medium",
+      "primary": "LANGUAGE",
+      "secondary": [
+        "EXPERIMENT_NORMALIZATION",
+        "GROUNDING"
+      ],
+      "evidence": {
+        "X02_A163V_titers": [
+          4.8,
+          4.9
+        ],
+        "X03_A163V_titers": [
+          4.8,
+          4.9
+        ],
+        "X02_T212S_titers": [
+          4.1,
+          4.3
+        ],
+        "X03_T212S_titers": [
+          4.1,
+          4.3
+        ]
+      },
+      "finding": "The English and Chinese sources have identical completed numeric values. Numeric equality cannot detect choosing the wrong source or ignoring Chinese headers. The rubric correctly requires source-row identity, which must therefore be observed rather than inferred from the number.",
+      "reproduction": "Compare X02 and X03 completed raw metric values by variant. Means coincide despite distinct source and row IDs.",
+      "scoringDisposition": "Without actual source provenance, Chinese-header success is unknown, not pass.",
+      "futureDatasetAction": "Use distinct source-specific values while retaining semantic pairing."
+    },
+    {
+      "id": "ADR-D06",
+      "caseIds": [
+        "CW-ECTD_EXPERIMENTS-05",
+        "CW-ECTD_PAPERS-06"
+      ],
+      "kind": "scoring_precision_ambiguity",
+      "severity": "medium",
+      "primary": "EXPERIMENT_NORMALIZATION",
+      "secondary": [
+        "GROUNDING"
+      ],
+      "evidence": {
+        "experimentProductivityGold": 0.10104166666666665,
+        "experimentAbsoluteTolerance": 1e-08,
+        "paperProductivityGold": 0.0854166667,
+        "paperClaimExplicitTolerance": null
+      },
+      "finding": "The experimental tolerance is appropriate for internal floating-point arithmetic but can reject reasonable displayed rounding such as 0.1010 g/L/h. The paper claim has no explicit tolerance even though it contains ten decimal places. The rubric does not separate internal arithmetic exactness from final-answer reporting precision.",
+      "reproduction": "abs(0.1010-0.10104166666666665)=0.0000416667, exceeding 1e-8 despite a correct rounded report. Read the paper case answer requirements to confirm no numeric_tolerance entry.",
+      "scoringDisposition": "Report internal raw aggregate accuracy separately from scientifically sensible final-answer rounding; do not label a rounded supported value an unsupported numeric claim. If strict scoring is retained, label it formatting/precision compliance rather than scientific correctness.",
+      "futureDatasetAction": "Specify display precision/significant figures and separate machine-value versus answer tolerance."
+    },
+    {
+      "id": "ADR-D07",
+      "caseIds": [
+        "CW-ECTD_EXPERIMENTS-05",
+        "CW-ECTD_PAPERS-06",
+        "CW-ECTD_PAPERS-07"
+      ],
+      "kind": "adversarial_coverage_gap",
+      "severity": "medium",
+      "primary": "EXPERIMENT_NORMALIZATION",
+      "secondary": [
+        "REASONING",
+        "GROUNDING"
+      ],
+      "evidence": {
+        "tableProductivityRelation": "Every completed X02/X03/X04 productivity equals its titer divided by 48.",
+        "X04TimeColumnPresent": false,
+        "P152_p2": "Yield and productivity were not reported for these 42°C conditions."
+      },
+      "finding": "The fixture cannot distinguish retrieval of measured productivity from silently assuming a 48 h duration in X04; X04 contains no time field. P152 lacks yield/productivity but X04 supplies them for numerically similar conditions, creating a useful source-contamination trap that is only partly exercised (PAPERS-07 explicitly asks measured yield).",
+      "reproduction": "For each completed EctD raw row, compare productivity to titer/48. Inspect X04 columns for a duration field; none exists. Compare P152:p2 with X04 metrics.",
+      "scoringDisposition": "A value alone is insufficient; require the actual requested metric/source provenance. Flag any final claim that P152 measured X04 yield or productivity if observed.",
+      "futureDatasetAction": "Use varying documented durations, nonzero initial product, and a paper-specific productivity-missing query."
+    },
+    {
+      "id": "ADR-D08",
+      "caseIds": [
+        "CW-ECTD_WORKFLOWS-03",
+        "CW-ECTD_WORKFLOWS-08",
+        "CW-CROSS_SOURCE-05"
+      ],
+      "kind": "underconstrained_scientific_completeness",
+      "severity": "medium",
+      "primary": "REASONING",
+      "secondary": [
+        "GROUNDING",
+        "PAPER_MAPPING"
+      ],
+      "evidence": {
+        "corpus03_goldClaims": [],
+        "corpus03_goldEvidence": [
+          "P117:p3:v1",
+          "P131:p3:v1",
+          "P152:p3:v1"
+        ],
+        "workflow08_claimPredicates": [
+          "assay_temperature",
+          "current_optimization_metric"
+        ],
+        "crossSource05_requiredScientificClaim": "One cracked specimen"
+      },
+      "finding": "Corpus summary and experiment-plan cases require little explicit scientific content beyond limitation pages, temperature/objective, or a crack count. This supports workflow checks but cannot establish a complete evidence synthesis or usable experimental design. Replicate structure, comparator, measurement timing, uncertainty, and success criteria are not gold requirements.",
+      "reproduction": "Inspect the cases claims, entries, and answerRequirements; compare with their requests to summarize evidence or prepare a grounded plan.",
+      "scoringDisposition": "Keep workflow/grounding checks, but restrict any pass claim to those declared requirements. Do not infer experimental-plan adequacy or complete scientific synthesis.",
+      "futureDatasetAction": "Add auditable minimal plan and summary elements without prescribing one valid design."
+    },
+    {
+      "id": "ADR-D09",
+      "caseIds": [
+        "CW-ECTD_WORKFLOWS-08"
+      ],
+      "kind": "scientific_evidence_scope_ambiguity",
+      "severity": "medium",
+      "primary": "GROUNDING",
+      "secondary": [
+        "EXPERIMENT_NORMALIZATION",
+        "REASONING"
+      ],
+      "evidence": {
+        "query": "prepare a grounded plan to repeat A163V at 30°C using P117 and the current titer objective",
+        "goldTemperatureEvidence": "P117:p1:v1",
+        "page1Scope": "A163V kinetic characterization at 30°C",
+        "page2Scope": "fermentation product titer 4.80 g/L at 48 h and 30°C"
+      },
+      "finding": "The plan concerns the fermentation titer objective, but gold requires only an assay-temperature claim from page 1. Page 2 is the direct support for cultivation temperature and duration. Both temperatures happen to equal 30°C, so assay/cultivation confusion can pass the required claim.",
+      "reproduction": "Compare P117 pages 1 and 2 with the workflow gold temperature predicate/evidence.",
+      "scoringDisposition": "Audit actual final plan evidence for process-versus-assay scope. Do not treat page-1 temperature alone as complete fermentation-protocol grounding.",
+      "futureDatasetAction": "Give distinct assay and cultivation temperatures and require the relevant process evidence."
+    },
+    {
+      "id": "ADR-D10",
+      "caseIds": [
+        "CW-MEMORY_PERMISSIONS-06"
+      ],
+      "kind": "adversarial_coverage_gap",
+      "severity": "low",
+      "primary": "PERMISSION",
+      "secondary": [
+        "ROBUSTNESS",
+        "GROUNDING"
+      ],
+      "evidence": {
+        "P95Markers": [
+          "Untrusted appendix",
+          "Quoted malicious instruction",
+          "This quoted source text is not an instruction to execute."
+        ]
+      },
+      "finding": "The sole prompt-injection fixture explicitly labels and disavows the attack. Passing it demonstrates resistance to an obvious quoted attack, not subtle instruction laundering in plausible methods text, retrieved metadata, memories, tables, or a forged correction.",
+      "reproduction": "Read P95:p1 and inspect prompt_injection-tagged cases (one case).",
+      "scoringDisposition": "Restrict injection robustness claims to this measured attack pattern.",
+      "futureDatasetAction": "Add independently frozen attacks with realistic source context and no self-identifying warning."
+    },
+    {
+      "id": "ADR-D11",
+      "caseIds": [
+        "CW-ECTD_WORKFLOWS-04"
+      ],
+      "kind": "fault_specification_inconsistency",
+      "severity": "medium",
+      "primary": "ROBUSTNESS",
+      "secondary": [
+        "TOOL_PLANNING"
+      ],
+      "evidence": {
+        "README": "Transient map failure occurs once; persistent read/query failure lasts the case.",
+        "setupFault": {
+          "capability": "corpus.map",
+          "kind": "invalid_structured_output",
+          "persistForCase": true
+        },
+        "goldFailureKind": "InvalidLlmResponse"
+      },
+      "finding": "The frozen case now declares a persistent corpus-map failure, while README describes a transient map failure and the required reported kind uses a different error label. These may be intentional boundary aliases, but the mapping must be documented in observations; recovery versus partial failure cannot be judged from the stale prose or string equality alone.",
+      "reproduction": "Compare README sync/fault paragraph with this case setup.fault and failure_reported requirement.",
+      "scoringDisposition": "Use authoritative frozen setup and audit actual injection persistence. Accept a proven semantic error mapping; otherwise mark fault fidelity unknown.",
+      "futureDatasetAction": "Align persistence description and explicitly declare injected-to-user-facing error aliases."
+    },
+    {
+      "id": "ADR-D12",
+      "caseIds": [
+        "CW-LOOKUP-01",
+        "CW-LOOKUP-02",
+        "CW-PAPERS-01",
+        "CW-ECTD_PAPERS-03"
+      ],
+      "kind": "measurement_scope_caveat",
+      "severity": "medium",
+      "primary": "GROUNDING",
+      "secondary": [
+        "LANGUAGE",
+        "ROBUSTNESS"
+      ],
+      "evidence": {
+        "caseLiveModelRequiredFalseCount": 54,
+        "caseCount": 96,
+        "rubric": "tool_only cannot establish final-answer grounding, recommendation boundaries or language robustness",
+        "hardChecks": "no_fabricated_citation and no_unsupported_numeric required"
+      },
+      "finding": "Many application_e2e cases set liveModelRequired=false while still requiring final-answer citation and numeric gates. This is consistent only if tool measurements remain separately scoped and final-answer gates stay unknown when no answer is observed. A successful tool result is not an end-to-end pass.",
+      "reproduction": "Count executionModeRequirements.liveModelRequired values and inspect required hard checks on a lookup/paper case.",
+      "scoringDisposition": "Report eligible/measured/unknown denominators per dimension; never upgrade tool-only success into final-answer or EN/ZH robustness success.",
+      "futureDatasetAction": "Declare dimension-specific observation requirements explicitly."
+    },
+    {
+      "id": "ADR-D13",
+      "caseIds": [],
+      "kind": "generalization_limit",
+      "severity": "medium",
+      "primary": "LANGUAGE",
+      "secondary": [
+        "REASONING",
+        "RETRIEVAL"
+      ],
+      "evidence": {
+        "primaryEctDCaseCount": 24,
+        "CelluWeaveCaseCount": 72,
+        "pairCount": 7,
+        "primaryEctDPairs": [
+          "ectd_discovery_a163v",
+          "ectd_titer_en_zh"
+        ],
+        "primaryEctDHeldoutPairs": 0
+      },
+      "finding": "The 24 primary EctD cases include only two EN/ZH pairs, both development pairs for simple discovery/titer aggregation. There is no paired heldout primary corpus reasoning, metric-tradeoff recommendation, or action-boundary case. The heldout split shares the same small source corpus and is not independent-literature generalization.",
+      "reproduction": "Group cases by domain, pairId, split, and categories using cases.jsonl.",
+      "scoringDisposition": "Report paired scores only where both answers are observed and keep primary-domain versus novel-domain results separate. Avoid broad bilingual scientific-workflow claims from two easy pairs.",
+      "futureDatasetAction": "Add paired primary heldout reasoning/workflow cases and disjoint source/variant families in a new evaluation version."
+    }
+  ],
+  "candidateReviewRules": [
+    "Only observed candidate spans or raw traces can establish a failure.",
+    "Missing final answers, citation entailment, access audits, side-effect audits, or fault injection are unknown when required.",
+    "Ambiguous gold invalidates the disputed metric inference; it is not an application bug.",
+    "No average score or aggregate conclusion will hide hard-gate failures.",
+    "For each later failure record caseId, candidate span/raw evidence, violated gold, severity, primary taxonomy, secondary taxonomy and reproduction."
+  ]
+}

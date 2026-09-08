@@ -1,0 +1,372 @@
+{
+  "schemaVersion": "independent-judge-results-v1",
+  "contractVersion": "independent-judge-v1",
+  "mode": "absolute",
+  "nSamples": 1,
+  "nIndependentCases": 1,
+  "byArtifactType": {
+    "final_answer": {
+      "nSamples": 1,
+      "nIndependentCases": 1,
+      "dimensions": {
+        "correctness": {
+          "mean": 4,
+          "median": 4,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "faithfulness": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "completeness": {
+          "mean": 4,
+          "median": 4,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "relevance": {
+          "mean": 4,
+          "median": 4,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "uncertaintyHandling": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "synthesis": {
+          "mean": null,
+          "median": null,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 0,
+          "nSamples": 0,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "nInapplicable": 1
+        },
+        "clarity": {
+          "mean": 4,
+          "median": 4,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "overall": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        }
+      },
+      "criticalErrorCount": 0,
+      "missingPointCount": 0,
+      "confidenceCounts": {
+        "low": 0,
+        "medium": 0,
+        "high": 1
+      }
+    }
+  },
+  "scores": [
+    {
+      "packetId": "5876e39aee828969",
+      "artifactType": "final_answer",
+      "correctness": 4,
+      "faithfulness": 3,
+      "completeness": 4,
+      "relevance": 4,
+      "uncertaintyHandling": 3,
+      "synthesis": null,
+      "clarity": 4,
+      "overall": 3,
+      "criticalErrors": [],
+      "missingPoints": [],
+      "lowScoreEvidence": [
+        {
+          "criterion": "faithfulness",
+          "candidateSpan": "生产强度更多地取决于最大反应速率 $V_{max}$（即 $k_{cat} \\times [E]_{total}$）。",
+          "goldRequirement": "proof",
+          "goldEvidenceIds": [
+            "P117:p1:v1",
+            "P117:p2:v1",
+            "P117:p3:v1"
+          ],
+          "issue": "The central negative conclusion is supported, but this stronger ranking of what determines process productivity has no supplied support or citation. Replace the categorical ranking with an explicitly hypothetical mechanism, and cite P117 for the actual evidence limitation."
+        },
+        {
+          "criterion": "uncertaintyHandling",
+          "candidateSpan": "较低的 $K_m$（米氏常数）仅代表酶对底物的**亲和力较高**",
+          "goldRequirement": "proof",
+          "goldEvidenceIds": [
+            "P117:p1:v1",
+            "P117:p3:v1"
+          ],
+          "issue": "The answer makes an unqualified affinity interpretation that the supplied study does not establish. State what was measured, identify the additional assumptions needed for an affinity interpretation, and separate those assumptions from the documented productivity limitation."
+        },
+        {
+          "criterion": "uncertaintyHandling",
+          "candidateSpan": "在酶工程中，经常存在 **“亲和力-周转率权衡” (Affinity-Turnover Trade-off)**。",
+          "goldRequirement": "proof",
+          "goldEvidenceIds": [
+            "P117:p3:v1"
+          ],
+          "issue": "The asserted frequency of this tradeoff is unsupported in the packet, and no A163V turnover or product-release result is supplied. Present it only as an untested possibility rather than an established explanation for this variant."
+        },
+        {
+          "criterion": "overall",
+          "candidateSpan": "$K_m$ 描述的是酶在底物浓度较低时的反应效率。",
+          "goldRequirement": "proof",
+          "goldEvidenceIds": [
+            "P117:p1:v1",
+            "P117:p2:v1",
+            "P117:p3:v1"
+          ],
+          "issue": "The answer correctly rejects proof from Km alone, but most of its explanation consists of uncited background assertions, including this imprecise description, instead of tracing the conclusion to the supplied study. Anchor the response to P117 and qualify the optional mechanistic discussion."
+        }
+      ],
+      "claimAudits": [
+        {
+          "candidateSpan": "简单直接的回答是：**不足以证明。**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P117:p3:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "proof"
+          ]
+        },
+        {
+          "candidateSpan": "较低的 $K_m$（米氏常数）仅代表酶对底物的**亲和力较高**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "但这并不等同于在复杂的发酵过程中具有更高的**生产强度（Productivity）**。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P117:p3:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "proof"
+          ]
+        },
+        {
+          "candidateSpan": "$K_m$ 描述的是酶在底物浓度较低时的反应效率。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "发酵过程中的生产强度由多个因素共同决定",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "生产强度更多地取决于最大反应速率 $V_{max}$（即 $k_{cat} \\times [E]_{total}$）。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "如果 A163V 突变虽然降低了 $K_m$（提高了亲和力），但同时降低了 $k_{cat}$（周转数），那么在底物充足的情况下，其整体催化效率反而可能下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "如果发酵工艺中的底物浓度远高于 $K_m$，那么酶将处于饱和状态，此时反应速率由 $V_{max}$ 决定",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "$K_m$ 的差异对生产强度的影响微乎其微。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "$K_m$ 通常是在纯化酶的体外实验中测得的，而发酵是一个复杂的体内过程",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "即使酶的亲和力很高，如果底物进入细胞的速率（转运蛋白效率）是限速步骤，那么降低 $K_m$ 也无法提升整体生产强度。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "生产强度取决于整个代谢路径的通量。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "如果上游前体供应不足或下游产物积累导致反馈抑制，单一酶的 $K_m$ 改善无法解决系统性瓶颈。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "A163V 突变可能会影响蛋白质的折叠、稳定性或在细胞内的表达水平。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "如果突变导致酶在发酵过程中快速降解，即使单个分子的亲和力更高，总的催化能力也会下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "在酶工程中，经常存在 **“亲和力-周转率权衡” (Affinity-Turnover Trade-off)**。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "为了获得更低的 $K_m$，酶可能会与底物结合得过于紧密，从而减慢了产物的释放速度，导致 $k_{cat}$ 下降。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**测定 $k_{cat}$ 和 $k_{cat}/K_m$：** 评估催化效率（Catalytic Efficiency）而非单一的亲和力。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "通过 Western Blot 或蛋白质组学确认 A163V 在细胞内的稳态浓度。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**小试发酵验证：** 直接测量不同时间点的产物滴度（Titer）和比生产速率（Specific Productivity）。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**底物浓度梯度实验：** 测试在不同底物供给水平下，A163V 与野生型在实际生产强度上的差异，以确认 $K_m$ 的改善是否在当前工艺条件下起作用。",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        }
+      ],
+      "numericClaims": [],
+      "confidence": "high"
+    }
+  ],
+  "limitations": [
+    "Validation checks structure, exact spans and allowed references; it does not certify semantic entailment or exhaustiveness of claim audits.",
+    "Numeric claims are extraction only and require a separate deterministic arithmetic and provenance check.",
+    "Judge scores never override deterministic permission, security or other hard gates."
+  ]
+}

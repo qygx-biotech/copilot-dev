@@ -1,0 +1,505 @@
+{
+  "schemaVersion": "independent-judge-results-v1",
+  "contractVersion": "independent-judge-v1",
+  "mode": "absolute",
+  "nSamples": 1,
+  "nIndependentCases": 1,
+  "byArtifactType": {
+    "final_answer": {
+      "nSamples": 1,
+      "nIndependentCases": 1,
+      "dimensions": {
+        "correctness": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "faithfulness": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "completeness": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "relevance": {
+          "mean": 4,
+          "median": 4,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "uncertaintyHandling": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "synthesis": {
+          "mean": null,
+          "median": null,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 0,
+          "nSamples": 0,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "nInapplicable": 1
+        },
+        "clarity": {
+          "mean": 3,
+          "median": 3,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "overall": {
+          "mean": 2,
+          "median": 2,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        }
+      },
+      "criticalErrorCount": 3,
+      "missingPointCount": 2,
+      "confidenceCounts": {
+        "low": 0,
+        "medium": 0,
+        "high": 1
+      }
+    }
+  },
+  "scores": [
+    {
+      "packetId": "d5939f4c17899961",
+      "artifactType": "final_answer",
+      "correctness": 2,
+      "faithfulness": 2,
+      "completeness": 2,
+      "relevance": 4,
+      "uncertaintyHandling": 2,
+      "synthesis": null,
+      "clarity": 3,
+      "overall": 2,
+      "criticalErrors": [
+        {
+          "candidateSpan": "*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "issue": "P17 explicitly reports n=5 independent sheets for the 50 mmol/L condition and n=5 for the 75 mmol/L condition. Replace the false absence claim with those counts."
+        },
+        {
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "issue": "P52 explicitly reports n=6 independent sheets. Replace the false absence claim with n=6."
+        },
+        {
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "goldEvidenceIds": [
+            "P17:p2:v1",
+            "P31:p2:v2",
+            "P52:p2:v1"
+          ],
+          "issue": "The sole citation has status missing and sourceId catalog:local:1, which does not occur in supplied sources. It cannot substantiate the list. Cite the supplied original-study evidence for each study; do not invent a page for this page-null artifact."
+        }
+      ],
+      "missingPoints": [
+        {
+          "goldRequirement": "p17n",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "omission": "The required P17 50 mmol/L sample count, n=5 independent sheets, is absent and incorrectly labeled not reported."
+        },
+        {
+          "goldRequirement": "p52n",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "omission": "The required P52 sample count, n=6 independent sheets, is absent and incorrectly labeled not reported."
+        }
+      ],
+      "lowScoreEvidence": [
+        {
+          "criterion": "correctness",
+          "candidateSpan": "*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*",
+          "goldRequirement": "p17n",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "issue": "The sample count is reported as n=5 for each listed P17 condition, contradicting Not reported. This is a central requested factual component."
+        },
+        {
+          "criterion": "faithfulness",
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "goldRequirement": "p31mean",
+          "goldEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "issue": "The sole supplied citation is unresolved and marked missing; its sourceId is absent from supplied sources. Although the P31 mean agrees with the original evidence, the cited artifact cannot support it."
+        },
+        {
+          "criterion": "completeness",
+          "candidateSpan": "",
+          "goldRequirement": "p17n",
+          "goldEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "issue": "Supply n=5 independent sheets for the required P17 condition."
+        },
+        {
+          "criterion": "completeness",
+          "candidateSpan": "",
+          "goldRequirement": "p52n",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "issue": "Supply n=6 independent sheets for P52. Omitting two of the three requested study sample counts is a major omission."
+        },
+        {
+          "criterion": "uncertaintyHandling",
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "goldRequirement": "p52n",
+          "goldEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "issue": "Not reported incorrectly treats an explicit n=6 as absent evidence. Check the supplied original table before declaring a requested result unreported."
+        },
+        {
+          "criterion": "clarity",
+          "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "goldRequirement": "p17mean",
+          "goldEvidenceIds": [
+            "P17:p2:v1",
+            "P31:p2:v2",
+            "P52:p2:v1"
+          ],
+          "issue": "The list is readable, but a single missing corpus artifact makes the study-specific results untraceable. Associate each study with its supplied original-study evidence."
+        },
+        {
+          "criterion": "overall",
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "goldRequirement": "p52n",
+          "goldEvidenceIds": [
+            "P52:p2:v1",
+            "P17:p2:v1"
+          ],
+          "issue": "The means are useful, but two central requested sample counts are replaced with false absence claims, and the sole citation is unresolved. Correct both counts and provide verifiable original-study references."
+        }
+      ],
+      "claimAudits": [
+        {
+          "candidateSpan": "纳入 8 篇",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "成功分析 8/8",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "失败 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "缺失 0",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "uncertain",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "Based on the available evidence from the processed corpus [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cb552341-42d0-4079-8f37-0b7def072c22.json](biodesign-citation:citation-1)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [],
+          "verdict": "unsupported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**42.0 kPa** (for the 50 mmol/L condition)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p17mean"
+          ]
+        },
+        {
+          "candidateSpan": "**56.0 kPa** (for the 75 mmol/L condition)",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "*   **P17**: \n    *   **42.0 kPa** (for the 50 mmol/L condition)\n    *   **56.0 kPa** (for the 75 mmol/L condition)\n    *   *Sample count: Not reported*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P17:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p17n"
+          ]
+        },
+        {
+          "candidateSpan": "**48.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p31mean"
+          ]
+        },
+        {
+          "candidateSpan": "*Sample count: n=6*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P31:p2:v2"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p31n"
+          ]
+        },
+        {
+          "candidateSpan": "**51.0 kPa**",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "p52mean"
+          ]
+        },
+        {
+          "candidateSpan": "*   **P52**: \n    *   **51.0 kPa**\n    *   *Sample count: Not reported*",
+          "citedEvidenceIds": [],
+          "supportingEvidenceIds": [
+            "P52:p2:v1"
+          ],
+          "verdict": "contradicted",
+          "requiredGoldClaimIds": [
+            "p52n"
+          ]
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "纳入 8 篇",
+          "subject": "processed_corpus",
+          "metric": "included_paper_count",
+          "value": 8,
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "成功分析 8/8",
+          "subject": "processed_corpus",
+          "metric": "success_count_ratio",
+          "value": "8/8",
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "失败 0",
+          "subject": "processed_corpus",
+          "metric": "failed_paper_count",
+          "value": 0,
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "缺失 0",
+          "subject": "processed_corpus",
+          "metric": "missing_paper_count",
+          "value": 0,
+          "unit": "papers",
+          "sourceIds": [],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**42.0 kPa**",
+          "subject": "P17:50mM",
+          "metric": "mean_modulus",
+          "value": 42,
+          "unit": "kPa",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "50 mmol/L",
+          "subject": "P17:50mM",
+          "metric": "calcium_concentration",
+          "value": 50,
+          "unit": "mmol/L",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**56.0 kPa**",
+          "subject": "P17:75mM",
+          "metric": "mean_modulus",
+          "value": 56,
+          "unit": "kPa",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "75 mmol/L",
+          "subject": "P17:75mM",
+          "metric": "calcium_concentration",
+          "value": 75,
+          "unit": "mmol/L",
+          "sourceIds": [
+            "P17"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**48.0 kPa**",
+          "subject": "P31",
+          "metric": "mean_modulus",
+          "value": 48,
+          "unit": "kPa",
+          "sourceIds": [
+            "P31"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "*Sample count: n=6*",
+          "subject": "P31",
+          "metric": "sample_count",
+          "value": 6,
+          "unit": "specimens",
+          "sourceIds": [
+            "P31"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**51.0 kPa**",
+          "subject": "P52",
+          "metric": "mean_modulus",
+          "value": 51,
+          "unit": "kPa",
+          "sourceIds": [
+            "P52"
+          ],
+          "sourceRows": []
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "limitations": [
+    "Validation checks structure, exact spans and allowed references; it does not certify semantic entailment or exhaustiveness of claim audits.",
+    "Numeric claims are extraction only and require a separate deterministic arithmetic and provenance check.",
+    "Judge scores never override deterministic permission, security or other hard gates."
+  ]
+}

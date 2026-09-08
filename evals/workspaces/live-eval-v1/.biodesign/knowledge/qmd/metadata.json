@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "qmdPackageVersion": "2.8.3",
+  "embeddingModelId": "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf",
+  "embeddingModelVersion": "embeddinggemma-300M-Q8_0.gguf",
+  "dbPath": ".biodesign/knowledge/qmd/index.sqlite",
+  "collections": [
+    "literature-evidence",
+    "paper-cards",
+    "topics",
+    "syntheses",
+    "experiment-notes",
+    "project-memory"
+  ],
+  "vectorState": "compatible",
+  "updatedAt": "2026-09-08T00:29:34.407Z",
+  "lastUpdate": {
+    "at": "2026-09-08T00:29:34.406Z",
+    "durationMs": 12,
+    "collections": [
+      "syntheses"
+    ],
+    "result": {
+      "collections": 1,
+      "indexed": 0,
+      "updated": 1,
+      "unchanged": 0,
+      "removed": 0,
+      "skipped": 0,
+      "needsEmbedding": 43
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "createdAt": "2026-09-07T23:31:15.491Z",
+  "baseline": "evals/results/baseline-2026-09-07",
+  "originalAdapterSha256": "e56c3c7b7baed9efd4d3dab6366b0d9a4d9320fdf93764ca69e0e33231c70e60",
+  "originalPdfHelperSha256": "d8b0e45e4ed49bb05f1cc808d6bad0cd4758a6bd147dd6efb4a7c413dd45dd39",
+  "affectedCases": [
+    "CW-SYNC_FAILURE-02",
+    "CW-SYNC_FAILURE-08",
+    "CW-ECTD_WORKFLOWS-06",
+    "CW-CORPUS-05",
+    "CW-CROSS_SOURCE-06",
+    "CW-MEMORY_PERMISSIONS-01",
+    "CW-MEMORY_PERMISSIONS-02",
+    "CW-MEMORY_PERMISSIONS-03",
+    "CW-MEMORY_PERMISSIONS-04",
+    "CW-MEMORY_PERMISSIONS-05",
+    "CW-MEMORY_PERMISSIONS-06",
+    "CW-MEMORY_PERMISSIONS-07",
+    "CW-MEMORY_PERMISSIONS-08"
+  ],
+  "issues": [
+    {
+      "id": "fixture_initial_snapshot",
+      "caseId": "CW-SYNC_FAILURE-02",
+      "problem": "specified_initial_versions was treated as per-source overrides instead of complete initial source membership, so newly added P83 existed before add."
+    },
+    {
+      "id": "explicit_sync_operation",
+      "caseId": "CW-SYNC_FAILURE-08",
+      "problem": "Declared operation sync was unsupported; cold setup blocked and warm attempt did not reattempt blocked setup."
+    },
+    {
+      "id": "live_workspace_export",
+      "problem": "Destination copy rejected its own new directory; workspace/state metadata lacked UI-required timestamps."
+    },
+    {
+      "id": "non_document_original_file",
+      "caseId": "CW-ECTD_WORKFLOWS-06",
+      "problem": "Declared add_file .DS_Store was unsupported in cold setup and skipped on warm. Corrected adapter writes exactly the declared original bytes through ProjectFilesystem; production decides whether to ingest."
+    },
+    {
+      "id": "incorrect_principal_status_guard",
+      "caseIds": [
+        "CW-CORPUS-05",
+        "CW-CROSS_SOURCE-06",
+        "CW-MEMORY_PERMISSIONS-01",
+        "CW-MEMORY_PERMISSIONS-02",
+        "CW-MEMORY_PERMISSIONS-03",
+        "CW-MEMORY_PERMISSIONS-04",
+        "CW-MEMORY_PERMISSIONS-05",
+        "CW-MEMORY_PERMISSIONS-06",
+        "CW-MEMORY_PERMISSIONS-07",
+        "CW-MEMORY_PERMISSIONS-08"
+      ],
+      "problem": "Obsolete adapter status guard interpreted any local_user principal as unavailable enterprise ACL. Removed false blocked classification. Full access/side-effect audits remain unmeasured; this change is not a permission pass."
+    },
+    {
+      "id": "setup_completion_tracking",
+      "problem": "Source setup now runs once for a newly created session regardless of requested cold/warm label, and cannot silently skip a previously failed setup."
+    }
+  ],
+  "policy": "Preserve original baseline. Replay separately. These are harness/setup defects, not product failures or product improvements.",
+  "completedAt": "2026-09-08T00:37:08.540Z",
+  "frozenManifestSha256": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "correctedAdapterSha256": "90eedf3bac86d2c7d088d2995ba9a1185ef8623a746d87fdcccf0808c9be9b54",
+  "observationCount": 26,
+  "baselineHashFile": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+  "diagnostics": "evals/results/adapter-audit-2026-09-07/diagnostics.json",
+  "priorCorrectedAdapterSha256": "266bf8fe2635195d91fefc964201af6d1d3c007c5a8e01dae238a430aaece677",
+  "observationFiles": [
+    "cases.jsonl",
+    "cases-setup-status-correction.jsonl"
+  ],
+  "integrity": "evals/results/adapter-audit-2026-09-07/replay-integrity-after.json",
+  "outcomes": "evals/results/adapter-audit-2026-09-07/replay-outcomes.json",
+  "scorer": {
+    "version": "1.0.1",
+    "sha256": "16f9688a7b05228e3312721bd5508be084d882615e0c3931988904d22b6f6262"
+  }
+}

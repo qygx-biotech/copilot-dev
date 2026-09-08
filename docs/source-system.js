@@ -1954,6 +1954,26 @@
     }
   }
 
+  function compactOriginalEvidence(verification) {
+    const evidence = [];
+    const seen = new Set();
+    let characters = 2;
+    for (const check of Array.isArray(verification) ? verification : []) {
+      for (const located of Array.isArray(check?.locatedEvidence) ? check.locatedEvidence : []) {
+        const evidenceRef = String(located?.evidenceRef || "");
+        const excerpt = String(located?.excerpt || "");
+        if (!evidenceRef || !excerpt || seen.has(evidenceRef)) continue;
+        const item = { evidenceRef, page: located.page, excerpt };
+        const length = JSON.stringify(item).length + (evidence.length ? 1 : 0);
+        if (characters + length > 8000) continue;
+        seen.add(evidenceRef);
+        evidence.push(item);
+        characters += length;
+      }
+    }
+    return evidence.length ? evidence : undefined;
+  }
+
   class SourceResultStore {
     constructor(options) {
       this.workspace = options.workspace;
@@ -1985,6 +2005,9 @@
                 status: value.status,
                 phase: value.phase,
                 question: value.question,
+                // Source details omitted from summaries must survive the first
+                // bounded read, before repeated reduction claims consume it.
+                originalEvidence: compactOriginalEvidence(value.verification),
                 snapshotCount: Array.isArray(value.snapshot) ? value.snapshot.length : undefined,
                 coverage: value.coverage,
                 failureCount: value.failures ? Object.keys(value.failures).length : undefined,

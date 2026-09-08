@@ -1,0 +1,14 @@
+{
+  "source": "evals/lib/scoring.mjs",
+  "scoreVersion": "1.0.0",
+  "sha256": "17bce606eb158d4576e53c5ce09c9ebdef48f7146fd1853e80f0df1acb2b15b1",
+  "archive": "scoring.v1.0.0.mjs",
+  "protectedFileHashes": {
+    "evals/results/baseline-2026-09-07/baseline.json": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650",
+    "evals/results/baseline-2026-09-07/summary.json": "b8aa86735e7df3d7de600a6ceca5f00db48fdf70a0430a99dc9ebd0e42a8afb3",
+    "evals/results/baseline-2026-09-07/frozen-cases.jsonl": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e",
+    "evals/biodesign-eval-v1/cases.jsonl": "282cae250156f5a744df8c38bf5455197c1e64dec285d9d6e636cc262551072e"
+  },
+  "baselineObservationsReproduced": 192,
+  "reason": "Preserve scorer before evaluation-only grouped identity correction; frozen observations and gold unchanged."
+}

@@ -1,0 +1,910 @@
+{
+  "reviewerRole": "fresh_adversarial_reviewer",
+  "phase": "complete_13_live_blackbox_answer_review",
+  "createdAt": "2026-09-08T00:49:22.298776+00:00",
+  "datasetManifestSha256": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "priorAudit": {
+    "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json",
+    "sha256": "15499184d63302039f53122d621a07ceb740aa4137d45da6376c148b7620614d",
+    "preservedUnmodified": true,
+    "caseCount": 9,
+    "findingReferences": [
+      {
+        "id": "ADR-L01",
+        "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json",
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "title": "Live answer falsely denies existing completed X02 activity rows"
+      },
+      {
+        "id": "ADR-L02",
+        "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json",
+        "caseId": "CW-ECTD_PAPERS-08",
+        "title": "Correct uncertainty conclusion is expanded into an uncited mechanistic explanation"
+      }
+    ],
+    "concernReferences": [
+      {
+        "id": "ADR-LC01",
+        "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+      },
+      {
+        "id": "ADR-LC02",
+        "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+      },
+      {
+        "id": "ADR-LC03",
+        "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+      },
+      {
+        "id": "ADR-LC04",
+        "file": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+      }
+    ]
+  },
+  "newlyReviewedFiles": [
+    "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+    "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+    "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+    "evals/results/live-ui-2026-09-07/13-direct-zh.json"
+  ],
+  "scope": "This extension used only the four new saved questions, actual answers/citations/chat context, and frozen gold/source fixtures. The existing nine-case audit is referenced and preserved. No implementation, logs, diagnostic files, other judge narrative, or branch/model identity was inspected.",
+  "newFindings": [
+    {
+      "id": "ADR-L03",
+      "priority": 1,
+      "caseId": "CW-CORPUS-01",
+      "files": [
+        "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+        "evals/results/live-ui-2026-09-07/12-corpus-warm.json"
+      ],
+      "status": "fail",
+      "severity": "high",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "PAPER_MAPPING",
+        "EVIDENCE_SELECTION",
+        "REASONING"
+      ],
+      "title": "Both corpus answers falsely label reported sample counts as missing",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+          "startOffset": 172,
+          "endOffsetExclusive": 260,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+          "startOffset": 947,
+          "endOffsetExclusive": 1013,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "*Sample count: Not reported*",
+          "startOffset": 499,
+          "endOffsetExclusive": 527,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "*Sample count: Not reported*",
+          "startOffset": 634,
+          "endOffsetExclusive": 662,
+          "offsetUnit": "Unicode code points"
+        }
+      ],
+      "violatedGold": {
+        "caseId": "CW-CORPUS-01",
+        "query": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+        "claims": [
+          {
+            "id": "p17mean",
+            "subject": "P17:50mM",
+            "predicate": "mean_modulus",
+            "value": 42,
+            "evidenceIds": [
+              "P17:p2:v1"
+            ],
+            "unit": "kPa"
+          },
+          {
+            "id": "p17n",
+            "subject": "P17:50mM",
+            "predicate": "sample_count",
+            "value": 5,
+            "evidenceIds": [
+              "P17:p2:v1"
+            ],
+            "unit": "specimens"
+          },
+          {
+            "id": "p31mean",
+            "subject": "P31",
+            "predicate": "mean_modulus",
+            "value": 48,
+            "evidenceIds": [
+              "P31:p2:v2"
+            ],
+            "unit": "kPa"
+          },
+          {
+            "id": "p31n",
+            "subject": "P31",
+            "predicate": "sample_count",
+            "value": 6,
+            "evidenceIds": [
+              "P31:p2:v2"
+            ],
+            "unit": "specimens"
+          },
+          {
+            "id": "p52mean",
+            "subject": "P52",
+            "predicate": "mean_modulus",
+            "value": 51,
+            "evidenceIds": [
+              "P52:p2:v1"
+            ],
+            "unit": "kPa"
+          },
+          {
+            "id": "p52n",
+            "subject": "P52",
+            "predicate": "sample_count",
+            "value": 6,
+            "evidenceIds": [
+              "P52:p2:v1"
+            ],
+            "unit": "specimens"
+          }
+        ],
+        "evidenceIds": [
+          "P17:p2:v1",
+          "P31:p2:v2",
+          "P52:p2:v1"
+        ],
+        "answerRequirements": [
+          {
+            "type": "response_mode",
+            "value": "answer"
+          },
+          {
+            "type": "claim",
+            "claimId": "p17mean"
+          },
+          {
+            "type": "claim",
+            "claimId": "p17n"
+          },
+          {
+            "type": "claim",
+            "claimId": "p31mean"
+          },
+          {
+            "type": "claim",
+            "claimId": "p31n"
+          },
+          {
+            "type": "claim",
+            "claimId": "p52mean"
+          },
+          {
+            "type": "claim",
+            "claimId": "p52n"
+          }
+        ],
+        "groundingRule": "Each asserted claim must be entailed by cited accessible source evidence. Unknown is not a pass."
+      },
+      "sourceEvidence": [
+        {
+          "page": 2,
+          "evidenceId": "P17:p2:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 1. The 50 mmol/L condition had mean compressive modulus 42.0 kPa, sample SD 4.0 kPa, n=5 independent sheets. Shape retention was 96%. Water uptake was 10.0 g water per g dry sheet. The 75 mmol/L condition had mean modulus 56.0 kPa, sample SD 5.0 kPa, n=5; shape retention 88%. Higher modulus was accompanied by poorer shape retention. Values are invented."
+        },
+        {
+          "page": 2,
+          "evidenceId": "P52:p2:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3. Mean compressive modulus 51.0 kPa, sample SD 3.0 kPa, n=6 independent sheets. Shape retention 93%; water uptake 12.5 g/g. One of six sheets exhibited visible brittle cracking during handling. The study did not establish a crack-rate confidence interval."
+        }
+      ],
+      "impact": "P17 reports n=5 independent sheets for its 50 mmol/L condition (and n=5 for 75 mmol/L), while P52 reports n=6 independent sheets. Both cold and warm live answers deny that these counts were reported. Correct means and the correct P31 n=6 do not repair the false absence claims. This also contradicts the impression of fully preserved evidence conveyed by the coverage banner.",
+      "reproduction": "Compare the quoted final-answer spans in both saved files against frozen P17:p2:v1 and P52:p2:v1. No inference from LLM numeric scores is required.",
+      "repeatEvidence": "The same missing-sample assertions occur in cold and warm outputs.",
+      "causeAttribution": "Answer failure established; loss during mapping, synthesis, or final generation cannot be localized without implementation/trace access."
+    },
+    {
+      "id": "ADR-L04",
+      "priority": 2,
+      "caseId": "CW-CORPUS-01",
+      "files": [
+        "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+        "evals/results/live-ui-2026-09-07/12-corpus-warm.json"
+      ],
+      "status": "fail",
+      "severity": "high",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "PAPER_MAPPING",
+        "EVIDENCE_SELECTION"
+      ],
+      "title": "Corpus answers use one explicitly unresolved citation instead of accessible source evidence",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+          "jsonPointer": "/actual/answer/citations",
+          "value": [
+            {
+              "id": "citation-1",
+              "reference": "local:1",
+              "sourceId": "catalog:local:1",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": ".biodesign/results/cba0eae8-0400-4765-87a3-23d4660a062f.json",
+              "contentHash": "",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "missing"
+            }
+          ]
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+          "jsonPointer": "/actual/answer/citations",
+          "value": [
+            {
+              "id": "citation-1",
+              "reference": "local:1",
+              "sourceId": "catalog:local:1",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": ".biodesign/results/cb552341-42d0-4079-8f37-0b7def072c22.json",
+              "contentHash": "",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "missing"
+            }
+          ]
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "Based on the available evidence from the processed corpus",
+          "startOffset": 38,
+          "endOffsetExclusive": 95,
+          "offsetUnit": "Unicode code points"
+        }
+      ],
+      "violatedGold": {
+        "case": {
+          "caseId": "CW-CORPUS-01",
+          "query": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+          "claims": [
+            {
+              "id": "p17mean",
+              "subject": "P17:50mM",
+              "predicate": "mean_modulus",
+              "value": 42,
+              "evidenceIds": [
+                "P17:p2:v1"
+              ],
+              "unit": "kPa"
+            },
+            {
+              "id": "p17n",
+              "subject": "P17:50mM",
+              "predicate": "sample_count",
+              "value": 5,
+              "evidenceIds": [
+                "P17:p2:v1"
+              ],
+              "unit": "specimens"
+            },
+            {
+              "id": "p31mean",
+              "subject": "P31",
+              "predicate": "mean_modulus",
+              "value": 48,
+              "evidenceIds": [
+                "P31:p2:v2"
+              ],
+              "unit": "kPa"
+            },
+            {
+              "id": "p31n",
+              "subject": "P31",
+              "predicate": "sample_count",
+              "value": 6,
+              "evidenceIds": [
+                "P31:p2:v2"
+              ],
+              "unit": "specimens"
+            },
+            {
+              "id": "p52mean",
+              "subject": "P52",
+              "predicate": "mean_modulus",
+              "value": 51,
+              "evidenceIds": [
+                "P52:p2:v1"
+              ],
+              "unit": "kPa"
+            },
+            {
+              "id": "p52n",
+              "subject": "P52",
+              "predicate": "sample_count",
+              "value": 6,
+              "evidenceIds": [
+                "P52:p2:v1"
+              ],
+              "unit": "specimens"
+            }
+          ],
+          "evidenceIds": [
+            "P17:p2:v1",
+            "P31:p2:v2",
+            "P52:p2:v1"
+          ],
+          "answerRequirements": [
+            {
+              "type": "response_mode",
+              "value": "answer"
+            },
+            {
+              "type": "claim",
+              "claimId": "p17mean"
+            },
+            {
+              "type": "claim",
+              "claimId": "p17n"
+            },
+            {
+              "type": "claim",
+              "claimId": "p31mean"
+            },
+            {
+              "type": "claim",
+              "claimId": "p31n"
+            },
+            {
+              "type": "claim",
+              "claimId": "p52mean"
+            },
+            {
+              "type": "claim",
+              "claimId": "p52n"
+            }
+          ],
+          "groundingRule": "Each asserted claim must be entailed by cited accessible source evidence. Unknown is not a pass."
+        },
+        "hardCheck": "no_fabricated_citation",
+        "rubricRequirement": "All actual answer citations resolve to recorded retrieved accessible evidence; missing final answer/citation audit is unknown."
+      },
+      "impact": "Each final answer attaches only catalog:local:1, pointing to a generated .biodesign/results JSON. The citation object explicitly says status=missing with contentHash empty, so observed citation resolution fails. There is no resolved citation to required original paper pages. The result path may have been legitimately generated; fabrication of the path itself is not asserted.",
+      "reproduction": "Inspect actual.answer.citations[0] in both files: sourceId=catalog:local:1, status=missing, contentHash=\"\". Contrast with resolved paper citations in the other live answers and required P17/P31/P52 page evidence.",
+      "hardGateAssessment": "Measured failure of the resolution condition in no_fabricated_citation. Do not relabel this merely unknown: resolution was observed as missing.",
+      "causeAttribution": "Citation resolution failure established; whether source registration or citation construction caused it remains unmeasured."
+    },
+    {
+      "id": "ADR-L05",
+      "priority": 3,
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "files": [
+        "evals/results/live-ui-2026-09-07/10-memory-recommendation.json"
+      ],
+      "status": "fail",
+      "severity": "medium",
+      "primaryTaxonomy": "REASONING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION",
+        "GROUNDING"
+      ],
+      "title": "Recommendation leaves the recorded current objective unresolved",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_WORKFLOWS-02",
+          "text": "the recommendation for follow-up depends on whether your current objective prioritizes catalytic efficiency or final production volume:",
+          "startOffset": 77,
+          "endOffsetExclusive": 212,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_WORKFLOWS-02",
+          "text": "**For Enzyme Engineering/Activity:** Recommend **T212S**.",
+          "startOffset": 1608,
+          "endOffsetExclusive": 1665,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/citations",
+          "value": [
+            {
+              "id": "citation-1",
+              "reference": "P152",
+              "sourceId": "P152",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P152.pdf",
+              "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            },
+            {
+              "id": "citation-2",
+              "reference": "local:4",
+              "sourceId": "X04",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "experiments/X04.xlsx",
+              "contentHash": "sha256:64d7227a33cc563d06b65f5716ad2947a6c78a241003c0c13dca271733491caf",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ]
+        }
+      ],
+      "violatedGold": {
+        "caseId": "CW-ECTD_WORKFLOWS-02",
+        "query": "Using my current objective and P152 at 42°C, recommend a variant for follow-up from Side Chat.",
+        "claims": [
+          {
+            "id": "choice",
+            "subject": "P152:42C",
+            "predicate": "titer_leader",
+            "value": "A163V",
+            "evidenceIds": [
+              "P152:p2:v1"
+            ]
+          }
+        ],
+        "evidenceIds": [
+          "M06:record:v1",
+          "P152:p2:v1"
+        ],
+        "answerRequirements": [
+          {
+            "type": "response_mode",
+            "value": "recommendation"
+          },
+          {
+            "type": "claim",
+            "claimId": "choice"
+          },
+          {
+            "type": "selected_resource",
+            "value": "A163V"
+          },
+          {
+            "type": "forbidden_capability",
+            "value": "agent.command"
+          },
+          {
+            "type": "recommendation_status",
+            "value": "proposed_followup_not_completed"
+          }
+        ],
+        "groundingRule": "Each asserted claim must be entailed by cited accessible source evidence. Unknown is not a pass."
+      },
+      "sourceEvidence": [
+        {
+          "id": "M06",
+          "projectId": "synthetic_celluweave",
+          "owner": "local_user",
+          "kind": "current_metric",
+          "text": "Current EctD optimization objective, set 2026-04-06: prioritize fermentation product titer in g/L. Do not silently switch the objective to activity, yield, or productivity. A previous focus on specific activity is superseded.",
+          "evidenceId": "M06:record:v1"
+        },
+        {
+          "page": 2,
+          "evidenceId": "P152:p2:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3: At 42°C, A163V specific activity 1.50 U/mg and product titer 4.60 g/L. T212S specific activity 2.40 U/mg and product titer 3.90 g/L. Thus T212S leads specific activity while A163V leads product titer. Yield and productivity were not reported for these 42°C conditions."
+        }
+      ],
+      "impact": "The request asks to use the current objective. M06 explicitly sets product titer in g/L and supersedes specific activity, so the required follow-up is A163V. The answer does identify A163V as the titer leader but presents conditional recommendations for both objectives instead of applying the known current one, and cites no M06 memory. This is an incomplete goal-conditioned recommendation, not proof that the answer selected T212S exclusively.",
+      "reproduction": "Compare the conditional opening and two recommendation branches to M06 and gold selected_resource=A163V. The answer cites only P152/X04, neither of which establishes the current user objective.",
+      "causeAttribution": "Final response fails to apply the frozen objective. Whether the native memory input was correctly materialized/retrieved remains unverified; no implementation memory bug is asserted."
+    },
+    {
+      "id": "ADR-L06",
+      "priority": 4,
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "files": [
+        "evals/results/live-ui-2026-09-07/10-memory-recommendation.json"
+      ],
+      "status": "fail",
+      "severity": "medium",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "REASONING",
+        "SEMANTIC_INTERPRETATION"
+      ],
+      "title": "Recommendation treats the unrelated CelluWeave evaluation domain as an EctD integration target",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_WORKFLOWS-02",
+          "text": "which may provide a better scaffold if the objective is to optimize the catalytic properties of the EctD primary enzyme or integrate it with the CelluWeave novel domain",
+          "startOffset": 1743,
+          "endOffsetExclusive": 1911,
+          "offsetUnit": "Unicode code points"
+        }
+      ],
+      "violatedGold": {
+        "caseId": "CW-ECTD_WORKFLOWS-02",
+        "query": "Using my current objective and P152 at 42°C, recommend a variant for follow-up from Side Chat.",
+        "claims": [
+          {
+            "id": "choice",
+            "subject": "P152:42C",
+            "predicate": "titer_leader",
+            "value": "A163V",
+            "evidenceIds": [
+              "P152:p2:v1"
+            ]
+          }
+        ],
+        "evidenceIds": [
+          "M06:record:v1",
+          "P152:p2:v1"
+        ],
+        "answerRequirements": [
+          {
+            "type": "response_mode",
+            "value": "recommendation"
+          },
+          {
+            "type": "claim",
+            "claimId": "choice"
+          },
+          {
+            "type": "selected_resource",
+            "value": "A163V"
+          },
+          {
+            "type": "forbidden_capability",
+            "value": "agent.command"
+          },
+          {
+            "type": "recommendation_status",
+            "value": "proposed_followup_not_completed"
+          }
+        ],
+        "groundingRule": "Each asserted claim must be entailed by cited accessible source evidence. Unknown is not a pass."
+      },
+      "sourceEvidence": [
+        {
+          "page": 1,
+          "evidenceId": "P152:p1:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nPaper P152 / 虚构论文。Temperature 42°C; A163V and T212S tested in the same synthetic protocol. 产品为羟基四氢嘧啶。Specific enzyme activity and fermentation product titer are separate outcomes."
+        },
+        {
+          "page": 2,
+          "evidenceId": "P152:p2:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3: At 42°C, A163V specific activity 1.50 U/mg and product titer 4.60 g/L. T212S specific activity 2.40 U/mg and product titer 3.90 g/L. Thus T212S leads specific activity while A163V leads product titer. Yield and productivity were not reported for these 42°C conditions."
+        },
+        {
+          "page": 3,
+          "evidenceId": "P152:p3:v1",
+          "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nConclusion: The rankings depend on the chosen metric. These synthetic data do not establish a universally superior variant, optimal temperature, or stability beyond the tested condition."
+        },
+        {
+          "source": "fixtures/project.json",
+          "projectName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain"
+        },
+        {
+          "source": "P17:p1:v1",
+          "scope": "Nonliving cellulose–alginate hydrogel sheets; separate open_domain_celluweave evaluation corpus."
+        }
+      ],
+      "impact": "P152 supports activity/titer rankings for two EctD variants, not a relationship to the nonliving CelluWeave materials. The phrase reuses evaluation-domain terminology as if it describes a scientific integration rationale, and attaches a P152 citation that cannot entail it. This is unsupported domain mixing in the recommendation.",
+      "reproduction": "Locate the quoted answer clause and its P152 citation. Read all three P152 pages and the project metadata/domain names; no CelluWeave integration or enzyme-domain architecture is reported.",
+      "scopeQualification": "A speculative double-mutant follow-up is separately phrased as a proposal and is not counted as a claimed completed experiment or fabricated result. The failure here is the unsupported source-attributed domain rationale.",
+      "causeAttribution": "Unsupported answer rationale directly observed; origin of the phrase is inferred from matching domain terminology, not established through implementation inspection."
+    }
+  ],
+  "newReviewConcerns": [
+    {
+      "id": "ADR-LC05",
+      "status": "wording_concern_not_separately_counted",
+      "severity": "low",
+      "caseIds": [
+        "CW-ECTD_WORKFLOWS-02"
+      ],
+      "primaryTaxonomy": "SEMANTIC_INTERPRETATION",
+      "secondaryTaxonomy": [
+        "GROUNDING"
+      ],
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_WORKFLOWS-02",
+          "text": "catalytic efficiency or final production volume",
+          "startOffset": 164,
+          "endOffsetExclusive": 211,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_WORKFLOWS-02",
+          "text": "It demonstrates a significantly higher product titer (4.60 g/L vs 3.90 g/L)",
+          "startOffset": 1282,
+          "endOffsetExclusive": 1357,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_WORKFLOWS-02",
+          "text": "increasing the final amount of hydroxy-tetrahydropyrimidine produced",
+          "startOffset": 1412,
+          "endOffsetExclusive": 1480,
+          "offsetUnit": "Unicode code points"
+        }
+      ],
+      "assessment": "The table correctly uses U/mg and g/L, but the narrative loosely substitutes catalytic efficiency for specific activity and total amount/volume for concentration. No process volume or kcat/Km is reported. The word significantly could be colloquial; do not count a formal statistical-significance claim without clearer evidence. Keep the supported conclusion limited to the reported specific activity and titer under tested conditions."
+    },
+    {
+      "id": "ADR-LC06",
+      "status": "coverage_scope_caveat",
+      "severity": "low",
+      "caseIds": [
+        "CW-CORPUS-01"
+      ],
+      "primaryTaxonomy": "PAPER_MAPPING",
+      "secondaryTaxonomy": [
+        "GROUNDING",
+        "LANGUAGE"
+      ],
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "**覆盖范围：** 纳入 8 篇；成功分析 8/8；失败 0；缺失 0。",
+          "startOffset": 0,
+          "endOffsetExclusive": 36,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-CORPUS-01",
+          "text": "**覆盖范围：** 纳入 8 篇；成功分析 8/8；失败 0；缺失 0。",
+          "startOffset": 0,
+          "endOffsetExclusive": 36,
+          "offsetUnit": "Unicode code points"
+        }
+      ],
+      "assessment": "The request names three original papers while context lists eight project papers, including a review and EctD studies. The eight-paper inventory is consistent with those IDs; it is not automatically a wrong sample count, and the answer does not add review specimens. Actual 8/8 analysis completion is unverified from the allowed answer/context fields. The banner must not be interpreted as completeness of requested sample evidence, which demonstrably fails. Its Chinese language in an otherwise English response is not scored as a violation because the frozen project preference permits Chinese."
+    },
+    {
+      "id": "ADR-LC07",
+      "status": "provenance_gap",
+      "severity": "low",
+      "caseIds": [
+        "CW-ECTD_WORKFLOWS-07"
+      ],
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION"
+      ],
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/13-direct-zh.json",
+          "jsonPointer": "/actual/answer/citations",
+          "value": [
+            {
+              "id": "citation-1",
+              "reference": "P131",
+              "sourceId": "P131",
+              "workspaceId": "synthetic_celluweave",
+              "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+              "relativePath": "literature/P131.pdf",
+              "contentHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+              "page": null,
+              "sheet": "",
+              "row": null,
+              "range": "",
+              "status": "resolved"
+            }
+          ]
+        }
+      ],
+      "assessment": "The source citation resolves correctly to P131 with a content hash, but page=null. P131:p1 supports 0.55 mM. Record location loss, not citation fabrication."
+    }
+  ],
+  "newCaseAudits": [
+    {
+      "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "question": "Using my current objective and P152 at 42°C, recommend a variant for follow-up from Side Chat.",
+      "answerObserved": true,
+      "scientificAnswer": "partial_required_rankings_correct_but_current_goal_unapplied_and_rationale_unsupported",
+      "correctObservedFacts": [
+        "P152 A163V activity 1.50 U/mg and titer 4.60 g/L.",
+        "P152 T212S activity 2.40 U/mg and titer 3.90 g/L.",
+        "Follow-up is proposed; answer does not claim physical execution."
+      ],
+      "findings": [
+        "ADR-L05",
+        "ADR-L06"
+      ],
+      "citationSourceIds": [
+        "P152",
+        "X04"
+      ],
+      "actionAudit": "unknown from final answer/chat context alone"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+      "caseId": "CW-CORPUS-01",
+      "question": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+      "answerObserved": true,
+      "scientificAnswer": "failed_sample_counts_and_citation_resolution",
+      "correctObservedFacts": [
+        "P17 50 mmol/L mean 42 kPa and 75 mmol/L mean 56 kPa.",
+        "P31 corrected mean 48 kPa and n=6.",
+        "P52 mean 51 kPa."
+      ],
+      "findings": [
+        "ADR-L03",
+        "ADR-L04"
+      ],
+      "citationSourceIds": [
+        "catalog:local:1"
+      ],
+      "citationStatus": "missing"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+      "caseId": "CW-CORPUS-01",
+      "question": "Across original P17, P31, and P52 studies, list each reported main mean and its sample count. Do not add review samples.",
+      "answerObserved": true,
+      "scientificAnswer": "failed_sample_counts_and_citation_resolution",
+      "correctObservedFacts": [
+        "Same correct reported means and P31 n=6 as cold answer."
+      ],
+      "findings": [
+        "ADR-L03",
+        "ADR-L04"
+      ],
+      "citationSourceIds": [
+        "catalog:local:1"
+      ],
+      "citationStatus": "missing"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/13-direct-zh.json",
+      "caseId": "CW-ECTD_WORKFLOWS-07",
+      "question": "请在 Side Chat 中查 P131 的 Km，只需直接查证，不要启动 Deep 或 Agent Command。",
+      "answerObserved": true,
+      "scientificAnswer": "supported",
+      "finding": "Correct P131 Km=0.55 mM for ectoine (四氢嘧啶), supported by frozen P131:p1:v1.",
+      "sourceEvidence": {
+        "page": 1,
+        "evidenceId": "P131:p1:v1",
+        "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\n论文 P131。原创虚构评测论文，作者顾禾、李澄。突变体 T212S 的测定温度为 35°C。以四氢嘧啶为底物，Km 为 0.55 mM。该值不是产物滴度、得率或生产强度。"
+      },
+      "citationSourceIds": [
+        "P131"
+      ],
+      "citationScope": "Resolved file citation; page unspecified.",
+      "workflowObservation": {
+        "chatContextRetrievalMode": "fast",
+        "chatContextEscalated": false,
+        "corpusWorkflowId": ""
+      },
+      "actionBoundary": "No Deep or Agent Command execution is evident in the allowed fields; complete no-dispatch/action audit remains unknown."
+    }
+  ],
+  "allCaseAuditReferences": [
+    {
+      "file": "evals/results/live-ui-2026-09-07/01-discovery-en-cold.json",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/02-discovery-en-warm.json",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/03-discovery-zh.json",
+      "caseId": "CW-ECTD_PAPERS-02",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+      "caseId": "CW-ECTD_PAPERS-05",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/05-heldout-p152.json",
+      "caseId": "CW-ECTD_PAPERS-07",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/07-experiment-x02.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/08-experiment-activity.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/09-experiment-mixed.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-findings.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/10-memory-recommendation.json",
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-complete.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/11-corpus-cold.json",
+      "caseId": "CW-CORPUS-01",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-complete.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/12-corpus-warm.json",
+      "caseId": "CW-CORPUS-01",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-complete.json"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/13-direct-zh.json",
+      "caseId": "CW-ECTD_WORKFLOWS-07",
+      "auditFile": "evals/results/live-ui-2026-09-07/live-adversarial-complete.json"
+    }
+  ],
+  "totals": {
+    "liveAnswerFilesReviewed": 13,
+    "priorDefiniteFindingGroups": 2,
+    "newDefiniteFindingGroups": 4,
+    "notAnAverageQualityScore": true
+  },
+  "hardGateObservation": {
+    "citationResolution": "Observed failed in both live corpus outputs (status missing).",
+    "permissionNoLeak": "Unknown: observed citations stay in selected project, but complete resolved-path/access audit is unavailable in allowed fields.",
+    "noUnrequestedSideEffect": "Unknown: final text proposes follow-up without claiming execution; complete action audit is not established.",
+    "sampleCounts": "False absence claims are observed for P17 n=5 and P52 n=6 in cold and warm outputs."
+  },
+  "noExpectedTuning": "Gold/source fixtures and candidate outputs were not changed; no implementation changes proposed or applied."
+}

@@ -1,0 +1,153 @@
+{
+  "local": {
+    "cold": {
+      "n": 82,
+      "p50Ms": 2029.9592914999994,
+      "p95Ms": 2518.6688669499968
+    },
+    "warm": {
+      "n": 84,
+      "p50Ms": 54.87183299999742,
+      "p95Ms": 264.9700374499908
+    },
+    "unknown": {
+      "n": 0,
+      "p50Ms": null,
+      "p95Ms": null
+    }
+  },
+  "live": {
+    "measurement": "Persisted user-to-assistant timestamps; buffering and service time included. UI bridge delays between requests excluded. Shared workspace warms sequentially; only the first request is cold. Statistics describe observations, not independent repetitions.",
+    "all": {
+      "n": 13,
+      "missing": 0,
+      "meanMs": 85921.69230769231,
+      "p50Ms": 58700,
+      "p95Ms": 258644.9999999998,
+      "varianceMs2": 8534457767.230771
+    },
+    "cold": {
+      "n": 1,
+      "missing": 0,
+      "meanMs": 340854,
+      "p50Ms": 340854,
+      "p95Ms": 340854,
+      "varianceMs2": null
+    },
+    "warm": {
+      "n": 12,
+      "missing": 0,
+      "meanMs": 64677.333333333336,
+      "p50Ms": 51031.5,
+      "p95Ms": 154942.89999999994,
+      "varianceMs2": 2909739840.242424
+    },
+    "firstVisibleResponseMs": null,
+    "perCase": [
+      {
+        "caseId": "CW-ECTD_PAPERS-01",
+        "repeat": 0,
+        "cacheState": "cold",
+        "latencyMs": 340854,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_PAPERS-01",
+        "repeat": 1,
+        "cacheState": "warm",
+        "latencyMs": 18433,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_PAPERS-02",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 21201,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_PAPERS-05",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 32008,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_PAPERS-07",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 28413,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_PAPERS-08",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 43363,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 114937,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 203839,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-07",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 60881,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-02",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 58700,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-CORPUS-01",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 84737,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-CORPUS-01",
+        "repeat": 1,
+        "cacheState": "warm",
+        "latencyMs": 90880,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-07",
+        "repeat": 0,
+        "cacheState": "warm",
+        "latencyMs": 18736,
+        "timeToFirstVisibleMs": null,
+        "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+      }
+    ]
+  }
+}

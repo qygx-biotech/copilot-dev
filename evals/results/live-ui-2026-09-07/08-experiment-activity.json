@@ -1,0 +1,233 @@
+{
+  "caseId": "CW-ECTD_EXPERIMENTS-04",
+  "repeat": 0,
+  "status": "completed",
+  "executionMode": "live-electron-side-chat-ui",
+  "cacheState": "warm",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "actual": {
+    "answer": {
+      "text": "Based on the available experimental data, there are no completed rows for the **T212S** mutation at **35°C** within experiment **X02**. \n\nWhile records for T212S at 35°C exist in other experiments (e.g., X03), no matching data was found specifically for X02.",
+      "citations": [],
+      "claims": null
+    },
+    "chatContext": {
+      "type": "project",
+      "files": [],
+      "selectedPaperIds": [],
+      "relevantPaperIds": [
+        "P131",
+        "P152",
+        "P117",
+        "P52",
+        "P17"
+      ],
+      "selectedExperimentIds": [],
+      "relevantExperimentIds": [
+        "X03",
+        "X04",
+        "X01",
+        "X02"
+      ],
+      "corpusWorkflowId": "",
+      "semanticTelemetry": {
+        "profile": "medium",
+        "semantic": {
+          "localPattern": null,
+          "localConfidence": 0.5115,
+          "matchState": "novel",
+          "remoteSemanticParserUsed": true,
+          "finalPattern": null,
+          "route": "local-fallback"
+        },
+        "operations": [
+          "aggregate"
+        ],
+        "capabilitiesUsed": [
+          "search_papers",
+          "read_paper_evidence",
+          "query_experiment_results"
+        ],
+        "semanticParserCalls": 1,
+        "cloudCalls": {
+          "semantic_parser": 1,
+          "schema_mapper": 4,
+          "search_planner": 0,
+          "reranker": 0,
+          "corpus_mapper": 0,
+          "native_pdf": 0,
+          "combined_text_paper_card": 0,
+          "image_understanding": 0,
+          "answer": 6
+        }
+      },
+      "retrieval": {
+        "profile": "medium",
+        "mode": "deep",
+        "escalated": true,
+        "reason": "medium-insufficient-lexical-coverage"
+      }
+    },
+    "activity": [
+      "正在读取 P131.pdf 的源文件细节...",
+      "正在准备 P152.pdf...",
+      "正在读取 P152.pdf 的源文件细节...",
+      "正在准备 P117.pdf...",
+      "正在读取 P117.pdf 的源文件细节...",
+      "正在准备 P52.pdf...",
+      "正在读取 P52.pdf 的源文件细节...",
+      "正在准备 P17.pdf...",
+      "正在读取 P17.pdf 的源文件细节...",
+      "思考中",
+      "正在调用模型生成回答...",
+      "回答已生成。"
+    ],
+    "storedConversation": {
+      "schemaVersion": 1,
+      "id": "aecdcc8b-646b-4bb4-abd0-8b9971c47e98",
+      "title": "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer.",
+      "createdAt": "2026-09-07T23:38:41.902Z",
+      "updatedAt": "2026-09-08T00:17:37.303Z",
+      "summary": "",
+      "messages": [
+        {
+          "id": "1788826453462-16b1866783dcc8",
+          "role": "user",
+          "content": "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer.",
+          "context": {
+            "type": "project",
+            "files": [],
+            "selectedPaperIds": [],
+            "relevantPaperIds": [
+              "P131",
+              "P152",
+              "P117",
+              "P52",
+              "P17"
+            ],
+            "selectedExperimentIds": [],
+            "relevantExperimentIds": [
+              "X03",
+              "X04",
+              "X01",
+              "X02"
+            ],
+            "corpusWorkflowId": "",
+            "semanticTelemetry": {
+              "profile": "medium",
+              "semantic": {
+                "localPattern": null,
+                "localConfidence": 0.5115,
+                "matchState": "novel",
+                "remoteSemanticParserUsed": true,
+                "finalPattern": null,
+                "route": "local-fallback"
+              },
+              "operations": [
+                "aggregate"
+              ],
+              "capabilitiesUsed": [
+                "search_papers",
+                "read_paper_evidence",
+                "query_experiment_results"
+              ],
+              "semanticParserCalls": 1,
+              "cloudCalls": {
+                "semantic_parser": 1,
+                "schema_mapper": 4,
+                "search_planner": 0,
+                "reranker": 0,
+                "corpus_mapper": 0,
+                "native_pdf": 0,
+                "combined_text_paper_card": 0,
+                "image_understanding": 0,
+                "answer": 6
+              }
+            },
+            "retrieval": {
+              "profile": "medium",
+              "mode": "deep",
+              "escalated": true,
+              "reason": "medium-insufficient-lexical-coverage"
+            }
+          },
+          "createdAt": "2026-09-08T00:14:13.462Z"
+        },
+        {
+          "id": "1788826657301-59298819fe0728",
+          "role": "assistant",
+          "content": "Based on the available experimental data, there are no completed rows for the **T212S** mutation at **35°C** within experiment **X02**. \n\nWhile records for T212S at 35°C exist in other experiments (e.g., X03), no matching data was found specifically for X02.",
+          "activity": [
+            "正在读取 P131.pdf 的源文件细节...",
+            "正在准备 P152.pdf...",
+            "正在读取 P152.pdf 的源文件细节...",
+            "正在准备 P117.pdf...",
+            "正在读取 P117.pdf 的源文件细节...",
+            "正在准备 P52.pdf...",
+            "正在读取 P52.pdf 的源文件细节...",
+            "正在准备 P17.pdf...",
+            "正在读取 P17.pdf 的源文件细节...",
+            "思考中",
+            "正在调用模型生成回答...",
+            "回答已生成。"
+          ],
+          "citations": [],
+          "createdAt": "2026-09-08T00:17:37.301Z"
+        }
+      ]
+    }
+  },
+  "timing": {
+    "latencyMs": 203839,
+    "timeToFirstVisibleMs": null,
+    "cacheState": "warm",
+    "measurement": "Persisted user/assistant timestamps; not sub-millisecond instrumentation."
+  },
+  "telemetry": {
+    "profile": "medium",
+    "semantic": {
+      "localPattern": null,
+      "localConfidence": 0.5115,
+      "matchState": "novel",
+      "remoteSemanticParserUsed": true,
+      "finalPattern": null,
+      "route": "local-fallback"
+    },
+    "operations": [
+      "aggregate"
+    ],
+    "capabilitiesUsed": [
+      "search_papers",
+      "read_paper_evidence",
+      "query_experiment_results"
+    ],
+    "semanticParserCalls": 1,
+    "cloudCalls": {
+      "semantic_parser": 1,
+      "schema_mapper": 4,
+      "search_planner": 0,
+      "reranker": 0,
+      "corpus_mapper": 0,
+      "native_pdf": 0,
+      "combined_text_paper_card": 0,
+      "image_understanding": 0,
+      "answer": 6
+    }
+  },
+  "provenance": {
+    "entrypoint": "Actual Side Chat UI → askSideChat → ProjectContextService → sendWorkbenchRequest → authenticated FC /chat",
+    "syntheticFixture": true,
+    "providerSubstitution": false,
+    "conversationHash": "897cff310c3ecda529f01b2451ff88de13b279b3dddf8874b1982ae0f3f57b57",
+    "workspaceId": "synthetic_celluweave",
+    "rendererSource": "docs/index.html; renderer reloaded before this lane",
+    "fcRevision": null,
+    "noCredentialsImported": true
+  },
+  "limitations": [
+    "FC Requesty tokens, upstream transport retries, and pricing are not exposed by persisted chat telemetry.",
+    "Final citations do not establish retrieval top-K rankings; this importer does not fabricate retrieval metrics.",
+    "UI lane uses a shared synthetic workspace with sequential artifact warming. Per-case cache state must be recorded explicitly.",
+    "The Electron main process revision is not attested by a renderer reload."
+  ]
+}

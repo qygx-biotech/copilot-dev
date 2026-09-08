@@ -6,9 +6,15 @@ on:
     paths:
       - ".github/workflows/windows-update-smoke.yml"
       - "desktop/main/**"
+      - "desktop/ipc/**"
+      - "desktop/preload/**"
       - "desktop/scripts/*windows*"
+      - "desktop/test/*.test.mjs"
       - "desktop/test/windows-update-fixture/**"
       - "desktop/test/windows-beta-update-fixture/**"
+      - "docs/app.js"
+      - "docs/index.html"
+      - "docs/styles.css"
       - "forge.config.cjs"
       - "package.json"
       - "package-lock.json"
@@ -92,5 +98,5 @@ jobs:
       - name: Build prerelease A and B with the production Squirrel identity
         run: node desktop/scripts/build-windows-beta-update-smoke.mjs
 
-      - name: Trigger the narrow beta action, choose Later, and verify redirected installation
+      - name: Approve an installer-only beta update and verify download, install, restart, and retained data
         run: node desktop/scripts/windows-beta-update-smoke.mjs

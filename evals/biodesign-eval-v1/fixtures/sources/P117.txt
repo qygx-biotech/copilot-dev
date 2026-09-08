@@ -1,0 +1,11 @@
+=== PAGE 1 | P117:p1:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Paper P117. ORIGINAL INVENTED EctD study, authors R. Aspen and J. Brook, fixture year 2024. EctD catalyzes ectoine hydroxylation in this synthetic task. Variant A163V was characterized at 30°C. The reported Michaelis constant Km for ectoine was 0.42 mM; wild-type Km under the same assay was 0.80 mM. These are assay kinetic parameters, not product titers.
+
+=== PAGE 2 | P117:p2:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Table 1: A163V fermentation product titer 4.80 g/L at 48 h and 30°C; specific activity 1.80 U/mg, product yield 0.40 g/g substrate, volumetric productivity 0.100 g/L/h. Each metric has a distinct denominator. Titer cannot be inferred from Km or from activity. No p-value or confidence interval for the titer was reported.
+
+=== PAGE 3 | P117:p3:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Limitations. The study did not test 35°C or 42°C cultivation. Lower Km alone does not prove higher whole-process productivity. No universal best variant is established.

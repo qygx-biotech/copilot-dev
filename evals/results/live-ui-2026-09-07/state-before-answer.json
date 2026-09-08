@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "goal": ""
+  },
+  "ui": {},
+  "agent": {
+    "currentRecommendation": null,
+    "sideChat": {}
+  },
+  "memory": {
+    "records": [
+      {
+        "id": "M01",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "preference",
+        "text": "For this project, explain material comparisons in Chinese when the user does not choose a language; retain original units.",
+        "evidenceId": "M01:record:v1",
+        "memoryId": "M01",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M02",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "decision",
+        "text": "On 2026-04-05 we chose E102 for a follow-up repeat, subject to checking brittleness. This is a planning decision, not proof of validity.",
+        "evidenceId": "M02:record:v1",
+        "memoryId": "M02",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M05",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "retracted",
+        "text": "Retracted 2026-04-03: tentative E102 mean 55 kPa. Correct mean is 51 kPa from ledger.",
+        "evidenceId": "M05:record:v1",
+        "supersededBy": "N10",
+        "memoryId": "M05",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M06",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "current_metric",
+        "text": "Current EctD optimization objective, set 2026-04-06: prioritize fermentation product titer in g/L. Do not silently switch the objective to activity, yield, or productivity. A previous focus on specific activity is superseded.",
+        "evidenceId": "M06:record:v1",
+        "memoryId": "M06",
+        "status": "active",
+        "sourceIds": []
+      },
+      {
+        "id": "M07",
+        "projectId": "synthetic_celluweave",
+        "owner": "local_user",
+        "kind": "superseded_metric",
+        "text": "Superseded EctD planning preference dated 2026-04-01: maximize specific activity in U/mg. Superseded by M06 on 2026-04-06.",
+        "evidenceId": "M07:record:v1",
+        "supersededBy": "M06",
+        "memoryId": "M07",
+        "status": "active",
+        "sourceIds": []
+      }
+    ]
+  },
+  "updatedAt": "2026-09-07T23:27:35.150Z"
+}

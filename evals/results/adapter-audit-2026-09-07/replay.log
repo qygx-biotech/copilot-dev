@@ -1,0 +1,2627 @@
+[0907/193145.740325:ERROR:electron/shell/common/mac/codesign_util.cc:79] task_name_for_pid: (os/kern) failure (5)
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_registry_reconciled {
+  durationMs: 5,
+  statCalls: 16,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 16,
+  dirty: 0,
+  missing: 0
+}
+source_registry_reconciled {
+  durationMs: 1,
+  statCalls: 16,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 16,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+source_job_queued {
+  jobId: '819f69aa-ecfb-4dfa-8adc-c41565d603ac',
+  jobType: 'knowledge-sync',
+  sourceCount: 16,
+  queueDepth: 1
+}
+source_job_started {
+  jobId: '819f69aa-ecfb-4dfa-8adc-c41565d603ac',
+  jobType: 'knowledge-sync',
+  sourceCount: 16
+}
+source_job_queued {
+  jobId: 'e16904e7-ab82-4f55-99b0-85c90346d343',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'e16904e7-ab82-4f55-99b0-85c90346d343',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '1c9ab43d-623c-4d2d-83bc-ff26dd0c5a5e',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '1c9ab43d-623c-4d2d-83bc-ff26dd0c5a5e',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X01',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 25296,
+  hashPerformed: true,
+  hashDurationMs: 1,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'X02',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 24,
+  hashBytes: 17627,
+  hashPerformed: true,
+  hashDurationMs: 1,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'e16904e7-ab82-4f55-99b0-85c90346d343',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '129dae78-5507-439c-b8da-de6925e60825',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '129dae78-5507-439c-b8da-de6925e60825',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '1c9ab43d-623c-4d2d-83bc-ff26dd0c5a5e',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '2fcdba82-e535-414d-afb8-c96c73789b2c',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '2fcdba82-e535-414d-afb8-c96c73789b2c',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X01',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 71,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 32,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'X02',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 63,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 32,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '129dae78-5507-439c-b8da-de6925e60825',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '2fcdba82-e535-414d-afb8-c96c73789b2c',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '08413ec0-0a98-4a2d-b811-caf9cd8e2d8b',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '08413ec0-0a98-4a2d-b811-caf9cd8e2d8b',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '3f67e3bd-b4eb-4940-83de-36fe904aa9b1',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '3f67e3bd-b4eb-4940-83de-36fe904aa9b1',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X03',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 17146,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'X04',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 20,
+  hashBytes: 17152,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '08413ec0-0a98-4a2d-b811-caf9cd8e2d8b',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '0dda0bc2-e576-46fb-99bf-a688c76b81d5',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '0dda0bc2-e576-46fb-99bf-a688c76b81d5',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '3f67e3bd-b4eb-4940-83de-36fe904aa9b1',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'f53734e3-5747-491e-a8da-f2b1b227e657',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'f53734e3-5747-491e-a8da-f2b1b227e657',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X03',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 50,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 19,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '0dda0bc2-e576-46fb-99bf-a688c76b81d5',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X04',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 58,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 19,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'f53734e3-5747-491e-a8da-f2b1b227e657',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '6a32e980-6210-4f78-9722-ec83a6b8c93c',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '6a32e980-6210-4f78-9722-ec83a6b8c93c',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'a4aba959-e319-4b94-ab24-5555f7bb9828',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'a4aba959-e319-4b94-ab24-5555f7bb9828',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P17',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 51254,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'P31',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 100734,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '6a32e980-6210-4f78-9722-ec83a6b8c93c',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '64c1a99a-fb90-47c2-8528-5edf23d87b7e',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '64c1a99a-fb90-47c2-8528-5edf23d87b7e',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'a4aba959-e319-4b94-ab24-5555f7bb9828',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '9bfd2570-9a57-4c1d-a57c-4bb378c737c3',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '9bfd2570-9a57-4c1d-a57c-4bb378c737c3',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: 'P17',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 47,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 12,
+  indexDurationMs: 11,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '64c1a99a-fb90-47c2-8528-5edf23d87b7e',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P31',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 49,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 4,
+  indexDurationMs: 11,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '9bfd2570-9a57-4c1d-a57c-4bb378c737c3',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '202ea3c1-c252-434b-ad86-599d181173eb',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '202ea3c1-c252-434b-ad86-599d181173eb',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '001b7361-c475-48ef-b714-ff65a8e8b8e7',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '001b7361-c475-48ef-b714-ff65a8e8b8e7',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P17',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 47,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 25,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '202ea3c1-c252-434b-ad86-599d181173eb',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P31',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 47,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 25,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '001b7361-c475-48ef-b714-ff65a8e8b8e7',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '7843eff4-9fcc-4f7b-90de-e076815ea507',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '7843eff4-9fcc-4f7b-90de-e076815ea507',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'ce126ec1-c848-4a42-bbe7-8e91edbbdaca',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'ce126ec1-c848-4a42-bbe7-8e91edbbdaca',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P52',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 50982,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '7843eff4-9fcc-4f7b-90de-e076815ea507',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P74',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 17,
+  hashBytes: 49956,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: 'f2ae9d83-648f-4bf4-9337-1d0c878e0467',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'f2ae9d83-648f-4bf4-9337-1d0c878e0467',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'ce126ec1-c848-4a42-bbe7-8e91edbbdaca',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '9fcff890-42bf-4027-b08e-5eae2e8a9ffb',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '9fcff890-42bf-4027-b08e-5eae2e8a9ffb',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: 'P52',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 55,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 7,
+  indexDurationMs: 16,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'f2ae9d83-648f-4bf4-9337-1d0c878e0467',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P74',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 53,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 2,
+  indexDurationMs: 10,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: '77c98e72-aaee-437f-88c6-d0eec0ed9d34',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '77c98e72-aaee-437f-88c6-d0eec0ed9d34',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '9fcff890-42bf-4027-b08e-5eae2e8a9ffb',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '22c1801b-c414-46bc-ab14-4f201b0e4077',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '22c1801b-c414-46bc-ab14-4f201b0e4077',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P52',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 43,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 16,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '77c98e72-aaee-437f-88c6-d0eec0ed9d34',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P74',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 42,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 6,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '22c1801b-c414-46bc-ab14-4f201b0e4077',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'e38e2848-84c9-4b59-b5bd-34f9e3777461',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'e38e2848-84c9-4b59-b5bd-34f9e3777461',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'bf1aa41f-8073-4201-a572-9a4d8eb26d84',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'bf1aa41f-8073-4201-a572-9a4d8eb26d84',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P117',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 51139,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'e38e2848-84c9-4b59-b5bd-34f9e3777461',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P131',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 89780,
+  hashPerformed: true,
+  hashDurationMs: 1,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: '3600ba21-d081-4d02-9c08-a8d8c9a6730f',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '3600ba21-d081-4d02-9c08-a8d8c9a6730f',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'bf1aa41f-8073-4201-a572-9a4d8eb26d84',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '78caf88e-d40b-44ce-8c10-32f82be01ef3',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '78caf88e-d40b-44ce-8c10-32f82be01ef3',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: 'P117',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 48,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 6,
+  indexDurationMs: 17,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '3600ba21-d081-4d02-9c08-a8d8c9a6730f',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P131',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 51,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 3,
+  indexDurationMs: 10,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '78caf88e-d40b-44ce-8c10-32f82be01ef3',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '36bd43bc-afaf-44ff-9e27-fd3d3d6055ff',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '36bd43bc-afaf-44ff-9e27-fd3d3d6055ff',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '7667b6dd-cc3b-4d06-a5cd-3f1f0c7509ae',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '7667b6dd-cc3b-4d06-a5cd-3f1f0c7509ae',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P117',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 42,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 21,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'P131',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 41,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 21,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '36bd43bc-afaf-44ff-9e27-fd3d3d6055ff',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '7667b6dd-cc3b-4d06-a5cd-3f1f0c7509ae',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '744abecd-971f-4122-bc42-858db7ac8c22',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '744abecd-971f-4122-bc42-858db7ac8c22',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'faa41adc-fd96-4396-8684-55ec27381346',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'faa41adc-fd96-4396-8684-55ec27381346',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P152',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 56976,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'N08',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 17,
+  hashBytes: 596,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '744abecd-971f-4122-bc42-858db7ac8c22',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'db3b9937-711b-4307-b0e5-0e58dcaacddf',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'db3b9937-711b-4307-b0e5-0e58dcaacddf',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'faa41adc-fd96-4396-8684-55ec27381346',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_job_queued {
+  jobId: '6c33576d-a133-489a-be3c-b30c16c0903f',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '6c33576d-a133-489a-be3c-b30c16c0903f',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P152',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 54,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 2,
+  indexDurationMs: 11,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'db3b9937-711b-4307-b0e5-0e58dcaacddf',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N09',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 490,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: '9e236fb3-565e-4595-8be6-3cca894a9825',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '9e236fb3-565e-4595-8be6-3cca894a9825',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '6c33576d-a133-489a-be3c-b30c16c0903f',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '6a30b682-78ab-4b73-ad59-cec512296c0f',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '6a30b682-78ab-4b73-ad59-cec512296c0f',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P152',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 42,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 10,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '9e236fb3-565e-4595-8be6-3cca894a9825',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N10',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 20,
+  hashBytes: 475,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '6a30b682-78ab-4b73-ad59-cec512296c0f',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '53687cc1-199d-4a80-a076-6297dad98046',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '53687cc1-199d-4a80-a076-6297dad98046',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N11',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 23,
+  hashBytes: 372,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: '9ad62931-7f1a-4e73-ab95-8c26aba3059b',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '9ad62931-7f1a-4e73-ab95-8c26aba3059b',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '53687cc1-199d-4a80-a076-6297dad98046',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P95',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 27,
+  hashBytes: 512,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '9ad62931-7f1a-4e73-ab95-8c26aba3059b',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '819f69aa-ecfb-4dfa-8adc-c41565d603ac',
+  jobType: 'knowledge-sync',
+  sourceCount: 16
+}
+request_preflight {
+  reconciliationMs: 0.8387090000001081,
+  changedSourceCount: 16,
+  knowledgeSyncMs: 1734.850375,
+  l1UpdateCount: 7,
+  l1UpdateMs: 649.9182510000005,
+  l2LlmCallCount: 7,
+  l2LlmMs: 72,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 94.00324899999987,
+  experimentNormalizationCount: 4,
+  experimentNormalizationMs: 51,
+  syncAgentSpawned: true,
+  mainAgentStartTime: '2026-09-07T23:31:49.571Z',
+  mainAgentStartMs: 1742.2590840000003,
+  hashCalls: 16,
+  startedAt: 1788823907829
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 1,
+  dirty: 0,
+  missing: 0
+}
+source_job_queued {
+  jobId: 'ca7622d1-2fb1-4584-b20a-5c0952d7e20d',
+  jobType: 'knowledge-sync',
+  sourceCount: 1,
+  queueDepth: 1
+}
+source_job_started {
+  jobId: 'ca7622d1-2fb1-4584-b20a-5c0952d7e20d',
+  jobType: 'knowledge-sync',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '3c0426dc-9d66-4564-8dcb-fac2296c2e97',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '3c0426dc-9d66-4564-8dcb-fac2296c2e97',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: '4a4cce44-a1c7-4842-97b7-d12ee562714e',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 11,
+  hashBytes: 103188,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '3c0426dc-9d66-4564-8dcb-fac2296c2e97',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'bab2ad36-a6db-4ea2-aebd-009be21b65a5',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'bab2ad36-a6db-4ea2-aebd-009be21b65a5',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: '4a4cce44-a1c7-4842-97b7-d12ee562714e',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 38,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 2,
+  indexDurationMs: 6,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'bab2ad36-a6db-4ea2-aebd-009be21b65a5',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '348d6be3-0dfd-440a-afc2-f64ffa8b011a',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '348d6be3-0dfd-440a-afc2-f64ffa8b011a',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: '4a4cce44-a1c7-4842-97b7-d12ee562714e',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 28,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 6,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '348d6be3-0dfd-440a-afc2-f64ffa8b011a',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'ca7622d1-2fb1-4584-b20a-5c0952d7e20d',
+  jobType: 'knowledge-sync',
+  sourceCount: 1
+}
+request_preflight {
+  reconciliationMs: 7.547292000000198,
+  changedSourceCount: 1,
+  knowledgeSyncMs: 214.0317500000001,
+  l1UpdateCount: 1,
+  l1UpdateMs: 70.97283300000026,
+  l2LlmCallCount: 1,
+  l2LlmMs: 6,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 7.082542000000103,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: true,
+  mainAgentStartTime: '2026-09-07T23:31:49.949Z',
+  mainAgentStartMs: 226.56345900000042,
+  hashCalls: 1,
+  startedAt: 1788823909723
+}
+source_readiness_cache_hit { sourceId: 'P52', sourceKind: 'paper', capability: 'search' }
+source_readiness_cache_hit { sourceId: 'P17', sourceKind: 'paper', capability: 'search' }
+source_readiness_cache_hit { sourceId: 'P74', sourceKind: 'paper', capability: 'search' }
+AUDIT_CASE {"id":"CW-SYNC_FAILURE-02","cacheState":"cold","status":"completed","errors":[],"runChanges":[["P83"]],"P83":{"sourceId":"P83","nativeSourceId":"4a4cce44-a1c7-4842-97b7-d12ee562714e","sourceKind":"paper","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","contentVersion":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","verifiedFixtureVersion":1,"catalogStatus":"discovered","hashStatus":"ready","parseStatus":"ready","indexStatus":"ready","qmdLexStatus":"ready","structuredDataStatus":"not_applicable","knowledgeSync":{"schemaVersion":1,"status":"SYNC_READY","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","statSignature":"literature/P83.pdf|103188|1788823904720999956|16777234:201152693","stages":{"l1":"ready","l2":"ready","l3":"ready"},"failure":null,"updatedAt":"2026-09-07T23:31:49.928Z"},"artifacts":{"paperText":{"path":".biodesign/sources/artifacts/4a4cce44-a1c7-4842-97b7-d12ee562714e/sha256-aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802/paper-text.json","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","extractorVersion":"local-source-v1","schemaVersion":1,"validationStatus":"validated"},"knowledgeMarkdown":{"path":".biodesign/knowledge/literature/4a4cce44-a1c7-4842-97b7-d12ee562714e.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","representationVersion":1,"validationStatus":"validated"},"paperCard":{"path":".biodesign/literature/summaries/4a4cce44-a1c7-4842-97b7-d12ee562714e.json","sourceId":"4a4cce44-a1c7-4842-97b7-d12ee562714e","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":2,"model":null,"modelSignature":"eval-extractive-card-v1","promptVersion":"eval-extractive-card-v1","generationStrategy":"text-map-reduce-v1","generationContractVersion":0,"generationMode":"map-reduce","fallbackReason":null,"nativePdfSchemaVersion":0,"nativePdfPromptVersion":"not-applicable","nativePdfModelSignature":"not-applicable","combinedTextSupported":false,"combinedTextMaxCharacters":0,"combinedTextSchemaVersion":0,"combinedTextPromptVersion":"not-applicable","combinedTextModelSignature":"not-applicable","sourceArtifactSchemaVersion":1,"extractorVersion":"local-source-v1","validationStatus":"validated","cacheKey":"{\"version\":4,\"sourceId\":\"4a4cce44-a1c7-4842-97b7-d12ee562714e\",\"contentHash\":\"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802\",\"schemaVersion\":2,\"modelSignature\":\"eval-extractive-card-v1\",\"promptVersion\":\"eval-extractive-card-v1\",\"generationStrategy\":\"text-map-reduce-v1\",\"generationContractVersion\":0,\"nativePdfSchemaVersion\":0,\"nativePdfPromptVersion\":\"not-applicable\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":0,\"combinedTextSchemaVersion\":0,\"combinedTextPromptVersion\":\"not-applicable\",\"combinedTextModelSignature\":\"not-applicable\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"},"paperCardMarkdown":{"path":".biodesign/knowledge/paper_cards/4a4cce44-a1c7-4842-97b7-d12ee562714e.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","cardSchemaVersion":2,"validationStatus":"validated"},"topicMembership":{"sourceId":"4a4cce44-a1c7-4842-97b7-d12ee562714e","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":1,"topicIds":[]}}}}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 0.8982919999998558,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:50.002Z',
+  mainAgentStartMs: 0.9443330000003698,
+  hashCalls: 0,
+  startedAt: 1788823910001
+}
+source_readiness_cache_hit { sourceId: 'P52', sourceKind: 'paper', capability: 'search' }
+source_readiness_cache_hit { sourceId: 'P17', sourceKind: 'paper', capability: 'search' }
+source_readiness_cache_hit { sourceId: 'P74', sourceKind: 'paper', capability: 'search' }
+AUDIT_CASE {"id":"CW-SYNC_FAILURE-02","cacheState":"warm","status":"completed","errors":[],"runChanges":[[]],"P83":{"sourceId":"P83","nativeSourceId":"4a4cce44-a1c7-4842-97b7-d12ee562714e","sourceKind":"paper","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","contentVersion":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","verifiedFixtureVersion":1,"catalogStatus":"discovered","hashStatus":"ready","parseStatus":"ready","indexStatus":"ready","qmdLexStatus":"ready","structuredDataStatus":"not_applicable","knowledgeSync":{"schemaVersion":1,"status":"SYNC_READY","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","statSignature":"literature/P83.pdf|103188|1788823904720999956|16777234:201152693","stages":{"l1":"ready","l2":"ready","l3":"ready"},"failure":null,"updatedAt":"2026-09-07T23:31:49.928Z"},"artifacts":{"paperText":{"path":".biodesign/sources/artifacts/4a4cce44-a1c7-4842-97b7-d12ee562714e/sha256-aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802/paper-text.json","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","extractorVersion":"local-source-v1","schemaVersion":1,"validationStatus":"validated"},"knowledgeMarkdown":{"path":".biodesign/knowledge/literature/4a4cce44-a1c7-4842-97b7-d12ee562714e.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","representationVersion":1,"validationStatus":"validated"},"paperCard":{"path":".biodesign/literature/summaries/4a4cce44-a1c7-4842-97b7-d12ee562714e.json","sourceId":"4a4cce44-a1c7-4842-97b7-d12ee562714e","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":2,"model":null,"modelSignature":"eval-extractive-card-v1","promptVersion":"eval-extractive-card-v1","generationStrategy":"text-map-reduce-v1","generationContractVersion":0,"generationMode":"map-reduce","fallbackReason":null,"nativePdfSchemaVersion":0,"nativePdfPromptVersion":"not-applicable","nativePdfModelSignature":"not-applicable","combinedTextSupported":false,"combinedTextMaxCharacters":0,"combinedTextSchemaVersion":0,"combinedTextPromptVersion":"not-applicable","combinedTextModelSignature":"not-applicable","sourceArtifactSchemaVersion":1,"extractorVersion":"local-source-v1","validationStatus":"validated","cacheKey":"{\"version\":4,\"sourceId\":\"4a4cce44-a1c7-4842-97b7-d12ee562714e\",\"contentHash\":\"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802\",\"schemaVersion\":2,\"modelSignature\":\"eval-extractive-card-v1\",\"promptVersion\":\"eval-extractive-card-v1\",\"generationStrategy\":\"text-map-reduce-v1\",\"generationContractVersion\":0,\"nativePdfSchemaVersion\":0,\"nativePdfPromptVersion\":\"not-applicable\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":0,\"combinedTextSchemaVersion\":0,\"combinedTextPromptVersion\":\"not-applicable\",\"combinedTextModelSignature\":\"not-applicable\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"},"paperCardMarkdown":{"path":".biodesign/knowledge/paper_cards/4a4cce44-a1c7-4842-97b7-d12ee562714e.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","cardSchemaVersion":2,"validationStatus":"validated"},"topicMembership":{"sourceId":"4a4cce44-a1c7-4842-97b7-d12ee562714e","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":1,"topicIds":[]}}}}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_registry_reconciled {
+  durationMs: 4,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 17,
+  dirty: 0,
+  missing: 0
+}
+source_registry_reconciled {
+  durationMs: 1,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+source_job_queued {
+  jobId: 'cb5918c7-2cf9-48d2-9a72-b580a1bc4111',
+  jobType: 'knowledge-sync',
+  sourceCount: 17,
+  queueDepth: 1
+}
+source_job_started {
+  jobId: 'cb5918c7-2cf9-48d2-9a72-b580a1bc4111',
+  jobType: 'knowledge-sync',
+  sourceCount: 17
+}
+source_job_queued {
+  jobId: 'c191014e-c033-49b9-a3b3-726f896b5080',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'c191014e-c033-49b9-a3b3-726f896b5080',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '5899c324-5a7e-4b0d-9bbf-b081fd972a76',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '5899c324-5a7e-4b0d-9bbf-b081fd972a76',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X01',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 25296,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'X02',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 20,
+  hashBytes: 17627,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'c191014e-c033-49b9-a3b3-726f896b5080',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '5899c324-5a7e-4b0d-9bbf-b081fd972a76',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '2113d24f-97ab-4dd7-b6ef-46dad0669a7c',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '2113d24f-97ab-4dd7-b6ef-46dad0669a7c',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '4da41fac-345d-4b3e-9acb-f2fcf9e3a72a',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '4da41fac-345d-4b3e-9acb-f2fcf9e3a72a',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X01',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 53,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 27,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_readiness_transition {
+  sourceId: 'X02',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 53,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 27,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '2113d24f-97ab-4dd7-b6ef-46dad0669a7c',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '4da41fac-345d-4b3e-9acb-f2fcf9e3a72a',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '6f881992-f701-4a52-a5c5-ee7ccc5494f4',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '6f881992-f701-4a52-a5c5-ee7ccc5494f4',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'f85b2958-11d4-43ad-b3ae-039cdd435eec',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'f85b2958-11d4-43ad-b3ae-039cdd435eec',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X03',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 17146,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '6f881992-f701-4a52-a5c5-ee7ccc5494f4',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X04',
+  sourceKind: 'experiment',
+  capability: 'stable_snapshot',
+  durationMs: 20,
+  hashBytes: 17152,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: 'a0115c29-ed91-43e6-814a-1a023f2b6e81',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'a0115c29-ed91-43e6-814a-1a023f2b6e81',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'f85b2958-11d4-43ad-b3ae-039cdd435eec',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '14584688-514a-44f9-807b-bd5630a25759',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '14584688-514a-44f9-807b-bd5630a25759',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X03',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 47,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 19,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'a0115c29-ed91-43e6-814a-1a023f2b6e81',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'X04',
+  sourceKind: 'experiment',
+  capability: 'experiment_data',
+  durationMs: 54,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 10,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: '5bb56f67-1431-40cd-ad61-932c8d573492',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '5bb56f67-1431-40cd-ad61-932c8d573492',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: '14584688-514a-44f9-807b-bd5630a25759',
+  jobType: 'prepare:experiment_data',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '85b62f33-5d99-462b-8f92-b3b304fd0a2d',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '85b62f33-5d99-462b-8f92-b3b304fd0a2d',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P17',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 51254,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '5bb56f67-1431-40cd-ad61-932c8d573492',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '9a0dc49d-319f-4516-9a28-d751948e2788',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '9a0dc49d-319f-4516-9a28-d751948e2788',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P31',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 20,
+  hashBytes: 100734,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '85b62f33-5d99-462b-8f92-b3b304fd0a2d',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_job_queued {
+  jobId: '78682438-4ef1-473f-9484-4d998edcc032',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '78682438-4ef1-473f-9484-4d998edcc032',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: 'P17',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 55,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 10,
+  indexDurationMs: 5,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '9a0dc49d-319f-4516-9a28-d751948e2788',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'b5bed759-df85-4e5c-9236-74d3cc3b52f0',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'b5bed759-df85-4e5c-9236-74d3cc3b52f0',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P31',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 60,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 4,
+  indexDurationMs: 8,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '78682438-4ef1-473f-9484-4d998edcc032',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '895acc5c-805b-466f-8929-9cfb5d57d0e8',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '895acc5c-805b-466f-8929-9cfb5d57d0e8',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P17',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 39,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 9,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'b5bed759-df85-4e5c-9236-74d3cc3b52f0',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P31',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 37,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 8,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '895acc5c-805b-466f-8929-9cfb5d57d0e8',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '2e8e73c1-05dc-4a4d-bb04-fd69841f33f4',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '2e8e73c1-05dc-4a4d-bb04-fd69841f33f4',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '898fe583-fc28-42b2-8dcd-47b429f71a96',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '898fe583-fc28-42b2-8dcd-47b429f71a96',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P52',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 20,
+  hashBytes: 50982,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '2e8e73c1-05dc-4a4d-bb04-fd69841f33f4',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '1ccf81a0-0db6-4fcc-88f0-a29f5d8f602f',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '1ccf81a0-0db6-4fcc-88f0-a29f5d8f602f',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P74',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 49956,
+  hashPerformed: true,
+  hashDurationMs: 1,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_job_completed {
+  jobId: '898fe583-fc28-42b2-8dcd-47b429f71a96',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '623a60a6-3983-4ea2-bf51-197c01415ccf',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '623a60a6-3983-4ea2-bf51-197c01415ccf',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: 'P52',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 60,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 6,
+  indexDurationMs: 9,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '1ccf81a0-0db6-4fcc-88f0-a29f5d8f602f',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '90876c54-caf1-4737-9c4d-b9b165f54ea5',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '90876c54-caf1-4737-9c4d-b9b165f54ea5',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P74',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 56,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 4,
+  indexDurationMs: 9,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '623a60a6-3983-4ea2-bf51-197c01415ccf',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'd8b46a7f-eb4c-43ae-a84a-6c3a78e8e30c',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'd8b46a7f-eb4c-43ae-a84a-6c3a78e8e30c',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P52',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 46,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 8,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '90876c54-caf1-4737-9c4d-b9b165f54ea5',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P74',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 40,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 9,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'd8b46a7f-eb4c-43ae-a84a-6c3a78e8e30c',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '757d40eb-fe78-4773-bd03-21630b5a3031',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '757d40eb-fe78-4773-bd03-21630b5a3031',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '552a38cf-5152-4ba4-aae1-444d99123b4c',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '552a38cf-5152-4ba4-aae1-444d99123b4c',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P83',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 52,
+  hashBytes: 103188,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '757d40eb-fe78-4773-bd03-21630b5a3031',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'd23765cd-37fb-452b-a199-9df6434c49f1',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'd23765cd-37fb-452b-a199-9df6434c49f1',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P117',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 51139,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '552a38cf-5152-4ba4-aae1-444d99123b4c',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_job_queued {
+  jobId: 'da017c54-f063-4c5a-bd12-19533707028e',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'da017c54-f063-4c5a-bd12-19533707028e',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_readiness_transition {
+  sourceId: 'P83',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 58,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 4,
+  indexDurationMs: 9,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'd23765cd-37fb-452b-a199-9df6434c49f1',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'c9284b6f-f229-4dae-87c7-cae58f914a08',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'c9284b6f-f229-4dae-87c7-cae58f914a08',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P117',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 57,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 2,
+  indexDurationMs: 10,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'da017c54-f063-4c5a-bd12-19533707028e',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '820d5f95-6bc3-4f21-8ca1-6ac28163093b',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '820d5f95-6bc3-4f21-8ca1-6ac28163093b',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P83',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 39,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 11,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'c9284b6f-f229-4dae-87c7-cae58f914a08',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P117',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 42,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 11,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '820d5f95-6bc3-4f21-8ca1-6ac28163093b',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'b0770c71-a074-4450-8249-58f9dab8fe3a',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'b0770c71-a074-4450-8249-58f9dab8fe3a',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '073f820d-ed2a-4b5b-baeb-7e5f98d72da6',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '073f820d-ed2a-4b5b-baeb-7e5f98d72da6',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P131',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 24,
+  hashBytes: 89780,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'b0770c71-a074-4450-8249-58f9dab8fe3a',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'eb08548b-26d4-4de3-bd94-1202cdd30893',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'eb08548b-26d4-4de3-bd94-1202cdd30893',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P152',
+  sourceKind: 'paper',
+  capability: 'stable_snapshot',
+  durationMs: 17,
+  hashBytes: 56976,
+  hashPerformed: true,
+  hashDurationMs: 1,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_job_completed {
+  jobId: '073f820d-ed2a-4b5b-baeb-7e5f98d72da6',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'f88d8276-8217-4461-95a0-85de6787d920',
+  jobType: 'prepare:search',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'f88d8276-8217-4461-95a0-85de6787d920',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P131',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 55,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 6,
+  indexDurationMs: 6,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+source_job_completed {
+  jobId: 'eb08548b-26d4-4de3-bd94-1202cdd30893',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '0a24bcc5-5286-4e0b-81d3-1e8a9c70c111',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '0a24bcc5-5286-4e0b-81d3-1e8a9c70c111',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P152',
+  sourceKind: 'paper',
+  capability: 'search',
+  durationMs: 55,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 2,
+  indexDurationMs: 10,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'f88d8276-8217-4461-95a0-85de6787d920',
+  jobType: 'prepare:search',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '18d38396-5818-4e2c-b205-c2ca6678c335',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: '18d38396-5818-4e2c-b205-c2ca6678c335',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P131',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 41,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 12,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '0a24bcc5-5286-4e0b-81d3-1e8a9c70c111',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P152',
+  sourceKind: 'paper',
+  capability: 'paper_card',
+  durationMs: 40,
+  hashBytes: 0,
+  hashPerformed: false,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 9,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '18d38396-5818-4e2c-b205-c2ca6678c335',
+  jobType: 'prepare:paper_card',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'bdd0ef25-c622-4f00-80d0-3c3eed23ebdf',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'bdd0ef25-c622-4f00-80d0-3c3eed23ebdf',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'a69d4f21-f788-4dbe-b4a8-75ae14bc47b8',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'a69d4f21-f788-4dbe-b4a8-75ae14bc47b8',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N08',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 596,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'bdd0ef25-c622-4f00-80d0-3c3eed23ebdf',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N09',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 18,
+  hashBytes: 490,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'a69d4f21-f788-4dbe-b4a8-75ae14bc47b8',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: '7cd5e24b-bb2d-40ff-b042-bc079e1dacdf',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: '7cd5e24b-bb2d-40ff-b042-bc079e1dacdf',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N10',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 475,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: '7cd5e24b-bb2d-40ff-b042-bc079e1dacdf',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_queued {
+  jobId: 'afd6429a-77fb-4e97-a843-50838fbbcc40',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 2
+}
+source_job_started {
+  jobId: 'afd6429a-77fb-4e97-a843-50838fbbcc40',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'N11',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 19,
+  hashBytes: 372,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_queued {
+  jobId: 'a1111e8a-f36c-4917-9b92-bb08ef39f406',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1,
+  queueDepth: 3
+}
+source_job_started {
+  jobId: 'a1111e8a-f36c-4917-9b92-bb08ef39f406',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'afd6429a-77fb-4e97-a843-50838fbbcc40',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_readiness_transition {
+  sourceId: 'P95',
+  sourceKind: 'document',
+  capability: 'stable_snapshot',
+  durationMs: 25,
+  hashBytes: 512,
+  hashPerformed: true,
+  hashDurationMs: 0,
+  parseDurationMs: 0,
+  indexDurationMs: 0,
+  paperCardDurationMs: 0,
+  contentChanged: false,
+  cacheHit: false
+}
+source_job_completed {
+  jobId: 'a1111e8a-f36c-4917-9b92-bb08ef39f406',
+  jobType: 'prepare:stable_snapshot',
+  sourceCount: 1
+}
+source_job_completed {
+  jobId: 'cb5918c7-2cf9-48d2-9a72-b580a1bc4111',
+  jobType: 'knowledge-sync',
+  sourceCount: 17
+}
+request_preflight {
+  reconciliationMs: 0.867750000000342,
+  changedSourceCount: 17,
+  knowledgeSyncMs: 1921.3585000000003,
+  l1UpdateCount: 8,
+  l1UpdateMs: 843.783915,
+  l2LlmCallCount: 8,
+  l2LlmMs: 77,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 116.04954100000032,
+  experimentNormalizationCount: 4,
+  experimentNormalizationMs: 46,
+  syncAgentSpawned: true,
+  mainAgentStartTime: '2026-09-07T23:31:52.129Z',
+  mainAgentStartMs: 1927.9083339999997,
+  hashCalls: 17,
+  startedAt: 1788823910201
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 1.0538750000005166,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:52.131Z',
+  mainAgentStartMs: 1.0880420000003141,
+  hashCalls: 0,
+  startedAt: 1788823912130
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 0.7306660000003831,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:52.132Z',
+  mainAgentStartMs: 0.743083000000297,
+  hashCalls: 0,
+  startedAt: 1788823912131
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 0.44995900000049005,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:52.133Z',
+  mainAgentStartMs: 0.4586669999998776,
+  hashCalls: 0,
+  startedAt: 1788823912132
+}
+AUDIT_CASE {"id":"CW-SYNC_FAILURE-08","cacheState":"cold","status":"completed","errors":[],"runChanges":[[],[],[]],"P83":{"sourceId":"P83","nativeSourceId":"P83","sourceKind":"paper","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","contentVersion":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","verifiedFixtureVersion":1,"catalogStatus":"discovered","hashStatus":"ready","parseStatus":"ready","indexStatus":"ready","qmdLexStatus":"ready","structuredDataStatus":"not_applicable","knowledgeSync":{"schemaVersion":1,"status":"SYNC_READY","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","statSignature":"literature/P83.pdf|103188|1788823905092000007|16777234:201152753","stages":{"l1":"ready","l2":"ready","l3":"ready"},"failure":null,"updatedAt":"2026-09-07T23:31:51.471Z"},"artifacts":{"paperText":{"path":".biodesign/sources/artifacts/P83/sha256-aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802/paper-text.json","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","extractorVersion":"local-source-v1","schemaVersion":1,"validationStatus":"validated"},"knowledgeMarkdown":{"path":".biodesign/knowledge/literature/P83.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","representationVersion":1,"validationStatus":"validated"},"paperCard":{"path":".biodesign/literature/summaries/P83.json","sourceId":"P83","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":2,"model":null,"modelSignature":"eval-extractive-card-v1","promptVersion":"eval-extractive-card-v1","generationStrategy":"text-map-reduce-v1","generationContractVersion":0,"generationMode":"map-reduce","fallbackReason":null,"nativePdfSchemaVersion":0,"nativePdfPromptVersion":"not-applicable","nativePdfModelSignature":"not-applicable","combinedTextSupported":false,"combinedTextMaxCharacters":0,"combinedTextSchemaVersion":0,"combinedTextPromptVersion":"not-applicable","combinedTextModelSignature":"not-applicable","sourceArtifactSchemaVersion":1,"extractorVersion":"local-source-v1","validationStatus":"validated","cacheKey":"{\"version\":4,\"sourceId\":\"P83\",\"contentHash\":\"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802\",\"schemaVersion\":2,\"modelSignature\":\"eval-extractive-card-v1\",\"promptVersion\":\"eval-extractive-card-v1\",\"generationStrategy\":\"text-map-reduce-v1\",\"generationContractVersion\":0,\"nativePdfSchemaVersion\":0,\"nativePdfPromptVersion\":\"not-applicable\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":0,\"combinedTextSchemaVersion\":0,\"combinedTextPromptVersion\":\"not-applicable\",\"combinedTextModelSignature\":\"not-applicable\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"},"paperCardMarkdown":{"path":".biodesign/knowledge/paper_cards/P83.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","cardSchemaVersion":2,"validationStatus":"validated"},"topicMembership":{"sourceId":"P83","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":1,"topicIds":[]}}}}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 0.7185829999998532,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:52.136Z',
+  mainAgentStartMs: 0.7284159999999247,
+  hashCalls: 0,
+  startedAt: 1788823912135
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 0.6011250000001382,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:52.137Z',
+  mainAgentStartMs: 0.6107080000001588,
+  hashCalls: 0,
+  startedAt: 1788823912136
+}
+source_registry_reconciled {
+  durationMs: 0,
+  statCalls: 17,
+  fullHashCalls: 0,
+  llmCalls: 0,
+  discovered: 0,
+  dirty: 0,
+  missing: 0
+}
+request_preflight {
+  reconciliationMs: 0.5552080000006754,
+  changedSourceCount: 0,
+  knowledgeSyncMs: 0,
+  l1UpdateCount: 0,
+  l1UpdateMs: 0,
+  l2LlmCallCount: 0,
+  l2LlmMs: 0,
+  l3LlmCallCount: 0,
+  l3LlmMs: 0,
+  l3UpdateMs: 0,
+  experimentNormalizationCount: 0,
+  experimentNormalizationMs: 0,
+  syncAgentSpawned: false,
+  mainAgentStartTime: '2026-09-07T23:31:52.138Z',
+  mainAgentStartMs: 0.5690830000003189,
+  hashCalls: 0,
+  startedAt: 1788823912137
+}
+AUDIT_CASE {"id":"CW-SYNC_FAILURE-08","cacheState":"warm","status":"completed","errors":[],"runChanges":[[],[],[]],"P83":{"sourceId":"P83","nativeSourceId":"P83","sourceKind":"paper","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","contentVersion":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","verifiedFixtureVersion":1,"catalogStatus":"discovered","hashStatus":"ready","parseStatus":"ready","indexStatus":"ready","qmdLexStatus":"ready","structuredDataStatus":"not_applicable","knowledgeSync":{"schemaVersion":1,"status":"SYNC_READY","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","statSignature":"literature/P83.pdf|103188|1788823905092000007|16777234:201152753","stages":{"l1":"ready","l2":"ready","l3":"ready"},"failure":null,"updatedAt":"2026-09-07T23:31:51.471Z"},"artifacts":{"paperText":{"path":".biodesign/sources/artifacts/P83/sha256-aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802/paper-text.json","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","extractorVersion":"local-source-v1","schemaVersion":1,"validationStatus":"validated"},"knowledgeMarkdown":{"path":".biodesign/knowledge/literature/P83.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","representationVersion":1,"validationStatus":"validated"},"paperCard":{"path":".biodesign/literature/summaries/P83.json","sourceId":"P83","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":2,"model":null,"modelSignature":"eval-extractive-card-v1","promptVersion":"eval-extractive-card-v1","generationStrategy":"text-map-reduce-v1","generationContractVersion":0,"generationMode":"map-reduce","fallbackReason":null,"nativePdfSchemaVersion":0,"nativePdfPromptVersion":"not-applicable","nativePdfModelSignature":"not-applicable","combinedTextSupported":false,"combinedTextMaxCharacters":0,"combinedTextSchemaVersion":0,"combinedTextPromptVersion":"not-applicable","combinedTextModelSignature":"not-applicable","sourceArtifactSchemaVersion":1,"extractorVersion":"local-source-v1","validationStatus":"validated","cacheKey":"{\"version\":4,\"sourceId\":\"P83\",\"contentHash\":\"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802\",\"schemaVersion\":2,\"modelSignature\":\"eval-extractive-card-v1\",\"promptVersion\":\"eval-extractive-card-v1\",\"generationStrategy\":\"text-map-reduce-v1\",\"generationContractVersion\":0,\"nativePdfSchemaVersion\":0,\"nativePdfPromptVersion\":\"not-applicable\",\"nativePdfModelSignature\":\"not-applicable\",\"combinedTextMaxCharacters\":0,\"combinedTextSchemaVersion\":0,\"combinedTextPromptVersion\":\"not-applicable\",\"combinedTextModelSignature\":\"not-applicable\",\"sourceArtifactSchemaVersion\":1,\"extractorVersion\":\"local-source-v1\"}"},"paperCardMarkdown":{"path":".biodesign/knowledge/paper_cards/P83.md","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","cardSchemaVersion":2,"validationStatus":"validated"},"topicMembership":{"sourceId":"P83","contentHash":"sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802","schemaVersion":1,"topicIds":[]}}}}

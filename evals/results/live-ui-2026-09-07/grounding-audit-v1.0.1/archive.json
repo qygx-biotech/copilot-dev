@@ -1,0 +1,22 @@
+{
+  "createdAt": "2026-09-08T00:45:02.263Z",
+  "reason": "Archive before eval-only correction of redundant source aliases already represented by actual citations.",
+  "archived": [
+    {
+      "source": "evals/aggregate-grounding.mjs",
+      "archive": "evals/results/live-ui-2026-09-07/grounding-audit-v1.0.1/aggregate-grounding.v1.0.0.mjs",
+      "sha256": "2a7a116547be5b46eb2dcbc3ca13d850e6d99e1dbcdaa1c9b59811fdfb5a866c"
+    },
+    {
+      "source": "evals/results/live-ui-2026-09-07/grounding-scores.json",
+      "archive": "evals/results/live-ui-2026-09-07/grounding-audit-v1.0.1/grounding-scores.v1.0.0.json",
+      "sha256": "185ae8b52bf30c3ceb053a34346cd1326fa203a28c689f8e8ef6b4b2bdd82440"
+    }
+  ],
+  "preFixLiveAudit": {
+    "samples": 7,
+    "cases": 6,
+    "observedClaimCitationLinks": 26,
+    "overlappingActualCitationAliases": 0
+  }
+}

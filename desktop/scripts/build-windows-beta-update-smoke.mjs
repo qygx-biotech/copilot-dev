@@ -25,17 +25,8 @@ async function buildVersion(label, version) {
   const sourceRoot = path.join(smokeRoot, `source-${label}`);
   const packageOutput = path.join(smokeRoot, `package-${label}`);
   const installerOutput = path.join(smokeRoot, `installer-${label}`);
-  await mkdir(path.join(sourceRoot, "node_modules", "update-electron-app"), { recursive: true });
   await cp(fixtureMain, path.join(sourceRoot, "main.cjs"));
   await cp(productionUpdater, path.join(sourceRoot, "windows-updater.mjs"));
-  await writeFile(path.join(sourceRoot, "node_modules", "update-electron-app", "package.json"), `${JSON.stringify({
-    name: "update-electron-app",
-    version: "0.0.0-test",
-    main: "index.js",
-  }, null, 2)}\n`, "utf8");
-  await writeFile(path.join(sourceRoot, "node_modules", "update-electron-app", "index.js"),
-    "exports.UpdateSourceType = { ElectronPublicUpdateService: 'ElectronPublicUpdateService' }; exports.updateElectronApp = () => ({ stopUpdates() {} });\n",
-    "utf8");
   await writeFile(path.join(sourceRoot, "package.json"), `${JSON.stringify({
     name: identity,
     productName: identity,

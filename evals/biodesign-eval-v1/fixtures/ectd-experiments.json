@@ -1,0 +1,457 @@
+{
+  "synthetic": true,
+  "sources": [
+    {
+      "sourceId": "X02",
+      "projectId": "synthetic_celluweave",
+      "title": "EctD SYNTHETIC en pilot table",
+      "sheet": "EctD",
+      "language": "en",
+      "columns": [
+        "row_id",
+        "variant",
+        "titer_g_L",
+        "activity_U_mg",
+        "yield_g_g",
+        "productivity_g_L_h",
+        "temperature_C",
+        "status"
+      ],
+      "rows": [
+        {
+          "id": "X02-R1",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 2,
+          "evidenceId": "X02:EctD:r2",
+          "language": "en",
+          "raw": {
+            "row_id": "X02-R1",
+            "variant": "A163V",
+            "titer_g_L": 4.8,
+            "activity_U_mg": 1.8,
+            "yield_g_g": 0.4,
+            "productivity_g_L_h": 0.1,
+            "temperature_C": 30,
+            "status": "complete"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 4.8,
+            "activity": 1.8,
+            "yield": 0.4,
+            "productivity": 0.1,
+            "temperature": 30,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X02-R2",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 3,
+          "evidenceId": "X02:EctD:r3",
+          "language": "en",
+          "raw": {
+            "row_id": "X02-R2",
+            "variant": "A163V",
+            "titer_g_L": 4.9,
+            "activity_U_mg": 1.9,
+            "yield_g_g": 0.42,
+            "productivity_g_L_h": 0.10208333333333335,
+            "temperature_C": 30,
+            "status": "complete"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 4.9,
+            "activity": 1.9,
+            "yield": 0.42,
+            "productivity": 0.10208333333333335,
+            "temperature": 30,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X02-R3",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 4,
+          "evidenceId": "X02:EctD:r4",
+          "language": "en",
+          "raw": {
+            "row_id": "X02-R3",
+            "variant": "T212S",
+            "titer_g_L": 4.1,
+            "activity_U_mg": 2.2,
+            "yield_g_g": 0.5,
+            "productivity_g_L_h": 0.08541666666666665,
+            "temperature_C": 35,
+            "status": "complete"
+          },
+          "normalized": {
+            "variant": "T212S",
+            "titer": 4.1,
+            "activity": 2.2,
+            "yield": 0.5,
+            "productivity": 0.08541666666666665,
+            "temperature": 35,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X02-R4",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 5,
+          "evidenceId": "X02:EctD:r5",
+          "language": "en",
+          "raw": {
+            "row_id": "X02-R4",
+            "variant": "T212S",
+            "titer_g_L": 4.3,
+            "activity_U_mg": 2.3,
+            "yield_g_g": 0.52,
+            "productivity_g_L_h": 0.08958333333333333,
+            "temperature_C": 35,
+            "status": "complete"
+          },
+          "normalized": {
+            "variant": "T212S",
+            "titer": 4.3,
+            "activity": 2.3,
+            "yield": 0.52,
+            "productivity": 0.08958333333333333,
+            "temperature": 35,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X02-R5",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 6,
+          "evidenceId": "X02:EctD:r6",
+          "language": "en",
+          "raw": {
+            "row_id": "X02-R5",
+            "variant": "A163V",
+            "titer_g_L": 99,
+            "activity_U_mg": 99,
+            "yield_g_g": 99,
+            "productivity_g_L_h": 99,
+            "temperature_C": 30,
+            "status": "failed"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 99,
+            "activity": 99,
+            "yield": 99,
+            "productivity": 99,
+            "temperature": 30,
+            "status": "failed"
+          }
+        },
+        {
+          "id": "X02-R6",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 7,
+          "evidenceId": "X02:EctD:r7",
+          "language": "en",
+          "raw": {
+            "row_id": "X02-R6",
+            "variant": "A163V",
+            "titer_g_L": null,
+            "activity_U_mg": null,
+            "yield_g_g": null,
+            "productivity_g_L_h": null,
+            "temperature_C": 30,
+            "status": "pending"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": null,
+            "activity": null,
+            "yield": null,
+            "productivity": null,
+            "temperature": 30,
+            "status": "pending"
+          }
+        }
+      ],
+      "synthetic": true
+    },
+    {
+      "sourceId": "X03",
+      "projectId": "synthetic_celluweave",
+      "title": "EctD SYNTHETIC zh pilot table",
+      "sheet": "EctD",
+      "language": "zh",
+      "columns": [
+        "行号",
+        "突变体",
+        "滴度 (g/L)",
+        "比活性 (U/mg)",
+        "得率 (g/g)",
+        "生产强度 (g/L/h)",
+        "温度 (°C)",
+        "状态"
+      ],
+      "rows": [
+        {
+          "id": "X03-R1",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "rowNumber": 2,
+          "evidenceId": "X03:EctD:r2",
+          "language": "zh",
+          "raw": {
+            "行号": "X03-R1",
+            "突变体": "A163V",
+            "滴度 (g/L)": 4.8,
+            "比活性 (U/mg)": 1.8,
+            "得率 (g/g)": 0.4,
+            "生产强度 (g/L/h)": 0.1,
+            "温度 (°C)": 30,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 4.8,
+            "activity": 1.8,
+            "yield": 0.4,
+            "productivity": 0.1,
+            "temperature": 30,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X03-R2",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "rowNumber": 3,
+          "evidenceId": "X03:EctD:r3",
+          "language": "zh",
+          "raw": {
+            "行号": "X03-R2",
+            "突变体": "A163V",
+            "滴度 (g/L)": 4.9,
+            "比活性 (U/mg)": 1.9,
+            "得率 (g/g)": 0.42,
+            "生产强度 (g/L/h)": 0.10208333333333335,
+            "温度 (°C)": 30,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 4.9,
+            "activity": 1.9,
+            "yield": 0.42,
+            "productivity": 0.10208333333333335,
+            "temperature": 30,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X03-R3",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "rowNumber": 4,
+          "evidenceId": "X03:EctD:r4",
+          "language": "zh",
+          "raw": {
+            "行号": "X03-R3",
+            "突变体": "T212S",
+            "滴度 (g/L)": 4.1,
+            "比活性 (U/mg)": 2.2,
+            "得率 (g/g)": 0.5,
+            "生产强度 (g/L/h)": 0.08541666666666665,
+            "温度 (°C)": 35,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "T212S",
+            "titer": 4.1,
+            "activity": 2.2,
+            "yield": 0.5,
+            "productivity": 0.08541666666666665,
+            "temperature": 35,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X03-R4",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X03",
+          "sheet": "EctD",
+          "rowNumber": 5,
+          "evidenceId": "X03:EctD:r5",
+          "language": "zh",
+          "raw": {
+            "行号": "X03-R4",
+            "突变体": "T212S",
+            "滴度 (g/L)": 4.3,
+            "比活性 (U/mg)": 2.3,
+            "得率 (g/g)": 0.52,
+            "生产强度 (g/L/h)": 0.08958333333333333,
+            "温度 (°C)": 35,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "T212S",
+            "titer": 4.3,
+            "activity": 2.3,
+            "yield": 0.52,
+            "productivity": 0.08958333333333333,
+            "temperature": 35,
+            "status": "complete"
+          }
+        }
+      ],
+      "synthetic": true
+    },
+    {
+      "sourceId": "X04",
+      "projectId": "synthetic_celluweave",
+      "title": "EctD SYNTHETIC mixed pilot table",
+      "sheet": "EctD",
+      "language": "mixed",
+      "columns": [
+        "row_id",
+        "variant",
+        "滴度 (g/L)",
+        "activity (U/mg)",
+        "得率 (g/g)",
+        "productivity (g/L/h)",
+        "temperature (°C)",
+        "状态"
+      ],
+      "rows": [
+        {
+          "id": "X04-R1",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X04",
+          "sheet": "EctD",
+          "rowNumber": 2,
+          "evidenceId": "X04:EctD:r2",
+          "language": "mixed",
+          "raw": {
+            "row_id": "X04-R1",
+            "variant": "A163V",
+            "滴度 (g/L)": 4.6,
+            "activity (U/mg)": 1.5,
+            "得率 (g/g)": 0.38,
+            "productivity (g/L/h)": 0.09583333333333333,
+            "temperature (°C)": 42,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 4.6,
+            "activity": 1.5,
+            "yield": 0.38,
+            "productivity": 0.09583333333333333,
+            "temperature": 42,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X04-R2",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X04",
+          "sheet": "EctD",
+          "rowNumber": 3,
+          "evidenceId": "X04:EctD:r3",
+          "language": "mixed",
+          "raw": {
+            "row_id": "X04-R2",
+            "variant": "A163V",
+            "滴度 (g/L)": 4.7,
+            "activity (U/mg)": 1.6,
+            "得率 (g/g)": 0.39,
+            "productivity (g/L/h)": 0.09791666666666667,
+            "temperature (°C)": 42,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "A163V",
+            "titer": 4.7,
+            "activity": 1.6,
+            "yield": 0.39,
+            "productivity": 0.09791666666666667,
+            "temperature": 42,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X04-R3",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X04",
+          "sheet": "EctD",
+          "rowNumber": 4,
+          "evidenceId": "X04:EctD:r4",
+          "language": "mixed",
+          "raw": {
+            "row_id": "X04-R3",
+            "variant": "T212S",
+            "滴度 (g/L)": 3.9,
+            "activity (U/mg)": 2.4,
+            "得率 (g/g)": 0.46,
+            "productivity (g/L/h)": 0.08125,
+            "temperature (°C)": 42,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "T212S",
+            "titer": 3.9,
+            "activity": 2.4,
+            "yield": 0.46,
+            "productivity": 0.08125,
+            "temperature": 42,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X04-R4",
+          "projectId": "synthetic_celluweave",
+          "sourceId": "X04",
+          "sheet": "EctD",
+          "rowNumber": 5,
+          "evidenceId": "X04:EctD:r5",
+          "language": "mixed",
+          "raw": {
+            "row_id": "X04-R4",
+            "variant": "T212S",
+            "滴度 (g/L)": 4.0,
+            "activity (U/mg)": 2.5,
+            "得率 (g/g)": 0.47,
+            "productivity (g/L/h)": 0.08333333333333333,
+            "temperature (°C)": 42,
+            "状态": "已完成"
+          },
+          "normalized": {
+            "variant": "T212S",
+            "titer": 4.0,
+            "activity": 2.5,
+            "yield": 0.47,
+            "productivity": 0.08333333333333333,
+            "temperature": 42,
+            "status": "complete"
+          }
+        }
+      ],
+      "synthetic": true
+    }
+  ]
+}

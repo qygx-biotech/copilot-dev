@@ -1,0 +1,5850 @@
+{
+  "metrics": {
+    "retrieval.paper.recall5": {
+      "mean": 0.7222222222222222,
+      "ci95": [
+        0.5,
+        0.8888888888888888
+      ],
+      "n": 36,
+      "clusters": 18,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.paper.recall10": {
+      "mean": 0.7222222222222222,
+      "ci95": [
+        0.5,
+        0.8888888888888888
+      ],
+      "n": 36,
+      "clusters": 18,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.paper.precision5": {
+      "mean": 0.17777777777777778,
+      "ci95": [
+        0.1111111111111111,
+        0.24444444444444452
+      ],
+      "n": 36,
+      "clusters": 18,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.paper.mrr": {
+      "mean": 0.6805555555555556,
+      "ci95": [
+        0.4583333333333333,
+        0.8888888888888888
+      ],
+      "n": 36,
+      "clusters": 18,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.evidence.recall5": {
+      "mean": 0.6083333333333334,
+      "ci95": [
+        0.4083333333333334,
+        0.8
+      ],
+      "n": 40,
+      "clusters": 20,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.evidence.recall10": {
+      "mean": 0.6708333333333334,
+      "ci95": [
+        0.4748958333333333,
+        0.85
+      ],
+      "n": 40,
+      "clusters": 20,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.evidence.precision5": {
+      "mean": 0.16000000000000003,
+      "ci95": [
+        0.10999999999999999,
+        0.22000000000000006
+      ],
+      "n": 40,
+      "clusters": 20,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "retrieval.evidence.mrr": {
+      "mean": 0.5227380952380953,
+      "ci95": [
+        0.34768154761904757,
+        0.7
+      ],
+      "n": 40,
+      "clusters": 20,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    }
+  },
+  "bilingual": {
+    "validPairs": 6,
+    "pairs": [
+      {
+        "pairId": "lookup_p17_en_zh",
+        "repeat": 0,
+        "metrics": {
+          "paper.recall5EnMinusZh": 0,
+          "paper.recall5AbsoluteGap": 0,
+          "paper.recall10EnMinusZh": 0,
+          "paper.recall10AbsoluteGap": 0,
+          "paper.precision5EnMinusZh": 0,
+          "paper.precision5AbsoluteGap": 0,
+          "paper.mrrEnMinusZh": 0,
+          "paper.mrrAbsoluteGap": 0,
+          "paper.jaccard5": 0.8,
+          "paper.jaccard10": 0.8,
+          "evidence.recall5EnMinusZh": 0,
+          "evidence.recall5AbsoluteGap": 0,
+          "evidence.recall10EnMinusZh": 0,
+          "evidence.recall10AbsoluteGap": 0,
+          "evidence.precision5EnMinusZh": 0,
+          "evidence.precision5AbsoluteGap": 0,
+          "evidence.mrrEnMinusZh": 0,
+          "evidence.mrrAbsoluteGap": 0,
+          "evidence.jaccard5": 0.42857142857142855,
+          "evidence.jaccard10": 0.8181818181818182
+        }
+      },
+      {
+        "pairId": "lookup_p17_en_zh",
+        "repeat": 1,
+        "metrics": {
+          "paper.recall5EnMinusZh": 0,
+          "paper.recall5AbsoluteGap": 0,
+          "paper.recall10EnMinusZh": 0,
+          "paper.recall10AbsoluteGap": 0,
+          "paper.precision5EnMinusZh": 0,
+          "paper.precision5AbsoluteGap": 0,
+          "paper.mrrEnMinusZh": 0,
+          "paper.mrrAbsoluteGap": 0,
+          "paper.jaccard5": 0.8,
+          "paper.jaccard10": 0.8,
+          "evidence.recall5EnMinusZh": 0,
+          "evidence.recall5AbsoluteGap": 0,
+          "evidence.recall10EnMinusZh": 0,
+          "evidence.recall10AbsoluteGap": 0,
+          "evidence.precision5EnMinusZh": 0,
+          "evidence.precision5AbsoluteGap": 0,
+          "evidence.mrrEnMinusZh": 0,
+          "evidence.mrrAbsoluteGap": 0,
+          "evidence.jaccard5": 0.42857142857142855,
+          "evidence.jaccard10": 0.8181818181818182
+        }
+      },
+      {
+        "pairId": "discover_calcium",
+        "repeat": 0,
+        "metrics": {
+          "paper.recall5EnMinusZh": 1,
+          "paper.recall5AbsoluteGap": 1,
+          "paper.recall10EnMinusZh": 1,
+          "paper.recall10AbsoluteGap": 1,
+          "paper.precision5EnMinusZh": 0.2,
+          "paper.precision5AbsoluteGap": 0.2,
+          "paper.mrrEnMinusZh": 1,
+          "paper.mrrAbsoluteGap": 1,
+          "paper.jaccard5": 0.14285714285714285,
+          "paper.jaccard10": 0.14285714285714285,
+          "evidence.recall5EnMinusZh": 1,
+          "evidence.recall5AbsoluteGap": 1,
+          "evidence.recall10EnMinusZh": 1,
+          "evidence.recall10AbsoluteGap": 1,
+          "evidence.precision5EnMinusZh": 0.2,
+          "evidence.precision5AbsoluteGap": 0.2,
+          "evidence.mrrEnMinusZh": 0.5,
+          "evidence.mrrAbsoluteGap": 0.5,
+          "evidence.jaccard5": 0,
+          "evidence.jaccard10": 0.125
+        }
+      },
+      {
+        "pairId": "discover_calcium",
+        "repeat": 1,
+        "metrics": {
+          "paper.recall5EnMinusZh": 1,
+          "paper.recall5AbsoluteGap": 1,
+          "paper.recall10EnMinusZh": 1,
+          "paper.recall10AbsoluteGap": 1,
+          "paper.precision5EnMinusZh": 0.2,
+          "paper.precision5AbsoluteGap": 0.2,
+          "paper.mrrEnMinusZh": 1,
+          "paper.mrrAbsoluteGap": 1,
+          "paper.jaccard5": 0.14285714285714285,
+          "paper.jaccard10": 0.14285714285714285,
+          "evidence.recall5EnMinusZh": 1,
+          "evidence.recall5AbsoluteGap": 1,
+          "evidence.recall10EnMinusZh": 1,
+          "evidence.recall10AbsoluteGap": 1,
+          "evidence.precision5EnMinusZh": 0.2,
+          "evidence.precision5AbsoluteGap": 0.2,
+          "evidence.mrrEnMinusZh": 0.5,
+          "evidence.mrrAbsoluteGap": 0.5,
+          "evidence.jaccard5": 0,
+          "evidence.jaccard10": 0.125
+        }
+      },
+      {
+        "pairId": "ectd_discovery_a163v",
+        "repeat": 0,
+        "metrics": {
+          "paper.recall5EnMinusZh": 0,
+          "paper.recall5AbsoluteGap": 0,
+          "paper.recall10EnMinusZh": 0,
+          "paper.recall10AbsoluteGap": 0,
+          "paper.precision5EnMinusZh": 0,
+          "paper.precision5AbsoluteGap": 0,
+          "paper.mrrEnMinusZh": 0,
+          "paper.mrrAbsoluteGap": 0,
+          "paper.jaccard5": 0.6,
+          "paper.jaccard10": 0.6,
+          "evidence.recall5EnMinusZh": 0,
+          "evidence.recall5AbsoluteGap": 0,
+          "evidence.recall10EnMinusZh": 0,
+          "evidence.recall10AbsoluteGap": 0,
+          "evidence.precision5EnMinusZh": 0,
+          "evidence.precision5AbsoluteGap": 0,
+          "evidence.mrrEnMinusZh": 0,
+          "evidence.mrrAbsoluteGap": 0,
+          "evidence.jaccard5": 0.42857142857142855,
+          "evidence.jaccard10": 0.9
+        }
+      },
+      {
+        "pairId": "ectd_discovery_a163v",
+        "repeat": 1,
+        "metrics": {
+          "paper.recall5EnMinusZh": 0,
+          "paper.recall5AbsoluteGap": 0,
+          "paper.recall10EnMinusZh": 0,
+          "paper.recall10AbsoluteGap": 0,
+          "paper.precision5EnMinusZh": 0,
+          "paper.precision5AbsoluteGap": 0,
+          "paper.mrrEnMinusZh": 0,
+          "paper.mrrAbsoluteGap": 0,
+          "paper.jaccard5": 0.6,
+          "paper.jaccard10": 0.6,
+          "evidence.recall5EnMinusZh": 0,
+          "evidence.recall5AbsoluteGap": 0,
+          "evidence.recall10EnMinusZh": 0,
+          "evidence.recall10AbsoluteGap": 0,
+          "evidence.precision5EnMinusZh": 0,
+          "evidence.precision5AbsoluteGap": 0,
+          "evidence.mrrEnMinusZh": 0,
+          "evidence.mrrAbsoluteGap": 0,
+          "evidence.jaccard5": 0.42857142857142855,
+          "evidence.jaccard10": 0.9
+        }
+      }
+    ],
+    "metrics": {
+      "paper.recall5EnMinusZh": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.recall5AbsoluteGap": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.recall10EnMinusZh": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.recall10AbsoluteGap": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.precision5EnMinusZh": {
+        "mean": 0.06666666666666667,
+        "ci95": [
+          0,
+          0.20000000000000004
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.precision5AbsoluteGap": {
+        "mean": 0.06666666666666667,
+        "ci95": [
+          0,
+          0.20000000000000004
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.mrrEnMinusZh": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.mrrAbsoluteGap": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.jaccard5": {
+        "mean": 0.5142857142857142,
+        "ci95": [
+          0.14285714285714285,
+          0.8000000000000002
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "paper.jaccard10": {
+        "mean": 0.5142857142857142,
+        "ci95": [
+          0.14285714285714285,
+          0.8000000000000002
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.recall5EnMinusZh": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.recall5AbsoluteGap": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.recall10EnMinusZh": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.recall10AbsoluteGap": {
+        "mean": 0.3333333333333333,
+        "ci95": [
+          0,
+          1
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.precision5EnMinusZh": {
+        "mean": 0.06666666666666667,
+        "ci95": [
+          0,
+          0.20000000000000004
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.precision5AbsoluteGap": {
+        "mean": 0.06666666666666667,
+        "ci95": [
+          0,
+          0.20000000000000004
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.mrrEnMinusZh": {
+        "mean": 0.16666666666666666,
+        "ci95": [
+          0,
+          0.5
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.mrrAbsoluteGap": {
+        "mean": 0.16666666666666666,
+        "ci95": [
+          0,
+          0.5
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.jaccard5": {
+        "mean": 0.2857142857142857,
+        "ci95": [
+          0,
+          0.42857142857142855
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "evidence.jaccard10": {
+        "mean": 0.6143939393939394,
+        "ci95": [
+          0.125,
+          0.9
+        ],
+        "n": 6,
+        "clusters": 3,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      }
+    }
+  },
+  "cases": [
+    {
+      "caseId": "CW-LOOKUP-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P74",
+          "P31",
+          "P52",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P74",
+          "P31",
+          "P52",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.3333333333333333
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.3333333333333333
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-LOOKUP-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-LOOKUP-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P83"
+        ],
+        "evidenceIds": [
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P83"
+        ],
+        "evidenceIds": [
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.6,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 0.6666666666666666,
+        "retrieval.evidence.recall10": 0.6666666666666666,
+        "retrieval.evidence.precision5": 0.4,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.6,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 0.6666666666666666,
+        "retrieval.evidence.recall10": 0.6666666666666666,
+        "retrieval.evidence.precision5": 0.4,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P74",
+          "P117",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P74",
+          "P117",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P74:p2:v1",
+          "P52:p3:v1",
+          "P117:p3:v1",
+          "P117:p1:v1",
+          "P152:p1:v1",
+          "P52:p1:v1",
+          "P74:p1:v1",
+          "P117:p2:v1",
+          "P152:p2:v1",
+          "P52:p2:v1",
+          "P83:p2:v1",
+          "P131:p2:v1",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P131:p1:v1",
+          "P31:p1:v2",
+          "P83:p1:v1",
+          "P131:p3:v1",
+          "P83:p3:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 0.25,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0.14285714285714285,
+        "corpus.includedRecall": 1,
+        "corpus.preparedRecall": 1,
+        "corpus.analyzedRecall": 1
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 0.25,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0.1,
+        "corpus.includedRecall": 1,
+        "corpus.preparedRecall": 1,
+        "corpus.analyzedRecall": 1
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P52",
+          "P117",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.evidence.recall5": 0.5,
+        "retrieval.evidence.recall10": 0.75,
+        "retrieval.evidence.precision5": 0.4,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P52",
+          "P117",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.evidence.recall5": 0.5,
+        "retrieval.evidence.recall10": 0.75,
+        "retrieval.evidence.precision5": 0.4,
+        "retrieval.evidence.mrr": 0.5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P31",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P31",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-PAPERS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P83",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P83",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P83"
+        ],
+        "evidenceIds": [
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-PAPERS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P83"
+        ],
+        "evidenceIds": [
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P74:p2:v1",
+          "P52:p3:v1",
+          "P117:p3:v1",
+          "P117:p1:v1",
+          "P152:p1:v1",
+          "P17:p1:v1",
+          "P52:p1:v1",
+          "P74:p1:v1",
+          "P117:p2:v1",
+          "P17:p2:v1",
+          "P152:p2:v1",
+          "P52:p2:v1",
+          "P83:p2:v1",
+          "P131:p2:v1",
+          "P131:p1:v1",
+          "P83:p1:v1",
+          "P131:p3:v1",
+          "P83:p3:v1",
+          "P152:p3:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {
+        "corpus.includedRecall": 1,
+        "corpus.preparedRecall": 1,
+        "corpus.analyzedRecall": 0.6666666666666666
+      }
+    },
+    {
+      "caseId": "CW-CORPUS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P31:p1:v2",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "corpus.includedRecall": 1,
+        "corpus.preparedRecall": 1,
+        "corpus.analyzedRecall": 1
+      }
+    },
+    {
+      "caseId": "CW-CORPUS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P31",
+          "P74",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P31",
+          "P74",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P52:p3:v1",
+          "P74:p2:v1",
+          "P117:p3:v1",
+          "P117:p1:v1",
+          "P152:p1:v1",
+          "P17:p1:v1",
+          "P52:p1:v1",
+          "P74:p1:v1",
+          "P117:p2:v1",
+          "P17:p2:v1",
+          "P152:p2:v1",
+          "P52:p2:v1",
+          "P83:p2:v1",
+          "P131:p2:v1",
+          "P131:p1:v1",
+          "P83:p1:v1",
+          "P131:p3:v1",
+          "P83:p3:v1",
+          "P152:p3:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {
+        "corpus.includedRecall": 1,
+        "corpus.preparedRecall": 1,
+        "corpus.analyzedRecall": 1
+      }
+    },
+    {
+      "caseId": "CW-CORPUS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P31:p1:v2",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "corpus.includedRecall": 1,
+        "corpus.preparedRecall": 1,
+        "corpus.analyzedRecall": 1
+      }
+    },
+    {
+      "caseId": "CW-CORPUS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P31",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P31",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P83"
+        ],
+        "evidenceIds": [
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P83"
+        ],
+        "evidenceIds": [
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P17",
+          "P74",
+          "P52",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CORPUS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P17",
+          "P74",
+          "P52",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P31",
+          "P83",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P31",
+          "P83",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-EXPERIMENTS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P117",
+          "P74",
+          "P152",
+          "P17"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P117",
+          "P74",
+          "P152",
+          "P17"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P83",
+          "P52",
+          "P17",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-CROSS_SOURCE-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P83",
+          "P52",
+          "P17",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P74",
+          "P52",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P74",
+          "P52",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MEMORY_PERMISSIONS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 0,
+        "retrieval.paper.recall10": 0,
+        "retrieval.paper.precision5": 0,
+        "retrieval.paper.mrr": 0,
+        "retrieval.evidence.recall5": 0,
+        "retrieval.evidence.recall10": 0,
+        "retrieval.evidence.precision5": 0,
+        "retrieval.evidence.mrr": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P74",
+          "P31",
+          "P83"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P52",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P31",
+          "P17",
+          "P52",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {
+        "sync.versionAccuracy": 1,
+        "sync.freshnessAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P31",
+          "P17",
+          "P52",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {
+        "sync.versionAccuracy": 1,
+        "sync.freshnessAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "sync.versionAccuracy": 1,
+        "sync.freshnessAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "sync.versionAccuracy": 1,
+        "sync.freshnessAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P31",
+          "P83",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {
+        "sync.freshnessAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P17",
+          "P31",
+          "P83",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {
+        "sync.freshnessAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P117",
+          "P74",
+          "P17",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P52",
+          "P117",
+          "P74",
+          "P17",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P52",
+          "P31",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P74",
+          "P17",
+          "P52",
+          "P31",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P31",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P31",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-SYNC_FAILURE-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.2,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.2,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.4,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.4,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "retrieval.paper.recall5": 1,
+        "retrieval.paper.recall10": 1,
+        "retrieval.paper.precision5": 0.4,
+        "retrieval.paper.mrr": 1,
+        "retrieval.evidence.recall5": 1,
+        "retrieval.evidence.recall10": 1,
+        "retrieval.evidence.precision5": 0.4,
+        "retrieval.evidence.mrr": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P31"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P17",
+          "P52",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P17",
+          "P52",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 1,
+        "experiment.aggregationAccuracy": 1,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 1,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 1,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 1,
+        "experiment.aggregationAccuracy": 1,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 1,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 1,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P131",
+          "P17",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P17",
+          "P52",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P17",
+          "P52",
+          "P131"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1"
+        ]
+      },
+      "metrics": {
+        "experiment.valueAccuracy": 0,
+        "experiment.unitAccuracy": 0,
+        "experiment.aggregationAccuracy": 0,
+        "experiment.filtersAccuracy": 0,
+        "experiment.groupByAccuracy": 0,
+        "experiment.sourceRowsAccuracy": 0,
+        "experiment.fieldAccuracy": 0,
+        "experiment.exactAccuracy": 0
+      }
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-01",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152",
+          "P74",
+          "P17"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-01",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152",
+          "P74",
+          "P17"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P17",
+          "P131",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P152",
+          "P117",
+          "P17",
+          "P131",
+          "P52"
+        ],
+        "evidenceIds": [
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-03",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-03",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-04",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P52:p3:v1",
+          "P74:p2:v1",
+          "P117:p3:v1",
+          "P117:p1:v1",
+          "P152:p1:v1",
+          "P52:p1:v1",
+          "P74:p1:v1",
+          "P117:p2:v1",
+          "P152:p2:v1",
+          "P52:p2:v1",
+          "P83:p2:v1",
+          "P131:p2:v1",
+          "P31:p2:v2",
+          "P31:p3:v2",
+          "P131:p1:v1",
+          "P31:p1:v2",
+          "P83:p1:v1",
+          "P131:p3:v1",
+          "P83:p3:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-04",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P17",
+          "P31",
+          "P52",
+          "P74",
+          "P83",
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P83:p1:v1",
+          "P83:p2:v1",
+          "P83:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P31:p1:v2",
+          "P31:p2:v2",
+          "P31:p3:v2"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-05",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P131",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "sync.versionAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-05",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P131",
+          "P117",
+          "P152",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {
+        "sync.versionAccuracy": 1
+      }
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-06",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [],
+        "evidenceIds": []
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-06",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P131",
+          "P152"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-07",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P131",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-07",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P131",
+          "P117"
+        ],
+        "evidenceIds": [
+          "P131:p1:v1",
+          "P131:p2:v1",
+          "P131:p3:v1",
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-08",
+      "repeat": 0,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-08",
+      "repeat": 1,
+      "retrieval": {
+        "paperIds": [
+          "P117",
+          "P152",
+          "P17",
+          "P52",
+          "P74"
+        ],
+        "evidenceIds": [
+          "P117:p1:v1",
+          "P117:p2:v1",
+          "P117:p3:v1",
+          "P152:p1:v1",
+          "P152:p2:v1",
+          "P152:p3:v1",
+          "P17:p1:v1",
+          "P17:p2:v1",
+          "P17:p3:v1",
+          "P52:p1:v1",
+          "P52:p2:v1",
+          "P52:p3:v1",
+          "P74:p1:v1",
+          "P74:p2:v1"
+        ]
+      },
+      "metrics": {}
+    }
+  ]
+}

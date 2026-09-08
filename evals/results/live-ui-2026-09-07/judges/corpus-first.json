@@ -1,0 +1,366 @@
+{
+  "packetId": "d380743f8fb126cb",
+  "artifactType": "final_answer",
+  "correctness": 2,
+  "faithfulness": 2,
+  "completeness": 2,
+  "relevance": 4,
+  "uncertaintyHandling": 2,
+  "synthesis": null,
+  "clarity": 4,
+  "overall": 2,
+  "criticalErrors": [
+    {
+      "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+      "goldEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "issue": "The original study explicitly reports n=5 independent sheets for the 50 mmol/L condition; calling the count unreported contradicts the requested evidence."
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported)",
+      "goldEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "issue": "The additionally listed 75 mmol/L condition also explicitly reports n=5; the absence claim is false."
+    },
+    {
+      "candidateSpan": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+      "goldEvidenceIds": [
+        "P52:p2:v1"
+      ],
+      "issue": "The original study explicitly reports n=6 independent sheets; calling the count unreported contradicts the requested evidence."
+    },
+    {
+      "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+      "goldEvidenceIds": [
+        "P17:p2:v1",
+        "P31:p2:v2",
+        "P52:p2:v1"
+      ],
+      "issue": "Every numeric result cites this same unresolved artifact. Its supplied citation has status missing, page null, and a sourceId absent from the supplied sources; it cannot establish the claimed provenance."
+    }
+  ],
+  "missingPoints": [
+    {
+      "goldRequirement": "p17n",
+      "goldEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "omission": "The requested sample count is replaced with a false assertion that it was not reported."
+    },
+    {
+      "goldRequirement": "p52n",
+      "goldEvidenceIds": [
+        "P52:p2:v1"
+      ],
+      "omission": "The requested sample count is replaced with a false assertion that it was not reported."
+    }
+  ],
+  "lowScoreEvidence": [
+    {
+      "criterion": "correctness",
+      "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+      "goldRequirement": "p17n",
+      "goldEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "issue": "One of two required sample counts is falsely described as unreported; P52 has the same central defect."
+    },
+    {
+      "criterion": "faithfulness",
+      "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+      "goldRequirement": "p17mean",
+      "goldEvidenceIds": [
+        "P17:p2:v1",
+        "P31:p2:v2",
+        "P52:p2:v1"
+      ],
+      "issue": "The only citation is unresolved in the supplied citation metadata and cannot be traced to an allowed source. Its page:null must not be converted into a page citation."
+    },
+    {
+      "criterion": "completeness",
+      "candidateSpan": "",
+      "goldRequirement": "p17n",
+      "goldEvidenceIds": [
+        "P17:p2:v1",
+        "P52:p2:v1"
+      ],
+      "issue": "Two of the three requested study sample counts are absent, despite being explicitly available."
+    },
+    {
+      "criterion": "uncertaintyHandling",
+      "candidateSpan": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+      "goldRequirement": "p52n",
+      "goldEvidenceIds": [
+        "P52:p2:v1"
+      ],
+      "issue": "Asserts absence of reporting where the source explicitly provides n=6, confusing missing extraction with missing evidence."
+    },
+    {
+      "criterion": "overall",
+      "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+      "goldRequirement": "p17n",
+      "goldEvidenceIds": [
+        "P17:p2:v1",
+        "P52:p2:v1"
+      ],
+      "issue": "The means are useful, but false absence claims omit two central requested sample counts, and all citations remain unresolved."
+    },
+    {
+      "criterion": "completeness",
+      "candidateSpan": "",
+      "goldRequirement": "p52n",
+      "goldEvidenceIds": [
+        "P52:p2:v1"
+      ],
+      "issue": "P52 sample_count = 6 specimens is explicitly reported but omitted and falsely described as unreported."
+    }
+  ],
+  "claimAudits": [
+    {
+      "candidateSpan": "纳入 8 篇",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [],
+      "verdict": "uncertain",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "成功分析 8/8",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [],
+      "verdict": "uncertain",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "失败 0",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [],
+      "verdict": "uncertain",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "缺失 0",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [],
+      "verdict": "uncertain",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa**",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "verdict": "supported",
+      "requiredGoldClaimIds": [
+        "p17mean"
+      ]
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa** (sample count not reported)",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "verdict": "contradicted",
+      "requiredGoldClaimIds": [
+        "p17n"
+      ]
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa**",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "verdict": "supported",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa** (sample count not reported)",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P17:p2:v1"
+      ],
+      "verdict": "contradicted",
+      "requiredGoldClaimIds": []
+    },
+    {
+      "candidateSpan": "Average compressive modulus: **48.0 kPa**",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P31:p2:v2"
+      ],
+      "verdict": "supported",
+      "requiredGoldClaimIds": [
+        "p31mean"
+      ]
+    },
+    {
+      "candidateSpan": "Average compressive modulus: **48.0 kPa** (**n=6**)",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P31:p2:v2"
+      ],
+      "verdict": "supported",
+      "requiredGoldClaimIds": [
+        "p31n"
+      ]
+    },
+    {
+      "candidateSpan": "Mean compressive modulus: **51.0 kPa**",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P52:p2:v1"
+      ],
+      "verdict": "supported",
+      "requiredGoldClaimIds": [
+        "p52mean"
+      ]
+    },
+    {
+      "candidateSpan": "Mean compressive modulus: **51.0 kPa** (sample count not reported)",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [
+        "P52:p2:v1"
+      ],
+      "verdict": "contradicted",
+      "requiredGoldClaimIds": [
+        "p52n"
+      ]
+    },
+    {
+      "candidateSpan": "[Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / .biodesign / results / cba0eae8-0400-4765-87a3-23d4660a062f.json](biodesign-citation:citation-1)",
+      "citedEvidenceIds": [],
+      "supportingEvidenceIds": [],
+      "verdict": "unsupported",
+      "requiredGoldClaimIds": []
+    }
+  ],
+  "numericClaims": [
+    {
+      "candidateSpan": "纳入 8 篇",
+      "subject": "reported coverage",
+      "metric": "included_study_count",
+      "value": 8,
+      "unit": "studies",
+      "sourceIds": [],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "成功分析 8/8",
+      "subject": "reported coverage",
+      "metric": "successful_analysis_count",
+      "value": 8,
+      "unit": "studies",
+      "sourceIds": [],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "成功分析 8/8",
+      "subject": "reported coverage",
+      "metric": "analysis_total_count",
+      "value": 8,
+      "unit": "studies",
+      "sourceIds": [],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "失败 0",
+      "subject": "reported coverage",
+      "metric": "failed_analysis_count",
+      "value": 0,
+      "unit": "studies",
+      "sourceIds": [],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "缺失 0",
+      "subject": "reported coverage",
+      "metric": "missing_count",
+      "value": 0,
+      "unit": "studies",
+      "sourceIds": [],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "50 mmol/L condition",
+      "subject": "P17:50mM",
+      "metric": "calcium_concentration",
+      "value": 50,
+      "unit": "mmol/L",
+      "sourceIds": [
+        "P17"
+      ],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (50 mmol/L condition): **42.0 kPa**",
+      "subject": "P17:50mM",
+      "metric": "mean_modulus",
+      "value": 42,
+      "unit": "kPa",
+      "sourceIds": [
+        "P17"
+      ],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "75 mmol/L condition",
+      "subject": "P17:75mM",
+      "metric": "calcium_concentration",
+      "value": 75,
+      "unit": "mmol/L",
+      "sourceIds": [
+        "P17"
+      ],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "Mean compressive modulus (75 mmol/L condition): **56.0 kPa**",
+      "subject": "P17:75mM",
+      "metric": "mean_modulus",
+      "value": 56,
+      "unit": "kPa",
+      "sourceIds": [
+        "P17"
+      ],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "Average compressive modulus: **48.0 kPa**",
+      "subject": "P31",
+      "metric": "mean_modulus",
+      "value": 48,
+      "unit": "kPa",
+      "sourceIds": [
+        "P31"
+      ],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "**n=6**",
+      "subject": "P31",
+      "metric": "sample_count",
+      "value": 6,
+      "unit": "specimens",
+      "sourceIds": [
+        "P31"
+      ],
+      "sourceRows": []
+    },
+    {
+      "candidateSpan": "Mean compressive modulus: **51.0 kPa**",
+      "subject": "P52",
+      "metric": "mean_modulus",
+      "value": 51,
+      "unit": "kPa",
+      "sourceIds": [
+        "P52"
+      ],
+      "sourceRows": []
+    }
+  ],
+  "confidence": "high"
+}

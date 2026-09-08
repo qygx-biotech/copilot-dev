@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "observed-citation-localization-v1",
+  "method": "Deterministic persisted citation status and source/page/row identity only; this is not entailment scoring.",
+  "perObservation": [
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 0,
+      "file": "01-discovery-en-cold.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P117",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P117.pdf"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 1,
+      "file": "02-discovery-en-warm.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P117",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P117.pdf"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-02",
+      "repeat": 0,
+      "file": "03-discovery-zh.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P117",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P117.pdf"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-05",
+      "repeat": 0,
+      "file": "04-metric-reasoning.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P152",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P152.pdf"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-07",
+      "repeat": 0,
+      "file": "05-heldout-p152.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P152",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P152.pdf"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-08",
+      "repeat": 0,
+      "file": "06-heldout-uncertainty.json",
+      "citations": []
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "repeat": 0,
+      "file": "07-experiment-x02.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "X02",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "experiments/X02.xlsx"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "repeat": 0,
+      "file": "08-experiment-activity.json",
+      "citations": []
+    },
+    {
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "repeat": 0,
+      "file": "09-experiment-mixed.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "X04",
+          "status": "resolved",
+          "page": null,
+          "sheet": "EctD",
+          "row": 2,
+          "range": "A2:H2",
+          "relativePath": "experiments/X04.xlsx"
+        },
+        {
+          "id": "citation-2",
+          "sourceId": "X04",
+          "status": "resolved",
+          "page": null,
+          "sheet": "EctD",
+          "row": 3,
+          "range": "A3:H3",
+          "relativePath": "experiments/X04.xlsx"
+        },
+        {
+          "id": "citation-3",
+          "sourceId": "X04",
+          "status": "resolved",
+          "page": null,
+          "sheet": "EctD",
+          "row": 4,
+          "range": "A4:H4",
+          "relativePath": "experiments/X04.xlsx"
+        },
+        {
+          "id": "citation-4",
+          "sourceId": "X04",
+          "status": "resolved",
+          "page": null,
+          "sheet": "EctD",
+          "row": 5,
+          "range": "A5:H5",
+          "relativePath": "experiments/X04.xlsx"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-02",
+      "repeat": 0,
+      "file": "10-memory-recommendation.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P152",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P152.pdf"
+        },
+        {
+          "id": "citation-2",
+          "sourceId": "X04",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "experiments/X04.xlsx"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-CORPUS-01",
+      "repeat": 0,
+      "file": "11-corpus-cold.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "catalog:local:1",
+          "status": "missing",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": ".biodesign/results/cba0eae8-0400-4765-87a3-23d4660a062f.json"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-CORPUS-01",
+      "repeat": 1,
+      "file": "12-corpus-warm.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "catalog:local:1",
+          "status": "missing",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": ".biodesign/results/cb552341-42d0-4079-8f37-0b7def072c22.json"
+        }
+      ]
+    },
+    {
+      "caseId": "CW-ECTD_WORKFLOWS-07",
+      "repeat": 0,
+      "file": "13-direct-zh.json",
+      "citations": [
+        {
+          "id": "citation-1",
+          "sourceId": "P131",
+          "status": "resolved",
+          "page": null,
+          "sheet": "",
+          "row": null,
+          "range": "",
+          "relativePath": "literature/P131.pdf"
+        }
+      ]
+    }
+  ],
+  "counts": {
+    "observations": 13,
+    "withCitations": 11,
+    "citationObjects": 15,
+    "resolved": 13,
+    "missing": 2,
+    "pdfCitations": 7,
+    "pdfCitationsWithPage": 0,
+    "spreadsheetCitations": 6,
+    "spreadsheetCitationsWithRows": 4
+  }
+}

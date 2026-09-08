@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "extractorVersion": "local-source-v1",
+  "sourceId": "P52",
+  "contentHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+  "pageCount": 3,
+  "metadataTitle": "CelluWeave C: Added cellulose and swelling tradeoffs",
+  "truncated": false,
+  "pages": [
+    {
+      "page": 1,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nPaper P52. Invented author C. Moss. Fixture year 2025. A nonliving hydrogel containing 2.0% w/v alginate and 1.2% w/v cellulose\nwas cured in 50 mmol/L calcium chloride for 10 minutes. Wet compression after 24 hours equilibration used 10% strain; this matches\nthe P17 measurement protocol."
+    },
+    {
+      "page": 2,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3. Mean compressive modulus 51.0 kPa, sample SD 3.0 kPa, n=6 independent sheets. Shape retention 93%; water uptake\n12.5 g/g. One of six sheets exhibited visible brittle cracking during handling. The study did not establish a crack-rate confidence\ninterval."
+    },
+    {
+      "page": 3,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nDiscussion. Relative to the P17 reported mean of 42.0 kPa, the reported mean is 9.0 kPa higher (approximately 21.43%). Water\nuptake also increases from 10.0 to 12.5 g/g. These cross-study descriptive comparisons do not establish statistical significance or\nuniversal superiority. No living-cell or safety testing occurred."
+    }
+  ],
+  "chunks": [
+    {
+      "chunkId": "P52-P1-C1",
+      "page": 1,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nPaper P52. Invented author C. Moss. Fixture year 2025. A nonliving hydrogel containing 2.0% w/v alginate and 1.2% w/v cellulose\nwas cured in 50 mmol/L calcium chloride for 10 minutes. Wet compression after 24 hours equilibration used 10% strain; this matches\nthe P17 measurement protocol."
+    },
+    {
+      "chunkId": "P52-P2-C1",
+      "page": 2,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nTable 3. Mean compressive modulus 51.0 kPa, sample SD 3.0 kPa, n=6 independent sheets. Shape retention 93%; water uptake\n12.5 g/g. One of six sheets exhibited visible brittle cracking during handling. The study did not establish a crack-rate confidence\ninterval."
+    },
+    {
+      "chunkId": "P52-P3-C1",
+      "page": 3,
+      "section": null,
+      "text": "ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.\nDiscussion. Relative to the P17 reported mean of 42.0 kPa, the reported mean is 9.0 kPa higher (approximately 21.43%). Water\nuptake also increases from 10.0 to 12.5 g/g. These cross-study descriptive comparisons do not establish statistical significance or\nuniversal superiority. No living-cell or safety testing occurred."
+    }
+  ],
+  "extractedCharacters": 1281,
+  "createdAt": "2026-09-07T23:43:54.388Z"
+}

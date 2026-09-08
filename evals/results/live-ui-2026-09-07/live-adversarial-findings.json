@@ -1,0 +1,664 @@
+{
+  "reviewerRole": "fresh_adversarial_reviewer",
+  "phase": "independent_live_blackbox_answer_review",
+  "createdAt": "2026-09-08T00:24:34.278415+00:00",
+  "inputFiles": [
+    "evals/results/live-ui-2026-09-07/01-discovery-en-cold.json",
+    "evals/results/live-ui-2026-09-07/02-discovery-en-warm.json",
+    "evals/results/live-ui-2026-09-07/03-discovery-zh.json",
+    "evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+    "evals/results/live-ui-2026-09-07/05-heldout-p152.json",
+    "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+    "evals/results/live-ui-2026-09-07/07-experiment-x02.json",
+    "evals/results/live-ui-2026-09-07/08-experiment-activity.json",
+    "evals/results/live-ui-2026-09-07/09-experiment-mixed.json"
+  ],
+  "datasetManifestSha256": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "scope": "Only case questions, actual final answers/citations/chat context, and frozen gold/source fixtures were used. No implementation source, execution logs, other judge narratives or model/branch provenance were read. Deterministic raw arithmetic was recalculated independently.",
+  "findings": [
+    {
+      "id": "ADR-L01",
+      "priority": 1,
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "status": "fail",
+      "severity": "high",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EXPERIMENT_NORMALIZATION",
+        "SEMANTIC_INTERPRETATION",
+        "REASONING"
+      ],
+      "title": "Live answer falsely denies existing completed X02 activity rows",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/08-experiment-activity.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_EXPERIMENTS-04",
+          "text": "Based on the available experimental data, there are no completed rows for the **T212S** mutation at **35°C** within experiment **X02**. \n\nWhile records for T212S at 35°C exist in other experiments (e.g., X03), no matching data was found specifically for X02."
+        },
+        "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer."
+      ],
+      "violatedGold": {
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "question": "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer.",
+        "claims": [],
+        "entries": [
+          {
+            "name": "T212S_mean_activity",
+            "value": 2.25,
+            "unit": "U/mg",
+            "aggregation": "mean",
+            "field": "activity",
+            "filters": {
+              "sourceId": "X02",
+              "variant": "T212S",
+              "status": "complete",
+              "temperature": 35
+            },
+            "groupBy": [],
+            "sourceRows": [
+              "X02-R3",
+              "X02-R4"
+            ],
+            "tolerance": 1e-08
+          }
+        ],
+        "sourceRowIds": [
+          "X02-R3",
+          "X02-R4"
+        ],
+        "evidenceIds": [
+          "X02:EctD:r4",
+          "X02:EctD:r5"
+        ],
+        "answerRequirements": [
+          {
+            "type": "response_mode",
+            "value": "answer"
+          }
+        ],
+        "groundingRule": "Each asserted claim must be entailed by cited accessible source evidence. Unknown is not a pass."
+      },
+      "sourceEvidence": [
+        {
+          "id": "X02-R3",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 4,
+          "evidenceId": "X02:EctD:r4",
+          "raw": {
+            "row_id": "X02-R3",
+            "variant": "T212S",
+            "titer_g_L": 4.1,
+            "activity_U_mg": 2.2,
+            "yield_g_g": 0.5,
+            "productivity_g_L_h": 0.08541666666666665,
+            "temperature_C": 35,
+            "status": "complete"
+          }
+        },
+        {
+          "id": "X02-R4",
+          "sourceId": "X02",
+          "sheet": "EctD",
+          "rowNumber": 5,
+          "evidenceId": "X02:EctD:r5",
+          "raw": {
+            "row_id": "X02-R4",
+            "variant": "T212S",
+            "titer_g_L": 4.3,
+            "activity_U_mg": 2.3,
+            "yield_g_g": 0.52,
+            "productivity_g_L_h": 0.08958333333333333,
+            "temperature_C": 35,
+            "status": "complete"
+          }
+        }
+      ],
+      "independentArithmetic": {
+        "formula": "(2.2 + 2.3) / 2",
+        "value": 2.25,
+        "unit": "U/mg",
+        "sourceRows": [
+          "X02-R3",
+          "X02-R4"
+        ]
+      },
+      "impact": "This is a false claim of absence, not an honest abstention caused by genuinely missing evidence. It omits the requested mean 2.25 U/mg and incorrectly says no matching X02 data exist, even while acknowledging corresponding X03 records.",
+      "reproduction": "Read the final answer in 08-experiment-activity.json. In frozen fixtures/experiments.json, select sourceId X02 and raw variant=T212S, temperature_C=35, status=complete. X02-R3/R4 both match; average activity_U_mg 2.2 and 2.3.",
+      "causeAttribution": "The answer-level failure is directly established; no claim is made about which implementation or tool caused it.",
+      "citationAssessment": "No citations accompany the false absence assertion."
+    },
+    {
+      "id": "ADR-L02",
+      "priority": 2,
+      "caseId": "CW-ECTD_PAPERS-08",
+      "status": "fail",
+      "severity": "medium",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION",
+        "REASONING"
+      ],
+      "title": "Correct uncertainty conclusion is expanded into an uncited mechanistic explanation",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_PAPERS-08",
+          "text": "较低的 $K_m$（米氏常数）仅代表酶对底物的**亲和力较高**",
+          "startOffset": 36,
+          "endOffsetExclusive": 68,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_PAPERS-08",
+          "text": "$K_m$ 描述的是酶在底物浓度较低时的反应效率。",
+          "startOffset": 161,
+          "endOffsetExclusive": 186,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_PAPERS-08",
+          "text": "在酶工程中，经常存在 **“亲和力-周转率权衡” (Affinity-Turnover Trade-off)**。",
+          "startOffset": 826,
+          "endOffsetExclusive": 883,
+          "offsetUnit": "Unicode code points"
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+          "jsonPointer": "/actual/answer/citations",
+          "value": []
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+          "jsonPointer": "/actual/chatContext/relevantPaperIds",
+          "value": [
+            "P117",
+            "P131",
+            "P152"
+          ]
+        }
+      ],
+      "violatedGold": {
+        "caseId": "CW-ECTD_PAPERS-08",
+        "question": "较低的 Km 是否足以证明 A163V 的整个发酵过程生产强度更高？",
+        "claims": [
+          {
+            "id": "proof",
+            "subject": "P117",
+            "predicate": "lower_Km_alone_proves_process_productivity",
+            "value": false,
+            "evidenceIds": [
+              "P117:p3:v1"
+            ]
+          }
+        ],
+        "entries": [],
+        "sourceRowIds": [],
+        "evidenceIds": [
+          "P117:p3:v1"
+        ],
+        "answerRequirements": [
+          {
+            "type": "response_mode",
+            "value": "abstain"
+          },
+          {
+            "type": "claim",
+            "claimId": "proof"
+          }
+        ],
+        "groundingRule": "Each asserted claim must be entailed by cited accessible source evidence. Unknown is not a pass."
+      },
+      "sourceEvidence": [
+        {
+          "evidenceId": "P117:p3:v1",
+          "text": "The study did not test 35°C or 42°C cultivation. Lower Km alone does not prove higher whole-process productivity. No universal best variant is established."
+        },
+        {
+          "evidenceId": "P117:p1:v1",
+          "text": "The reported Michaelis constant Km for ectoine was 0.42 mM; wild-type Km under the same assay was 0.80 mM. These are assay kinetic parameters, not product titers."
+        }
+      ],
+      "impact": "The required conclusion that lower Km is insufficient is correct. However, the answer cites no source despite P117 being in relevantPaperIds and adds unqualified affinity/low-substrate-efficiency and general tradeoff assertions unsupported by these synthetic pages. This fails the frozen evidence-grounding requirement; it is not scored as an incorrect main conclusion.",
+      "reproduction": "Read the cited passages and citations=[]; compare P117 pages 1–3. The fixture reports kinetic parameters and the explicit process-productivity limitation, but no binding-affinity measurements, turnover tradeoff evidence, or downstream mechanistic data.",
+      "scientificScope": "The categorical Km-as-affinity statement needs kinetic assumptions absent from the fixture. This report does not use external biological literature to validate any proposed mechanism or protocol. Hypothetical statements phrased as possibilities are not treated as measured A163V results.",
+      "causeAttribution": "Observed answer grounding failure; implementation attribution unmeasured."
+    }
+  ],
+  "reviewConcerns": [
+    {
+      "id": "ADR-LC01",
+      "status": "provenance_gap",
+      "severity": "low",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION"
+      ],
+      "caseIds": [
+        "CW-ECTD_PAPERS-01",
+        "CW-ECTD_PAPERS-02",
+        "CW-ECTD_PAPERS-05",
+        "CW-ECTD_PAPERS-07"
+      ],
+      "title": "Resolved paper citations omit the supporting page",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/01-discovery-en-cold.json",
+          "jsonPointer": "/actual/answer/citations/0",
+          "value": {
+            "id": "citation-1",
+            "reference": "P117",
+            "sourceId": "P117",
+            "workspaceId": "synthetic_celluweave",
+            "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+            "relativePath": "literature/P117.pdf",
+            "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+            "page": null,
+            "sheet": "",
+            "row": null,
+            "range": "",
+            "status": "resolved"
+          }
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/02-discovery-en-warm.json",
+          "jsonPointer": "/actual/answer/citations/0",
+          "value": {
+            "id": "citation-1",
+            "reference": "P117",
+            "sourceId": "P117",
+            "workspaceId": "synthetic_celluweave",
+            "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+            "relativePath": "literature/P117.pdf",
+            "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+            "page": null,
+            "sheet": "",
+            "row": null,
+            "range": "",
+            "status": "resolved"
+          }
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/03-discovery-zh.json",
+          "jsonPointer": "/actual/answer/citations/0",
+          "value": {
+            "id": "citation-1",
+            "reference": "P117",
+            "sourceId": "P117",
+            "workspaceId": "synthetic_celluweave",
+            "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+            "relativePath": "literature/P117.pdf",
+            "contentHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+            "page": null,
+            "sheet": "",
+            "row": null,
+            "range": "",
+            "status": "resolved"
+          }
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+          "jsonPointer": "/actual/answer/citations/0",
+          "value": {
+            "id": "citation-1",
+            "reference": "P152",
+            "sourceId": "P152",
+            "workspaceId": "synthetic_celluweave",
+            "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+            "relativePath": "literature/P152.pdf",
+            "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+            "page": null,
+            "sheet": "",
+            "row": null,
+            "range": "",
+            "status": "resolved"
+          }
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/05-heldout-p152.json",
+          "jsonPointer": "/actual/answer/citations/0",
+          "value": {
+            "id": "citation-1",
+            "reference": "P152",
+            "sourceId": "P152",
+            "workspaceId": "synthetic_celluweave",
+            "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+            "relativePath": "literature/P152.pdf",
+            "contentHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+            "page": null,
+            "sheet": "",
+            "row": null,
+            "range": "",
+            "status": "resolved"
+          }
+        }
+      ],
+      "goldPageEvidence": {
+        "CW-ECTD_PAPERS-01": [
+          "P117:p1:v1"
+        ],
+        "CW-ECTD_PAPERS-02": [
+          "P117:p1:v1"
+        ],
+        "CW-ECTD_PAPERS-05": [
+          "P152:p2:v1"
+        ],
+        "CW-ECTD_PAPERS-07": [
+          "P152:p2:v1"
+        ]
+      },
+      "assessment": "All five answers attach resolved source IDs/content hashes for the correct paper, but citation.page=null. Their claims can be independently supported at the file level. This is a lost location cue, not a fabricated citation; do not turn it into a hard-gate failure unless page-level citation is explicitly required. Actual page-based navigation is unmeasured."
+    },
+    {
+      "id": "ADR-LC02",
+      "status": "provenance_gap",
+      "severity": "low",
+      "primaryTaxonomy": "GROUNDING",
+      "secondaryTaxonomy": [
+        "EXPERIMENT_NORMALIZATION"
+      ],
+      "caseIds": [
+        "CW-ECTD_EXPERIMENTS-01"
+      ],
+      "title": "Correct titer arithmetic names rows in prose but citation has no sheet/row/range",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/07-experiment-x02.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_EXPERIMENTS-01",
+          "text": "In the EctD table of **X02.xlsx**, there are two completed entries for the **A163V** variant:\n*   **X02-R1**: 4.8 g/L\n*   **X02-R2**: 4.9 g/L\n\nThe mean completed A163V titer is **4.85 g/L** [Synthetic BioDesign eval: EctD primary + CelluWeave novel domain / experiments / X02.xlsx](biodesign-citation:citation-1)."
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/07-experiment-x02.json",
+          "jsonPointer": "/actual/answer/citations/0",
+          "value": {
+            "id": "citation-1",
+            "reference": "local:2",
+            "sourceId": "X02",
+            "workspaceId": "synthetic_celluweave",
+            "workspaceName": "Synthetic BioDesign eval: EctD primary + CelluWeave novel domain",
+            "relativePath": "experiments/X02.xlsx",
+            "contentHash": "sha256:3dda1c75160f902737e360721d6c9721ba6c527ec62faec1ec0d40f418f6b4e7",
+            "page": null,
+            "sheet": "",
+            "row": null,
+            "range": "",
+            "status": "resolved"
+          }
+        }
+      ],
+      "assessment": "The two raw values and row names are correct, and the cited source is X02 with a resolved content hash. The citation leaves sheet empty and row/range absent, so precise row navigation and tool provenance are not established by the citation. Do not score the correct 4.85 as a numeric failure."
+    },
+    {
+      "id": "ADR-LC03",
+      "status": "ambiguous_wording_not_counted_as_failure",
+      "severity": "low",
+      "primaryTaxonomy": "REASONING",
+      "secondaryTaxonomy": [
+        "GROUNDING"
+      ],
+      "caseIds": [
+        "CW-ECTD_PAPERS-05"
+      ],
+      "title": "Opposing rankings do not establish a form of correlation",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+          "jsonPointer": "/actual/answer/text",
+          "caseId": "CW-ECTD_PAPERS-05",
+          "text": "This demonstrates that enzyme activity and fermentation titer are separate outcomes and do not necessarily correlate linearly in this system.",
+          "startOffset": 432,
+          "endOffsetExclusive": 573,
+          "offsetUnit": "Unicode code points"
+        }
+      ],
+      "assessment": "The four measurements and opposing metric leaders are correct. P152 supports distinct outcomes/opposing rankings, not a correlation model or nonlinearity result. The wording may simply mean no guaranteed positive association, so it is recorded as an overbroad phrasing concern rather than a definite scientific failure."
+    },
+    {
+      "id": "ADR-LC04",
+      "status": "unmeasured_tool_execution",
+      "severity": "low",
+      "primaryTaxonomy": "TOOL_PLANNING",
+      "secondaryTaxonomy": [
+        "EVIDENCE_SELECTION"
+      ],
+      "caseIds": [
+        "CW-ECTD_PAPERS-01",
+        "CW-ECTD_PAPERS-02",
+        "CW-ECTD_PAPERS-05",
+        "CW-ECTD_PAPERS-07"
+      ],
+      "title": "Paper questions receive broad experiment context",
+      "candidateSpans": [
+        {
+          "file": "evals/results/live-ui-2026-09-07/01-discovery-en-cold.json",
+          "jsonPointer": "/actual/chatContext/relevantExperimentIds",
+          "value": [
+            "X01",
+            "X02",
+            "X03",
+            "X04"
+          ]
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/02-discovery-en-warm.json",
+          "jsonPointer": "/actual/chatContext/relevantExperimentIds",
+          "value": [
+            "X01",
+            "X02",
+            "X03",
+            "X04"
+          ]
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/03-discovery-zh.json",
+          "jsonPointer": "/actual/chatContext/relevantExperimentIds",
+          "value": [
+            "X01",
+            "X02",
+            "X03",
+            "X04"
+          ]
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+          "jsonPointer": "/actual/chatContext/relevantExperimentIds",
+          "value": [
+            "X02",
+            "X03",
+            "X04",
+            "X01"
+          ]
+        },
+        {
+          "file": "evals/results/live-ui-2026-09-07/05-heldout-p152.json",
+          "jsonPointer": "/actual/chatContext/relevantExperimentIds",
+          "value": [
+            "X01",
+            "X02",
+            "X03",
+            "X04"
+          ]
+        }
+      ],
+      "assessment": "Chat context lists all four experiment sources for paper-only discovery/interpretation questions. This is broader context than the questions need, but selected/relevant IDs alone do not prove unnecessary tool calls or measure latency/cost. No tool-execution failure is inferred without an allowed execution trace."
+    }
+  ],
+  "caseAudits": [
+    {
+      "file": "evals/results/live-ui-2026-09-07/01-discovery-en-cold.json",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "question": "Find EctD papers reporting A163V kinetic measurements at 30°C.",
+      "answerObserved": true,
+      "citationSourceIds": [
+        "P117"
+      ],
+      "scientificAnswer": "supported",
+      "finding": "Correctly identifies P117 with A163V 30°C, Km 0.42 mM and wild-type 0.80 mM, all supported by P117:p1.",
+      "bilingualAssessment": "Both English runs and the Chinese run identify the same correct paper; no live primary-discovery EN/ZH collapse observed.",
+      "citationScope": "file-level supported; page absent"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/02-discovery-en-warm.json",
+      "caseId": "CW-ECTD_PAPERS-01",
+      "question": "Find EctD papers reporting A163V kinetic measurements at 30°C.",
+      "answerObserved": true,
+      "citationSourceIds": [
+        "P117"
+      ],
+      "scientificAnswer": "supported",
+      "finding": "Correctly identifies P117 with A163V 30°C, Km 0.42 mM and wild-type 0.80 mM, all supported by P117:p1.",
+      "bilingualAssessment": "Both English runs and the Chinese run identify the same correct paper; no live primary-discovery EN/ZH collapse observed.",
+      "citationScope": "file-level supported; page absent"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/03-discovery-zh.json",
+      "caseId": "CW-ECTD_PAPERS-02",
+      "question": "找出在 30°C 测定 A163V 动力学参数的 EctD 论文。",
+      "answerObserved": true,
+      "citationSourceIds": [
+        "P117"
+      ],
+      "scientificAnswer": "supported",
+      "finding": "Correctly identifies P117 with A163V 30°C, Km 0.42 mM and wild-type 0.80 mM, all supported by P117:p1.",
+      "bilingualAssessment": "Both English runs and the Chinese run identify the same correct paper; no live primary-discovery EN/ZH collapse observed.",
+      "citationScope": "file-level supported; page absent"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/04-metric-reasoning.json",
+      "caseId": "CW-ECTD_PAPERS-05",
+      "question": "Does the higher specific activity of T212S in P152 mean that it has the higher product titer?",
+      "answerObserved": true,
+      "citationSourceIds": [
+        "P152"
+      ],
+      "scientificAnswer": "required_comparison_supported",
+      "finding": "T212S 2.40 U/mg versus A163V 1.50 U/mg; titer 3.90 versus 4.60 g/L are all correct. See nonlinearity wording concern.",
+      "citationScope": "file-level supported; page absent"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/05-heldout-p152.json",
+      "caseId": "CW-ECTD_PAPERS-07",
+      "question": "At 42°C in P152, which variant leads each metric, and can you retrieve a measured yield?",
+      "answerObserved": true,
+      "citationSourceIds": [
+        "P152"
+      ],
+      "scientificAnswer": "supported",
+      "finding": "Correct leaders and honest P152 yield-not-reported statement; no leakage of X04 yield into P152.",
+      "citationScope": "file-level supported; page absent"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/06-heldout-uncertainty.json",
+      "caseId": "CW-ECTD_PAPERS-08",
+      "question": "较低的 Km 是否足以证明 A163V 的整个发酵过程生产强度更高？",
+      "answerObserved": true,
+      "citationSourceIds": [],
+      "scientificAnswer": "main_conclusion_correct_grounding_failed",
+      "finding": "Correctly says lower Km is insufficient; no citations and unsupported categorical mechanism assertions.",
+      "findings": [
+        "ADR-L02"
+      ]
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/07-experiment-x02.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-01",
+      "question": "In the English EctD table X02, what is the mean completed A163V titer?",
+      "answerObserved": true,
+      "citationSourceIds": [
+        "X02"
+      ],
+      "scientificAnswer": "numerically_supported",
+      "independentArithmetic": {
+        "sourceRows": [
+          "X02-R1",
+          "X02-R2"
+        ],
+        "rawValues": [
+          4.8,
+          4.9
+        ],
+        "value": 4.85,
+        "unit": "g/L"
+      },
+      "finding": "Names exactly two completed A163V rows and correctly gives 4.85 g/L; source citation resolves to X02.",
+      "toolAggregationProvenance": "unmeasured from allowed answer/chat-context fields"
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/08-experiment-activity.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-04",
+      "question": "For X02 completed T212S rows at exactly 35°C, calculate mean activity, not titer.",
+      "answerObserved": true,
+      "citationSourceIds": [],
+      "scientificAnswer": "failed_false_absence",
+      "finding": "X02-R3/R4 match requested filters, contradicting final no-match claim.",
+      "independentExpectedValue": {
+        "value": 2.25,
+        "unit": "U/mg"
+      },
+      "findings": [
+        "ADR-L01"
+      ]
+    },
+    {
+      "file": "evals/results/live-ui-2026-09-07/09-experiment-mixed.json",
+      "caseId": "CW-ECTD_EXPERIMENTS-07",
+      "question": "在 mixed-header 的 X04 表中，42°C 下哪个突变体的平均滴度最高？同时列出两个均值。",
+      "answerObserved": true,
+      "scientificAnswer": "numerically_and_row_citation_supported",
+      "citationSourceIds": [
+        "X04",
+        "X04",
+        "X04",
+        "X04"
+      ],
+      "independentArithmetic": [
+        {
+          "variant": "A163V",
+          "sourceRows": [
+            "X04-R1",
+            "X04-R2"
+          ],
+          "rawValues": [
+            4.6,
+            4.7
+          ],
+          "mean": 4.65,
+          "unit": "g/L"
+        },
+        {
+          "variant": "T212S",
+          "sourceRows": [
+            "X04-R3",
+            "X04-R4"
+          ],
+          "rawValues": [
+            3.9,
+            4.0
+          ],
+          "mean": 3.95,
+          "unit": "g/L"
+        }
+      ],
+      "finding": "Correctly selects A163V; means 4.65 and 3.95 g/L match raw completed X04 rows at 42°C. Four resolved citations correctly name X04-R1/R2/R3/R4, EctD sheet, physical rows 2/3/4/5 and ranges A2:H2 through A5:H5. No cross-source or off-temperature contamination appears in the final answer.",
+      "toolAggregationProvenance": "Tool execution not inspected; answer arithmetic and cited row provenance independently verified."
+    }
+  ],
+  "measurementLimits": {
+    "permissionNoLeak": "unknown: observed citation IDs are in selected project, but full resolved-path/access audit was not inspected or supplied in the allowed fields",
+    "noUnrequestedSideEffect": "unknown: no final answer claims physical execution, but final text does not establish a complete action audit",
+    "toolPlanningAndCost": "unknown except context breadth; relevant IDs do not prove tool execution",
+    "citationPageNavigation": "unknown: all observed paper citations have page=null",
+    "scoresAveraged": false,
+    "baselineOverwritten": false,
+    "futureFilesReviewed": false
+  },
+  "comparisonWithToolOnlyBaseline": "These are separate live observations. Live X02 A163V titer is correct despite the tool-only unresolved result; live activity fails by asserting absent rows rather than repeating the baseline wrong-titer aggregate. No causal implementation comparison is inferred. Live mixed-header X04 answer also has correct means and exact row citations; these facts do not erase the separately observed tool-only pooling failure.",
+  "updatedAt": "2026-09-08T00:25:08.559140+00:00"
+}

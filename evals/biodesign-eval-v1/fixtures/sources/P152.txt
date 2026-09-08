@@ -1,0 +1,11 @@
+=== PAGE 1 | P152:p1:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Paper P152 / 虚构论文。Temperature 42°C; A163V and T212S tested in the same synthetic protocol. 产品为羟基四氢嘧啶。Specific enzyme activity and fermentation product titer are separate outcomes.
+
+=== PAGE 2 | P152:p2:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Table 3: At 42°C, A163V specific activity 1.50 U/mg and product titer 4.60 g/L. T212S specific activity 2.40 U/mg and product titer 3.90 g/L. Thus T212S leads specific activity while A163V leads product titer. Yield and productivity were not reported for these 42°C conditions.
+
+=== PAGE 3 | P152:p3:v1 ===
+ORIGINAL SYNTHETIC FIXTURE TEXT — invented for controlled software evaluation; not a real publication or experimental result.
+Conclusion: The rankings depend on the chosen metric. These synthetic data do not establish a universally superior variant, optimal temperature, or stability beyond the tested condition.

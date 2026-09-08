@@ -1,0 +1,8 @@
+{
+  "status": "not-applicable-single-baseline",
+  "evaluatedCases": 0,
+  "candidateWinRate": null,
+  "baselineWinRate": null,
+  "tieRate": null,
+  "reason": "No production candidate change was made."
+}

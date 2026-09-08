@@ -269,6 +269,32 @@ async function runScenarios() {
     for (const button of sideChatHistory.querySelectorAll("[data-side-chat-citation]")) ok(button.disabled && /unavailable/.test(button.textContent), "Unverified link enabled");
     const entry = citation(); exists = false; await navigateSideChatCitation(entry); equal(toasts.at(-1), translations.citationUnavailable);
   });
+  await scenario("Saved inline local:7 references render as compact links to the original real file", async () => {
+    const entry = { ...citation(), reference: "local:7" };
+    addSideChatMessage("assistant", "根据工作区提供的文献证据（特别是 `local:7`），模型如下。另见 local:7。", { citations: [entry] });
+    const body = sideChatHistory.lastElementChild.querySelector(".side-message-body");
+    ok(!body.textContent.includes("local:7") && !body.querySelector("code"), "Internal handle still rendered as code");
+    const buttons = [...body.querySelectorAll("[data-side-chat-citation]")];
+    equal(buttons.length, 2); equal(buttons.map(button => button.textContent), ["酶活性.pdf", "酶活性.pdf"]);
+    equal(buttons[0].title, "Project Folder / literature / 中文 / 酶活性.pdf");
+    buttons[0].click(); await tick(); await tick();
+    equal(fileChecks, [sources[0].path]); equal(document.activeElement.dataset.workspaceFile, sources[0].path);
+    // Without the original mapping the same spelling must never choose another file.
+    addSideChatMessage("assistant", "Unknown `local:7` and local:999.");
+    const unknown = sideChatHistory.lastElementChild.querySelector(".side-message-body");
+    ok(!unknown.textContent.includes("local:"), "Unmapped handle leaked");
+    for (const button of unknown.querySelectorAll("[data-side-chat-citation]")) ok(button.disabled, "Guessed a target for an unmapped historical alias");
+  });
+  await scenario("Streaming bare and backtick catalog handles never expose partial internal references", async () => {
+    const preview = createStreamingAnswer(sideChatHistory, sideChatHistory);
+    try {
+      for (const text of ["根据证据（特别是 `local:", "7", "`），参考 local:", "9", "99。"] ) {
+        preview.update({ type: "delta", text });
+        await new Promise(resolve => setTimeout(resolve, 60));
+        ok(!sideChatHistory.querySelector(".streaming-answer").textContent.includes("local:"), "Stream exposed an internal reference");
+      }
+    } finally { preview.remove(); }
+  });
   await scenario("Workspace switches during citation validation cannot navigate the next workspace", async () => {
     let release; existenceGate = new Promise(resolve => release = resolve);
     const navigation = navigateSideChatCitation(citation());

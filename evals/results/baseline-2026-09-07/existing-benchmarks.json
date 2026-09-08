@@ -1,0 +1,130 @@
+[
+  {
+    "label": "fc-regressions",
+    "argv": [
+      "--test",
+      "--test-reporter=tap",
+      "alibaba-fc/test/chat-images.test.js",
+      "alibaba-fc/test/cloud-retrieval.test.js",
+      "alibaba-fc/test/experiment-semantics.test.js",
+      "alibaba-fc/test/local-workspace.test.js",
+      "alibaba-fc/test/oss-pdf-review.test.js",
+      "alibaba-fc/test/preflight-knowledge-sync.test.js",
+      "alibaba-fc/test/provider-rate-limit.test.js",
+      "alibaba-fc/test/qmd-knowledge-layers.test.js",
+      "alibaba-fc/test/retrieval-profiles.test.js",
+      "alibaba-fc/test/runtime-log.test.js",
+      "alibaba-fc/test/semantic-backend.test.js",
+      "alibaba-fc/test/semantic-integration.test.js",
+      "alibaba-fc/test/semantic-intent.test.js",
+      "alibaba-fc/test/side-chat-agent.test.js",
+      "alibaba-fc/test/source-citations.test.js",
+      "alibaba-fc/test/source-system.test.js",
+      "alibaba-fc/test/streaming.test.js",
+      "alibaba-fc/test/workspace-side-chat.test.js"
+    ],
+    "exitCode": 1,
+    "timedOut": false,
+    "latencyMs": 4993.726916999993,
+    "tests": 324,
+    "pass": 319,
+    "fail": 5,
+    "skipped": 0,
+    "output": "fc-regressions.stdout.txt",
+    "mode": "existing-controlled-regression-tests"
+  },
+  {
+    "label": "desktop-regressions",
+    "argv": [
+      "--test",
+      "--test-reporter=tap",
+      "desktop/test/project-filesystem.test.mjs",
+      "desktop/test/security-boundary.test.mjs",
+      "desktop/test/renderer-adapters.test.mjs",
+      "desktop/test/cloud-retrieval.test.mjs",
+      "desktop/test/job-execution.test.mjs",
+      "desktop/test/side-chat-renderer.test.mjs"
+    ],
+    "exitCode": 1,
+    "timedOut": false,
+    "latencyMs": 2531.5651669999934,
+    "tests": 30,
+    "pass": 29,
+    "fail": 1,
+    "skipped": 0,
+    "output": "desktop-regressions.stdout.txt",
+    "mode": "existing-controlled-regression-tests"
+  },
+  {
+    "label": "qmd-regressions",
+    "argv": [
+      "--test",
+      "--test-reporter=tap",
+      "local-backend/test/project-qmd-manager.test.js",
+      "local-backend/test/qmd-sdk-smoke.test.js"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "latencyMs": 265.4360830000078,
+    "tests": 7,
+    "pass": 7,
+    "fail": 0,
+    "skipped": 0,
+    "output": "qmd-regressions.stdout.txt",
+    "mode": "existing-controlled-regression-tests"
+  },
+  {
+    "label": "semantic-benchmark",
+    "argv": [
+      "scripts/benchmark-semantic-intent.js",
+      "--output",
+      "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/baseline-2026-09-07/existing/semantic-benchmark.json"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "latencyMs": 257.9081250000163,
+    "tests": null,
+    "pass": null,
+    "fail": null,
+    "skipped": null,
+    "output": "semantic-benchmark.stdout.txt",
+    "mode": "existing-controlled-regression-tests"
+  },
+  {
+    "label": "preflight-benchmark",
+    "argv": [
+      "scripts/benchmark-preflight-sync.mjs"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "latencyMs": 27710.721708000026,
+    "tests": null,
+    "pass": null,
+    "fail": null,
+    "skipped": null,
+    "output": "preflight-benchmark.stdout.txt",
+    "mode": "existing-controlled-regression-tests"
+  },
+  {
+    "label": "retrieval-replay",
+    "argv": [
+      "local-backend/scripts/benchmark-retrieval.js",
+      "--fixture",
+      "--model",
+      "lexical",
+      "--repeats",
+      "3",
+      "--output",
+      "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/baseline-2026-09-07/existing/retrieval-replay.json"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "latencyMs": 344.98454199999105,
+    "tests": null,
+    "pass": null,
+    "fail": null,
+    "skipped": null,
+    "output": "retrieval-replay.stdout.txt",
+    "mode": "existing-controlled-regression-tests"
+  }
+]

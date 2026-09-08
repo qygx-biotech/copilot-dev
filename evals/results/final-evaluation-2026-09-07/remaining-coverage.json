@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "remaining-evaluation-coverage-v1",
+  "supplementalProbes": [
+    {
+      "case": "actual-malformed-pdf-bytes",
+      "status": "not_executed",
+      "reason": "Supplemental preparation exists, but no completed frozen execution/result was obtained. Existing extraction-failure injection is a separate narrower test."
+    },
+    {
+      "case": "single-row-delete-in-retained-workbook",
+      "status": "not_executed",
+      "reason": "Workbook preparation exists, but no completed sync/query observation was obtained. Existing whole-experiment-source deletion is narrower evidence."
+    }
+  ],
+  "otherUnmeasured": [
+    "Actual Requesty upstream calls/tokens/USD",
+    "FC deployed revision/final-answer model identity",
+    "Screen first-visible response / streaming first token",
+    "Complete live cross-project contamination and runtime egress-denial audit",
+    "Non-null Current Recommendation overwrite attack",
+    "Broad long-form scientific review quality and stochastic repeat variance",
+    "Candidate-vs-baseline pairwise preference; no production candidate exists"
+  ]
+}

@@ -1,0 +1,245 @@
+{
+  "live": {
+    "scoringVersion": "live-ui-numeric-audit-v1",
+    "extractionPolicy": "Literal values and nonempty exact spans are transcribed from frozen candidate answers, then compared with frozen gold by code. Filters require exact filterSpans or the exact frozen row set evidenced in candidate answer/citations; extra or contradictory asserted filters still fail. Row-based filter fulfillment concerns the selected result, not proof of hidden query execution. Missing provenance fails its dimension. This checks audited requested results, not exhaustive numeric claim coverage or semantic truth.",
+    "cases": [
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-01",
+        "repeat": 0,
+        "status": "scored",
+        "extractionMethod": "Literal final-answer number, unit, completed status and row IDs; source rows independently checked against the frozen X02 table.",
+        "details": [
+          {
+            "name": "A163V_mean_titer",
+            "gold": {
+              "name": "A163V_mean_titer",
+              "value": 4.85,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "field": "titer",
+              "filters": {
+                "sourceId": "X02",
+                "variant": "A163V",
+                "status": "complete"
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ],
+              "tolerance": 1e-8
+            },
+            "observed": {
+              "name": "A163V_mean_titer",
+              "answerSpan": "The mean completed A163V titer is **4.85 g/L**",
+              "value": 4.85,
+              "unit": "g/L",
+              "field": "titer",
+              "aggregation": "mean",
+              "filters": {
+                "sourceId": "X02",
+                "variant": "A163V",
+                "status": "complete"
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X02-R1",
+                "X02-R2"
+              ]
+            },
+            "dimensions": {
+              "value": true,
+              "unit": true,
+              "aggregation": true,
+              "filters": true,
+              "groupBy": true,
+              "sourceRows": true,
+              "field": true
+            },
+            "filterEvidence": "exact_cited_rowset",
+            "exact": true
+          }
+        ],
+        "exact": true,
+        "declaredAbsenceSpan": null
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-04",
+        "repeat": 0,
+        "status": "scored",
+        "extractionMethod": "No numeric aggregate was asserted. Empty entries are an observed absent answer, not a zero-valued answer.",
+        "details": [
+          {
+            "name": "T212S_mean_activity",
+            "gold": {
+              "name": "T212S_mean_activity",
+              "value": 2.25,
+              "unit": "U/mg",
+              "aggregation": "mean",
+              "field": "activity",
+              "filters": {
+                "sourceId": "X02",
+                "variant": "T212S",
+                "status": "complete",
+                "temperature": 35
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X02-R3",
+                "X02-R4"
+              ],
+              "tolerance": 1e-8
+            },
+            "observed": null,
+            "dimensions": {
+              "value": false,
+              "unit": false,
+              "field": false,
+              "aggregation": false,
+              "filters": false,
+              "groupBy": false,
+              "sourceRows": false
+            },
+            "filterEvidence": "unestablished_or_conflicting",
+            "exact": false
+          }
+        ],
+        "exact": false,
+        "declaredAbsenceSpan": "there are no completed rows for the **T212S** mutation at **35°C** within experiment **X02**"
+      },
+      {
+        "caseId": "CW-ECTD_EXPERIMENTS-07",
+        "repeat": 0,
+        "status": "scored",
+        "extractionMethod": "Literal per-variant means in the 42°C answer; X04 citation references/ranges resolve to the four frozen completed rows. Independent reviewer recomputed both means from raw rows.",
+        "details": [
+          {
+            "name": "A163V_mean_titer",
+            "gold": {
+              "name": "A163V_mean_titer",
+              "value": 4.65,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "field": "titer",
+              "filters": {
+                "sourceId": "X04",
+                "variant": "A163V",
+                "status": "complete",
+                "temperature": 42
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X04-R1",
+                "X04-R2"
+              ],
+              "tolerance": 1e-8
+            },
+            "observed": {
+              "name": "A163V_mean_titer",
+              "answerSpan": "**A163V**: 4.65 g/L",
+              "value": 4.65,
+              "unit": "g/L",
+              "field": "titer",
+              "aggregation": "mean",
+              "filters": {
+                "sourceId": "X04",
+                "variant": "A163V",
+                "status": "complete",
+                "temperature": 42
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X04-R1",
+                "X04-R2"
+              ]
+            },
+            "dimensions": {
+              "value": true,
+              "unit": true,
+              "aggregation": true,
+              "filters": true,
+              "groupBy": true,
+              "sourceRows": true,
+              "field": true
+            },
+            "filterEvidence": "exact_cited_rowset",
+            "exact": true
+          },
+          {
+            "name": "T212S_mean_titer",
+            "gold": {
+              "name": "T212S_mean_titer",
+              "value": 3.95,
+              "unit": "g/L",
+              "aggregation": "mean",
+              "field": "titer",
+              "filters": {
+                "sourceId": "X04",
+                "variant": "T212S",
+                "status": "complete",
+                "temperature": 42
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X04-R3",
+                "X04-R4"
+              ],
+              "tolerance": 1e-8
+            },
+            "observed": {
+              "name": "T212S_mean_titer",
+              "answerSpan": "**T212S**: 3.95 g/L",
+              "value": 3.95,
+              "unit": "g/L",
+              "field": "titer",
+              "aggregation": "mean",
+              "filters": {
+                "sourceId": "X04",
+                "variant": "T212S",
+                "status": "complete",
+                "temperature": 42
+              },
+              "groupBy": [],
+              "sourceRows": [
+                "X04-R3",
+                "X04-R4"
+              ]
+            },
+            "dimensions": {
+              "value": true,
+              "unit": true,
+              "aggregation": true,
+              "filters": true,
+              "groupBy": true,
+              "sourceRows": true,
+              "field": true
+            },
+            "filterEvidence": "exact_cited_rowset",
+            "exact": true
+          }
+        ],
+        "exact": true,
+        "declaredAbsenceSpan": null
+      }
+    ],
+    "exactCases": 2,
+    "evaluatedCases": 3,
+    "exactAccuracy": 0.6666666666666666,
+    "caseClusterAccuracy": {
+      "mean": 0.6666666666666666,
+      "ci95": [
+        0,
+        1
+      ],
+      "n": 3,
+      "clusters": 3,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    }
+  },
+  "localBaseline": {
+    "path": "/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/evals/results/baseline-2026-09-07/baseline.json",
+    "sha256": "ebfccf2d9d5463181b5b05d50fdc67522301ab34c613d0a0d90683bfd6626650"
+  }
+}

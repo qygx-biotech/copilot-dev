@@ -1,0 +1,271 @@
+{
+  "schemaVersion": "independent-judge-results-v1",
+  "contractVersion": "independent-judge-v1",
+  "mode": "absolute",
+  "nSamples": 1,
+  "nIndependentCases": 1,
+  "byArtifactType": {
+    "final_answer": {
+      "nSamples": 1,
+      "nIndependentCases": 1,
+      "dimensions": {
+        "correctness": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "faithfulness": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "completeness": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "relevance": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "uncertaintyHandling": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "synthesis": {
+          "mean": null,
+          "median": null,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 0,
+          "nSamples": 0,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "nInapplicable": 1
+        },
+        "clarity": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        },
+        "overall": {
+          "mean": 5,
+          "median": 5,
+          "variance": null,
+          "ci95": null,
+          "nIndependentCases": 1,
+          "nSamples": 1,
+          "estimand": "Equal-weight case means; median and sample variance are across case means.",
+          "bootstrap": {
+            "method": "case-cluster percentile bootstrap; equal case weights",
+            "seed": 20260907,
+            "samples": 2000
+          },
+          "uncertainty": "At least two independent cases required for a confidence interval.",
+          "nInapplicable": 0
+        }
+      },
+      "criticalErrorCount": 0,
+      "missingPointCount": 0,
+      "confidenceCounts": {
+        "low": 0,
+        "medium": 0,
+        "high": 1
+      }
+    }
+  },
+  "scores": [
+    {
+      "packetId": "337f87c5b25f49fc",
+      "artifactType": "final_answer",
+      "correctness": 5,
+      "faithfulness": 5,
+      "completeness": 5,
+      "relevance": 5,
+      "uncertaintyHandling": 5,
+      "synthesis": null,
+      "clarity": 5,
+      "overall": 5,
+      "criticalErrors": [],
+      "missingPoints": [],
+      "lowScoreEvidence": [],
+      "claimAudits": [
+        {
+          "candidateSpan": "At 42°C in P152",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p1:v1",
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": []
+        },
+        {
+          "candidateSpan": "**Specific Activity:** **T212S** leads with 2.40 U/mg",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "activity_leader"
+          ]
+        },
+        {
+          "candidateSpan": "**Product Titer:** **A163V** leads with 4.60 g/L",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "titer_leader"
+          ]
+        },
+        {
+          "candidateSpan": "A measured **yield** was not reported for these 42°C conditions",
+          "citedEvidenceIds": [
+            "P152"
+          ],
+          "supportingEvidenceIds": [
+            "P152:p2:v1"
+          ],
+          "verdict": "supported",
+          "requiredGoldClaimIds": [
+            "yield_available"
+          ]
+        }
+      ],
+      "numericClaims": [
+        {
+          "candidateSpan": "At 42°C in P152",
+          "subject": "P152",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**Specific Activity:** **T212S** leads with 2.40 U/mg",
+          "subject": "T212S",
+          "metric": "specific activity",
+          "value": 2.4,
+          "unit": "U/mg",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "**Product Titer:** **A163V** leads with 4.60 g/L",
+          "subject": "A163V",
+          "metric": "product titer",
+          "value": 4.6,
+          "unit": "g/L",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        },
+        {
+          "candidateSpan": "A measured **yield** was not reported for these 42°C conditions",
+          "subject": "P152",
+          "metric": "temperature",
+          "value": 42,
+          "unit": "°C",
+          "sourceIds": [
+            "P152"
+          ],
+          "sourceRows": []
+        }
+      ],
+      "confidence": "high"
+    }
+  ],
+  "limitations": [
+    "Validation checks structure, exact spans and allowed references; it does not certify semantic entailment or exhaustiveness of claim audits.",
+    "Numeric claims are extraction only and require a separate deterministic arithmetic and provenance check.",
+    "Judge scores never override deterministic permission, security or other hard gates."
+  ]
+}

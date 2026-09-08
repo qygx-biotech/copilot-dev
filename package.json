@@ -14,6 +14,9 @@
     "node": ">=22.0.0 <25.0.0"
   },
   "scripts": {
+    "eval:agent": "node evals/run.mjs",
+    "eval:compare": "node evals/compare.mjs",
+    "eval:test": "node --test evals/test/*.test.mjs",
     "postinstall": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
     "desktop:prepare": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
     "desktop:dev": "npm run desktop:prepare && electron-forge start",
@@ -37,7 +40,6 @@
     "electron-squirrel-startup": "1.0.1",
     "katex": "0.18.1",
     "pdfjs-dist": "6.3.289",
-    "update-electron-app": "3.3.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {

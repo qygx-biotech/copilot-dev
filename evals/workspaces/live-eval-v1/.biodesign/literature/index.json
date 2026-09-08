@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "documents": [
+    {
+      "id": "P17",
+      "relativePath": "literature/P17.pdf",
+      "filename": "P17.pdf",
+      "size": 51254,
+      "lastModified": 1788824298375,
+      "sourceHash": "sha256:6a49558185bf3c44a8b40e364d4ac3e17fc45c6aa3921df777e3327c26446e2e",
+      "statSignature": "literature/P17.pdf|51254|1788824298375436003|16777234:201154910",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P17.json",
+      "paperCardPath": ".biodesign/literature/summaries/P17.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P17.pdf",
+        "title": "CelluWeave A: Wet compression of cellulose–alginate sheets",
+        "authors": [
+          "A. Vale",
+          "B. Lin"
+        ],
+        "year": 2024,
+        "topics": [
+          "hydrogels"
+        ],
+        "keywords": [
+          "cellulose–alginate hydrogel sheets"
+        ],
+        "identifiers": [],
+        "shortDescription": "This study evaluated the compressive modulus, shape retention, and water uptake of cellulose-alginate hydrogel sheets crosslinked with 50 mmol/L and 75 mmol/L calcium chloride."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P31",
+      "relativePath": "literature/P31.pdf",
+      "filename": "P31.pdf",
+      "size": 100734,
+      "lastModified": 1788824298379,
+      "sourceHash": "sha256:5fa16695a31c3068404ef3e19f2f7797acb8843e8649a453a9e884b9d7e8142e",
+      "statSignature": "literature/P31.pdf|100734|1788824298379338373|16777234:201154916",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P31.json",
+      "paperCardPath": ".biodesign/literature/summaries/P31.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P31.pdf",
+        "title": "CelluWeave B：湿态压缩条件与测量时点",
+        "authors": [
+          "陈禾",
+          "林沐"
+        ],
+        "year": 2025,
+        "topics": [
+          "Hydrogels",
+          "Compressive modulus",
+          "Sodium alginate",
+          "Cellulose"
+        ],
+        "keywords": [],
+        "identifiers": [],
+        "shortDescription": "This study reports that a hydrogel formulation of 2.0% sodium alginate and 0.8% cellulose, crosslinked with 50 mmol/L calcium chloride, exhibits an average compressive modulus of 48.0 kPa at 15% strain and a shape retention rate of 94%."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P52",
+      "relativePath": "literature/P52.pdf",
+      "filename": "P52.pdf",
+      "size": 50982,
+      "lastModified": 1788824298377,
+      "sourceHash": "sha256:e8d767d508f363e68d08140aea233df20f57a3b413baa1fb724cf371c595d851",
+      "statSignature": "literature/P52.pdf|50982|1788824298377600023|16777234:201154913",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P52.json",
+      "paperCardPath": ".biodesign/literature/summaries/P52.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P52.pdf",
+        "title": "CelluWeave C: Added cellulose and swelling tradeoffs",
+        "authors": [
+          "C. Moss"
+        ],
+        "year": 2025,
+        "topics": [
+          "Material science"
+        ],
+        "keywords": [
+          "hydrogel",
+          "alginate",
+          "cellulose",
+          "compressive modulus"
+        ],
+        "identifiers": [],
+        "shortDescription": "This study characterizes a nonliving hydrogel composed of 2.0% w/v alginate and 1.2% w/v cellulose, reporting a mean compressive modulus of 51.0 kPa and water uptake of 12.5 g/g."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P74",
+      "relativePath": "literature/P74.pdf",
+      "filename": "P74.pdf",
+      "size": 49956,
+      "lastModified": 1788824298376,
+      "sourceHash": "sha256:804e9e77cb7dda9d90784b20d53f9ab966721f575f1ae4196f54ec35c7811931",
+      "statSignature": "literature/P74.pdf|49956|1788824298376217677|16777234:201154911",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P74.json",
+      "paperCardPath": ".biodesign/literature/summaries/P74.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P74.pdf",
+        "title": "CelluWeave evidence map: Three small synthetic studies",
+        "authors": [],
+        "year": null,
+        "topics": [
+          "review of P17, P31, and P52"
+        ],
+        "keywords": [
+          "narrative review"
+        ],
+        "identifiers": [],
+        "shortDescription": "A narrative review summarizing strain conditions for papers P17, P31, and P52."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P83",
+      "relativePath": "literature/P83.pdf",
+      "filename": "P83.pdf",
+      "size": 103188,
+      "lastModified": 1788824298378,
+      "sourceHash": "sha256:aa62dab8081cf1da75d027f593896a4b7d1f4dcf3fdf198768973295bf6d8802",
+      "statSignature": "literature/P83.pdf|103188|1788824298378755576|16777234:201154915",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P83.json",
+      "paperCardPath": ".biodesign/literature/summaries/P83.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P83.pdf",
+        "title": "CelluWeave D：低温储存后的可逆性",
+        "authors": [
+          "周澄"
+        ],
+        "year": 2026,
+        "topics": [
+          "hydrogels",
+          "material science"
+        ],
+        "keywords": [
+          "sodium alginate",
+          "cellulose",
+          "compression modulus",
+          "storage stability"
+        ],
+        "identifiers": [],
+        "shortDescription": "This study evaluated a sodium alginate and cellulose hydrogel, finding that after 7 days of storage at 4°C, it retained 95% of its shape and experienced only an 8% decrease in compression modulus."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P117",
+      "relativePath": "literature/P117.pdf",
+      "filename": "P117.pdf",
+      "size": 51139,
+      "lastModified": 1788824298377,
+      "sourceHash": "sha256:b261a6fe57abd154454b66c9b71e8f25e6b7c420d17f0f5cb750f88fda8c536d",
+      "statSignature": "literature/P117.pdf|51139|1788824298377011809|16777234:201154912",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P117.json",
+      "paperCardPath": ".biodesign/literature/summaries/P117.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P117.pdf",
+        "title": "EctD A163V: Temperature-controlled kinetic and titer study",
+        "authors": [
+          "R. Aspen",
+          "J. Brook"
+        ],
+        "year": 2024,
+        "topics": [
+          "Enzyme kinetics",
+          "Fermentation"
+        ],
+        "keywords": [
+          "EctD",
+          "ectoine hydroxylation",
+          "A163V"
+        ],
+        "identifiers": [
+          "EctD",
+          "A163V",
+          "ectoine hydroxylation",
+          "ectoine"
+        ],
+        "shortDescription": "Characterization of EctD variant A163V showing a reduced Km for ectoine (0.42 mM vs 0.80 mM for wild-type) and specific fermentation metrics including a titer of 4.80 g/L at 30°C."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P131",
+      "relativePath": "literature/P131.pdf",
+      "filename": "P131.pdf",
+      "size": 89780,
+      "lastModified": 1788824298378,
+      "sourceHash": "sha256:a4b2237e2df4194efa19b685483fedf9510dbf61cf337fd5ce8d6416393e251c",
+      "statSignature": "literature/P131.pdf|89780|1788824298378176571|16777234:201154914",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P131.json",
+      "paperCardPath": ".biodesign/literature/summaries/P131.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P131.pdf",
+        "title": "EctD T212S：35°C 条件下的产物滴度与动力学",
+        "authors": [
+          "顾禾",
+          "李澄"
+        ],
+        "year": null,
+        "topics": [
+          "Mutant characterization",
+          "Enzyme kinetics"
+        ],
+        "keywords": [
+          "T212S",
+          "tetrahydropyrimidine",
+          "hydroxy-tetrahydropyrimidine"
+        ],
+        "identifiers": [
+          "T212S",
+          "tetrahydropyrimidine",
+          "hydroxy-tetrahydropyrimidine"
+        ],
+        "shortDescription": "This paper reports the characterization of mutant T212S using tetrahydropyrimidine as a substrate at 35°C, providing data on Km, titer, specific activity, yield, and productivity, and comparing these results to P117."
+      },
+      "summaryUpdatedAt": ""
+    },
+    {
+      "id": "P152",
+      "relativePath": "literature/P152.pdf",
+      "filename": "P152.pdf",
+      "size": 56976,
+      "lastModified": 1788824298381,
+      "sourceHash": "sha256:c442e6c2d5b259c1c8b6087c392e9cbb29bb327e9f15f85c69e13ac3914f304e",
+      "statSignature": "literature/P152.pdf|56976|1788824298381675021|16777234:201154917",
+      "hashStatus": "ready",
+      "parseStatus": "ready",
+      "indexStatus": "ready",
+      "qmdLexStatus": "ready",
+      "qmdVectorStatus": "not_started",
+      "status": "ready",
+      "summaryPath": ".biodesign/literature/summaries/P152.json",
+      "paperCardPath": ".biodesign/literature/summaries/P152.json",
+      "paperCardVersion": 2,
+      "paperCardStatus": "ready",
+      "paperCardError": "",
+      "isLiteraturePaper": true,
+      "discovery": {
+        "fileName": "P152.pdf",
+        "title": "EctD variants at 42°C: Opposing activity and titer rankings",
+        "authors": [],
+        "year": null,
+        "topics": [],
+        "keywords": [],
+        "identifiers": [
+          "羟基四氢嘧啶"
+        ],
+        "shortDescription": "A comparison of A163V and T212S variants at 42°C for the production of 羟基四氢嘧啶 showed that T212S had higher specific activity (2.40 U/mg) while A163V had a higher product titer (4.60 g/L)."
+      },
+      "summaryUpdatedAt": ""
+    }
+  ],
+  "updatedAt": "2026-09-07T23:47:47.100Z"
+}
