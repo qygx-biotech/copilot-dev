@@ -1,0 +1,41 @@
+{
+  "purpose": "Attribution audit only; the definitive run remains the selected final evaluation. No rerun or replacement based on latency.",
+  "inputs": {
+    "prior": {
+      "sha256": "3d700a51d208a736b378ae8755fd053805f009ec0e07c21862056e729a1f2863",
+      "runId": "2026-09-08T01-58-52-831Z",
+      "productionTreeHash": "92d8f503df34965c4c4eab296475d087977a5d6a68f2c37ffa38b041d88396fa"
+    },
+    "definitive": {
+      "sha256": "a1274624f8fdea4b1f5fd770af156d12f3a29ba1bd31dc532366b5d63ced8752",
+      "runId": "2026-09-08T02-14-05-576Z",
+      "productionTreeHash": "b3bdb0e35a46131590e9f0e95450b046d1551763662d6e678e8ff581d0f456a9"
+    }
+  },
+  "matchedObservations": 90,
+  "observationsWithChangedRecordedOperationCounts": 0,
+  "totals": {
+    "prior": {
+      "qmdSearches": 178,
+      "qmdUpdates": 1493,
+      "controlledCards": 360,
+      "controlledMaps": 0,
+      "nativePdf": 0,
+      "rawReads": 3780,
+      "scans": 92,
+      "targetedEvidenceCompletionCalls": 60
+    },
+    "definitive": {
+      "qmdSearches": 178,
+      "qmdUpdates": 1493,
+      "controlledCards": 360,
+      "controlledMaps": 0,
+      "nativePdf": 0,
+      "rawReads": 3780,
+      "scans": 92,
+      "targetedEvidenceCompletionCalls": 60
+    }
+  },
+  "recordedToolEntrypointCountsIdentical": true,
+  "conclusion": "Recorded operation counts are identical for every matched observation. The prior and definitive production snapshots differ, but the available counters do not explain the latency difference. Source-compute versus scheduling/filesystem/runtime attribution remains unknown. Definitive cold p50/p95 regressions remain observed and are not dismissed."
+}

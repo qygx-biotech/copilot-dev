@@ -15,6 +15,7 @@ const responses = [];
 global.fetch = async (url, options) => {
   requests.push({ url, body: JSON.parse(options.body), headers: options.headers });
   const response = responses.shift();
+  if (response instanceof Response) return response;
   return new Response(JSON.stringify({
     choices: [{ message: { content: typeof response === "string" ? response : JSON.stringify(response) }, finish_reason: "stop" }],
     usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 }
@@ -343,4 +344,149 @@ test("the existing answer loop can read evidence then execute a grounded tempera
   assert.equal(eligibility.temperature_difference, 5);
   assert.deepEqual(result.semanticTelemetry.capabilitiesUsed, ["read_paper_evidence", "query_experiment_results"]);
   assert.equal(result.semanticTelemetry.cloudCalls.answer, 3);
+});
+
+test("unavailable strict semantic capability degrades once per configuration without disabling working routes", async () => {
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  let endpointCalls = 0;
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.example.test", fetch: async (url, options) => {
+    endpointCalls += 1;
+    const result = await invoke(new URL(url).pathname, JSON.parse(options.body));
+    return new Response(JSON.stringify(result.body), { status: result.status });
+  } });
+  process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
+  try {
+    const failure = await invoke("/api/semantic/interpret", input());
+    assert.equal(failure.status, 502);
+    assert.equal(failure.body.capabilityUnavailable, true);
+    assert.equal(failure.body.fallbackReason, "structured_output_unsupported");
+    assert.match(failure.body.configurationSignature, /^[a-f0-9]{64}$/);
+    assert.doesNotMatch(JSON.stringify(failure.body), /fc-semantic-private-key|requesty\/test-semantic/);
+    for (let turn = 0; turn < 11; turn += 1) {
+      await assert.rejects(api.interpretSemantics(input({ callContext: { turnId: `unavailable-${turn}`, profile: "medium" } })), error => {
+        assert.equal(error.capabilityUnavailable, true);
+        assert.equal(error.semanticParserAttempted, turn === 0);
+        return true;
+      });
+    }
+    assert.equal(endpointCalls, 1);
+    assert.equal(requests.length, 0);
+    assert.equal(api.getTurnCallCounts("unavailable-0").semantic_parser, 1);
+    assert.equal(api.getTurnCallCounts("unavailable-1").semantic_parser, undefined);
+    // Only semantic interpretation has capability state; schema mapping keeps
+    // its existing independent failure contract.
+    const mapping = await invoke("/api/semantic/map-schema", schemaInput());
+    assert.equal(mapping.body.error, "SchemaMapperUnavailable");
+    assert.equal(mapping.body.capabilityUnavailable, undefined);
+  } finally { process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true"; }
+});
+
+test("a literature-only semantic query succeeds through the existing FC to Requesty path", async () => {
+  const payload = input({ query: "Find papers on EctD thermostability" });
+  responses.push(semantic.interpretLocal(payload));
+  const result = await invoke("/api/semantic/interpret", payload);
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.ir.objects, ["literature"]);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://router.requesty.ai/v1/chat/completions");
+  assert.equal(result.body.attempts, 1);
+});
+
+test("provider schema incompatibility has an explicit sanitized semantic fallback reason", async () => {
+  responses.push(new Response(JSON.stringify({ error: { message: "Invalid response_format: json_schema is unsupported by private-model." } }), { status: 400 }));
+  const result = await invoke("/api/semantic/interpret", input());
+  assert.equal(result.status, 502);
+  assert.equal(result.body.capabilityUnavailable, true);
+  assert.equal(result.body.fallbackReason, "provider_schema_incompatible");
+  assert.equal(result.body.attempts, 1);
+  assert.doesNotMatch(JSON.stringify(result.body), /private-model|fc-semantic-private-key/);
+});
+
+test("simultaneous semantic requests share only the unavailable capability probe", async () => {
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  let calls = 0;
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.example.test", fetch: async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ ok: false, error: "SemanticParserUnavailable", capabilityUnavailable: true,
+      fallbackReason: "structured_output_unsupported" }), { status: 502 });
+  } });
+  const results = await Promise.allSettled(Array.from({ length: 4 }, (_, turn) => api.interpretSemantics(input({ query: `Question ${turn}` }))));
+  assert.equal(calls, 1);
+  assert.equal(results.filter(result => result.status === "rejected").length, 4);
+  assert.equal(results.filter(result => result.reason.semanticParserAttempted === true).length, 1);
+});
+
+test("semantic capability retries after cooldown, configuration changes, explicit refresh, and restart", async () => {
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  let now = 1000, calls = 0;
+  const options = { baseUrl: "https://fc.example.test", now: () => now, fetch: async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ ok: false, error: "SemanticParserUnavailable", capabilityUnavailable: true,
+      fallbackReason: "structured_output_unsupported", configurationSignature: "a".repeat(64), retryAfterMs: 300000 }), { status: 502 });
+  } };
+  const api = new LiteratureApiClient(options);
+  const attempt = () => assert.rejects(api.interpretSemantics(input()));
+  await attempt(); await attempt(); assert.equal(calls, 1);
+  now += 300001;
+  await attempt(); assert.equal(calls, 2);
+  api.configurationSignature = "new-fc-configuration";
+  await attempt(); assert.equal(calls, 3);
+  api.baseUrl = "https://other-fc.example.test";
+  await attempt(); assert.equal(calls, 4);
+  api.refreshSemanticCapability();
+  await attempt(); assert.equal(calls, 5);
+  await assert.rejects(new LiteratureApiClient(options).interpretSemantics(input()));
+  assert.equal(calls, 6);
+});
+
+test("transient and malformed semantic failures do not mark the capability unavailable", async () => {
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  for (const first of [new Error("connection reset"), { status: 504, error: "SemanticParserUnavailable" }, { status: 502, error: "InvalidStructuredOutput" }]) {
+    let calls = 0;
+    const api = new LiteratureApiClient({ baseUrl: "https://fc.example.test", fetch: async () => {
+      calls += 1;
+      if (calls > 1) return new Response(JSON.stringify({ ok: true, ir: ir() }), { status: 200 });
+      if (first instanceof Error) throw first;
+      return new Response(JSON.stringify({ ok: false, error: first.error }), { status: first.status });
+    } });
+    await assert.rejects(api.interpretSemantics(input()), error => { assert.notEqual(error.capabilityUnavailable, true); return true; });
+    assert.equal((await api.interpretSemantics(input())).goal, ir().goal);
+    assert.equal(calls, 2);
+  }
+});
+
+test("legacy opaque semantic 502 gets only a brief cooldown and remains retryable", async () => {
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  let calls = 0, now = 100;
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.example.test", now: () => now, fetch: async () => {
+    calls += 1;
+    return new Response(JSON.stringify(calls === 1 ? { ok: false, error: "SemanticParserUnavailable" } : { ok: true, ir: ir() }), { status: calls === 1 ? 502 : 200 });
+  } });
+  await assert.rejects(api.interpretSemantics(input()));
+  await assert.rejects(api.interpretSemantics(input()), error => { assert.equal(error.semanticParserAttempted, false); assert.notEqual(error.capabilityUnavailable, true); return true; });
+  assert.equal(calls, 1);
+  now += 30001;
+  assert.equal((await api.interpretSemantics(input())).goal, ir().goal);
+  assert.equal(calls, 2);
+});
+
+test("FC preserves bounded literature identity and completion diagnostics and derives incomplete corpus coverage", () => {
+  const context = backend._test.sanitizeLocalWorkspaceContext({ literature: {
+    explicitPaperIds: ["P31", "P31"], identityResolution: { kind: "exact-title", paperIds: [], noExactMatch: true, query: "private title" },
+    discoveryMode: "exact-title-no-match", corpusWideRequest: true,
+    coverage: { papersIncludedInSnapshot: 8, papersSuccessfullyAnalyzed: 7, coverageComplete: true },
+    diagnostics: { parser: { attempted: false, succeeded: false, fallback: true }, inputLanguage: "zh", canonicalEnglishAvailable: true,
+      retrievalBackend: "legacy", fallbackReason: "qmd_not_ready", rankedPaperIds: ["P31"], selectedPaperIds: ["P31"],
+      evidencePages: [{ paperId: "P31", page: 8, quote: "private source" }, { paperId: "P31", page: -1 }],
+      targetedEvidenceCompletionCalls: 1, sourceContent: "private source", corpusCoverage: { snapshotCount: 8, analyzedCount: 8, coverageComplete: true } },
+    evidenceCompletion: { calls: 1, requestedDimensions: ["sample_count", "private source"], missingByPaper: [{ paperId: "P31", dimensions: ["sample_count"] }], truncated: false },
+  } });
+  assert.equal(context.literature.identityResolution.noExactMatch, true);
+  assert.equal(context.literature.discoveryMode, "exact-title-no-match");
+  assert.deepEqual(context.literature.explicitPaperIds, ["P31"]);
+  assert.deepEqual(context.literature.diagnostics.evidencePages, [{ paperId: "P31", page: 8 }]);
+  assert.deepEqual(context.literature.diagnostics.corpusCoverage, { snapshotCount: 8, analyzedCount: 7, coverageComplete: false });
+  assert.equal(context.literature.coverage.coverageComplete, false);
+  assert.deepEqual(context.literature.evidenceCompletion.requestedDimensions, ["sample_count"]);
+  assert.doesNotMatch(JSON.stringify(context), /private source|private title/);
 });

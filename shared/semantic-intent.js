@@ -369,7 +369,11 @@
         }
       }
     }
-    const steps = unique(requested).map((capability) => {
+    const steps = unique(requested).filter((capability) => {
+      const item = capabilityMap.get(capability);
+      return !(ir.objects.includes("literature") && !ir.objects.includes("experiments") &&
+        item.supportsObjects.includes("experiments") && !item.supportsObjects.includes("literature"));
+    }).map((capability) => {
       const item = capabilityMap.get(capability);
       const authorization = authorizeCapability(input.surface, capability);
       return { capability, tool: item.tool, hostOnly: item.hostOnly, operations: item.operations.filter((operation) => ir.operations.includes(operation)), effect: item.effect, allowed: authorization.allowed };
@@ -398,10 +402,25 @@
   }
   function requestUnderstanding(ir, originalQuery) {
     const canonicalQueryEn = ir.inputLanguage === "en" ? originalQuery :
-      !/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af\u0400-\u04ff]/u.test(ir.goal) ? ir.goal :
+      detectLanguage(ir.goal) === "en" && preservesQueryIdentifiers(ir.goal, originalQuery) ? ir.goal :
       unique([...(ir.entities || []).map((item) => item.canonicalId), ...(ir.metrics || []).map((item) => item.canonicalField).filter(Boolean), ...ir.objects, ...ir.operations,
         ...Object.entries(CONCEPT_ALIASES).filter(([, aliases]) => aliases.some((alias) => aliasPresent(normalized(originalQuery), alias))).map(([concept]) => concept)]).join(" ");
     return { originalQuery, canonicalQueryEn, inputLanguage: ir.inputLanguage, answerLanguage: ir.answerLanguage };
+  }
+  function preservesQueryIdentifiers(candidate, originalQuery) {
+    const found = new Set(extractProtectedIdentifiers(candidate));
+    return extractProtectedIdentifiers(originalQuery).every((identifier) => found.has(identifier));
+  }
+  function literatureQueryForms(query, understanding = {}) {
+    const original = String(understanding?.originalQuery || query || "").trim();
+    // The existing semantic goal supplies English normalization. Never translate
+    // again or let a partial/rewritten normalization replace the original text.
+    if (!understanding?.inputLanguage || understanding.inputLanguage === "en") return [String(query || original).trim()].filter(Boolean);
+    const canonical = String(understanding.canonicalQueryEn || "").trim();
+    return unique([
+      original,
+      ...(canonical && preservesQueryIdentifiers(canonical, original) ? [canonical] : []),
+    ].filter(Boolean));
   }
   function stable(value) {
     if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
@@ -430,9 +449,14 @@
           // The current request/preference owns output language, not model whim.
           const explicitLanguage = answerLanguagePreference(input.query, input);
           const confidentlyEnglish = /\b(?:the|which|what|our|my|please|find|summari[sz]e|rank|why|compare|explain|review|update|search|show|read|write|do it)\b/i.test(input.query);
+          if (local.inputLanguage !== "en" || confidentlyEnglish) ir.inputLanguage = local.inputLanguage;
           ir.answerLanguage = explicitLanguage || (local.inputLanguage !== "en" || confidentlyEnglish ? local.answerLanguage : ir.inputLanguage);
           route = "remote";
-        } catch (_) { route = "local-fallback"; fallback = "semantic-parser-unavailable-or-invalid"; }
+        } catch (error) {
+          if (error?.semanticParserAttempted === false) used = false;
+          route = "local-fallback";
+          fallback = error?.capabilityUnavailable ? "semantic-parser-capability-unavailable" : "semantic-parser-unavailable-or-invalid";
+        }
       } else if (needsRemote) { route = "local-fallback"; fallback = "semantic-parser-unavailable"; }
       if (ir.matchedPattern && !ir.unresolvedSlots.length && route !== "local-fallback") {
         this.cache.set(key, ir);
@@ -441,8 +465,8 @@
       return { ir, telemetry: this.telemetry(input, local, ir, used, route, fallback) };
     }
     telemetry(input, local, ir, used, route, fallback) {
-      return { profile: input.profile, semantic: { localPattern: local.matchedPattern, localConfidence: local.patternConfidence, matchState: local.matchedPattern ? "known" : local.patternConfidence >= this.thresholds.uncertain ? "uncertain" : "novel", remoteSemanticParserUsed: used, finalPattern: ir.matchedPattern, route, fallback }, operations: [...ir.operations], capabilitiesUsed: [], capabilityHints: [...ir.capabilityHints], semanticParserCalls: used ? 1 : 0, cost: { semanticParserCalls: used ? 1 : 0 } };
+      return { profile: input.profile, semantic: { localPattern: local.matchedPattern, localConfidence: local.patternConfidence, matchState: local.matchedPattern ? "known" : local.patternConfidence >= this.thresholds.uncertain ? "uncertain" : "novel", remoteSemanticParserUsed: used, finalPattern: ir.matchedPattern, route, fallback, inputLanguage: ir.inputLanguage, canonicalEnglishAvailable: Boolean(requestUnderstanding(ir, input.query).canonicalQueryEn) }, operations: [...ir.operations], capabilitiesUsed: [], capabilityHints: [...ir.capabilityHints], semanticParserCalls: used ? 1 : 0, cost: { semanticParserCalls: used ? 1 : 0 } };
     }
   }
-  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, compactSemanticInput, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, requestUnderstanding });
+  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, compactSemanticInput, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, requestUnderstanding, literatureQueryForms });
 });

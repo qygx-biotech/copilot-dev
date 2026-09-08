@@ -68,7 +68,7 @@ const localModelWeights = entries.filter((entry) => /\.(?:gguf|safetensors)$/i.t
 if (localModelWeights.length) {
   throw new Error(`Local model weights were packaged: ${localModelWeights.join(", ")}`);
 }
-for (const forbidden of ["/alibaba-fc", "/worker", "/learn-claude-code"]) {
+for (const forbidden of ["/alibaba-fc", "/evals", "/worker", "/learn-claude-code"]) {
   if (entries.some((entry) => entry === forbidden || entry.startsWith(`${forbidden}/`))) {
     throw new Error(`Forbidden deployable server tree was packaged: ${forbidden}`);
   }
@@ -160,6 +160,7 @@ console.log(JSON.stringify({
   sqliteVecLibrary: path.relative(packageRoot, sqliteVecLibrary),
   sqliteVecLibraryUnpacked: true,
   compatibilityDependenciesExcluded: true,
+  evaluationArtifactsExcluded: true,
   serverTreesExcluded: true,
   directRequestyPaths: 0,
   localModelWeightFiles: 0,

@@ -1,0 +1,4199 @@
+{
+  "runId": "2026-09-08T01-39-29-108Z",
+  "datasetHash": "b5327e04a75635e683a1aeb74da8ea4e367c3e13e2162feae60ab57a8649725e",
+  "scoreVersion": "1.0.1",
+  "totalCases": 45,
+  "totalObservations": 90,
+  "statuses": {
+    "completed": 88,
+    "blocked": 2
+  },
+  "eligible": {
+    "observations": 40,
+    "independentCases": 20,
+    "metrics": {
+      "ranked.paper.recall5": {
+        "mean": 0.7647058823529411,
+        "ci95": [
+          0.5294117647058824,
+          0.9411764705882353
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.paper.recall10": {
+        "mean": 0.7647058823529411,
+        "ci95": [
+          0.5294117647058824,
+          0.9411764705882353
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.paper.precision5": {
+        "mean": 0.18823529411764708,
+        "ci95": [
+          0.1176470588235294,
+          0.2588235294117648
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.paper.mrr": {
+        "mean": 0.7254901960784315,
+        "ci95": [
+          0.4901960784313726,
+          0.9019607843137255
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.recall5": {
+        "mean": 0.48245614035087714,
+        "ci95": [
+          0.27192982456140347,
+          0.6842105263157895
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.recall10": {
+        "mean": 0.48245614035087714,
+        "ci95": [
+          0.27192982456140347,
+          0.6842105263157895
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.precision5": {
+        "mean": 0.1368421052631579,
+        "ci95": [
+          0.07368421052631578,
+          0.20000000000000004
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.mrr": {
+        "mean": 0.5263157894736842,
+        "ci95": [
+          0.3157894736842105,
+          0.7368421052631579
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.recall5": {
+        "mean": 0.7058823529411765,
+        "ci95": [
+          0.47058823529411764,
+          0.8823529411764706
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.recall10": {
+        "mean": 0.7058823529411765,
+        "ci95": [
+          0.47058823529411764,
+          0.8823529411764706
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.precision5": {
+        "mean": 0.17647058823529413,
+        "ci95": [
+          0.10588235294117646,
+          0.24705882352941183
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.mrr": {
+        "mean": 0.7058823529411765,
+        "ci95": [
+          0.47058823529411764,
+          0.8823529411764706
+        ],
+        "n": 34,
+        "clusters": 17,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.recall5": {
+        "mean": 0.6403508771929826,
+        "ci95": [
+          0.42982456140350883,
+          0.8333333333333333
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.recall10": {
+        "mean": 0.6535087719298246,
+        "ci95": [
+          0.4429824561403509,
+          0.8464912280701754
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.precision5": {
+        "mean": 0.16842105263157897,
+        "ci95": [
+          0.11578947368421051,
+          0.22105263157894742
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.mrr": {
+        "mean": 0.543859649122807,
+        "ci95": [
+          0.3508771929824562,
+          0.7280701754385965
+        ],
+        "n": 38,
+        "clusters": 19,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      }
+    }
+  },
+  "observedSearchCallsOnly": {
+    "observations": 38,
+    "independentCases": 19,
+    "metrics": {
+      "ranked.paper.recall5": {
+        "mean": 0.8125,
+        "ci95": [
+          0.625,
+          1
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.paper.recall10": {
+        "mean": 0.8125,
+        "ci95": [
+          0.625,
+          1
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.paper.precision5": {
+        "mean": 0.20000000000000004,
+        "ci95": [
+          0.13749999999999998,
+          0.2750000000000001
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.paper.mrr": {
+        "mean": 0.7708333333333334,
+        "ci95": [
+          0.5416666666666666,
+          0.9375
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.recall5": {
+        "mean": 0.5092592592592592,
+        "ci95": [
+          0.2962962962962963,
+          0.7222222222222222
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.recall10": {
+        "mean": 0.5092592592592592,
+        "ci95": [
+          0.2962962962962963,
+          0.7222222222222222
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.precision5": {
+        "mean": 0.14444444444444446,
+        "ci95": [
+          0.07777777777777778,
+          0.21111111111111114
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "ranked.evidence.mrr": {
+        "mean": 0.5555555555555556,
+        "ci95": [
+          0.3333333333333333,
+          0.7777777777777778
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.recall5": {
+        "mean": 0.75,
+        "ci95": [
+          0.5,
+          0.9375
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.recall10": {
+        "mean": 0.75,
+        "ci95": [
+          0.5,
+          0.9375
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.precision5": {
+        "mean": 0.1875,
+        "ci95": [
+          0.11249999999999999,
+          0.275
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.paper.mrr": {
+        "mean": 0.75,
+        "ci95": [
+          0.5,
+          0.9375
+        ],
+        "n": 32,
+        "clusters": 16,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.recall5": {
+        "mean": 0.675925925925926,
+        "ci95": [
+          0.4629629629629629,
+          0.8611111111111112
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.recall10": {
+        "mean": 0.6898148148148149,
+        "ci95": [
+          0.48148148148148145,
+          0.875
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.precision5": {
+        "mean": 0.1777777777777778,
+        "ci95": [
+          0.1222222222222222,
+          0.24444444444444446
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      },
+      "context.evidence.mrr": {
+        "mean": 0.5740740740740741,
+        "ci95": [
+          0.37962962962962965,
+          0.7685185185185185
+        ],
+        "n": 36,
+        "clusters": 18,
+        "method": "case-cluster percentile bootstrap; equal case weights",
+        "seed": 20260907,
+        "bootstrapSamples": 2000
+      }
+    }
+  },
+  "bySplit": {
+    "dev": {
+      "observations": 32,
+      "independentCases": 16,
+      "metrics": {
+        "ranked.paper.recall5": {
+          "mean": 0.8571428571428571,
+          "ci95": [
+            0.6428571428571429,
+            1
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.recall10": {
+          "mean": 0.8571428571428571,
+          "ci95": [
+            0.6428571428571429,
+            1
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.precision5": {
+          "mean": 0.21428571428571427,
+          "ci95": [
+            0.14285714285714285,
+            0.3
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.mrr": {
+          "mean": 0.8095238095238095,
+          "ci95": [
+            0.5952380952380951,
+            1
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall5": {
+          "mean": 0.611111111111111,
+          "ci95": [
+            0.36666666666666664,
+            0.8333333333333334
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall10": {
+          "mean": 0.611111111111111,
+          "ci95": [
+            0.36666666666666664,
+            0.8333333333333334
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.precision5": {
+          "mean": 0.17333333333333334,
+          "ci95": [
+            0.10633333333333335,
+            0.24000000000000007
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.mrr": {
+          "mean": 0.6666666666666666,
+          "ci95": [
+            0.4,
+            0.8666666666666667
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall5": {
+          "mean": 0.7857142857142857,
+          "ci95": [
+            0.5714285714285714,
+            1
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall10": {
+          "mean": 0.7857142857142857,
+          "ci95": [
+            0.5714285714285714,
+            1
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.precision5": {
+          "mean": 0.2,
+          "ci95": [
+            0.12857142857142856,
+            0.2857142857142857
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.mrr": {
+          "mean": 0.7857142857142857,
+          "ci95": [
+            0.5714285714285714,
+            1
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall5": {
+          "mean": 0.7444444444444446,
+          "ci95": [
+            0.5111111111111112,
+            0.9224999999999985
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall10": {
+          "mean": 0.7611111111111112,
+          "ci95": [
+            0.5333333333333333,
+            0.9333333333333333
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.precision5": {
+          "mean": 0.20000000000000004,
+          "ci95": [
+            0.13333333333333333,
+            0.26666666666666666
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.mrr": {
+          "mean": 0.6555555555555556,
+          "ci95": [
+            0.43333333333333335,
+            0.8333333333333334
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        }
+      }
+    },
+    "heldout": {
+      "observations": 8,
+      "independentCases": 4,
+      "metrics": {
+        "ranked.paper.recall5": {
+          "mean": 0.3333333333333333,
+          "ci95": [
+            0,
+            1
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.recall10": {
+          "mean": 0.3333333333333333,
+          "ci95": [
+            0,
+            1
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.precision5": {
+          "mean": 0.06666666666666667,
+          "ci95": [
+            0,
+            0.20000000000000004
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.mrr": {
+          "mean": 0.3333333333333333,
+          "ci95": [
+            0,
+            1
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall5": {
+          "mean": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall10": {
+          "mean": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.precision5": {
+          "mean": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.mrr": {
+          "mean": 0,
+          "ci95": [
+            0,
+            0
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall5": {
+          "mean": 0.3333333333333333,
+          "ci95": [
+            0,
+            1
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall10": {
+          "mean": 0.3333333333333333,
+          "ci95": [
+            0,
+            1
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.precision5": {
+          "mean": 0.06666666666666667,
+          "ci95": [
+            0,
+            0.20000000000000004
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.mrr": {
+          "mean": 0.3333333333333333,
+          "ci95": [
+            0,
+            1
+          ],
+          "n": 6,
+          "clusters": 3,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall5": {
+          "mean": 0.25,
+          "ci95": [
+            0,
+            0.75
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall10": {
+          "mean": 0.25,
+          "ci95": [
+            0,
+            0.75
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.precision5": {
+          "mean": 0.05,
+          "ci95": [
+            0,
+            0.15000000000000002
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.mrr": {
+          "mean": 0.125,
+          "ci95": [
+            0,
+            0.375
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        }
+      }
+    }
+  },
+  "byDomain": {
+    "open_domain_celluweave": {
+      "observations": 32,
+      "independentCases": 16,
+      "metrics": {
+        "ranked.paper.recall5": {
+          "mean": 0.6923076923076923,
+          "ci95": [
+            0.46153846153846156,
+            0.9230769230769231
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.recall10": {
+          "mean": 0.6923076923076923,
+          "ci95": [
+            0.46153846153846156,
+            0.9230769230769231
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.precision5": {
+          "mean": 0.16923076923076924,
+          "ci95": [
+            0.0923076923076923,
+            0.26153846153846155
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.mrr": {
+          "mean": 0.6410256410256411,
+          "ci95": [
+            0.38461538461538464,
+            0.8717948717948718
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall5": {
+          "mean": 0.3444444444444444,
+          "ci95": [
+            0.13333333333333333,
+            0.5777777777777778
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall10": {
+          "mean": 0.3444444444444444,
+          "ci95": [
+            0.13333333333333333,
+            0.5777777777777778
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.precision5": {
+          "mean": 0.10666666666666667,
+          "ci95": [
+            0.04000000000000001,
+            0.18666666666666665
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.mrr": {
+          "mean": 0.4,
+          "ci95": [
+            0.13333333333333333,
+            0.6666666666666666
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall5": {
+          "mean": 0.6153846153846154,
+          "ci95": [
+            0.38461538461538464,
+            0.8461538461538461
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall10": {
+          "mean": 0.6153846153846154,
+          "ci95": [
+            0.38461538461538464,
+            0.8461538461538461
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.precision5": {
+          "mean": 0.15384615384615383,
+          "ci95": [
+            0.07692307692307693,
+            0.2461538461538462
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.mrr": {
+          "mean": 0.6153846153846154,
+          "ci95": [
+            0.38461538461538464,
+            0.8461538461538461
+          ],
+          "n": 26,
+          "clusters": 13,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall5": {
+          "mean": 0.5444444444444445,
+          "ci95": [
+            0.31111111111111106,
+            0.7777777777777778
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall10": {
+          "mean": 0.5611111111111112,
+          "ci95": [
+            0.31666666666666665,
+            0.7891666666666652
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.precision5": {
+          "mean": 0.14666666666666667,
+          "ci95": [
+            0.08,
+            0.2133333333333334
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.mrr": {
+          "mean": 0.4222222222222223,
+          "ci95": [
+            0.2222222222222222,
+            0.6333333333333333
+          ],
+          "n": 30,
+          "clusters": 15,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        }
+      }
+    },
+    "primary_ectd": {
+      "observations": 8,
+      "independentCases": 4,
+      "metrics": {
+        "ranked.paper.recall5": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.recall10": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.precision5": {
+          "mean": 0.25,
+          "ci95": [
+            0.2,
+            0.35
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.mrr": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall5": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall10": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.precision5": {
+          "mean": 0.25,
+          "ci95": [
+            0.2,
+            0.35
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.mrr": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall5": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall10": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.precision5": {
+          "mean": 0.25,
+          "ci95": [
+            0.2,
+            0.35
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.mrr": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall5": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall10": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.precision5": {
+          "mean": 0.25,
+          "ci95": [
+            0.2,
+            0.35
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.mrr": {
+          "mean": 1,
+          "ci95": [
+            1,
+            1
+          ],
+          "n": 8,
+          "clusters": 4,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        }
+      }
+    }
+  },
+  "byLanguage": {
+    "en": {
+      "observations": 30,
+      "independentCases": 15,
+      "metrics": {
+        "ranked.paper.recall5": {
+          "mean": 0.8333333333333334,
+          "ci95": [
+            0.5833333333333334,
+            1
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.recall10": {
+          "mean": 0.8333333333333334,
+          "ci95": [
+            0.5833333333333334,
+            1
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.precision5": {
+          "mean": 0.21666666666666667,
+          "ci95": [
+            0.13333333333333333,
+            0.3166666666666667
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.mrr": {
+          "mean": 0.7777777777777777,
+          "ci95": [
+            0.5277777777777778,
+            1
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall5": {
+          "mean": 0.5119047619047619,
+          "ci95": [
+            0.2857142857142857,
+            0.75
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall10": {
+          "mean": 0.5119047619047619,
+          "ci95": [
+            0.2857142857142857,
+            0.75
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.precision5": {
+          "mean": 0.1571428571428571,
+          "ci95": [
+            0.08571428571428572,
+            0.24285714285714285
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.mrr": {
+          "mean": 0.5714285714285714,
+          "ci95": [
+            0.35714285714285715,
+            0.7874999999999902
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall5": {
+          "mean": 0.75,
+          "ci95": [
+            0.5,
+            1
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall10": {
+          "mean": 0.75,
+          "ci95": [
+            0.5,
+            1
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.precision5": {
+          "mean": 0.19999999999999998,
+          "ci95": [
+            0.11666666666666665,
+            0.30000000000000004
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.mrr": {
+          "mean": 0.75,
+          "ci95": [
+            0.5,
+            1
+          ],
+          "n": 24,
+          "clusters": 12,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall5": {
+          "mean": 0.6547619047619049,
+          "ci95": [
+            0.42857142857142855,
+            0.8809523809523808
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall10": {
+          "mean": 0.6726190476190477,
+          "ci95": [
+            0.4523809523809524,
+            0.8928571428571429
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.precision5": {
+          "mean": 0.18571428571428575,
+          "ci95": [
+            0.11428571428571428,
+            0.2571428571428572
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.mrr": {
+          "mean": 0.5595238095238095,
+          "ci95": [
+            0.3452380952380953,
+            0.7741071428571412
+          ],
+          "n": 28,
+          "clusters": 14,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        }
+      }
+    },
+    "zh": {
+      "observations": 10,
+      "independentCases": 5,
+      "metrics": {
+        "ranked.paper.recall5": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.recall10": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.precision5": {
+          "mean": 0.12000000000000002,
+          "ci95": [
+            0.04,
+            0.2
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.paper.mrr": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall5": {
+          "mean": 0.4,
+          "ci95": [
+            0,
+            0.8
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.recall10": {
+          "mean": 0.4,
+          "ci95": [
+            0,
+            0.8
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.precision5": {
+          "mean": 0.08,
+          "ci95": [
+            0,
+            0.16
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "ranked.evidence.mrr": {
+          "mean": 0.4,
+          "ci95": [
+            0,
+            0.8
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall5": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.recall10": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.precision5": {
+          "mean": 0.12000000000000002,
+          "ci95": [
+            0.04,
+            0.2
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.paper.mrr": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall5": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.recall10": {
+          "mean": 0.6,
+          "ci95": [
+            0.2,
+            1
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.precision5": {
+          "mean": 0.12000000000000002,
+          "ci95": [
+            0.04,
+            0.2
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        },
+        "context.evidence.mrr": {
+          "mean": 0.5,
+          "ci95": [
+            0.1,
+            0.9
+          ],
+          "n": 10,
+          "clusters": 5,
+          "method": "case-cluster percentile bootstrap; equal case weights",
+          "seed": 20260907,
+          "bootstrapSamples": 2000
+        }
+      }
+    }
+  },
+  "departures": [
+    {
+      "caseId": "CW-DISCOVERY-05",
+      "repeat": 0,
+      "status": "completed",
+      "reason": "actual_corpus_workflow"
+    },
+    {
+      "caseId": "CW-DISCOVERY-05",
+      "repeat": 1,
+      "status": "completed",
+      "reason": "actual_corpus_workflow"
+    }
+  ],
+  "maximumSavedRankDepth": 5,
+  "rawHitsWithUnknownPages": 0,
+  "emptyPaperGoldObservations": 6,
+  "emptyEvidenceGoldObservations": 2,
+  "perObservation": [
+    {
+      "caseId": "CW-LOOKUP-01",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": "lookup_p17_en_zh",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P74",
+        "P31",
+        "P52",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P74:p2:v1",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P74",
+        "P31",
+        "P52",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-01",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": "lookup_p17_en_zh",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P74",
+        "P31",
+        "P52",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P74:p2:v1",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P74",
+        "P31",
+        "P52",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-02",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": "lookup_p17_en_zh",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P74:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 4,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 4
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-02",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": "lookup_p17_en_zh",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P74:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 4,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 4
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-03",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 0.3333333333333333,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P31",
+        "P74",
+        "P117"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p2:v1",
+        "P52:p2:v1",
+        "P31:p1:v2",
+        "P74:p2:v1",
+        "P117:p1:v1"
+      ],
+      "contextPaperIds": [],
+      "contextEvidenceIds": [],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-03",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 0.3333333333333333,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P31",
+        "P74",
+        "P117"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p2:v1",
+        "P52:p2:v1",
+        "P31:p1:v2",
+        "P74:p2:v1",
+        "P117:p1:v1"
+      ],
+      "contextPaperIds": [],
+      "contextEvidenceIds": [],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-04",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.3333333333333333
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P74:p1:v1",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-04",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.3333333333333333
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P74:p1:v1",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P31",
+        "P52",
+        "P74",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-05",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": null,
+        "ranked.paper.recall10": null,
+        "ranked.paper.precision5": null,
+        "ranked.paper.mrr": null,
+        "ranked.evidence.recall5": null,
+        "ranked.evidence.recall10": null,
+        "ranked.evidence.precision5": null,
+        "ranked.evidence.mrr": null,
+        "context.paper.recall5": null,
+        "context.paper.recall10": null,
+        "context.paper.precision5": null,
+        "context.paper.mrr": null,
+        "context.evidence.recall5": null,
+        "context.evidence.recall10": null,
+        "context.evidence.precision5": null,
+        "context.evidence.mrr": null
+      },
+      "rankedPaperIds": [
+        "P74",
+        "P17",
+        "P52",
+        "P152",
+        "P31"
+      ],
+      "rankedPageEvidenceIds": [
+        "P74:p2:v1",
+        "P17:p1:v1",
+        "P52:p1:v1",
+        "P152:p1:v1",
+        "P31:p1:v2"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P52",
+        "P117",
+        "P152",
+        "P31"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": true,
+      "emptyEvidenceGold": true,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-05",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": null,
+        "ranked.paper.recall10": null,
+        "ranked.paper.precision5": null,
+        "ranked.paper.mrr": null,
+        "ranked.evidence.recall5": null,
+        "ranked.evidence.recall10": null,
+        "ranked.evidence.precision5": null,
+        "ranked.evidence.mrr": null,
+        "context.paper.recall5": null,
+        "context.paper.recall10": null,
+        "context.paper.precision5": null,
+        "context.paper.mrr": null,
+        "context.evidence.recall5": null,
+        "context.evidence.recall10": null,
+        "context.evidence.precision5": null,
+        "context.evidence.mrr": null
+      },
+      "rankedPaperIds": [
+        "P74",
+        "P17",
+        "P52",
+        "P152",
+        "P31"
+      ],
+      "rankedPageEvidenceIds": [
+        "P74:p2:v1",
+        "P17:p1:v1",
+        "P52:p1:v1",
+        "P152:p1:v1",
+        "P31:p1:v2"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P52",
+        "P117",
+        "P152",
+        "P31"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": true,
+      "emptyEvidenceGold": true,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-06",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P52",
+        "P17",
+        "P74",
+        "P117",
+        "P152"
+      ],
+      "rankedPageEvidenceIds": [
+        "P52:p1:v1",
+        "P17:p1:v1",
+        "P74:p1:v1",
+        "P117:p1:v1",
+        "P152:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P52",
+        "P17",
+        "P117",
+        "P152",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-06",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P52",
+        "P17",
+        "P74",
+        "P117",
+        "P152"
+      ],
+      "rankedPageEvidenceIds": [
+        "P52:p1:v1",
+        "P17:p1:v1",
+        "P74:p1:v1",
+        "P117:p1:v1",
+        "P152:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P52",
+        "P17",
+        "P117",
+        "P152",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-07",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 1,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-07",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 1,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 1
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-08",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": null,
+        "ranked.paper.recall10": null,
+        "ranked.paper.precision5": null,
+        "ranked.paper.mrr": null,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": null,
+        "context.paper.recall10": null,
+        "context.paper.precision5": null,
+        "context.paper.mrr": null,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P152",
+        "P74",
+        "P117"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p3:v1",
+        "P52:p3:v1",
+        "P152:p3:v1",
+        "P74:p2:v1",
+        "P117:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P52",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": true,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-LOOKUP-08",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": null,
+        "ranked.paper.recall10": null,
+        "ranked.paper.precision5": null,
+        "ranked.paper.mrr": null,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": null,
+        "context.paper.recall10": null,
+        "context.paper.precision5": null,
+        "context.paper.mrr": null,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P152",
+        "P74",
+        "P117"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p3:v1",
+        "P52:p3:v1",
+        "P152:p3:v1",
+        "P74:p2:v1",
+        "P117:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P52",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": true,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-01",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": "discover_calcium",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P52:p2:v1",
+        "P74:p1:v1",
+        "P31:p1:v2",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-01",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": "discover_calcium",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P52:p2:v1",
+        "P74:p1:v1",
+        "P31:p1:v2",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-02",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": "discover_calcium",
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P74"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p2:v1",
+        "P152:p1:v1",
+        "P74:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 3,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 3
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-02",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": "discover_calcium",
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P74"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p2:v1",
+        "P152:p1:v1",
+        "P74:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 3,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 3
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-03",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.6,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0.6666666666666666,
+        "ranked.evidence.recall10": 0.6666666666666666,
+        "ranked.evidence.precision5": 0.4,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.6,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 0.6666666666666666,
+        "context.evidence.recall10": 0.6666666666666666,
+        "context.evidence.precision5": 0.4,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P52:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-03",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.6,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 0.6666666666666666,
+        "ranked.evidence.recall10": 0.6666666666666666,
+        "ranked.evidence.precision5": 0.4,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.6,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 0.6666666666666666,
+        "context.evidence.recall10": 0.6666666666666666,
+        "context.evidence.precision5": 0.4,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P17:p1:v1",
+        "P52:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P17",
+        "P52",
+        "P74",
+        "P31",
+        "P83"
+      ],
+      "contextEvidenceIds": [
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P83:p1:v1",
+        "P83:p2:v1",
+        "P83:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-04",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P52",
+        "P74",
+        "P117",
+        "P152"
+      ],
+      "rankedPageEvidenceIds": [
+        "P52:p2:v1",
+        "P74:p2:v1",
+        "P117:p1:v1",
+        "P152:p2:v1"
+      ],
+      "contextPaperIds": [
+        "P52",
+        "P74",
+        "P117",
+        "P152"
+      ],
+      "contextEvidenceIds": [
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1"
+      ],
+      "rawResultCount": 4,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 4
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-04",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P52",
+        "P74",
+        "P117",
+        "P152"
+      ],
+      "rankedPageEvidenceIds": [
+        "P52:p2:v1",
+        "P74:p2:v1",
+        "P117:p1:v1",
+        "P152:p2:v1"
+      ],
+      "contextPaperIds": [
+        "P52",
+        "P74",
+        "P117",
+        "P152"
+      ],
+      "contextEvidenceIds": [
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1"
+      ],
+      "rawResultCount": 4,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 4
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-06",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": null,
+        "ranked.paper.recall10": null,
+        "ranked.paper.precision5": null,
+        "ranked.paper.mrr": null,
+        "ranked.evidence.recall5": 0.5,
+        "ranked.evidence.recall10": 0.5,
+        "ranked.evidence.precision5": 0.4,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": null,
+        "context.paper.recall10": null,
+        "context.paper.precision5": null,
+        "context.paper.mrr": null,
+        "context.evidence.recall5": 0.5,
+        "context.evidence.recall10": 0.75,
+        "context.evidence.precision5": 0.4,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P74",
+        "P17",
+        "P52",
+        "P31",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P74:p2:v1",
+        "P17:p1:v1",
+        "P52:p3:v1",
+        "P31:p1:v2",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P74",
+        "P17",
+        "P52",
+        "P117",
+        "P152"
+      ],
+      "contextEvidenceIds": [
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": true,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-06",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": null,
+        "ranked.paper.recall10": null,
+        "ranked.paper.precision5": null,
+        "ranked.paper.mrr": null,
+        "ranked.evidence.recall5": 0.5,
+        "ranked.evidence.recall10": 0.5,
+        "ranked.evidence.precision5": 0.4,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": null,
+        "context.paper.recall10": null,
+        "context.paper.precision5": null,
+        "context.paper.mrr": null,
+        "context.evidence.recall5": 0.5,
+        "context.evidence.recall10": 0.75,
+        "context.evidence.precision5": 0.4,
+        "context.evidence.mrr": 0.5
+      },
+      "rankedPaperIds": [
+        "P74",
+        "P17",
+        "P52",
+        "P31",
+        "P83"
+      ],
+      "rankedPageEvidenceIds": [
+        "P74:p2:v1",
+        "P17:p1:v1",
+        "P52:p3:v1",
+        "P31:p1:v2",
+        "P83:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P74",
+        "P17",
+        "P52",
+        "P117",
+        "P152"
+      ],
+      "contextEvidenceIds": [
+        "P74:p1:v1",
+        "P74:p2:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": true,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-07",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P31",
+        "P52"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p1:v1",
+        "P17:p1:v1",
+        "P31:p1:v2",
+        "P52:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P31",
+        "P52"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-07",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P31",
+        "P52"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p1:v1",
+        "P17:p1:v1",
+        "P31:p1:v2",
+        "P52:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P31",
+        "P52"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-DISCOVERY-08",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [],
+      "rankedPageEvidenceIds": [],
+      "contextPaperIds": [],
+      "contextEvidenceIds": [],
+      "rawResultCount": 0,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 2,
+      "backendCounts": {}
+    },
+    {
+      "caseId": "CW-DISCOVERY-08",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "heldout",
+      "domain": "open_domain_celluweave",
+      "language": "zh",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [],
+      "rankedPageEvidenceIds": [],
+      "contextPaperIds": [],
+      "contextEvidenceIds": [],
+      "rawResultCount": 0,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 2,
+      "backendCounts": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-03",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [],
+      "rankedPageEvidenceIds": [],
+      "contextPaperIds": [],
+      "contextEvidenceIds": [],
+      "rawResultCount": 0,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 0,
+      "backendCounts": {}
+    },
+    {
+      "caseId": "CW-MULTILINGUAL-03",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "open_domain_celluweave",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 0,
+        "ranked.paper.recall10": 0,
+        "ranked.paper.precision5": 0,
+        "ranked.paper.mrr": 0,
+        "ranked.evidence.recall5": 0,
+        "ranked.evidence.recall10": 0,
+        "ranked.evidence.precision5": 0,
+        "ranked.evidence.mrr": 0,
+        "context.paper.recall5": 0,
+        "context.paper.recall10": 0,
+        "context.paper.precision5": 0,
+        "context.paper.mrr": 0,
+        "context.evidence.recall5": 0,
+        "context.evidence.recall10": 0,
+        "context.evidence.precision5": 0,
+        "context.evidence.mrr": 0
+      },
+      "rankedPaperIds": [],
+      "rankedPageEvidenceIds": [],
+      "contextPaperIds": [],
+      "contextEvidenceIds": [],
+      "rawResultCount": 0,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 0,
+      "backendCounts": {}
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "en",
+      "pairId": "ectd_discovery_a163v",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P131",
+        "P31"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p2:v1",
+        "P17:p1:v1",
+        "P131:p1:v1",
+        "P31:p1:v2"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P131",
+        "P17",
+        "P31"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-01",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "en",
+      "pairId": "ectd_discovery_a163v",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P131",
+        "P31"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p2:v1",
+        "P17:p1:v1",
+        "P131:p1:v1",
+        "P31:p1:v2"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P131",
+        "P17",
+        "P31"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P31:p1:v2",
+        "P31:p2:v2",
+        "P31:p3:v2"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-02",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "zh",
+      "pairId": "ectd_discovery_a163v",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P131"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p1:v1",
+        "P131:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1"
+      ],
+      "rawResultCount": 3,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 3
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-02",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "zh",
+      "pairId": "ectd_discovery_a163v",
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P131"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p1:v1",
+        "P131:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P131",
+        "P152"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1"
+      ],
+      "rawResultCount": 3,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 3
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-03",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P52",
+        "P131",
+        "P74"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p1:v1",
+        "P52:p1:v1",
+        "P131:p1:v1",
+        "P74:p2:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P52",
+        "P131"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-03",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.2,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.2,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.2,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.2,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P152",
+        "P52",
+        "P131",
+        "P74"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P152:p1:v1",
+        "P52:p1:v1",
+        "P131:p1:v1",
+        "P74:p2:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P152",
+        "P17",
+        "P52",
+        "P131"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P17:p1:v1",
+        "P17:p2:v1",
+        "P17:p3:v1",
+        "P52:p1:v1",
+        "P52:p2:v1",
+        "P52:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1"
+      ],
+      "rawResultCount": 5,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 5
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-04",
+      "repeat": 0,
+      "cacheState": "cold",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.4,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.4,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.4,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.4,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P131",
+        "P74",
+        "P152"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P131:p1:v1",
+        "P74:p2:v1",
+        "P152:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P131",
+        "P152",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 4,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 4
+      }
+    },
+    {
+      "caseId": "CW-ECTD_PAPERS-04",
+      "repeat": 1,
+      "cacheState": "warm",
+      "split": "dev",
+      "domain": "primary_ectd",
+      "language": "en",
+      "pairId": null,
+      "metrics": {
+        "ranked.paper.recall5": 1,
+        "ranked.paper.recall10": 1,
+        "ranked.paper.precision5": 0.4,
+        "ranked.paper.mrr": 1,
+        "ranked.evidence.recall5": 1,
+        "ranked.evidence.recall10": 1,
+        "ranked.evidence.precision5": 0.4,
+        "ranked.evidence.mrr": 1,
+        "context.paper.recall5": 1,
+        "context.paper.recall10": 1,
+        "context.paper.precision5": 0.4,
+        "context.paper.mrr": 1,
+        "context.evidence.recall5": 1,
+        "context.evidence.recall10": 1,
+        "context.evidence.precision5": 0.4,
+        "context.evidence.mrr": 1
+      },
+      "rankedPaperIds": [
+        "P117",
+        "P131",
+        "P74",
+        "P152"
+      ],
+      "rankedPageEvidenceIds": [
+        "P117:p1:v1",
+        "P131:p1:v1",
+        "P74:p2:v1",
+        "P152:p1:v1"
+      ],
+      "contextPaperIds": [
+        "P117",
+        "P131",
+        "P152",
+        "P74"
+      ],
+      "contextEvidenceIds": [
+        "P117:p1:v1",
+        "P117:p2:v1",
+        "P117:p3:v1",
+        "P131:p1:v1",
+        "P131:p2:v1",
+        "P131:p3:v1",
+        "P152:p1:v1",
+        "P152:p2:v1",
+        "P152:p3:v1",
+        "P74:p1:v1",
+        "P74:p2:v1"
+      ],
+      "rawResultCount": 4,
+      "unmappablePages": 0,
+      "emptyPaperGold": false,
+      "emptyEvidenceGold": false,
+      "searchCalls": 1,
+      "backendCounts": {
+        "legacy": 4
+      }
+    }
+  ]
+}

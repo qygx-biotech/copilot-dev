@@ -201,6 +201,17 @@
       .trim();
   }
 
+  function normalizePaperTitle(value) {
+    return String(value || "").normalize("NFKC").toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  }
+
+  function containsPaperIdentity(query, identity) {
+    if (!identity) return false;
+    const escaped = String(identity).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?:^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, "u").test(query);
+  }
+
   function fileExtension(value) {
     const name = String(value || "");
     const index = name.lastIndexOf(".");
@@ -1185,6 +1196,8 @@
         (file) => !selectedPaperPaths.has(file.relativePath)
       );
       const question = String(options.question || "");
+      const paperIdentity = this.resolveExplicitPaperIdentity(question, { paperIds: selectedPaperIds });
+      const scopedPaperIds = selectedPaperIds.length ? selectedPaperIds : paperIdentity.relatedDiscovery ? [] : paperIdentity.paperIds;
       const surface = options.surface === "agent_command" ? "agent_command" : "side_chat";
       options = { ...options, surface };
       const internalStateUpdates = [];
@@ -1213,7 +1226,7 @@
       const conversationContext = this.buildConversationContext(options.conversation);
       const activeScope = {
         projectId: String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || ""),
-        paperIds: selectedPaperIds,
+        paperIds: scopedPaperIds,
         experimentSourceIds: selectedExperimentIds,
         currentTopic: String(this.workspace.state?.agent?.sideChat?.currentTopic || "").slice(0, 500),
         projectObjective: String(options.projectGoal || this.workspace.state?.project?.goal || "").slice(0, 1000),
@@ -1239,8 +1252,7 @@
       const evidencePlan = semanticApi.planEvidenceNeeds(semanticIR, { originalQuery: question });
       const understanding = semanticApi.requestUnderstanding(semanticIR, question);
       options.onProgress?.({ stage: "retrieving-evidence" });
-      const retrievalQuery = understanding.canonicalQueryEn && understanding.canonicalQueryEn !== question
-        ? `${question} ${understanding.canonicalQueryEn}` : question;
+      const retrievalQuery = question;
       options = {
         ...options, semanticIR, evidencePlan, requestUnderstanding: understanding, profile: retrievalProfile, language: semanticIR.answerLanguage,
         callContext: { turnId: options.turnId, profile: retrievalProfile },
@@ -1255,6 +1267,7 @@
       const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
       const corpusUpdateRequest = semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question);
       const paperQuestion = corpusWideLiteratureRequest || corpusFailureFollowUpRequest || corpusUpdateRequest ||
+        paperIdentity.paperIds.length > 0 || paperIdentity.kind === "exact-title" ||
         semanticIR.objects.includes("literature") || evidencePlan.evidenceNeeds.some((need) => need.type === "literature_evidence") || questionMayNeedLiterature(question);
       let corpusWorkflowStatus = null;
       let corpusRecoveryResult = null;
@@ -1326,9 +1339,10 @@
       const recentExperimentIds = conversationContext.recentlyDiscussedExperimentIds.filter(
         (sourceId) => Boolean(this.sourceRegistry?.get(sourceId))
       );
-      const experimentQuestion = semanticIR.objects.includes("experiments") || EXPERIMENT_QUESTION_PATTERN.test(question);
+      const literatureOnly = semanticIR.objects.includes("literature") && !semanticIR.objects.includes("experiments");
+      const experimentQuestion = !literatureOnly && (semanticIR.objects.includes("experiments") || EXPERIMENT_QUESTION_PATTERN.test(question));
       const followUpNeedsExperiments = Boolean(
-        recentExperimentIds.length && EXPERIMENT_FOLLOW_UP_PATTERN.test(question)
+        !literatureOnly && recentExperimentIds.length && EXPERIMENT_FOLLOW_UP_PATTERN.test(question)
       );
       const relevantExperimentIds = await this.resolveExperimentSourceIds(question, {
         selectedExperimentIds, recentExperimentIds,
@@ -1344,7 +1358,7 @@
           : null;
       const memoryDescriptions = this.buildMemoryDescriptions();
       const shouldSearchLiterature = paperQuestion || followUpNeedsLiterature;
-      let matches = shouldSearchLiterature &&
+      let matches = shouldSearchLiterature && !paperIdentity.noExactMatch &&
         !corpusWideLiteratureRequest &&
         !corpusUpdateRequest &&
         !corpusWorkflowFollowUp
@@ -1352,17 +1366,18 @@
             topK: Math.min(5, this.limits.maxEvidenceFiles),
             readyOnly: false,
             retrievalProfile,
+            requestUnderstanding: understanding,
             turnId: options.turnId,
             callContext: { turnId: options.turnId, profile: retrievalProfile },
             signal: options.signal,
-            ...(selectedPaperIds.length
-              ? { candidatePaperIds: selectedPaperIds }
+            ...(scopedPaperIds.length
+              ? { candidatePaperIds: scopedPaperIds }
               : {}),
           })
         : [];
       // Bind deterministic output identifiers into subsequent literature discovery.
       // This is preparation for the same tool loop, with its existing hard paper scope.
-      if (shouldSearchLiterature && !corpusWideLiteratureRequest &&
+      if (shouldSearchLiterature && !paperIdentity.noExactMatch && !corpusWideLiteratureRequest &&
           semanticExperimentResult?.status === "ready" && semanticIR.operations.includes("rank")) {
         const identifiers = [...new Set([
           ...(semanticExperimentResult.groups || []).map((group) => group.groupValue),
@@ -1388,7 +1403,14 @@
         ...recentIds,
         ...matches.map((match) => match.paperId),
       ]);
-      const routing = corpusWorkflowFollowUp
+      const routing = paperIdentity.noExactMatch
+        ? { useLiterature: false, paperIds: [], useProjectMemory: false, memoryIds: [],
+            mode: "exact-title-no-match", reason: "No current paper has the requested normalized exact title within the active scope." }
+        : !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp && scopedPaperIds.length && shouldSearchLiterature
+        ? { ...await this.decideContextRouting({ question, selectedPaperIds, recentPaperIds: recentIds, matches, literatureIndex, memoryDescriptions }, options),
+            useLiterature: true, paperIds: [...scopedPaperIds],
+            mode: selectedPaperIds.length ? "selected" : "explicit-paper", reason: "Host-resolved paper identity preserves the original-evidence scope." }
+        : corpusWorkflowFollowUp
         ? {
             useLiterature: true,
             paperIds: [...(corpusWorkflowStatus.coverage?.includedPaperIds || [])],
@@ -1432,7 +1454,9 @@
 
       let relevantPaperIds = [];
       let discoveryMode = "not-needed";
-      if (corpusWorkflowFollowUp) {
+      if (paperIdentity.noExactMatch) {
+        discoveryMode = "exact-title-no-match";
+      } else if (corpusWorkflowFollowUp) {
         relevantPaperIds = [...(corpusWorkflowStatus.coverage?.includedPaperIds || [])];
         discoveryMode = corpusUpdateRequest
           ? "corpus-update"
@@ -1445,9 +1469,9 @@
           : [...eligiblePaperIds];
         discoveryMode = "corpus";
       } else if (routing.useLiterature) {
-        if (selectedPaperIds.length) {
-          relevantPaperIds = [...selectedPaperIds];
-          discoveryMode = "selected";
+        if (scopedPaperIds.length) {
+          relevantPaperIds = [...scopedPaperIds];
+          discoveryMode = selectedPaperIds.length ? "selected" : "explicit-paper";
         } else {
           let routedPaperIds = routing.paperIds;
           if (!routedPaperIds.length && followUpNeedsLiterature) {
@@ -1464,6 +1488,7 @@
             matches = await this.matchPapers(retrievalQuery, {
               topK: Math.min(5, this.limits.maxEvidenceFiles),
               retrievalProfile,
+              requestUnderstanding: understanding,
               signal: options.signal,
             });
             relevantPaperIds = matches.map((match) => match.paperId);
@@ -1478,6 +1503,12 @@
               : "automatic"
             : "not-ready";
         }
+      }
+
+      if (paperIdentity.relatedDiscovery && !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp) {
+        relevantPaperIds = [...new Set([...relevantPaperIds, ...paperIdentity.paperIds])];
+        routing.useLiterature = relevantPaperIds.length > 0;
+        routing.paperIds = [...relevantPaperIds];
       }
 
       const context = this.baseContext(
@@ -1495,7 +1526,7 @@
         context.preflightTelemetry = preflight.telemetry;
         if (preflight.report.failures.length) context.notices.push("Knowledge synchronization is incomplete for the reported source IDs. Use ready sources; do not claim complete coverage. Retry a required failed source through its bounded source tool or explain the limitation.");
       }
-      context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest
+      context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest || paperIdentity.noExactMatch
         ? { available: this.knowledgeService?.available === true, hits: [] }
         : await this.retrieveLayeredKnowledge(retrievalQuery, options);
       const sourceCounts = this.sourceRegistry?.counts?.() || {};
@@ -1509,6 +1540,8 @@
           reason: "literature-retrieval-not-needed",
         },
         selectedPaperIds,
+        explicitPaperIds: paperIdentity.relatedDiscovery ? [] : paperIdentity.paperIds,
+        identityResolution: paperIdentity,
         relevantPaperIds,
         discoveryMode,
         corpusWideRequest:
@@ -1661,8 +1694,42 @@
         paperEvidence = await this.retrievePaperEvidence(
           retrievalQuery,
           relevantPaperIds,
-          options
+          { ...options, rankedPaperMatches: matches }
         );
+      }
+      if (routing.useLiterature && relevantPaperIds.length && !corpusWorkflowFollowUp &&
+          typeof this.literatureTools?.completeEvidence === "function") {
+        const completionPaperIds = paperIdentity.paperIds.length && !paperIdentity.relatedDiscovery ? paperIdentity.paperIds : relevantPaperIds;
+        const completionSlots = new Map(completionPaperIds.map((paperId) => {
+          const existing = paperEvidence.find((item) => item.paperId === paperId && item.evidenceType !== "corpus-workflow");
+          const budget = Math.max(existing?.content.length || 0, this.limits.maxSourceCharactersPerFile);
+          const heading = `Original-paper evidence for ${existing?.relativePath}:\n`;
+          const header = existing?.evidenceType === "optional-paper-card+original-evidence" ? existing.content.lastIndexOf(heading) : -1;
+          const start = header >= 0 ? header + heading.length : 0;
+          return [paperId, { existing, budget, start, capacity: Math.max(0, budget - start - 2) }];
+        }));
+        const completion = await this.literatureTools.completeEvidence(question, completionPaperIds, {
+          ...options, files: paperEvidence, semanticIR,
+          completionCharacterBudgets: Object.fromEntries([...completionSlots].map(([id, slot]) => [id, slot.capacity])),
+        });
+        const { files: completedFiles = [], ...completionDiagnostics } = completion;
+        context.literature.evidenceCompletion = completionDiagnostics;
+        for (const file of completedFiles) {
+          const { existing, budget, start } = completionSlots.get(file.paperId);
+          if (existing) {
+            existing.content = `${existing.content.slice(0, start)}${file.content}\n\n${existing.content.slice(start)}`.slice(0, budget);
+          } else {
+            paperEvidence.push(file);
+          }
+        }
+        if (typeof this.literatureTools.evidenceCompletionStatus === "function") {
+          const retainedMissing = this.literatureTools.evidenceCompletionStatus(question, completionPaperIds, { ...options, files: paperEvidence });
+          if (retainedMissing.some((item) => item.dimensions.some((dimension) =>
+            !completionDiagnostics.missingByPaper.some((prior) => prior.paperId === item.paperId && prior.dimensions.includes(dimension))))) {
+            completionDiagnostics.truncated = true;
+          }
+          completionDiagnostics.missingByPaper = retainedMissing;
+        }
       }
       const experimentEvidence = [];
 
@@ -1802,6 +1869,9 @@
         );
       }
       context.internalStateUpdates = internalStateUpdates.slice(-30);
+      if (paperIdentity.noExactMatch) {
+        context.notices.push("No exact title match exists in the current active paper scope. Do not substitute semantic candidates for the requested paper.");
+      }
       this.addLibraryNotices(context);
       this.addFileNotices(context);
       this.applyProgressiveInventory(context, question);
@@ -1815,7 +1885,7 @@
         ...context.semantic.telemetry,
         capabilitiesUsed: [
           ...((corpusWideLiteratureRequest || corpusUpdateRequest) && context.literature.corpusWorkflowId ? ["corpus_workflow"] : []),
-          ...(shouldSearchLiterature && !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp ? ["search_papers"] : []),
+          ...(shouldSearchLiterature && !paperIdentity.noExactMatch && !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp ? ["search_papers"] : []),
           ...(paperEvidence.length && !corpusWideLiteratureRequest ? ["read_paper_evidence"] : []),
           ...(experimentEvidence.length ? ["query_experiment_results"] : []),
           ...(internalStateUpdates.some((item) => item.startsWith("memory:")) ? ["update_project_memory"] : []),
@@ -1824,6 +1894,32 @@
           semantic_parser: context.semantic.telemetry.semanticParserCalls,
         },
       });
+      const backends = [...new Set(matches.map((match) => match.retrievalEvidence?.retrievalBackend).filter(Boolean))];
+      const coverage = context.literature.coverage;
+      context.literature.diagnostics = {
+        parser: {
+          attempted: context.semantic.telemetry.semanticParserCalls > 0,
+          succeeded: context.semantic.telemetry.semantic.route === "remote",
+          fallback: context.semantic.telemetry.semantic.route === "local-fallback",
+        },
+        inputLanguage: understanding.inputLanguage,
+        canonicalEnglishAvailable: Boolean(understanding.canonicalQueryEn),
+        retrievalBackend: matches.retrievalDiagnostics?.retrievalBackend || (backends.length > 1 ? "mixed" : backends[0]) || (matches.length ? "metadata" : "not-needed"),
+        fallbackReason: matches.retrievalDiagnostics?.fallbackReason || null,
+        rankedPaperIds: matches.map((match) => match.paperId),
+        selectedPaperIds: [...relevantPaperIds],
+        evidencePages: context.citationEvidence.map((item) => ({ paperId: item.sourceId, page: item.page }))
+          .filter((item, index, all) => all.findIndex((other) => other.paperId === item.paperId && other.page === item.page) === index),
+        targetedEvidenceCompletionCalls: context.literature.evidenceCompletion?.calls || 0,
+        citationResolution: { resolved: context.citationEvidence.length },
+        corpusCoverage: context.literature.corpusWideRequest ? {
+          snapshotCount: coverage.papersIncludedInSnapshot || 0,
+          analyzedCount: coverage.papersSuccessfullyAnalyzed || 0,
+          coverageComplete: typeof coverage.coverageComplete === "boolean" ? coverage.coverageComplete :
+            coverage.papersIncludedInSnapshot > 0 && coverage.papersSuccessfullyAnalyzed === coverage.papersIncludedInSnapshot,
+        } : null,
+      };
+      root.BioDesignRuntimeLog?.record("literature.diagnostics", { turnId: options.turnId, ...context.literature.diagnostics });
       return context;
     }
 
@@ -1960,11 +2056,54 @@
         .slice(0, this.limits.maxEvidenceFiles);
     }
 
+    resolveExplicitPaperIdentity(query, options = {}) {
+      const selected = options.paperIds?.length ? new Set(options.paperIds) : null;
+      const documents = (this.literature?.documents || []).filter((document) =>
+        document.isLiteraturePaper && (!selected || selected.has(document.id)) &&
+        (!this.sourceRegistry || this.sourceRegistry.get(document.id)?.sourceKind === "paper"));
+      const normalizedQuery = normalizePaperTitle(query);
+      const titleMarker = /\b(?:exact\s+title|titled)\s*[:=]?\s*|(?:标题为|确切标题|准确标题|完整标题)\s*[：:]?\s*/i.exec(query);
+      const quoted = [...String(query).matchAll(/["“「《]([^"”」》]+)["”」》]/g)].map((match) => match[1]);
+      const requestedTitle = titleMarker
+        ? (String(query).slice(titleMarker.index + titleMarker[0].length).match(/^["“「《]([^"”」》]+)["”」》]/)?.[1] ||
+          String(query).slice(titleMarker.index + titleMarker[0].length).replace(/[.!?。！？]+$/, "").trim())
+        : null;
+      if (requestedTitle) {
+        const expected = normalizePaperTitle(requestedTitle);
+        const paperIds = documents.filter((document) =>
+          [document.discovery?.title, document.title].some((title) => title && normalizePaperTitle(title) === expected)
+        ).map((document) => document.id);
+        return { kind: "exact-title", paperIds, noExactMatch: paperIds.length === 0 };
+      }
+      const paperIds = documents.filter((document) => {
+        if ([document.id, document.relativePath, document.filename].some((identity) => containsPaperIdentity(query, identity))) return true;
+        return [document.discovery?.title, document.title].some((title) => {
+          const normalized = normalizePaperTitle(title);
+          return normalized && (normalized === normalizedQuery || quoted.some((text) => normalizePaperTitle(text) === normalized) ||
+            (normalized.length >= 16 && ` ${normalizedQuery} `.includes(` ${normalized} `)));
+        });
+      }).map((document) => document.id);
+      // A named paper can be the reference point of discovery. Keep its evidence
+      // in context, while allowing the search to find the related/compared papers.
+      const relatedDiscovery = paperIds.length > 0 &&
+        /\b(?:find|search|which|what|identify|list)\b|哪些|哪篇|哪项|寻找|查找/i.test(query) &&
+        /\b(?:papers?|articles?|stud(?:y|ies))\b[\s\S]{0,120}\b(?:cit(?:e|es|ing)|referenc(?:e|es|ing)|similar\s+to|related\s+to|(?:higher|lower|warmer|cooler|better|worse|more|less|different)[\s\S]{0,40}\bthan)\b|\b(?:other|additional)\s+(?:papers?|articles?|studies)\b|(?:哪些|哪篇|寻找|查找).{0,60}(?:引用|相似|相关)|(?:哪些|哪篇|哪项).{0,60}比.{0,30}(?:更|高|低)/i.test(query);
+      return { kind: paperIds.length ? "explicit-paper" : "none", paperIds, noExactMatch: false, ...(relatedDiscovery ? { relatedDiscovery: true } : {}) };
+    }
+
     async matchPapers(query, options = {}) {
+      const identity = this.resolveExplicitPaperIdentity(options.requestUnderstanding?.originalQuery || query, {
+        paperIds: options.candidatePaperIds,
+      });
+      if (identity.noExactMatch) {
+        const empty = [];
+        empty.retrievalDecision = { profile: normalizeRetrievalProfile(options.retrievalProfile), mode: "not-needed", escalated: false, reason: "exact-title-no-match" };
+        return empty;
+      }
       const cards = [];
       const candidateIds = Array.isArray(options.candidatePaperIds)
         ? new Set(options.candidatePaperIds)
-        : null;
+        : identity.paperIds.length && !identity.relatedDiscovery ? new Set(identity.paperIds) : null;
       const candidateStatuses = Array.isArray(options.candidateStatuses)
         ? new Set(options.candidateStatuses)
         : null;
@@ -2006,6 +2145,7 @@
       const lexicalQuery = tokenizeQuestion(query).join(" ") || query;
       const searched = await this.literatureTools.searchPapers(lexicalQuery, {
         qmdQuery: query,
+        requestUnderstanding: options.requestUnderstanding,
         topK: Math.min(20, Math.max(1, Number(options.topK) || 5)),
         includeUnpreparedMetadata: options.readyOnly !== true,
         retrievalProfile: normalizeRetrievalProfile(options.retrievalProfile),
@@ -2021,12 +2161,13 @@
         const document = this.literature.documents.find(
           (candidate) => candidate.id === result.paperId
         );
-        if (!document || (options.readyOnly === true && result.searchable !== true)) {
+        if (!document || (candidateIds && !candidateIds.has(document.id)) || (options.readyOnly === true && result.searchable !== true)) {
           continue;
         }
         const existing = byPaperId.get(result.paperId);
         if (existing) {
           existing.score = Math.max(existing.score, Number(result.score) || 0);
+          existing.retrievalEvidence = result;
           continue;
         }
         byPaperId.set(result.paperId, {
@@ -2045,6 +2186,7 @@
           },
           score: Number(result.score) || 0,
           matchedTerms: 0,
+          retrievalEvidence: result,
         });
       }
       const ranked = [...byPaperId.values()]
@@ -2061,6 +2203,7 @@
         escalated: false,
         reason: "local-paper-card-ranking",
       };
+      ranked.retrievalDiagnostics = searched.diagnostics || null;
       return ranked;
     }
 
@@ -2106,6 +2249,7 @@
           includeSourceEvidence: true,
           maxSummaryCharacters: summaryBudget,
           maxSourceCharacters: sourceBudget,
+          rankedEvidence: options.rankedPaperMatches?.find((match) => match.paperId === paperId)?.retrievalEvidence,
         });
         item.paperId = document.id;
         evidence.push(item);
@@ -2419,6 +2563,12 @@
         const maxSourceCharacters =
           Number(options.maxSourceCharacters) || this.limits.maxSourceCharactersPerFile;
         let evidenceChunks;
+        const rankedEvidence = options.rankedEvidence;
+        const preferredChunks = artifact.chunks.filter((chunk) =>
+          rankedEvidence && (rankedEvidence.evidenceHandle === chunk.chunkId ||
+            rankedEvidence.evidenceHandle === `${document.id}:p${chunk.page}:${chunk.chunkId}` ||
+            (Number.isInteger(rankedEvidence.page) && rankedEvidence.page === chunk.page) ||
+            (rankedEvidence.matchedSections || []).some((section) => String(section.snippet || "").includes(`${document.id}:p${chunk.page}:${chunk.chunkId}`))));
         if (broad) {
           const count = Math.min(6, artifact.chunks.length);
           const indexes = [...new Set(
@@ -2426,11 +2576,11 @@
               Math.round((index * (artifact.chunks.length - 1)) / Math.max(1, count - 1))
             )
           )];
-          evidenceChunks = indexes.map((index) => artifact.chunks[index]).filter(Boolean);
+          evidenceChunks = [...new Set([...preferredChunks, ...indexes.map((index) => artifact.chunks[index]).filter(Boolean)])].slice(0, count);
         } else {
           evidenceChunks = artifact.chunks
-            .map((chunk) => ({ ...chunk, score: this.scorePaperChunk(chunk, options.question) }))
-            .sort((left, right) => right.score - left.score)
+            .map((chunk) => ({ ...chunk, preferred: preferredChunks.includes(chunk), score: this.scorePaperChunk(chunk, options.question, options) }))
+            .sort((left, right) => Number(right.preferred) - Number(left.preferred) || right.score - left.score)
             .slice(0, 5);
         }
         let remaining = maxSourceCharacters;
@@ -2480,8 +2630,10 @@
       }
     }
 
-    scorePaperChunk(chunk, question) {
-      const tokens = tokenizeQuestion(question);
+    scorePaperChunk(chunk, question, options = {}) {
+      const forms = typeof semanticApi.literatureQueryForms === "function"
+        ? semanticApi.literatureQueryForms(question, options.requestUnderstanding) : [question];
+      const tokens = [...new Set(forms.flatMap((query) => tokenizeQuestion(query)))];
       const text = String(chunk?.text || "").toLowerCase();
       return tokens.reduce(
         (score, token) => score + (text.includes(token) ? 1 : 0),

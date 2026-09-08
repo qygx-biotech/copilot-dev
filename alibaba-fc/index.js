@@ -3758,8 +3758,14 @@ async function handleSemanticInterpretation(event, _context, env) {
   }
   callContext.profile = body.profile;
   const { callContext: _diagnostics, ...payload } = body;
+  const selection = selectRetrievalModel(env, "REQUESTY_SEMANTIC_PARSER_MODEL");
+  const configurationSignature = crypto.createHash("sha256").update(JSON.stringify({
+    model: selection.model, jsonSchema: selection.capabilities?.jsonSchema === true,
+    configured: Boolean(getEnvString(env, "REQUESTY_API_KEY")),
+    schema: semanticIntent.SEMANTIC_IR_SCHEMA, promptVersion: SEMANTIC_PROMPT_VERSION
+  })).digest("hex");
   const result = await callSemanticStructured({
-    env, selection: selectRetrievalModel(env, "REQUESTY_SEMANTIC_PARSER_MODEL"),
+    env, selection,
     schema: semanticIntent.SEMANTIC_IR_SCHEMA, name: "semantic_intent_ir",
     payload, callContext,
     system: [
@@ -3772,9 +3778,31 @@ async function handleSemanticInterpretation(event, _context, env) {
     ].join("\n"),
     validate: (ir) => semanticIntent.validateSemanticIR(ir, { query: body.query, activeScope: body.activeScope || {} })
   });
-  if (!result.ok) return semanticFailure(event, result.error === "InvalidStructuredOutput" ? result.error : "SemanticParserUnavailable", "semantic_parser");
+  if (!result.ok) {
+    // Unlike planner/reranker, this endpoint requires advertised strict-schema
+    // support. Preserve that contract while distinguishing a disabled capability
+    // from transient transport or per-response validation failures.
+    const fallbackReason = result.error === "StructuredOutputUnsupported" ? "structured_output_unsupported"
+      : result.error === "MissingLlmConfiguration" ? "missing_model_configuration"
+      : result.error === "LlmHttpError" && [400, 422].includes(result.status) &&
+        /json_schema|response_format|schema/i.test(result.message || "") &&
+        /unsupported|not support|invalid|not available/i.test(result.message || "") ? "provider_schema_incompatible"
+      : result.error === "LlmHttpError" && [401, 403, 404].includes(result.status) ? "provider_configuration_rejected"
+      : result.error === "InvalidStructuredOutput" ? "invalid_structured_output" : "semantic_parser_unavailable";
+    const capabilityUnavailable = ["structured_output_unsupported", "missing_model_configuration",
+      "provider_schema_incompatible", "provider_configuration_rejected"].includes(fallbackReason);
+    return jsonResponse({ ok: false,
+      error: result.error === "InvalidStructuredOutput" ? result.error : "SemanticParserUnavailable",
+      message: "Semantic interpretation is unavailable; use the local interpretation.",
+      fallback: "local-semantic", fallbackReason, capabilityUnavailable, configurationSignature,
+      ...(capabilityUnavailable ? { retryAfterMs: 300000 } : {}),
+      ...(Number.isInteger(result.attempts) ? { attempts: result.attempts } :
+        ["structured_output_unsupported", "missing_model_configuration"].includes(fallbackReason) ? { attempts: 0 } : {})
+    }, 502, event);
+  }
   return jsonResponse({ ok: true, ir: result.parsed, promptVersion: SEMANTIC_PROMPT_VERSION,
-    structuredOutputMode: "json_schema", usage: sanitizeRequestyUsage(result.usage) }, 200, event);
+    structuredOutputMode: "json_schema", configurationSignature,
+    attempts: result.attempts, usage: sanitizeRequestyUsage(result.usage) }, 200, event);
 }
 
 async function handleSemanticSchemaMapping(event, _context, env) {
@@ -5884,6 +5912,17 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
   const retrievalProfile = retrievalProfiles.has(rawLiterature.retrievalProfile)
     ? rawLiterature.retrievalProfile
     : "light";
+  const rawIdentity = isPlainObject(rawLiterature.identityResolution) ? rawLiterature.identityResolution : {};
+  const rawDiagnostics = isPlainObject(rawLiterature.diagnostics) ? rawLiterature.diagnostics : {};
+  const rawCompletion = isPlainObject(rawLiterature.evidenceCompletion) ? rawLiterature.evidenceCompletion : {};
+  const diagnosticCount = value => Number.isFinite(Number(value)) ? Math.min(100000, Math.max(0, Math.floor(Number(value)))) : 0;
+  const dimensionIds = ["mean", "sample_count", "temperature", "km", "kcat", "mutation", "method"];
+  const dimensions = value => [...new Set((Array.isArray(value) ? value : []).filter(item => dimensionIds.includes(item)))];
+  const snapshotCount = diagnosticCount(rawLiterature.coverage?.papersIncludedInSnapshot);
+  const analyzedCount = diagnosticCount(rawLiterature.coverage?.papersSuccessfullyAnalyzed);
+  const corpusCoverage = { snapshotCount, analyzedCount, coverageComplete: snapshotCount > 0 &&
+    snapshotCount === analyzedCount && diagnosticCount(rawLiterature.coverage?.papersFailed) === 0 &&
+    diagnosticCount(rawLiterature.coverage?.papersMissing) === 0 };
   const literature = {
     retrievalProfile,
     retrievalDecision: {
@@ -5904,6 +5943,40 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
     },
     selectedPaperIds: normalizePaperIds(rawLiterature.selectedPaperIds),
     relevantPaperIds: normalizePaperIds(rawLiterature.relevantPaperIds),
+    explicitPaperIds: normalizePaperIds(rawLiterature.explicitPaperIds),
+    identityResolution: {
+      kind: ["none", "explicit-paper", "exact-title"].includes(rawIdentity.kind) ? rawIdentity.kind : "none",
+      paperIds: normalizePaperIds(rawIdentity.paperIds),
+      noExactMatch: rawIdentity.kind === "exact-title" && rawIdentity.noExactMatch === true &&
+        normalizePaperIds(rawIdentity.paperIds).length === 0,
+    },
+    diagnostics: {
+      parser: { attempted: rawDiagnostics.parser?.attempted === true, succeeded: rawDiagnostics.parser?.succeeded === true,
+        fallback: rawDiagnostics.parser?.fallback === true },
+      inputLanguage: typeof rawDiagnostics.inputLanguage === "string" && /^[a-z]{2,3}(?:-[A-Za-z]{2,8})?$/.test(rawDiagnostics.inputLanguage)
+        ? rawDiagnostics.inputLanguage : "unknown",
+      canonicalEnglishAvailable: rawDiagnostics.canonicalEnglishAvailable === true,
+      retrievalBackend: ["qmd", "legacy", "metadata", "mixed", "not-needed"].includes(rawDiagnostics.retrievalBackend)
+        ? rawDiagnostics.retrievalBackend : "not-needed",
+      fallbackReason: ["qmd_not_ready", "qmd_error", "no_qmd_results", "legacy_explicit"].includes(rawDiagnostics.fallbackReason)
+        ? rawDiagnostics.fallbackReason : null,
+      rankedPaperIds: normalizePaperIds(rawDiagnostics.rankedPaperIds),
+      selectedPaperIds: normalizePaperIds(rawDiagnostics.selectedPaperIds),
+      evidencePages: (Array.isArray(rawDiagnostics.evidencePages) ? rawDiagnostics.evidencePages : [])
+        .slice(0, MAX_LOCAL_WORKSPACE_EVIDENCE_FILES).filter(item => normalizePaperIds([item?.paperId]).length &&
+          Number.isInteger(item?.page) && item.page > 0 && item.page <= 100000)
+        .map(item => ({ paperId: normalizePaperIds([item.paperId])[0], page: item.page })),
+      targetedEvidenceCompletionCalls: diagnosticCount(rawDiagnostics.targetedEvidenceCompletionCalls),
+      citationResolution: { resolved: diagnosticCount(rawDiagnostics.citationResolution?.resolved) },
+      corpusCoverage: rawLiterature.corpusWideRequest === true ? { ...corpusCoverage } : null,
+    },
+    evidenceCompletion: {
+      calls: diagnosticCount(rawCompletion.calls), requestedDimensions: dimensions(rawCompletion.requestedDimensions),
+      missingByPaper: (Array.isArray(rawCompletion.missingByPaper) ? rawCompletion.missingByPaper : [])
+        .slice(0, MAX_LOCAL_WORKSPACE_EVIDENCE_FILES).filter(item => normalizePaperIds([item?.paperId]).length)
+        .map(item => ({ paperId: normalizePaperIds([item.paperId])[0], dimensions: dimensions(item.dimensions) })),
+      truncated: rawCompletion.truncated === true,
+    },
     discoveryMode: [
       "selected",
       "automatic",
@@ -5913,7 +5986,8 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
       "corpus-recovery",
       "corpus-update",
       "not-ready",
-      "not-needed"
+      "not-needed",
+      "exact-title-no-match"
     ].includes(rawLiterature.discoveryMode)
       ? rawLiterature.discoveryMode
       : "not-needed",
@@ -5946,7 +6020,8 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
           analyzedPaperIds: normalizePaperIds(rawLiterature.coverage.analyzedPaperIds),
           failedPaperIds: normalizePaperIds(rawLiterature.coverage.failedPaperIds),
           missingPaperIds: normalizePaperIds(rawLiterature.coverage.missingPaperIds),
-          changedPaperIds: normalizePaperIds(rawLiterature.coverage.changedPaperIds)
+          changedPaperIds: normalizePaperIds(rawLiterature.coverage.changedPaperIds),
+          ...corpusCoverage
         }
       : {}
   };

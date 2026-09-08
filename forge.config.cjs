@@ -33,6 +33,7 @@ const excludedTopLevel = new Set([
   ".codex",
   "alibaba-fc",
   "coverage",
+  "evals",
   "learn-claude-code",
   "out",
   "worker",

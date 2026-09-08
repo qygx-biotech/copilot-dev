@@ -1,0 +1,226 @@
+{
+  "latency": {
+    "cold": {
+      "observations": 44,
+      "p50Ms": 2416.0849165,
+      "p95Ms": 3145.151991999995
+    },
+    "warm": {
+      "observations": 44,
+      "p50Ms": 47.81604149999839,
+      "p95Ms": 243.45060794999603
+    }
+  },
+  "logicalCloudCalls": {
+    "semantic_parser": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    },
+    "search_planner": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    },
+    "reranker": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    },
+    "corpus_mapper": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    },
+    "native_pdf": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    },
+    "combined_text_paper_card": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    },
+    "answer": {
+      "calls": 0,
+      "observationsWithCounter": 90
+    }
+  },
+  "controlledLocalCounters": {
+    "qmdSearches": 178,
+    "qmdUpdates": 1493,
+    "cards": 360,
+    "maps": 0,
+    "nativePdf": 0
+  },
+  "providerMode": [
+    "controlled-provider"
+  ],
+  "semanticRoutes": {
+    "local-fallback": 76,
+    "local": 13,
+    "cache": 1
+  },
+  "backendCounts": {
+    "legacy": 194,
+    "qmd": 16,
+    "metadata": 6
+  },
+  "recordedFallbackReasons": {
+    "no_qmd_results": 72,
+    "not_recorded": 18
+  },
+  "legacyRuntimeEvidence": {
+    "observations": 72,
+    "qmdAvailable": 72,
+    "onlyEmptyQmdTraces": 72
+  },
+  "corpus": {
+    "observations": 8,
+    "complete": 8,
+    "incomplete": 0,
+    "observationStatuses": {
+      "completed": 6,
+      "blocked": 2
+    },
+    "workflowStatuses": {
+      "completed": 8
+    },
+    "completedObservationsWithFullCoverage": 6,
+    "declaredRequests": {
+      "observations": 20,
+      "statuses": {
+        "completed": 18,
+        "blocked": 2
+      },
+      "withWorkflow": 6,
+      "withoutWorkflow": 14
+    },
+    "blockedOrFailed": [
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-04",
+        "repeat": 0,
+        "status": "blocked",
+        "errors": [],
+        "limitations": [
+          "Final answer provider unavailable: raw production context/tool outputs are recorded; answer quality is not scored as a generated answer.",
+          "Requested controlled fault was not reached or is unsupported; failure-injection coverage is blocked."
+        ]
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-04",
+        "repeat": 1,
+        "status": "blocked",
+        "errors": [],
+        "limitations": [
+          "Final answer provider unavailable: raw production context/tool outputs are recorded; answer quality is not scored as a generated answer.",
+          "Requested controlled fault was not reached or is unsupported; failure-injection coverage is blocked."
+        ]
+      }
+    ],
+    "meanCoverage": {
+      "mean": 1,
+      "ci95": [
+        1,
+        1
+      ],
+      "n": 8,
+      "clusters": 4,
+      "method": "case-cluster percentile bootstrap; equal case weights",
+      "seed": 20260907,
+      "bootstrapSamples": 2000
+    },
+    "perObservation": [
+      {
+        "caseId": "CW-DISCOVERY-05",
+        "repeat": 0,
+        "cacheState": "cold",
+        "status": "completed",
+        "observationStatus": "completed",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-DISCOVERY-05",
+        "repeat": 1,
+        "cacheState": "warm",
+        "status": "completed",
+        "observationStatus": "completed",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-CORPUS-01",
+        "repeat": 0,
+        "cacheState": "cold",
+        "status": "completed",
+        "observationStatus": "completed",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-CORPUS-01",
+        "repeat": 1,
+        "cacheState": "warm",
+        "status": "completed",
+        "observationStatus": "completed",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-CORPUS-04",
+        "repeat": 0,
+        "cacheState": "cold",
+        "status": "completed",
+        "observationStatus": "completed",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-CORPUS-04",
+        "repeat": 1,
+        "cacheState": "warm",
+        "status": "completed",
+        "observationStatus": "completed",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-04",
+        "repeat": 0,
+        "cacheState": "cold",
+        "status": "completed",
+        "observationStatus": "blocked",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      },
+      {
+        "caseId": "CW-ECTD_WORKFLOWS-04",
+        "repeat": 1,
+        "cacheState": "warm",
+        "status": "completed",
+        "observationStatus": "blocked",
+        "snapshotCount": 8,
+        "analyzedCount": 8,
+        "coverageComplete": true,
+        "mapsCreated": 0
+      }
+    ]
+  },
+  "liveProviderCalls": null,
+  "citationResolutionRate": null,
+  "pdfPageLocalizationCoverage": null,
+  "unsupportedClaimRate": null,
+  "contradictedClaimRate": null,
+  "liveJudgeScore": null,
+  "unavailableReason": "Controlled local provider lane records retrieval/context/tool behavior, not generated live answers or paid provider execution. Citation and claim rates require live answer audits; controlled card/map counters are not provider calls."
+}

@@ -631,6 +631,8 @@
       this.providerCooldownUntil = 0;
       this.inputTokenLimit = null;
       this.turnCallCounts = new Map();
+      this.semanticCapability = null;
+      this.semanticCapabilityProbe = null;
       this.endpointAccounting = {
         logicalEndpointCalls: {},
         transportAttempts: {},
@@ -836,12 +838,56 @@
       };
     }
 
+    refreshSemanticCapability() {
+      this.semanticCapability = null;
+    }
+
     async interpretSemantics(payload, signal) {
-      const data = await this.request("/api/semantic/interpret", {
-        ...payload,
-        callContext: boundedCallContext(payload.callContext, "semantic_parser"),
-      }, signal);
-      return data.ir;
+      assertNotAborted(signal);
+      const signature = `${this.baseUrl}\n${this.configurationSignature || ""}`;
+      // Concurrent requests wait only for the capability probe; they must never
+      // reuse another question's interpretation.
+      if (this.semanticCapabilityProbe?.signature === signature) {
+        await this.semanticCapabilityProbe.promise;
+        assertNotAborted(signal);
+      }
+      const state = this.semanticCapability;
+      if (state?.signature === signature && state.retryAt > this.now()) {
+        throw Object.assign(new LiteratureError("SemanticParserUnavailable", "Using the local semantic interpretation during the capability cooldown."), {
+          semanticParserAttempted: false, capabilityUnavailable: state.unavailable,
+          fallbackReason: state.reason, retryAfterMs: state.retryAt - this.now(),
+        });
+      }
+      let finishProbe;
+      const probe = { signature, promise: new Promise(resolve => { finishProbe = resolve; }) };
+      this.semanticCapabilityProbe = probe;
+      try {
+        const data = await this.request("/api/semantic/interpret", {
+          ...payload,
+          callContext: boundedCallContext(payload.callContext, "semantic_parser"),
+        }, signal);
+        this.semanticCapability = null;
+        return data.ir;
+      } catch (error) {
+        error.semanticParserAttempted = true;
+        const endpointMissing = [404, 405, 501].includes(error.status);
+        const unavailable = error.capabilityUnavailable === true || endpointMissing;
+        // Older deployments return opaque 502s, including transient errors.
+        // Back off briefly without recording permanent capability unavailability.
+        const opaqueFailure = error.status === 502 && error.code === "SemanticParserUnavailable" && !error.fallbackReason;
+        if (unavailable || opaqueFailure) {
+          const reason = endpointMissing ? "semantic_endpoint_missing" : error.fallbackReason || "semantic_parser_unavailable";
+          const cooldown = unavailable ? 300000 : 30000;
+          this.semanticCapability = { signature, unavailable, reason, retryAt: this.now() + cooldown };
+          Object.assign(error, { capabilityUnavailable: unavailable, fallbackReason: reason, retryAfterMs: cooldown });
+          this.log?.record("semantic-parser.capability", { status: unavailable ? "unavailable" : "cooldown",
+            fallbackReason: reason, retryAfterMs: cooldown, turnId: payload.callContext?.turnId }, "warn");
+        }
+        throw error;
+      } finally {
+        finishProbe();
+        if (this.semanticCapabilityProbe === probe) this.semanticCapabilityProbe = null;
+      }
     }
 
     async mapExperimentSchema(payload, signal) {
@@ -1059,6 +1105,13 @@
           error.status = response.status;
           error.attempts = Math.max(0, Number(data.attempts) || 0);
           error.fallbackReason = String(data.fallbackReason || "").slice(0, 120);
+          if (path === "/api/semantic/interpret") {
+            const reasons = ["structured_output_unsupported", "missing_model_configuration", "provider_schema_incompatible",
+              "provider_configuration_rejected", "invalid_structured_output", "semantic_parser_unavailable"];
+            error.fallbackReason = reasons.includes(data.fallbackReason) ? data.fallbackReason : "";
+            error.capabilityUnavailable = data.capabilityUnavailable === true &&
+              reasons.slice(0, 4).includes(error.fallbackReason);
+          }
           error.verifiedContextLengthError =
             data.verifiedContextLengthError === true;
           error.terminalProviderFailure =

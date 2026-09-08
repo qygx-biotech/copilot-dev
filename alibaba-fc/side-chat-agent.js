@@ -149,12 +149,14 @@ const SIDE_CHAT_TOOL_DEFINITIONS = Object.freeze([
     function: {
       name: "read_paper_evidence",
       description:
-        "Read bounded original-paper evidence for one exact paper_id or readable item_id returned by search_papers. Do not call this for content_available=false results. Paper Cards and inventory metadata are routing aids, not original-paper evidence.",
+        "Read bounded original-paper evidence for one exact paper_id or readable item_id. Use query or evidence_ref for targeted access without paging through a large result. A fact missing from a Paper Card/map is not necessarily absent from the paper; inspect original evidence before saying not reported.",
       parameters: {
         type: "object",
         properties: {
           paper_id: { type: "string" },
           item_id: { type: "string" },
+          query: { type: "string", maxLength: 500 },
+          evidence_ref: { type: "string", maxLength: 500 },
           offset: { type: "integer", minimum: 0 },
           max_characters: { type: "integer", minimum: 200, maximum: MAX_READ_CHARACTERS }
         },
@@ -336,6 +338,17 @@ function agentCapabilityRegistry() {
   });
 }
 
+function literatureOnly(knowledgeBase) {
+  const objects = knowledgeBase.semanticIR?.objects || [];
+  return objects.includes("literature") && !objects.includes("experiments");
+}
+
+function toolFitsRequest(toolName, knowledgeBase) {
+  if (!literatureOnly(knowledgeBase)) return true;
+  const capability = semanticIntent.CAPABILITY_REGISTRY.find((entry) => entry.tool === toolName && !entry.hostOnly);
+  return !capability?.supportsObjects?.includes("experiments") || capability.supportsObjects.includes("literature");
+}
+
 function buildSemanticAgentContext(workspaceContext, activeRequest, surface) {
   const local = workspaceContext?.localWorkspaceContext;
   if (!local?.semantic?.ir) return "";
@@ -350,7 +363,7 @@ function buildSemanticAgentContext(workspaceContext, activeRequest, surface) {
     });
   } catch { return ""; }
   const capabilities = agentCapabilityRegistry().map((entry) => ({
-    ...entry, allowed: authorizeTool(surface, entry.tool).allowed
+    ...entry, allowed: authorizeTool(surface, entry.tool).allowed && toolFitsRequest(entry.tool, { semanticIR: ir })
   }));
   return [
     "Advisory semantic interpretation and registered capabilities for this request.",
@@ -435,6 +448,14 @@ function isRegisteredPaperItem(item) {
     Boolean(metadata.paperId || metadata.sourceId) &&
     (metadata.processor === "pdf" || extension === "pdf")
   );
+}
+
+function originalPaperEvidenceText(item) {
+  if (item.evidenceType === "original-paper-evidence") return item.content;
+  if (item.evidenceType !== "optional-paper-card+original-evidence") return "";
+  const heading = `Original-paper evidence for ${item.metadata?.citationPath || item.path}:\n`;
+  const start = item.content.lastIndexOf(heading);
+  return start < 0 ? "" : item.content.slice(start + heading.length);
 }
 
 function preferredPaperItem(items) {
@@ -883,7 +904,11 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
   }
 
   const sourceMap = isPlainObject(local?.sourceMap) ? local.sourceMap : {};
-  const paperLookup = createRequestScopedPaperLookup(items, sourceMap);
+  const paperLookup = createRequestScopedPaperLookup(items, {
+    ...sourceMap,
+    selectedPaperIds: sourceMap.selectedPaperIds?.length
+      ? sourceMap.selectedPaperIds : local?.literature?.explicitPaperIds || [],
+  });
   return {
     items,
     itemsById,
@@ -969,8 +994,17 @@ function buildSourceCitationRegistry(knowledgeBase) {
 function resolveSideChatAnswerCitations(parsed, knowledgeBase, surface) {
   if (surface !== "side_chat" || typeof parsed?.reply !== "string") return parsed;
   const { citations: modelCitations, ...answer } = parsed;
-  const resolved = sourceCitations.resolveAnswer(answer.reply, buildSourceCitationRegistry(knowledgeBase));
-  return resolved.citations.length ? { ...answer, ...resolved } : answer;
+  const strictLiterature = literatureOnly(knowledgeBase) || knowledgeBase.items.some((item) => item.evidenceType === "corpus-workflow");
+  let suppressed = 0;
+  const resolved = sourceCitations.resolveAnswer(answer.reply, buildSourceCitationRegistry(knowledgeBase), [], {
+    suppressUnresolved: strictLiterature, onUnresolved: () => { suppressed += 1; },
+  });
+  if (strictLiterature) console.info("literature_citation_resolution", {
+    resolved: resolved.citations.filter((item) => item.status === "resolved").length,
+    pageLocalized: resolved.citations.filter((item) => item.status === "resolved" && item.page).length,
+    suppressed,
+  });
+  return resolved.citations.length || resolved.reply !== answer.reply ? { ...answer, ...resolved } : answer;
 }
 
 function itemCatalogEntry(item) {
@@ -1265,6 +1299,9 @@ function listPapers(args, knowledgeBase) {
 }
 
 function searchPapers(args, knowledgeBase) {
+  if (knowledgeBase.literature?.identityResolution?.noExactMatch) {
+    return JSON.stringify({ results: [], returned: 0, no_exact_match: true });
+  }
   const query = String(args.query || "").trim().slice(0, 1000);
   if (!query) return JSON.stringify({ error: "query is required" });
   const tokens = searchTokens(query);
@@ -1390,7 +1427,7 @@ function readPaperEvidence(args, knowledgeBase) {
       message: "The paper is registered in this request, but bounded original-paper evidence is unavailable."
     }, null, 2);
   }
-  const offset = boundedInteger(
+  let offset = boundedInteger(
     args.offset,
     0,
     0,
@@ -1402,13 +1439,37 @@ function readPaperEvidence(args, knowledgeBase) {
     200,
     MAX_READ_CHARACTERS
   );
-  const content = item.content.slice(offset, offset + maxCharacters);
+  const reference = String(args.evidence_ref || "").slice(0, 500);
+  const query = String(args.query || "").slice(0, 500);
+  const registry = buildSourceCitationRegistry(knowledgeBase);
+  const original = originalPaperEvidenceText(item);
+  const originalStart = item.content.length - original.length;
+  let end = item.content.length;
+  if (reference || query) {
+    const blocks = [...item.content.matchAll(/\[([A-Za-z0-9_.-]+:p[1-9]\d*:[A-Za-z0-9_.:-]+)\]/g)]
+      .filter((match) => original && match.index >= originalStart)
+      .map((match, index, matches) => ({ reference: match[1], start: match.index, end: matches[index + 1]?.index ?? item.content.length }));
+    const tokens = searchTokens(query);
+    const candidates = blocks.filter((block) => {
+      const citation = registry.resolve(block.reference);
+      return citation.status === "resolved" && citation.sourceId === record.paperId && (!reference || block.reference === reference);
+    }).map((block) => ({ ...block, score: reference ? 1 : tokens.reduce((score, token) => score + Number(item.content.slice(block.start, block.end).toLowerCase().includes(token)), 0) }))
+      .filter((block) => block.score > 0).sort((a, b) => b.score - a.score || a.start - b.start);
+    if (!candidates.length) return JSON.stringify({ paper_id: record.paperId, error: "EVIDENCE_NOT_LOCATED", message: "No matching original evidence was located in this request's bounded paper context; this does not establish absence from the paper." });
+    offset = candidates[0].start;
+    end = candidates[0].end;
+  }
+  const content = item.content.slice(offset, Math.min(end, offset + maxCharacters));
+  const visibleOriginal = original ? item.content.slice(Math.max(offset, originalStart), Math.min(end, offset + maxCharacters)) : "";
+  const evidenceCitations = (knowledgeBase.citationEvidence || []).filter((entry) => entry.sourceId === record.paperId && visibleOriginal.includes(entry.reference) && registry.resolve(entry.reference).status === "resolved")
+    .map((entry) => ({ sourceId: entry.sourceId, evidenceId: entry.reference, page: entry.page, citation: `[[cite:${entry.reference}]]` }));
   return JSON.stringify({
     ...paperCatalogEntry(record),
     requested_item_id: resolution.itemId || null,
     requested_paper_id: resolution.paperId || null,
     offset,
     content,
+    evidence_citations: evidenceCitations,
     next_offset: offset + content.length < item.content.length
       ? offset + content.length
       : null,
@@ -1713,6 +1774,7 @@ function parseToolArguments(toolCall) {
 }
 
 function executeSideChatTool(toolCall, knowledgeBase, surface = "side_chat") {
+  if (!toolFitsRequest(toolCall.function.name, knowledgeBase)) return JSON.stringify({ error: "CAPABILITY_OUTSIDE_REQUEST", allowed: false });
   const blocked = triggerSideChatHooks("PreToolUse", toolCall, surface);
   if (blocked) return String(blocked);
   const args = parseToolArguments(toolCall);
@@ -1952,7 +2014,7 @@ async function runSideChatAgent({
     await onProgress({ stage: "model-request", step: answerModelCalls });
     const turn = await requestTurn({
       messages: agentMessages,
-      tools: SIDE_CHAT_TOOL_DEFINITIONS,
+      tools: SIDE_CHAT_TOOL_DEFINITIONS.filter((definition) => toolFitsRequest(definition.function.name, knowledgeBase)),
       temperature: 0.2
     });
     if (!turn.ok) {

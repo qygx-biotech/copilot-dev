@@ -2152,6 +2152,99 @@ test("large tool results persist outside active context and reopen exactly", asy
   assert.deepEqual(await store.read(compact.resultHandle), value);
 });
 
+test("multilingual legacy fusion preserves relevant full-chunk scores beyond display-snippet truncation", async () => {
+  const sources = ["P1", "P2"].map(sourceId => ({ sourceId, sourceKind: "paper", displayName: `${sourceId}.pdf`,
+    path: `literature/${sourceId}.pdf`, catalogStatus: "ready", indexStatus: "ready" }));
+  const chunks = {
+    P1: `${"Background discussion. ".repeat(50)} EctD cobalt-dependent stabilization mechanism.`,
+    P2: "EctD is only mentioned in passing.",
+  };
+  const tools = new LiteratureTools({ registry: { list: () => sources, aliases: {} },
+    preparation: { readPaperArtifact: async paperId => ({ chunks: [{ text: chunks[paperId], page: 8, chunkId: "late" }] }) } });
+  const canonical = "EctD cobalt-dependent stabilization mechanism";
+  const english = await tools.searchPapers(canonical, { topK: 1 });
+  const chinese = await tools.searchPapers("EctD 钴相关稳定化机制", { topK: 1,
+    requestUnderstanding: { originalQuery: "EctD 钴相关稳定化机制", inputLanguage: "zh", canonicalQueryEn: canonical } });
+  assert.equal(english.results[0].paperId, "P1");
+  assert.equal(chinese.results[0].paperId, "P1");
+  assert.ok(chinese.results[0].score > 0);
+  assert.ok(chinese.results[0].snippet.length <= 500);
+  assert.doesNotMatch(chinese.results[0].snippet, /stabilization/);
+  assert.equal(chinese.results[0].queryScores, undefined);
+});
+
+test("missing Paper Card sample counts are completed from current L1 without regenerating the card", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/specimens.pdf", "original", 1000);
+  let cardCalls = 0;
+  const system = await makeSystem(workspace, {
+    parsePaper: async () => ({ text: `# Page 1\n${"Background discussion. ".repeat(400)}\n# Page 8\nThe mean strength was 18 MPa, n=5 independent specimens.`, pageCount: 8 }),
+    generatePaperCard: async () => { cardCalls += 1; throw new Error("A precise lookup must not generate a card"); },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const source = system.registry.getByPath("literature/specimens.pdf");
+  const completed = await system.literatureTools.completeEvidence("What mean and sample count did the paper report?", [source.sourceId], {
+    files: [{ paperId: source.sourceId, evidenceType: "paper-card", content: "Mean strength 18 MPa; sample count missing from this summary." }],
+  });
+  assert.equal(completed.calls, 1);
+  assert.equal(cardCalls, 0);
+  assert.match(completed.files[0].content, /n=5/);
+  assert.match(completed.files[0].content, new RegExp(`${source.sourceId}:p8:`));
+  assert.deepEqual(completed.missingByPaper, []);
+  assert.ok(completed.files[0].content.length < 8000);
+  const alreadyComplete = await system.literatureTools.completeEvidence("What mean and sample count did the paper report?", [source.sourceId], { files: completed.files });
+  assert.equal(alreadyComplete.calls, 0);
+  const cardPrefix = await system.literatureTools.completeEvidence("What sample count did the paper report?", [source.sourceId], {
+    files: [{ paperId: source.sourceId, relativePath: source.path, evidenceType: "optional-paper-card+original-evidence",
+      content: `Paper Card [${source.sourceId}:p8:chunk-1] n=999\n\nOriginal-paper evidence for ${source.path}:\n[${source.sourceId}:p1:chunk-1]\nBackground only.` }],
+  });
+  assert.equal(cardPrefix.calls, 1);
+  assert.match(cardPrefix.files[0].content, /n=5/);
+  assert.doesNotMatch(cardPrefix.files[0].content, /n=999/);
+  const absent = await system.literatureTools.completeEvidence("What is the Km?", [source.sourceId]);
+  assert.deepEqual(absent.files, []);
+  assert.deepEqual(absent.missingByPaper, [{ paperId: source.sourceId, dimensions: ["km"] }]);
+});
+
+test("failed or stale L1 completion attempts are counted without exposing stale evidence", async () => {
+  const source = { sourceId: "P1", sourceKind: "paper", catalogStatus: "ready", contentHash: "current" };
+  for (const fail of [true, false]) {
+    const tools = new LiteratureTools({ registry: { get: () => source }, preparation: {
+      ensureSourceReady: async () => { if (fail) throw new Error("Source read failed"); },
+      readPaperArtifact: async () => ({ contentHash: "old", chunks: [{ page: 8, chunkId: "c1", text: "n=5" }] }),
+    } });
+    const result = await tools.completeEvidence("What sample count was reported?", ["P1"]);
+    assert.equal(result.calls, 1);
+    assert.deepEqual(result.files, []);
+    assert.deepEqual(result.missingByPaper, [{ paperId: "P1", dimensions: ["sample_count"] }]);
+  }
+});
+
+test("cached corpus maps remain reused when a missing requested fact is completed from L1", async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.setFile("literature/a.pdf", "The mean strength was 18 MPa, n=5 independent specimens.", 1000);
+  let mapCalls = 0;
+  const system = await makeSystem(workspace, { mapWorker: async (input) => {
+    mapCalls += 1;
+    return { paperId: input.paperId, title: "Specimen study", relevance: "high", themes: ["strength"],
+      findings: [{ claim: "Mean strength was 18 MPa.", evidenceRefs: input.evidence.map((entry) => entry.evidenceHandle) }], limitations: [] };
+  } });
+  await system.registry.reconcile(treeFor(workspace));
+  const question = "Summarize all papers and report each mean and sample count.";
+  const first = await system.corpusWorkflows.run(question);
+  const count = mapCalls;
+  const repeated = await system.corpusWorkflows.run(question);
+  assert.equal(mapCalls, count);
+  const source = system.registry.getByPath("literature/a.pdf");
+  const completed = await system.literatureTools.completeEvidence(question, [source.sourceId], {
+    files: [{ evidenceType: "corpus-workflow", content: JSON.stringify(repeated.preview || repeated) }],
+  });
+  assert.equal(mapCalls, count);
+  assert.equal(completed.calls, 1);
+  assert.match(completed.files[0].content, /n=5/);
+  assert.ok(first.resultHandle || first.workflowId);
+});
+
 test("corpus result previews expose distinct original evidence before long reductions", async () => {
   const workspace = new MemoryWorkspace();
   const store = new SourceResultStore({ workspace, maxInlineCharacters: 120 });

@@ -1,0 +1,13 @@
+{
+  "command": "ELECTRON_RUN_AS_NODE=1 node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --test alibaba-fc/test/*.test.js desktop/test/*.test.mjs local-backend/test/*.test.js",
+  "tests": 421,
+  "pass": 421,
+  "fail": 0,
+  "cancelled": 0,
+  "skipped": 0,
+  "todo": 0,
+  "logPath": "/tmp/lit-definitive-regressions.log",
+  "logSha256": "929f13e057fde7aed760a3dcad05411b878b70462d629f2e8de8f165b39d0165",
+  "scope": "All existing FC, desktop and local-backend tests, including native Electron/QMD and localhost fixtures, plus focused literature regressions.",
+  "deployedValidation": false
+}

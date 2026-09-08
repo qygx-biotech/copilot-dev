@@ -23,6 +23,71 @@ function registry(context = fixture()) {
   return agent.buildSourceCitationRegistry(agent.createSideChatKnowledgeBase({ localWorkspaceContext: sanitizeLocalWorkspaceContext(context) }));
 }
 
+test("literature answers suppress invalid and stale citations while localizing verified page evidence", () => {
+  const context = fixture();
+  context.semantic = { ir: { objects: ["literature"] } };
+  context.sourceMap.paperSources[1].catalogStatus = "missing";
+  const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: context });
+  const answer = agent.resolveSideChatAnswerCitations({ reply: "Result [[cite:paper-a:p5:chunk-9]]; [[cite:paper-b]]; [[cite:paper-a:p99:invented]]." }, kb, "side_chat");
+  assert.equal(answer.citations.length, 1);
+  assert.equal(answer.citations[0].page, 5);
+  assert.equal(answer.citations[0].status, "resolved");
+  assert.equal((answer.reply.match(/biodesign-citation:/g) || []).length, 1);
+  assert.match(answer.reply, /Source unavailable/);
+});
+
+test("targeted paper reads find a late original evidence handle with its verified page", () => {
+  const context = fixture();
+  context.files[0].evidenceType = "original-paper-evidence";
+  context.files[0].content = `${"Background. ".repeat(4000)}\n[paper-a:p8:chunk-late]\nThe sample count was n=5 independent specimens.`;
+  context.citationEvidence = [{ sourceId: "paper-a", reference: "paper-a:p8:chunk-late", page: 8, contentHash: "hash-paper-a" }];
+  const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: context });
+  const read = args => JSON.parse(agent.executeSideChatTool({ id: "targeted", function: { name: "read_paper_evidence", arguments: JSON.stringify(args) } }, kb));
+  for (const args of [{ evidence_ref: "paper-a:p8:chunk-late" }, { query: "sample count" }]) {
+    const result = read({ paper_id: "paper-a", ...args });
+    assert.match(result.content, /n=5/);
+    assert.ok(result.content.length < 12000);
+    assert.deepEqual(result.evidence_citations, [{ sourceId: "paper-a", evidenceId: "paper-a:p8:chunk-late", page: 8, citation: "[[cite:paper-a:p8:chunk-late]]" }]);
+  }
+  assert.equal(read({ paper_id: "paper-a", evidence_ref: "paper-a:p99:invented" }).error, "EVIDENCE_NOT_LOCATED");
+});
+
+test("a valid evidence handle in a Paper Card does not make its invented value original evidence", () => {
+  const context = fixture();
+  context.files[0].evidenceType = "paper-card";
+  context.files[0].content = "[paper-a:p5:chunk-9]\nInvented sample count n=999.";
+  const read = (kb, args) => JSON.parse(agent.executeSideChatTool({ id: "card", function: { name: "read_paper_evidence", arguments: JSON.stringify({ paper_id: "paper-a", ...args }) } }, kb));
+  const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: context });
+  assert.equal(read(kb, { evidence_ref: "paper-a:p5:chunk-9" }).error, "EVIDENCE_NOT_LOCATED");
+  assert.deepEqual(read(kb, {}).evidence_citations, []);
+  context.files[0].evidenceType = "optional-paper-card+original-evidence";
+  context.files[0].content += "\nOriginal-paper evidence for literature/subfolder/paper.pdf:\n[paper-a:p5:chunk-9]\nActual sample count n=5.";
+  const mixed = read(agent.createSideChatKnowledgeBase({ localWorkspaceContext: context }), { query: "sample count" });
+  assert.match(mixed.content, /n=5/);
+  assert.doesNotMatch(mixed.content, /n=999/);
+  assert.equal(mixed.evidence_citations[0].page, 5);
+});
+
+test("a literature-only request cannot invoke experiment query tools or escape explicit paper scope", () => {
+  const semantic = require("../../shared/semantic-intent.js");
+  const ir = semantic.interpretLocal({ query: "Find papers about enzyme activity." });
+  ir.objects = ["literature"];
+  ir.matchedPattern = null;
+  ir.capabilityHints = ["query_experiment_results", "search_papers"];
+  assert.equal(semantic.planCapabilities(ir).steps.some((step) => step.tool === "query_experiment_results"), false);
+  ir.objects.push("experiments");
+  assert.equal(semantic.planCapabilities(ir).steps.some((step) => step.tool === "query_experiment_results"), true);
+  const context = fixture();
+  context.semantic = { ir: { objects: ["literature"] } };
+  context.literature = { explicitPaperIds: ["paper-a"] };
+  const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: context });
+  const call = (name, args = {}) => JSON.parse(agent.executeSideChatTool({ id: "scope", function: { name, arguments: JSON.stringify(args) } }, kb));
+  assert.equal(call("query_experiment_results").error, "CAPABILITY_OUTSIDE_REQUEST");
+  assert.equal(call("list_experiment_sources").error, "CAPABILITY_OUTSIDE_REQUEST");
+  assert.equal(call("read_paper_evidence", { paper_id: "paper-b" }).error, "PAPER_OUTSIDE_SELECTED_SCOPE");
+  assert.deepEqual(call("list_papers").items.map(item => item.paper_id), ["paper-a"]);
+});
+
 test("registered local aliases resolve duplicate, nested, and Chinese filenames without losing identity", () => {
   const result = citations.resolveAnswer("One [local:1]; two [[cite:local:2]]; 三 [paper-c].", registry());
   assert.equal(result.citations.length, 3);

@@ -15,12 +15,37 @@
     (typeof require === "function" ? require("../shared/retrieval-profiles.js") : {});
   const experimentSemantics = root?.BioDesignExperimentSemantics ||
     (typeof require === "function" ? require("../shared/experiment-semantics.js") : null);
+  const semanticIntent = root?.BioDesignSemanticIntent ||
+    (typeof require === "function" ? require("../shared/semantic-intent.js") : null);
   const isValidRetrievalProfile = retrievalProfiles.isValidRetrievalProfile ||
     ((value) => ["light", "medium", "high"].includes(value));
   const normalizeRetrievalProfile = retrievalProfiles.normalizeRetrievalProfile ||
     ((value) => isValidRetrievalProfile(value) ? value : "light");
   const selectRetrievalProfile = retrievalProfiles.selectRetrievalProfile ||
     ((profile) => ({ profile: normalizeRetrievalProfile(profile), mode: "fast", reason: "fallback-fast" }));
+
+  function literatureQueries(query, options) {
+    return semanticIntent?.literatureQueryForms?.(query, options.requestUnderstanding) || [query];
+  }
+
+  function literatureScore(text, queries) {
+    return Math.max(...queries.map((query) => scoreText(text, query)));
+  }
+
+  // Keep the single-query lexical ranking unchanged. For multilingual fallback,
+  // give each validated query form one ranked vote for the same source identity.
+  function fuseLiteratureResults(results, queries, queryScores) {
+    if (queries.length < 2) return results;
+    const scores = new Map();
+    for (const [index] of queries.entries()) {
+      // Display snippets are truncated; rank from the full metadata/L1 scores
+      // that admitted each candidate, including evidence late in a chunk.
+      const ranked = results.map((item) => ({ item, score: queryScores.get(item.paperId)?.[index] || 0 })).filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score || String(a.item.paperId).localeCompare(String(b.item.paperId)));
+      ranked.forEach(({ item }, rank) => scores.set(item, (scores.get(item) || 0) + 1 / (61 + rank)));
+    }
+    return results.map((item) => ({ ...item, score: (scores.get(item) || 0) * 1000 }));
+  }
 
   const SOURCE_REGISTRY_SCHEMA_VERSION = 2;
   const SOURCE_ARTIFACT_SCHEMA_VERSION = 1;
@@ -1974,6 +1999,37 @@
     return evidence.length ? evidence : undefined;
   }
 
+  // These are lookup hints, not a scientific claim validator. A missing match
+  // means "not located in this bounded read", never "not reported by the paper".
+  const LITERATURE_FACTS = [
+    ["mean", /\b(?:mean|average)\b|平均|均值/i, /\b(?:mean|average)\b[^\n.]{0,100}\d|\d\s*±/i],
+    ["sample_count", /\b(?:sample (?:count|size)|replicate count|how many|specimens?)\b|样本(?:数|量)|样品数|重复数/i, /\bn\s*=\s*\d+|\b\d+\s+(?:independent\s+)?(?:samples?|specimens?|replicates?|sheets?)\b|样本(?:数|量)[^\n]{0,20}\d/i],
+    ["temperature", /\btemperature\b|°\s*[CF]|温度/i, /-?\d+(?:\.\d+)?\s*(?:°\s*[CF]|degrees?\s*(?:Celsius|Fahrenheit))|温度[^\n]{0,20}\d/i],
+    ["km", /\bKm\b/i, /\bK_?m\b[^\n]{0,100}\d/i],
+    ["kcat", /\bkcat\b/i, /\bk_?cat\b[^\n]{0,100}\d/i],
+    ["mutation", /\b(?:mutation|variant)\b|\b[A-Z]\d+[A-Z]\b|突变/i, /\b[A-Z]\d{1,5}[A-Z]\b/],
+    ["method", /\b(?:methods?|protocol|assay)\b|方法|实验步骤/i, /\b(?:methods?|protocol|assay|measured|performed)\b|方法|测定/i],
+  ];
+
+  function requestedLiteratureFacts(question, options) {
+    const query = `${question || ""} ${options.requestUnderstanding?.canonicalQueryEn || ""}`;
+    return LITERATURE_FACTS.filter(([, requested]) => requested.test(query));
+  }
+
+  function originalEvidenceForPaper(files, paperId) {
+    return (files || []).filter((file) => file.paperId === paperId &&
+      ["original-paper-evidence", "optional-paper-card+original-evidence"].includes(file.evidenceType)).map((file) => {
+        let content = String(file.content || "");
+        if (file.evidenceType === "optional-paper-card+original-evidence") {
+          const heading = `Original-paper evidence for ${file.relativePath}:\n`;
+          const originalStart = content.lastIndexOf(heading);
+          content = originalStart >= 0 ? content.slice(originalStart + heading.length) : "";
+        }
+        const start = content.indexOf(`[${paperId}:p`);
+        return start >= 0 ? content.slice(start) : "";
+      }).join("\n");
+  }
+
   class SourceResultStore {
     constructor(options) {
       this.workspace = options.workspace;
@@ -3643,6 +3699,7 @@
     }
 
     async searchPapers(query, options = {}) {
+      const queryForms = literatureQueries(query, options).map((form) => expandAliases(form, this.registry.aliases));
       query = expandAliases(query, this.registry.aliases);
       const qmdQuery = expandAliases(options.qmdQuery || query, this.registry.aliases);
       const allowed = Array.isArray(options.paperIds) ? new Set(options.paperIds) : null;
@@ -3660,16 +3717,26 @@
             item.keywords.join(" "),
             item.identifiers.join(" "),
           ].join(" ");
-          return { source, item, score: scoreText(text, query) };
+          const queryScores = queryForms.map(query => scoreText(text, query));
+          return { source, item, queryScores, score: Math.max(...queryScores) };
         });
+      const legacyQueryScores = new Map(metadata.map(candidate => [candidate.item.paperId, candidate.queryScores]));
+      const scoreChunks = (candidate, chunks) => {
+        const ranked = chunks.map(chunk => ({ chunk, scores: queryForms.map(query => scoreText(chunk.text, query)) }));
+        legacyQueryScores.set(candidate.item.paperId, candidate.queryScores.map((score, index) =>
+          score + Math.max(0, ...ranked.map(item => item.scores[index]))));
+        return ranked.map(item => ({ chunk: item.chunk, score: Math.max(...item.scores) }));
+      };
       const readyResults = [];
       const prefetchedLegacyResults = [];
       let qmdRouted = false;
       let retrievalDecision = null;
+      let fallbackReason = this.knowledgeService?.available ? "no_qmd_results" : "qmd_not_ready";
       if (this.knowledgeService?.available) {
         try {
           const runKnowledgeSearch = (mode) => this.knowledgeService.searchLiterature({
               query: qmdQuery,
+              requestUnderstanding: options.requestUnderstanding,
               paperIds: allowed ? [...allowed] : undefined,
               mode,
               collections: options.collections || [KNOWLEDGE_COLLECTIONS.literatureEvidence],
@@ -3697,8 +3764,7 @@
                     const artifact = await this.preparation.readPaperArtifact(
                       candidate.source.sourceId
                     );
-                    const best = artifact.chunks
-                      .map((chunk) => ({ chunk, score: scoreText(chunk.text, query) }))
+                    const best = scoreChunks(candidate, artifact.chunks)
                       .sort((left, right) => right.score - left.score)[0];
                     const score = candidate.score + (best?.score || 0);
                     if (score <= 0) continue;
@@ -3720,6 +3786,7 @@
               }
               retrievalDecision = selectRetrievalProfile(profile, {
                 query: qmdQuery,
+              requestUnderstanding: options.requestUnderstanding,
                 fastResults: enrichedFastResults,
               });
               if (retrievalDecision.mode === "deep") {
@@ -3750,6 +3817,7 @@
               reason: "local-compatible-fallback",
             };
           }
+          fallbackReason = qmd?.diagnostics?.fallbackReason || fallbackReason;
           for (const result of qmd?.results || []) {
             const source = this.registry.get(result.paperId);
             if (!source || source.sourceKind !== "paper" || source.catalogStatus === "dirty" || source.indexStatus !== "ready") continue;
@@ -3777,6 +3845,7 @@
           }
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED") throw error;
+          fallbackReason = "qmd_error";
           logRuntime("qmd_literature_search_fallback", {
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
             message: String(error?.message || error).slice(0, 300),
@@ -3790,8 +3859,7 @@
         : metadata.filter(({ source }) => source.indexStatus === "ready")) {
         try {
           const artifact = await this.preparation.readPaperArtifact(candidate.source.sourceId);
-          const best = artifact.chunks
-            .map((chunk) => ({ chunk, score: scoreText(chunk.text, query) }))
+          const best = scoreChunks(candidate, artifact.chunks)
             .sort((left, right) => right.score - left.score)[0];
           const score = candidate.score + (best?.score || 0);
           if (score > 0) {
@@ -3833,11 +3901,17 @@
           snippet: "",
           retrievalBackend: "metadata",
         }));
-      const combined = [...readyResults, ...(options.includeUnpreparedMetadata === false ? [] : metadataOnly)]
+      const candidates = [...readyResults, ...(options.includeUnpreparedMetadata === false ? [] : metadataOnly)];
+      const combined = (readyResults.some((item) => item.retrievalBackend === "qmd")
+        ? candidates : fuseLiteratureResults(candidates, queryForms, legacyQueryScores))
         .sort((left, right) => right.score - left.score)
         .slice(0, Math.min(50, Number(options.topK) || 10));
       return {
-        results: combined,
+        results: combined.map((item) => ({ ...item, ...(item.retrievalBackend === "legacy" ? { fallbackReason } : {}) })),
+        diagnostics: {
+          retrievalBackend: combined.some((item) => item.retrievalBackend === "qmd") ? "qmd" : combined.some((item) => item.retrievalBackend === "legacy") ? "legacy" : "metadata",
+          fallbackReason: combined.some((item) => item.retrievalBackend === "qmd") ? null : fallbackReason,
+        },
         retrievalDecision: retrievalDecision || {
           profile: normalizeRetrievalProfile(options.retrievalProfile),
           mode: "fast",
@@ -3856,13 +3930,16 @@
     async searchPaperContent(paperId, query, options = {}) {
       requireAuthorizedTool(options.surface || "side_chat", "search_paper_content");
       const sharedPlanQuery = String(options.sharedPlanQuery || query);
+      const queryForms = literatureQueries(query, options).map((form) => expandAliases(form, this.registry.aliases));
       query = expandAliases(query, this.registry.aliases);
       await this.preparation.ensureSourceReady([paperId], "search", options);
       const source = this.registry.get(paperId);
+      let fallbackReason = this.knowledgeService?.available ? "no_qmd_results" : "qmd_not_ready";
       if (this.knowledgeService?.available) {
         try {
           const runKnowledgeSearch = (mode) => this.knowledgeService.searchLiterature({
               query,
+              requestUnderstanding: options.requestUnderstanding,
               paperIds: [paperId],
               mode,
               collections: [KNOWLEDGE_COLLECTIONS.literatureEvidence],
@@ -3896,8 +3973,9 @@
                     section: chunk.section,
                     chunkId: chunk.chunkId,
                     snippet: chunk.text.slice(0, 900),
-                    score: scoreText(chunk.text, query),
+                    score: literatureScore(chunk.text, queryForms),
                     retrievalBackend: "legacy",
+                    fallbackReason,
                   }))
                   .filter((item) => item.score > 0)
                   .sort((left, right) => right.score - left.score)
@@ -3970,6 +4048,7 @@
           }
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED") throw error;
+          fallbackReason = "qmd_error";
           logRuntime("qmd_paper_content_fallback", {
             paperId,
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
@@ -3991,7 +4070,9 @@
           section: chunk.section,
           chunkId: chunk.chunkId,
           snippet: chunk.text.slice(0, 900),
-          score: scoreText(chunk.text, query),
+          score: literatureScore(chunk.text, queryForms),
+          retrievalBackend: "legacy",
+          fallbackReason,
         }))
         .filter((item) => item.score > 0)
         .sort((left, right) => right.score - left.score)
@@ -4020,6 +4101,82 @@
         text: chunk.text,
       }));
       return this.results.compact(evidence, { tool: "read_paper_evidence", paperId });
+    }
+
+    evidenceCompletionStatus(question, paperIds, options = {}) {
+      const facts = requestedLiteratureFacts(question, options);
+      return [...new Set(paperIds || [])].slice(0, 8).map((paperId) => {
+        const original = originalEvidenceForPaper(options.files, paperId);
+        return { paperId, dimensions: facts.filter(([, , found]) => !found.test(original)).map(([id]) => id) };
+      }).filter((item) => item.dimensions.length);
+    }
+
+    async completeEvidence(question, paperIds, options = {}) {
+      const facts = requestedLiteratureFacts(question, options);
+      const output = { files: [], calls: 0, requestedDimensions: facts.map(([id]) => id), missingByPaper: [], truncated: false };
+      if (!facts.length) return output;
+      const ids = [...new Set(paperIds || [])];
+      let remaining = Math.min(8000, Number(options.maxCompletionCharacters) || 8000);
+      output.truncated = ids.length > 8;
+      for (const paperId of ids.slice(0, 8)) {
+        const source = this.registry.get(paperId);
+        if (source?.sourceKind !== "paper" || ["missing", "deleted", "removed"].includes(source.catalogStatus)) continue;
+        // Only original-evidence text, after its first handle, can satisfy this
+        // check. An optional Paper Card prefix and a corpus map cannot do so.
+        const existing = originalEvidenceForPaper(options.files, paperId);
+        const missing = facts.filter(([, , found]) => !found.test(existing));
+        if (!missing.length) continue;
+        const capacity = options.completionCharacterBudgets?.[paperId];
+        let paperRemaining = Math.min(remaining, Number.isFinite(capacity) ? Math.max(0, capacity) : remaining);
+        if (paperRemaining < 250) {
+          output.truncated = true;
+          output.missingByPaper.push({ paperId, dimensions: missing.map(([id]) => id) });
+          continue;
+        }
+        output.calls += 1;
+        try {
+          await this.preparation.ensureSourceReady([paperId], "full_text", options);
+          const artifact = await this.preparation.readPaperArtifact(paperId);
+          if (!source.contentHash || artifact.contentHash !== source.contentHash || source.catalogStatus !== "discovered" && source.catalogStatus !== "ready") {
+            output.missingByPaper.push({ paperId, dimensions: missing.map(([id]) => id) });
+            continue;
+          }
+          const excerpts = [];
+          const located = new Set();
+          // Insertion may displace old snippets. Keep every requested dimension
+          // in the new bounded excerpt block whenever a lookup is necessary.
+          for (const [index, [dimension, , found]] of facts.entries()) {
+            const candidates = (artifact.chunks || []).filter((chunk) => Number.isInteger(chunk.page) && chunk.page > 0 && found.test(chunk.text || ""))
+              .sort((a, b) => scoreText(b.text, question) - scoreText(a.text, question) || a.page - b.page);
+            const chunk = candidates[0];
+            if (!chunk) continue;
+            const match = String(chunk.text).match(found);
+            const handle = `${paperId}:p${chunk.page}:${chunk.chunkId}`;
+            if (excerpts.some((entry) => entry.handle === handle && found.test(entry.text))) { located.add(dimension); continue; }
+            const prefix = `[${handle}]\n`;
+            const pending = facts.slice(index).filter(([, , pattern]) => !excerpts.some((entry) => pattern.test(entry.text))).length;
+            const textBudget = Math.min(1200, Math.floor(paperRemaining / Math.max(1, pending)) - prefix.length - 2);
+            const start = Math.max(0, (match?.index || 0) - Math.min(200, Math.max(0, textBudget - (match?.[0].length || 0))));
+            const text = String(chunk.text).slice(start, start + Math.max(0, textBudget));
+            if (textBudget < 200 || !found.test(text)) { output.truncated = true; continue; }
+            excerpts.push({ handle, text });
+            remaining -= prefix.length + text.length + 2;
+            paperRemaining -= prefix.length + text.length + 2;
+            located.add(dimension);
+          }
+          if (excerpts.length) output.files.push({
+            name: source.displayName, relativePath: source.path, extension: "pdf", sourceId: paperId, paperId,
+            analysisStatus: "processed", evidenceType: "original-paper-evidence",
+            content: excerpts.map(({ handle, text }) => `[${handle}]\n${text}`).join("\n\n"),
+          });
+          const unresolved = facts.filter(([id]) => !located.has(id)).map(([id]) => id);
+          if (unresolved.length) output.missingByPaper.push({ paperId, dimensions: unresolved });
+        } catch (error) {
+          if (error?.code === "OPERATION_ABORTED") throw error;
+          output.missingByPaper.push({ paperId, dimensions: missing.map(([id]) => id) });
+        }
+      }
+      return output;
     }
 
     async searchPaperTablesFigures(paperId, query, options = {}) {
@@ -4649,6 +4806,10 @@
         papersTotal: journal.coverage.papersIncludedInSnapshot,
         papersPrepared: journal.coverage.papersSuccessfullyPrepared,
         papersAnalyzed: journal.coverage.papersSuccessfullyAnalyzed,
+        snapshotCount: journal.coverage.papersIncludedInSnapshot,
+        analyzedCount: journal.coverage.papersSuccessfullyAnalyzed,
+        coverageComplete: journal.coverage.papersSuccessfullyAnalyzed === journal.coverage.papersIncludedInSnapshot &&
+          !journal.coverage.papersFailed && !journal.coverage.papersMissing,
         corpusScope: journal.corpusScope || (
           journal.coverage.papersIncludedInSnapshot < persistedDiscovered
             ? "selected"

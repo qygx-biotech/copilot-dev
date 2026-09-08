@@ -119,6 +119,7 @@ test("renderer runtime libraries are local and production QMD has no localhost d
 
 test("Forge excludes deployable server trees and unpacks native dependencies", async () => {
   const forge = await source("forge.config.cjs");
+  assert.match(forge, /"evals"/);
   assert.match(forge, /AutoUnpackNativesPlugin/);
   assert.match(forge, /asar:\s*\{[^}]*node,dylib,so,dll/s);
   assert.match(forge, /local-backend\[\/\\\\\]node_modules/);

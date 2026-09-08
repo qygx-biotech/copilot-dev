@@ -89,7 +89,7 @@
   const markdownLabel = (value) => value.replace(/[\\`*_[\]<>|]/g, "\\$&").replace(/[\r\n]/g, " ");
   // Internal local:N handles in prose, including a code span containing only
   // that handle, are citations too. Preserve URLs, code expressions and blocks.
-  function resolveAnswer(answer, registry = createRegistry([]), existingCitations = []) {
+  function resolveAnswer(answer, registry = createRegistry([]), existingCitations = [], options = {}) {
     const citations = normalizeCitations(existingCitations), byReference = new Map();
     // Keep saved identities and reserve dangling links too, so a newly repaired
     // marker can never make an unrelated old link point to a different source.
@@ -101,6 +101,10 @@
       if (byReference.has(reference)) return byReference.get(reference);
       if (citations.length >= 200) return "[Source unavailable (citation limit)]";
       const resolved = registry.resolve(reference);
+      if (options.suppressUnresolved === true && resolved.status !== "resolved") {
+        options.onUnresolved?.(reference);
+        return "[Source unavailable]";
+      }
       while (usedIds.has(`citation-${nextId}`) && nextId <= 9999) nextId++;
       if (nextId > 9999) return "[Source unavailable (citation limit)]";
       const entry = normalizeCitation({ ...resolved, id: `citation-${nextId++}`, reference });

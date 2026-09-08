@@ -7,6 +7,8 @@
 
   const retrievalContract = root?.BioDesignRetrievalContract ||
     (typeof require === "function" ? require("../shared/retrieval-contract.js") : {});
+  const semanticIntent = root?.BioDesignSemanticIntent ||
+    (typeof require === "function" ? require("../shared/semantic-intent.js") : {});
   const {
     CLOUD_RETRIEVAL = {},
     RETRIEVAL_LIMITS = {},
@@ -220,6 +222,54 @@
       result?.sourceId || result?.docid || "",
       result?.title || "",
     ].join(":");
+  }
+
+  function literatureQueryForms(query, options = {}) {
+    if (!options.collections?.includes(COLLECTIONS.literatureEvidence)) return [query];
+    return semanticIntent.literatureQueryForms?.(query, options.requestUnderstanding) || [query];
+  }
+
+  function mergeMatchedSections(left, right) {
+    const seen = new Set();
+    return [...(left || []), ...(right || [])].filter((section) => {
+      const key = `${section.chunkId || section.evidenceId || ""}:${section.page || ""}:${section.snippet || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+      .slice(0, RETRIEVAL_LIMITS.matchedSectionsPerPaper);
+  }
+
+  function fuseLiteratureResults(payloads, options) {
+    const fused = new Map();
+    for (const payload of payloads) {
+      for (const [rank, result] of (payload.results || []).entries()) {
+        const key = localCandidateKey(result);
+        const entry = fused.get(key) || { ...result, score: 0 };
+        entry.score += 1 / (rank + 1);
+        entry.matchedSections = mergeMatchedSections(entry.matchedSections, result.matchedSections);
+        fused.set(key, entry);
+      }
+    }
+    const result = {
+      ...payloads[0],
+      results: [...fused.values()].sort((a, b) => b.score - a.score).slice(0, resolveRetrievalLimits(options).limit),
+      diagnostics: { ...payloads[0]?.diagnostics, queryFormCount: payloads.length, fusion: "reciprocal-rank" },
+    };
+    result.diagnostics = retrievalDiagnostics(result, options);
+    return result;
+  }
+
+  function retrievalDiagnostics(result, options) {
+    return {
+      ...result?.diagnostics,
+      retrievalBackend: result?.fallbackRequired ? "legacy" : "qmd",
+      fallbackReason: result?.fallbackRequired ? "qmd_not_ready" : (result?.results || []).length ? null : "no_qmd_results",
+      ...(options.requestUnderstanding ? {
+        inputLanguage: options.requestUnderstanding.inputLanguage,
+        canonicalEnglishAvailable: Boolean(options.requestUnderstanding.canonicalQueryEn),
+      } : {}),
+    };
   }
 
   function evidenceSections(result) {
@@ -450,7 +500,7 @@
     }
 
     async search(query, options = {}) {
-      if (!this.available || this.collectionsBlocked(options.collections)) return { results: [], fallbackRequired: true };
+      if (!this.available || this.collectionsBlocked(options.collections)) return { results: [], fallbackRequired: true, diagnostics: { retrievalBackend: "legacy", fallbackReason: "qmd_not_ready" } };
       const mode = options.mode || "fast";
       this.emit({
         stage: mode === "semantic" ? "initializing-search-model" : "searching",
@@ -475,6 +525,7 @@
           },
           signal: options.signal,
         });
+        payload.diagnostics = retrievalDiagnostics(payload, options);
         this.lastStatus = {
           ...(this.lastStatus || {}),
           lastSearch: payload.diagnostics,
@@ -482,7 +533,7 @@
         this.emit({ stage: "ready", mode, diagnostics: payload.diagnostics });
         return payload;
       } catch (error) {
-        this.emit({ stage: "search-fallback", mode, error });
+        this.emit({ stage: "search-fallback", mode, error, diagnostics: { retrievalBackend: "legacy", fallbackReason: "qmd_error" } });
         throw error;
       }
     }
@@ -503,7 +554,8 @@
       const mode = ["fast", "semantic", "deep"].includes(input.mode)
         ? input.mode
         : "fast";
-      return this.search(input.query, {
+      const options = {
+        ...input,
         mode,
         collections: input.collections || [COLLECTIONS.literatureEvidence],
         paperIds: input.paperIds,
@@ -511,7 +563,12 @@
         candidateLimit: input.candidateLimit,
         intent: input.intent || "scientific paper evidence",
         signal: input.signal,
-      });
+      };
+      const forms = literatureQueryForms(input.query, options);
+      if (forms.length <= 1) return this.search(input.query, options);
+      const payloads = [];
+      for (const query of forms) payloads.push(await this.search(query, options));
+      return fuseLiteratureResults(payloads, options);
     }
 
     async searchProjectMemory(input = {}) {
@@ -1116,6 +1173,7 @@
 
     async fuseLexicalQueries(queries, options) {
       const { candidateLimit } = resolveRetrievalLimits(options);
+      const multilingual = literatureQueryForms(queries[0], options).length > 1;
       const fused = new Map();
       let firstSeen = 0;
       for (let queryIndex = 0; queryIndex < queries.length; queryIndex += 1) {
@@ -1141,6 +1199,10 @@
           }
           entry.fusionScore += 1 / (rank + 1);
           entry.bestLocalScore = Math.max(entry.bestLocalScore, Number(result.score) || 0);
+          if (multilingual) entry.result = {
+            ...entry.result,
+            matchedSections: mergeMatchedSections(entry.result.matchedSections, result.matchedSections),
+          };
         }
       }
       return [...fused.values()]
@@ -1306,7 +1368,10 @@
           throw error?.code === "OPERATION_ABORTED" ? error : operationAbortedError();
         }
         this.emit({ stage: "retrieval-local-fallback" });
-        const local = await this.searchLocal(query, { ...options, mode: "fast" });
+        const forms = literatureQueryForms(query, options);
+        const payloads = [];
+        for (const form of forms) payloads.push(await this.searchLocal(form, { ...options, mode: "fast" }));
+        const local = forms.length > 1 ? fuseLiteratureResults(payloads, options) : payloads[0];
         return {
           ...local,
           mode: "deep",
@@ -1362,7 +1427,7 @@
       const searchQueries = [];
       const seenQueries = new Set();
       for (const value of [
-        ...(sharedCorpusPlan?.useOriginalQuery === false ? [] : [query]),
+        ...(sharedCorpusPlan?.useOriginalQuery === false ? [] : literatureQueryForms(query, options)),
         ...(plan?.queries || []),
         ...(plan?.identifiers || []),
       ]) {
@@ -1474,7 +1539,7 @@
     }
 
     async search(query, options = {}) {
-      if (!this.available || this.collectionsBlocked(options.collections)) return { results: [], fallbackRequired: true };
+      if (!this.available || this.collectionsBlocked(options.collections)) return { results: [], fallbackRequired: true, diagnostics: { retrievalBackend: "legacy", fallbackReason: "qmd_not_ready" } };
       const mode = ["fast", "semantic", "deep"].includes(options.mode) ? options.mode : "fast";
       this.emit({
         stage: mode === "deep" ? "cloud-retrieval" : "searching-local-evidence",
@@ -1499,11 +1564,12 @@
         } else {
           result = await this.searchLocal(query, { ...options, mode });
         }
+        result.diagnostics = retrievalDiagnostics(result, options);
         this.lastStatus = { ...(this.lastStatus || {}), lastSearch: result.diagnostics };
         this.emit({ stage: "ready", mode, diagnostics: result.diagnostics });
         return result;
       } catch (error) {
-        this.emit({ stage: "search-fallback", mode, error });
+        this.emit({ stage: "search-fallback", mode, error, diagnostics: { retrievalBackend: "legacy", fallbackReason: "qmd_error" } });
         throw error;
       }
     }
@@ -1512,12 +1578,17 @@
     async searchVector(query, options = {}) { return this.search(query, { ...options, mode: "semantic" }); }
     async searchHybrid(query, options = {}) { return this.search(query, { ...options, mode: "deep" }); }
     async searchLiterature(input = {}) {
-      return this.search(input.query, {
+      const options = {
         ...input,
         mode: ["fast", "semantic", "deep"].includes(input.mode) ? input.mode : "fast",
         collections: input.collections || [COLLECTIONS.literatureEvidence],
         intent: input.intent || "scientific paper evidence",
-      });
+      };
+      const forms = literatureQueryForms(input.query, options);
+      if (options.mode === "deep" || forms.length <= 1) return this.search(input.query, options);
+      const payloads = [];
+      for (const query of forms) payloads.push(await this.search(query, options));
+      return fuseLiteratureResults(payloads, options);
     }
     async searchProjectMemory(input = {}) { return this.search(input.query, { ...input, collections: [COLLECTIONS.projectMemory] }); }
     async searchPreviousSyntheses(input = {}) { return this.search(input.query, { ...input, collections: [COLLECTIONS.syntheses] }); }
