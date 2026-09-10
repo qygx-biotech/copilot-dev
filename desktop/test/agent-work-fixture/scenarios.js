@@ -67,9 +67,24 @@ async function runAgentScenarios() {
   check(history.scrollHeight > history.clientHeight && history.scrollTop === 30 && card(first).getBoundingClientRect().height === 660, "Long history stays within a bounded card and preserves the reader scroll position");
   for (let i = 0; i < 3; i++) addAnalysisPanelButton.click();
   await tick();
-  window.scrollTo(0, 1700); await tick();
-  const side = document.querySelector(".side-column").getBoundingClientRect();
-  check(side.top >= 15 && side.top <= 17 && side.bottom <= innerHeight, "Side Chat remains sticky in the viewport beside lower Agent tasks");
+  window.scrollTo(0, 0);
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const sideColumn = document.querySelector(".side-column");
+  const workbenchGrid = document.querySelector(".workbench-grid");
+  const stickyTop = Number.parseFloat(getComputedStyle(sideColumn).top);
+  const sideDocumentTop = sideColumn.getBoundingClientRect().top + scrollY;
+  const gridDocumentBottom = workbenchGrid.getBoundingClientRect().bottom + scrollY;
+  const stickyStart = sideDocumentTop - stickyTop;
+  const stickyEnd = gridDocumentBottom - sideColumn.offsetHeight - stickyTop;
+  window.scrollTo(0, Math.round((stickyStart + stickyEnd) / 2));
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const side = sideColumn.getBoundingClientRect();
+  check(
+    stickyEnd > stickyStart
+      && Math.abs(side.top - stickyTop) <= 1
+      && side.bottom <= innerHeight + 1,
+    `Side Chat remains sticky in the viewport beside lower Agent tasks (top=${side.top}, bottom=${side.bottom}, viewport=${innerHeight}, start=${stickyStart}, end=${stickyEnd}, sideHeight=${sideColumn.offsetHeight}, gridBottom=${gridDocumentBottom})`,
+  );
   const preservedChats = [...analysisPanels];
   const preservedResult = JSON.stringify(currentRecommendation);
   const preservedSecond = JSON.stringify(second);
