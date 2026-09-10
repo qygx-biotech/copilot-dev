@@ -24,6 +24,7 @@
     (typeof require === "function" ? require("../shared/chat-images.js") : {});
   const pipelineApi = root?.AgentRequestPipeline ? root : (typeof require === "function" ? require("./request-pipeline.js") : {});
   const savedArtifactApi = root?.BioDesignRetrievalContract || (typeof require === "function" ? require("../shared/retrieval-contract.js") : {});
+  const wikiContract = root?.BioDesignLiteratureWiki || (typeof require === "function" ? require("../shared/literature-wiki.js") : {});
   const sourceArtifactApi = root?.renderSynthesisMarkdown ? root : (typeof require === "function" ? require("./source-system.js") : {});
   const CHAT_SCHEMA_VERSION = 1;
   const MAX_SAVED_CHATS = 5;
@@ -940,9 +941,9 @@
       const collection = hit.kind === "synthesis" ? "syntheses" : "topics";
       // QMD is a discovery hint. Read only the matching host-owned artifact in
       // this workspace, never a path or body supplied by a search result.
-      if (!(await this.workspace.fileExists(`.biodesign/knowledge/${collection}/${id}.md`))) return null;
       let artifact, markdown;
       if (hit.kind === "synthesis") {
+        if (!(await this.workspace.fileExists(`.biodesign/knowledge/${collection}/${id}.md`))) return null;
         const journal = await this.corpusWorkflows?.readWorkflow(id);
         if (!journal || journal.workflowId !== id) return null;
         artifact = {
@@ -957,13 +958,21 @@
       } else {
         const topic = (await this.sourceSystem?.topicService?.load())?.find(topic => topic.topicId === id);
         if (!topic) return null;
+        const revision = await this.sourceSystem?.literatureWiki?.read(topic);
+        if (!revision && !(await this.workspace.fileExists(`.biodesign/knowledge/${collection}/${id}.md`))) return null;
         artifact = {
           artifactId: id, kind: hit.kind,
           sourceSnapshot: (topic.paperIds || []).map(sourceId => ({ sourceId, contentHash: topic.sourceVersions?.[sourceId] })),
           sourceVersions: topic.sourceVersions, status: topic.summaryStatus,
           summaryVersion: String(topic.summaryVersion || ""), updatedAt: topic.updatedAt,
         };
-        markdown = sourceArtifactApi.renderTopicMarkdown(topic);
+        if (revision) {
+          artifact.sourceSnapshot = revision.dependencies.map(item => ({ sourceId: item.sourceId, contentHash: item.contentHash }));
+          artifact.sourceVersions = Object.fromEntries(revision.dependencies.map(item => [item.sourceId, item.contentHash]));
+          artifact.wikiGeneration = revision.configuration;
+          artifact.verificationStatus = "partially_verified";
+        }
+        markdown = sourceArtifactApi.renderTopicMarkdown(revision ? { ...topic, wikiPage: revision.page } : topic);
       }
       const body = markdown.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
       const limit = savedArtifactApi.SAVED_ARTIFACT_LIMITS.contentCharacters;
@@ -990,12 +999,13 @@
     }
 
     async retrieveLayeredKnowledge(question, options = {}) {
-      if (!this.knowledgeService?.available) return { available: false, hits: [] };
+      const localWiki = this.sourceSystem?.literatureWiki;
+      if (!this.knowledgeService?.available && !localWiki) return { available: false, hits: [] };
       const workspace = this.workspace.workspace;
       const workspaceId = workspace?.workspaceId || workspace?.id;
       const validScope = () => this.workspace.workspace === workspace &&
         (workspace?.workspaceId || workspace?.id) === workspaceId &&
-        (!workspaceId || !this.knowledgeService.workspaceId || this.knowledgeService.workspaceId === workspaceId);
+        (!workspaceId || !this.knowledgeService?.workspaceId || this.knowledgeService.workspaceId === workspaceId);
       const checkCancelled = () => {
         if (options.signal?.aborted) throw Object.assign(new Error("Retrieval was stopped."), { code: "OPERATION_ABORTED" });
       };
@@ -1030,7 +1040,7 @@
           });
         }
       };
-      if (options.evidencePlan ? options.evidencePlan.usePreviousSynthesis : PREVIOUS_SYNTHESIS_PATTERN.test(question)) {
+      if (this.knowledgeService?.available && (options.evidencePlan ? options.evidencePlan.usePreviousSynthesis : PREVIOUS_SYNTHESIS_PATTERN.test(question))) {
         await run("synthesis", () => this.knowledgeService.searchPreviousSyntheses({
           query: question,
           mode: "fast",
@@ -1038,7 +1048,7 @@
           signal: options.signal,
         }));
       }
-      if (PROJECT_METADATA_QUESTION_PATTERN.test(question) || PROJECT_DECISION_PATTERN.test(question)) {
+      if (this.knowledgeService?.available && (PROJECT_METADATA_QUESTION_PATTERN.test(question) || PROJECT_DECISION_PATTERN.test(question))) {
         await run("project-memory", () => this.knowledgeService.searchProjectMemory({
           query: question,
           mode: "fast",
@@ -1047,14 +1057,18 @@
         }));
       }
       if (options.evidencePlan ? options.evidencePlan.useTopics : TOPIC_NAVIGATION_PATTERN.test(question) && questionMayNeedLiterature(question)) {
-        await run("topic", () => this.knowledgeService.searchTopics({
+        if (this.knowledgeService?.available) await run("topic", () => this.knowledgeService.searchTopics({
           query: question,
           mode: "fast",
           limit: 8,
           signal: options.signal,
         }));
+        if (localWiki) {
+          await this.sourceSystem.topicService.load();
+          await run("topic", async () => ({ results: localWiki.search(question) }));
+        }
       }
-      if (options.evidencePlan ? options.evidencePlan.evidenceNeeds.some((need) => need.type === "experiment_descriptors") : EXPERIMENT_QUESTION_PATTERN.test(question)) {
+      if (this.knowledgeService?.available && (options.evidencePlan ? options.evidencePlan.evidenceNeeds.some((need) => need.type === "experiment_descriptors") : EXPERIMENT_QUESTION_PATTERN.test(question))) {
         await run("experiment-note", () => this.knowledgeService.searchExperimentSources({
           query: question,
           mode: "fast",
@@ -1450,7 +1464,10 @@
       });
       const semanticIR = interpretation.ir;
       const capabilityPlan = semanticApi.planCapabilities(semanticIR, { surface, activeScope });
-      const evidencePlan = semanticApi.planEvidenceNeeds(semanticIR, { originalQuery: question });
+      await this.sourceSystem?.topicService?.load();
+      const evidencePlan = semanticApi.planEvidenceNeeds(semanticIR, {
+        originalQuery: question, hasLiteratureWikiMatch: this.sourceSystem?.literatureWiki?.search(question, 1).length > 0,
+      });
       const understanding = semanticApi.requestUnderstanding(semanticIR, question);
       options.onProgress?.({ stage: "retrieving-evidence" });
       const retrievalQuery = question;
@@ -1462,7 +1479,9 @@
       const historicalSynthesisRequest = evidencePlan.usePreviousSynthesis && !newSynthesisRequest &&
         !detectCorpusUpdateIntent(question) && !detectCorpusRecoveryIntent(question) &&
         semanticIR.matchedPattern !== "literature.update_synthesis";
-      const corpusWideLiteratureRequest = !historicalSynthesisRequest && (semanticIR.matchedPattern === "literature.corpus_synthesis" ||
+      const wikiCommand = wikiContract.command(question);
+      const wikiUpdateSubject = /\b(?:update|refresh|revise|regenerate)\s+(?:(?:the|my|our)\s+)?(?:literature\s+)?wiki\b|(?:更新|刷新|修订).{0,6}(?:文献维基|知识维基)/i.test(question);
+      const corpusWideLiteratureRequest = !wikiCommand && !historicalSynthesisRequest && (semanticIR.matchedPattern === "literature.corpus_synthesis" ||
         (semanticIR.capabilityHints.includes("corpus_workflow") &&
           semanticIR.operations.includes("snapshot") && semanticIR.operations.includes("reduce") &&
           semanticIR.operations.includes("summarize") &&
@@ -1470,7 +1489,7 @@
       // Existing recovery/update protocols remain deterministic lifecycle operations.
       const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
       const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
-      const corpusUpdateRequest = semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question);
+      const corpusUpdateRequest = !wikiCommand && !wikiUpdateSubject && (semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question));
       const paperQuestion = corpusWideLiteratureRequest || corpusFailureFollowUpRequest || corpusUpdateRequest ||
         paperIdentity.paperIds.length > 0 || paperIdentity.kind === "exact-title" ||
         semanticIR.objects.includes("literature") || evidencePlan.evidenceNeeds.some((need) => need.type === "literature_evidence") || questionMayNeedLiterature(question);
@@ -1730,10 +1749,11 @@
         context.knowledgeSync = preflight.report;
         context.preflightTelemetry = preflight.telemetry;
         if (preflight.report.failures.length) context.notices.push("Knowledge synchronization is incomplete for the reported source IDs. Use ready sources; do not claim complete coverage. Retry a required failed source through its bounded source tool or explain the limitation.");
+        if (preflight.wikiMaintenance) context.notices.push(`Literature wiki maintenance: ${JSON.stringify(preflight.wikiMaintenance, (key, value) => key === "configuration" ? undefined : value).slice(0, 4000)}. Wiki pages are derived interpretations. Missing or stale coverage requires original L1 evidence or an explicit limitation. Checks do not establish semantic truth.`);
       }
       context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest || paperIdentity.noExactMatch
         ? { available: this.knowledgeService?.available === true, hits: [] }
-        : await this.retrieveLayeredKnowledge(retrievalQuery, { ...options, scopedPaperIds });
+        : await this.retrieveLayeredKnowledge(retrievalQuery, { ...options, scopedPaperIds, evidencePlan: wikiCommand ? { ...evidencePlan, useTopics: true } : evidencePlan });
       if (historicalSynthesisRequest) context.notices.push(
         "This request asks about a saved review. Read the retrieved saved-synthesis item as historical derived analysis; do not regenerate it or present stale findings as current conclusions. If no in-scope saved review was found, say so. Updating requires an explicit update request."
       );
@@ -2743,6 +2763,8 @@
         if (broad) {
           try {
             const cardResult = await this.literature.createPaperCard(document.id, {
+              callContext: options.callContext,
+              deferWikiUpdate: true,
               turnReconciliation: options.turnReconciliation,
               signal: options.signal,
               onProgress: (progress) =>

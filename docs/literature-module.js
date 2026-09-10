@@ -721,6 +721,7 @@
         nativePdfSupported: data.nativePdfSupported === true, structuredOutputMode: data.combinedTextOutputMode || "not-advertised",
         promptVersion: data.combinedTextPromptVersion });
       return {
+        wikiConfiguration: data.wikiConfiguration || null,
         schemaVersion: data.schemaVersion,
         promptVersion: data.promptVersion,
         modelSignature: data.modelSignature,
@@ -791,6 +792,13 @@
         promptVersion: data.promptVersion || "",
         schemaVersion: Number(data.schemaVersion) || 0,
       };
+    }
+
+    async updateWikiPage(input, options = {}) {
+      this.recordTurnCall(options.callContext?.turnId || options.turnId, "wiki_update");
+      return this.request("/api/knowledge/update-wiki", {
+        input, callContext: boundedCallContext(options.callContext, "wiki_update"),
+      }, options.signal);
     }
 
     async mapCorpusPaper(payload, signal) {
@@ -965,7 +973,7 @@
 
     recordTurnCall(turnId, role) {
       if (!/^[A-Za-z0-9._:-]{1,200}$/.test(String(turnId || ""))) return;
-      const allowed = ["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "combined_text_paper_card", "paper_card_chunk", "paper_card_synthesis", "image_understanding", "answer"];
+      const allowed = ["semantic_parser", "schema_mapper", "search_planner", "reranker", "corpus_mapper", "native_pdf", "combined_text_paper_card", "paper_card_chunk", "paper_card_synthesis", "image_understanding", "answer", "wiki_update"];
       if (!allowed.includes(role)) return;
       const counts = this.turnCallCounts.get(turnId) || Object.fromEntries(allowed.map((name) => [name, 0]));
       counts[role] += 1;
@@ -1286,6 +1294,7 @@
             signal,
           }),
         generatePaperCard: (payload) => this.generatePaperCardFromPrepared(payload),
+        generateWikiPage: typeof this.api?.updateWikiPage === "function" ? (input, options) => this.api.updateWikiPage(input, options) : null,
         getPaperCardConfiguration:
           typeof this.api?.getPaperCardConfiguration === "function"
             ? (signal, callContext, workspace) => this.api.getPaperCardConfiguration(signal, callContext, workspace)
@@ -1625,6 +1634,8 @@
         });
         try {
           await this.createPaperCard(document.id, {
+            ...options,
+            deferWikiUpdate: true,
             force: true,
             signal: options.signal,
             onProgress: (progress) =>
@@ -1675,6 +1686,9 @@
         stage: "paper-card-complete",
         completed: targets.length,
         total: targets.length,
+      });
+      await this.updateWikiAfterProcessing({
+        ...options, action: "update", changedPaperIds: generatedPaperIds, paperIds: options.paperIds || [],
       });
       return {
         documents: this.documents,
@@ -2415,6 +2429,9 @@
       const sourceText = options.includeSourceText
         ? (await this.extractText(documentId, options)).text
         : "";
+      if (!options.deferWikiUpdate) await this.updateWikiAfterProcessing({
+        ...options, changedPaperIds: [documentId],
+      });
       return {
         summary: card,
         card,
@@ -2425,6 +2442,16 @@
 
     async summarize(documentId, options = {}) {
       return this.createPaperCard(documentId, options);
+    }
+
+    async updateWikiAfterProcessing(options) {
+      if (!this.sourceSystem?.literatureWiki?.generateWikiPage) return;
+      try { return await this.sourceSystem.literatureWiki.maintain(options); }
+      catch (error) {
+        if (error.code === "OPERATION_ABORTED" || options.signal?.aborted) throw error;
+        options.onProgress?.({ stage: "wiki-unavailable", code: "WIKI_UPDATE_FAILED" });
+        return { status: "unavailable", generationCalls: 0 };
+      }
     }
   }
 

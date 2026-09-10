@@ -5,6 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function (root) {
   "use strict";
   const SYNC_VERSION = 1;
+  const wikiContract = root.BioDesignLiteratureWiki || (typeof require === "function" ? require("../shared/literature-wiki.js") : {});
   const SYNC_TASK = "synchronize knowledge base through required derived layers";
   const SYNC_CAPABILITIES = Object.freeze([
     "describe_source", "ensure_source_ready", "generate_paper_card", "update_topics",
@@ -174,7 +175,13 @@
           // Different model selections must not share a provider task. Serialize
           // maintenance so concurrent surfaces still cannot write the same artifacts.
           const model = options.callContext?.model || "";
-          while (this.inFlight && this.inFlightModel !== model) {
+          const wikiScope = this.system.literatureWiki?.generateWikiPage ? JSON.stringify([
+            wikiContract.command(options.question), [...(options.selectedPaperIds || [])].sort(), [...(options.selectedPaths || [])].sort(),
+          ]) : "";
+          // Query-specific wiki updates cannot be borrowed from another scope or
+          // command, or cancelled by another consumer's signal.
+          while (this.inFlight && (this.inFlightModel !== model || this.inFlightWikiScope !== wikiScope ||
+              (wikiScope && this.inFlightWikiSignal !== options.signal))) {
             await this.inFlight.catch(() => {});
             if (options.signal?.aborted) throw Object.assign(new Error("Request cancelled"), { code: "OPERATION_ABORTED" });
           }
@@ -183,6 +190,8 @@
             // consumer waits for completion; cancellation only suppresses its answer.
             const finish = this.log?.begin("preflight", { turnId: key, surface: options.surface, workspaceId: this.workspaceId });
             this.inFlightModel = model;
+            this.inFlightWikiScope = wikiScope;
+            this.inFlightWikiSignal = options.signal;
             const active = this.run(options).then((result) => {
               finish?.(result.report.status === "partial" ? "partial" : "completed", { ...result.telemetry, failureCount: result.report.failures.length });
               return result;
@@ -347,6 +356,27 @@
         }
       }
       report.failures.push(...verificationFailures);
+      let wikiMaintenance = null;
+      if (this.system.literatureWiki?.generateWikiPage) {
+        const command = wikiContract.command(options.question);
+        const paperIds = options.selectedPaperIds?.length ? options.selectedPaperIds : (options.selectedPaths || [])
+          .map(path => registry.getByPath(path)).filter(source => source?.sourceKind === "paper").map(source => source.sourceId);
+        const wikiSignal = options.signal && this.workspaceSignal && root.AbortSignal?.any
+          ? root.AbortSignal.any([options.signal, this.workspaceSignal]) : options.signal || this.workspaceSignal;
+        const start = clock();
+        try {
+          wikiMaintenance = await this.system.literatureWiki.maintain({ ...context, ...command, signal: wikiSignal, paperIds,
+            // Source synchronization may compile new knowledge. An unchanged
+            // ordinary question only checks compatibility; it never rewrites pages.
+            changedPaperIds: unique([...changes.added, ...changes.modified, ...changes.removed]),
+          });
+          telemetry.l3LlmCallCount = wikiMaintenance.generationCalls || 0;
+          telemetry.l3LlmMs = clock() - start;
+        } catch (error) {
+          if (error.code === "OPERATION_ABORTED") throw error;
+          wikiMaintenance = { status: "unavailable", pages: [], generationCalls: 0, code: safeCode(error) };
+        }
+      }
       if (report.failures.length) report.status = "partial";
       this.assertWorkspace();
       // Projection only: reuse the turn reconciliation, never scan/hash again.
@@ -372,7 +402,7 @@
       telemetry.startedAt = wallStarted;
       console.info("request_preflight", telemetry);
       this.emit({ stage: report.status === "partial" ? "sync-partial" : telemetry.syncAgentSpawned ? "sync-ready" : "preflight-current" });
-      return { tree, reconciliation, diff, report, telemetry };
+      return { tree, reconciliation, diff, report, telemetry, wikiMaintenance };
     }
 
     async prepareDocument(id, context) {

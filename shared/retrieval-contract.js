@@ -119,6 +119,10 @@
       createdAt: text(value.createdAt, 100), updatedAt: text(value.updatedAt, 100),
       corpusVersion: text(value.corpusVersion), parentSynthesisId: id(value.parentSynthesisId),
       summaryVersion: text(value.summaryVersion),
+      ...(object(value.wikiGeneration) ? { wikiGeneration: {
+        schemaVersion: Number(value.wikiGeneration.schemaVersion) || 0,
+        promptVersion: text(value.wikiGeneration.promptVersion), evidenceVersion: text(value.wikiGeneration.evidenceVersion), modelSignature: text(value.wikiGeneration.modelSignature),
+      } } : {}),
       content: text(value.content, SAVED_ARTIFACT_LIMITS.contentCharacters),
       truncated: value.truncated === true || String(value.content || "").length > SAVED_ARTIFACT_LIMITS.contentCharacters,
     };

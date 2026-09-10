@@ -37,6 +37,10 @@ const providerRateLimit = (() => {
   try { return require("./shared/provider-rate-limit.js"); }
   catch { return require("../shared/provider-rate-limit.js"); }
 })();
+const literatureWiki = (() => {
+  try { return require("./shared/literature-wiki.js"); }
+  catch { return require("../shared/literature-wiki.js"); }
+})();
 const {
   SIDE_CHAT_TOOL_DEFINITIONS,
   buildDurableProjectSystemMessage,
@@ -3533,6 +3537,7 @@ function handlePaperCardConfiguration(event, env) {
       schemaVersion: PAPER_CARD_SCHEMA_VERSION,
       promptVersion: PAPER_CARD_PROMPT_VERSION,
       modelSignature: configuration.modelSignature,
+      wikiConfiguration: literatureWiki.configuration(crypto.createHash("sha256").update(getEnvString(env, "REQUESTY_MODEL")).digest("hex")),
       generationStrategy: PAPER_CARD_GENERATION_STRATEGY,
       generationContractVersion: PAPER_CARD_GENERATION_CONTRACT_VERSION,
       nativePdfSupported: configuration.nativePdfSupported,
@@ -3559,6 +3564,7 @@ function exactObjectKeys(value, allowed) {
 }
 
 const PROVIDER_CALL_ROLES = new Set([
+  "wiki_update",
   "image_understanding",
   "semantic_parser",
   "schema_mapper",
@@ -6982,6 +6988,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
     }
 
     const scopedModelRoutes = new Set([
+      "/api/knowledge/update-wiki",
       "/api/knowledge/config", "/api/literature/config", "/api/knowledge/plan-search", "/api/knowledge/rerank",
       "/api/literature/summarize-chunk", "/api/corpus/map-paper", "/api/literature/analyze-pdf-native",
       "/api/literature/create-paper-card-from-text", "/api/context/route", "/api/semantic/interpret",
@@ -7010,6 +7017,23 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
 
     if (method === "GET" && path === "/api/literature/config") {
       return handlePaperCardConfiguration(event, modelEnv);
+    }
+
+    if (method === "POST" && path === "/api/knowledge/update-wiki") {
+      const body = getRequestBody(event);
+      const callContext = normalizeProviderCallContext(body.callContext, "wiki_update");
+      const configuration = literatureWiki.configuration(crypto.createHash("sha256").update(getEnvString(modelEnv, "REQUESTY_MODEL")).digest("hex"));
+      if (!callContext || literatureWiki.validateInput(body.input).length) return jsonResponse({ error: "INVALID_WIKI_INPUT" }, 400, event);
+      if (!literatureWiki.sameConfiguration(body.input.configuration, configuration)) return jsonResponse({ error: "WIKI_CONFIGURATION_CHANGED" }, 409, event);
+      const result = await requestRequestyMessage({
+        model: getEnvString(modelEnv, "REQUESTY_MODEL"), temperature: 0.1, response_format: { type: "json_object" },
+        messages: [{ role: "system", content: literatureWiki.PROMPT }, { role: "user", content: JSON.stringify(body.input) }],
+        ...requestyMetadata(callContext),
+      }, getEnvString(modelEnv, "REQUESTY_API_KEY"), false, null, { signal: transport?.signal });
+      if (!result.ok) return jsonResponse({ error: result.error, message: result.message, attempts: result.attempts }, result.status || 502, event);
+      const page = parseModelJson(result.message?.content);
+      if (literatureWiki.validatePage(page, body.input).length) return jsonResponse({ error: "INVALID_WIKI_PAGE", message: "Wiki validation failed; the saved page was not changed." }, 502, event);
+      return jsonResponse({ ok: true, page, configuration, attempts: result.attempts, usage: sanitizeRequestyUsage(result.usage) }, 200, event);
     }
 
     if (method === "POST" && path === "/api/knowledge/plan-search") {

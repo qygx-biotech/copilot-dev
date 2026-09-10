@@ -9,12 +9,20 @@ import {
   rm,
   stat,
 } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import path from "node:path";
+import { promisify } from "node:util";
 import { assertRelativePath, ValidationError } from "../ipc/validation.mjs";
 
 const DEFAULT_MAX_READ_BYTES = 128 * 1024 * 1024;
 const DEFAULT_MAX_WRITE_BYTES = 128 * 1024 * 1024;
+const WORKSPACE_METADATA_DIRECTORY = ".biodesign";
+const execFileAsync = promisify(execFile);
+
+async function setWindowsHiddenAttribute(absolutePath) {
+  await execFileAsync("attrib.exe", ["+H", absolutePath], { windowsHide: true });
+}
 
 function isInside(root, candidate) {
   const relative = path.relative(root, candidate);
@@ -43,7 +51,9 @@ export class ProjectFilesystem {
     const root = await realpath(rootPath);
     const info = await stat(root);
     if (!info.isDirectory()) throw new ValidationError("INVALID_PROJECT_ROOT", "The selected project root is not a directory.");
-    return new ProjectFilesystem(root, options);
+    const filesystem = new ProjectFilesystem(root, options);
+    await filesystem.hideWorkspaceMetadataDirectory();
+    return filesystem;
   }
 
   constructor(root, options = {}) {
@@ -51,6 +61,9 @@ export class ProjectFilesystem {
     this.id = options.id || crypto.randomUUID();
     this.maxReadBytes = options.maxReadBytes || DEFAULT_MAX_READ_BYTES;
     this.maxWriteBytes = options.maxWriteBytes || DEFAULT_MAX_WRITE_BYTES;
+    this.platform = options.platform || process.platform;
+    this.setHiddenAttribute = options.setHiddenAttribute || setWindowsHiddenAttribute;
+    this.workspaceMetadataHidePromise = null;
   }
 
   descriptor() {
@@ -138,7 +151,8 @@ export class ProjectFilesystem {
     });
     const segments = assertRelativePath(relativePath).split("/");
     let current = this.root;
-    for (const segment of segments) {
+    for (let index = 0; index < segments.length; index += 1) {
+      const segment = segments[index];
       current = path.join(current, segment);
       let info;
       try {
@@ -155,8 +169,36 @@ export class ProjectFilesystem {
       }
       if (info.isSymbolicLink()) throw new ValidationError("SYMLINK_NOT_ALLOWED", "Symbolic links are not allowed in project directories.");
       if (!info.isDirectory()) throw new ValidationError("NOT_A_DIRECTORY", "A project path component is not a directory.");
+      if (index === 0 && segment === WORKSPACE_METADATA_DIRECTORY) {
+        await this.hideWorkspaceMetadataDirectory();
+      }
     }
     return candidate;
+  }
+
+  async hideWorkspaceMetadataDirectory() {
+    if (this.platform !== "win32") return false;
+    const absolutePath = this.candidate(WORKSPACE_METADATA_DIRECTORY);
+    let info;
+    try {
+      info = await lstat(absolutePath);
+    } catch (error) {
+      if (error?.code === "ENOENT") return false;
+      throw error;
+    }
+    if (info.isSymbolicLink()) throw new ValidationError("SYMLINK_NOT_ALLOWED", "The workspace metadata directory cannot be a symbolic link.");
+    if (!info.isDirectory()) throw new ValidationError("NOT_A_DIRECTORY", "The workspace metadata path is not a directory.");
+    if (!this.workspaceMetadataHidePromise) {
+      this.workspaceMetadataHidePromise = this.setHiddenAttribute(absolutePath)
+        .then(() => true)
+        .catch((error) => {
+          console.warn("workspace_metadata_hidden_attribute_failed", {
+            code: String(error?.code || "UNKNOWN").slice(0, 64),
+          });
+          return false;
+        });
+    }
+    return this.workspaceMetadataHidePromise;
   }
 
   async writeText(relativePath, value, options = {}) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { ProjectFilesystem } from "../services/project-filesystem.mjs";
@@ -35,6 +35,29 @@ test("project filesystem reads, atomically writes, lists, and builds a safe tree
   const tree = await filesystem.tree();
   assert.equal(tree.children.some((entry) => entry.name === ".biodesign"), false);
   assert.equal(await readFile(path.join(root, "literature", "nested", "paper.md"), "utf8"), "evidence");
+});
+
+test("Windows hides existing and newly created workspace metadata directories", async () => {
+  const existingRoot = await temporaryProject("biodesign-hidden-existing-");
+  await mkdir(path.join(existingRoot, ".biodesign"));
+  const hiddenPaths = [];
+  await ProjectFilesystem.open(existingRoot, {
+    platform: "win32",
+    setHiddenAttribute: async (absolutePath) => hiddenPaths.push(absolutePath),
+  });
+
+  const newRoot = await temporaryProject("biodesign-hidden-new-");
+  const filesystem = await ProjectFilesystem.open(newRoot, {
+    platform: "win32",
+    setHiddenAttribute: async (absolutePath) => hiddenPaths.push(absolutePath),
+  });
+  await filesystem.ensureDirectory(".biodesign/cache");
+  await filesystem.writeText(".biodesign/workspace.json", "{}");
+
+  assert.deepEqual(hiddenPaths, [
+    path.join(await realpath(existingRoot), ".biodesign"),
+    path.join(await realpath(newRoot), ".biodesign"),
+  ]);
 });
 
 test("absolute, parent, Windows, empty-segment, and NUL paths are rejected", async () => {

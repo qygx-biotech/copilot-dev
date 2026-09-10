@@ -384,8 +384,8 @@
     const objects = new Set(ir.objects || []), operations = new Set(ir.operations || []);
     const query = String(options.originalQuery || ir.goal || "");
     const exactFact = /\b(?:Km|kcat|temperature|titer|value|concentration)\b|温度|数值|浓度/u.test(query) && !operations.has("compare");
-    const literature = objects.has("literature") || /\bP\d+\b/.test(query);
-    const broad = literature && !exactFact && (operations.has("summarize") || operations.has("map") || operations.has("compare") || /strategies|themes|across|策略|主题|总体/i.test(query));
+    const literature = objects.has("literature") || /\bP\d+\b/.test(query) || options.hasLiteratureWikiMatch === true;
+    const broad = literature && !exactFact && (operations.has("summarize") || operations.has("map") || operations.has("compare") || /strategies|themes|across|concept|overview|\bexplain\b|策略|主题|总体|概念|解释/i.test(query));
     const previous = /\b(?:last|previous|earlier|prior|saved|existing)\s+(?:(?:literature|corpus)\s+)?(?:review|synthesis)\b|上次.*(?:综述|总结)|之前.*结论|(?:已保存|已有).{0,12}(?:综述|总结)/i.test(query);
     const needsNativePdf = literature && /(?:figure|layout|scan|native pdf)|图中|版式|扫描/i.test(query);
     const evidenceNeeds = [];

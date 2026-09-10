@@ -7,6 +7,7 @@ const vendorRoot = path.join(repositoryRoot, "docs", "vendor");
 
 const assets = [
   ["shared/retrieval-contract.js", "retrieval-contract.js"],
+  ["shared/literature-wiki.js", "literature-wiki.js"],
   ["shared/provider-rate-limit.js", "provider-rate-limit.js"],
   ["shared/event-stream.js", "event-stream.js"],
   ["shared/chat-images.js", "chat-images.js"],

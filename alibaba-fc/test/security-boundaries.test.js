@@ -56,7 +56,7 @@ function assertClean(value) {
 }
 const chunk = { filename: "fixture.pdf", text: privateText, chunkIndex: 0, totalChunks: 1 };
 const chat = { mode: "side_chat", messages: [{ role: "user", content: "Explain the supplied evidence." }] };
-const protectedPaths = ["/api/me", "/api/knowledge/config", "/api/literature/config", "/api/knowledge/plan-search", "/api/knowledge/rerank",
+const protectedPaths = ["/api/me", "/api/knowledge/update-wiki", "/api/knowledge/config", "/api/literature/config", "/api/knowledge/plan-search", "/api/knowledge/rerank",
   "/api/literature/summarize-chunk", "/api/corpus/map-paper", "/api/literature/analyze-pdf-native", "/api/literature/create-paper-card-from-text",
   "/api/context/route", "/api/semantic/interpret", "/api/semantic/map-schema", "/api/literature/synthesize", "/api/chat/understand-images",
   "/chat", "/api/test-oss", "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"];

@@ -17,6 +17,8 @@
     (typeof require === "function" ? require("../shared/experiment-semantics.js") : null);
   const semanticIntent = root?.BioDesignSemanticIntent ||
     (typeof require === "function" ? require("../shared/semantic-intent.js") : null);
+  const wikiApi = root?.LiteratureWikiService ? root : (typeof require === "function" ? require("./literature-wiki.js") : {});
+  const wikiContract = root?.BioDesignLiteratureWiki || (typeof require === "function" ? require("../shared/literature-wiki.js") : {});
   const isValidRetrievalProfile = retrievalProfiles.isValidRetrievalProfile ||
     ((value) => ["light", "medium", "high"].includes(value));
   const normalizeRetrievalProfile = retrievalProfiles.normalizeRetrievalProfile ||
@@ -679,7 +681,10 @@
       "",
       "# Current Topic Synthesis",
       "",
-      topic.summaryStatus === "ready" && topic.summary ? topic.summary : "Topic summary is stale or not generated; retrieve current source evidence.",
+      ...(topic.wikiPage ? [
+        topic.summaryStatus === "ready" ? "Derived literature wiki. Check original evidence for precise or disputed claims." : "STALE: last valid wiki revision retained for inspection only. Retrieve current original evidence; these are not current conclusions.",
+        wikiContract.renderPage(topic.wikiPage),
+      ] : [topic.summaryStatus === "ready" && topic.summary ? topic.summary : "Topic summary is stale or not generated; retrieve current source evidence."]),
     ].join("\n").trim()}\n`;
   }
 
@@ -746,6 +751,10 @@
         topics: this.topics,
         updatedAt: nowIso(this.now),
       });
+      if (this.topics.some(topic => topic.wiki)) try { await this.workspace.writeFile(`${KNOWLEDGE_PATHS.topics}/index.md`, [
+        "# Literature wiki", "Derived pages; original papers remain authoritative.",
+        ...this.topics.filter(topic => topic.wiki).slice(0, 500).map(topic => `- [${topic.label}](${topic.topicId}.md) — ${topic.pageKind || "concept"}; ${topic.paperIds.length} sources; ${topic.summaryStatus}; ${topic.wiki.updatedAt}`),
+      ].join("\n\n")); } catch { /* The JSON index remains authoritative; the navigation projection is repairable. */ }
     }
 
     async renderAndIndex(topicIds = []) {
@@ -754,9 +763,12 @@
         ? this.topics.filter((topic) => topicIds.includes(topic.topicId))
         : this.topics;
       for (const topic of selected) {
+        const revision = await this.wiki?.read(topic);
         await this.workspace.writeFile(
           `${KNOWLEDGE_PATHS.topics}/${topic.topicId}.md`,
-          renderTopicMarkdown(topic)
+          renderTopicMarkdown(revision ? { ...topic, wikiPage: revision.page,
+            paperIds: revision.dependencies.map(item => item.sourceId),
+            sourceVersions: Object.fromEntries(revision.dependencies.map(item => [item.sourceId, item.contentHash])) } : topic)
         );
       }
       if (this.knowledgeService?.available) {
@@ -775,6 +787,7 @@
       const candidates = new Set(topicIds);
       const removed = this.topics.filter((topic) =>
         candidates.has(topic.topicId) &&
+        !topic.wiki &&
         !retainedParentIds.has(topic.topicId) &&
         !(topic.paperIds || []).length
       );
@@ -793,12 +806,15 @@
     async updatePaper(source, card) {
       await this.load();
       const labels = this.labelsFromCard(card);
-      const nextIds = new Set(labels.map(topicSlug));
+      const nextIds = new Set([...labels.map(topicSlug), ...labels.flatMap(topicParents)]);
+      const cardIdentity = stableStringHash(stableJson(card));
       const affected = new Set();
       for (const topic of this.topics) {
+        if (topic.pageKind === "comparison") continue;
         if (!topic.paperIds.includes(source.sourceId) || nextIds.has(topic.topicId)) continue;
         topic.paperIds = topic.paperIds.filter((paperId) => paperId !== source.sourceId);
         if (topic.sourceVersions) delete topic.sourceVersions[source.sourceId];
+        if (topic.cardVersions) delete topic.cardVersions[source.sourceId];
         topic.summaryStatus = "stale";
         topic.updatedAt = nowIso(this.now);
         affected.add(topic.topicId);
@@ -813,6 +829,7 @@
           topic = {
             topicId,
             label,
+            pageKind: [...(card.proteins || []), ...(card.genes || []), ...(card.organisms || []), ...(card.metabolites || [])].includes(label) ? "entity" : (card.methods || []).includes(label) ? "method" : "concept",
             parentTopicIds,
             paperIds: [],
             summaryStatus: "stale",
@@ -823,22 +840,28 @@
           this.topics.push(topic);
         }
         topic.parentTopicIds = uniqueStrings([...topic.parentTopicIds, ...parentTopicIds], 10);
+        const changed = !topic.paperIds.includes(source.sourceId) || topic.sourceVersions?.[source.sourceId] !== source.contentHash || topic.cardVersions?.[source.sourceId] !== cardIdentity;
         topic.paperIds = uniqueStrings([...topic.paperIds, source.sourceId], 10000);
         topic.sourceVersions = { ...topic.sourceVersions, [source.sourceId]: source.contentHash };
-        topic.summaryStatus = "stale";
-        topic.updatedAt = nowIso(this.now);
-        affected.add(topicId);
+        topic.cardVersions = { ...topic.cardVersions, [source.sourceId]: cardIdentity };
+        if (changed) { topic.summaryStatus = "stale"; topic.updatedAt = nowIso(this.now); affected.add(topicId); }
         topic.parentTopicIds.forEach((parentId) => {
           const parent = this.topics.find((item) => item.topicId === parentId);
           if (parent) {
+            const changed = !parent.paperIds.includes(source.sourceId) || parent.sourceVersions?.[source.sourceId] !== source.contentHash || parent.cardVersions?.[source.sourceId] !== cardIdentity;
             parent.paperIds = uniqueStrings([...parent.paperIds, source.sourceId], 10000);
             parent.sourceVersions = { ...parent.sourceVersions, [source.sourceId]: source.contentHash };
-            parent.summaryStatus = "stale";
-            parent.updatedAt = nowIso(this.now);
+            parent.cardVersions = { ...parent.cardVersions, [source.sourceId]: cardIdentity };
+            if (changed) { parent.summaryStatus = "stale"; parent.updatedAt = nowIso(this.now); affected.add(parentId); }
           }
-          affected.add(parentId);
         });
       });
+      for (const topic of this.topics.filter(topic => topic.pageKind === "comparison" && topic.parentTopicIds.some(id => affected.has(id)))) {
+        const parent = this.topics.find(item => item.topicId === topic.parentTopicIds[0]);
+        topic.paperIds = [...(parent?.paperIds || [])]; topic.sourceVersions = { ...parent?.sourceVersions };
+        topic.summaryStatus = "stale"; affected.add(topic.topicId);
+      }
+      if (!affected.size) return [];
       const removed = await this.pruneEmptyLeafTopics([...affected]);
       removed.forEach((topicId) => affected.delete(topicId));
       await this.persist();
@@ -853,6 +876,7 @@
         if (!topic.paperIds.includes(paperId)) continue;
         topic.paperIds = topic.paperIds.filter((value) => value !== paperId);
         if (topic.sourceVersions) delete topic.sourceVersions[paperId];
+        if (topic.cardVersions) delete topic.cardVersions[paperId];
         topic.summaryStatus = "stale";
         topic.updatedAt = nowIso(this.now);
         affected.push(topic.topicId, ...(topic.parentTopicIds || []));
@@ -7139,6 +7163,11 @@
       nativePdfAnalyzer,
       knowledgeService: options.knowledgeService || null,
     });
+    const literatureWiki = new wikiApi.LiteratureWikiService({
+      ...options, workspace: options.workspace, registry, preparation, jobs, topics: topicService, corpusWorkflows,
+      hashValue: value => hashBytes(new TextEncoder().encode(stableJson(value)), options.cryptoProvider || root.crypto),
+    });
+    topicService.wiki = literatureWiki;
     knowledgeLifecycle.corpusWorkflows = corpusWorkflows;
     const projectState = options.projectState || new ProjectStateService({
       ...options,
@@ -7158,6 +7187,7 @@
       jobs,
       results,
       topicService,
+      literatureWiki,
       knowledgeLifecycle,
       knowledgeService: options.knowledgeService || null,
       preparation,
