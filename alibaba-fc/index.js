@@ -6178,8 +6178,18 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
         title: String(hit.title || "").slice(0, RETRIEVAL_LIMITS.titleCharacters),
         score: Number(hit.score) || 0,
         snippet: String(hit.snippet || "").slice(0, RETRIEVAL_LIMITS.snippetCharacters),
-        qmdDoc: String(hit.qmdDoc || "").slice(0, RETRIEVAL_LIMITS.evidenceHandleCharacters)
+        qmdDoc: String(hit.qmdDoc || "").slice(0, RETRIEVAL_LIMITS.evidenceHandleCharacters),
+        ...(["synthesis", "topic"].includes(hit.kind) ? {
+          artifact: retrievalContract.sanitizeSavedArtifact(hit.artifact, {
+            paperScopes: [literature.selectedPaperIds, literature.explicitPaperIds, sourceMap.selectedPaperIds],
+            filesOnly: rawScope.type === "files",
+            paperSources: sourceMap.paperSources,
+          })
+        } : {})
       }))
+      .filter((hit, index, all) => !["synthesis", "topic"].includes(hit.kind) ||
+        (hit.artifact?.kind === hit.kind && hit.artifact.content &&
+          all.slice(0, index).filter(item => item.artifact).length < retrievalContract.SAVED_ARTIFACT_LIMITS.items))
   };
   const project = {
     workspaceName:

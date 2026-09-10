@@ -23,6 +23,8 @@
   const chatImages = root?.BioDesignChatImages ||
     (typeof require === "function" ? require("../shared/chat-images.js") : {});
   const pipelineApi = root?.AgentRequestPipeline ? root : (typeof require === "function" ? require("./request-pipeline.js") : {});
+  const savedArtifactApi = root?.BioDesignRetrievalContract || (typeof require === "function" ? require("../shared/retrieval-contract.js") : {});
+  const sourceArtifactApi = root?.renderSynthesisMarkdown ? root : (typeof require === "function" ? require("./source-system.js") : {});
   const CHAT_SCHEMA_VERSION = 1;
   const MAX_SAVED_CHATS = 5;
   const CONTEXT_LIMITS = {
@@ -932,17 +934,99 @@
       }));
     }
 
+    async readRetrievedArtifact(hit, question, options) {
+      const id = hit.sourceId;
+      if (!/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,199}$/.test(id) || id.includes("..")) return null;
+      const collection = hit.kind === "synthesis" ? "syntheses" : "topics";
+      // QMD is a discovery hint. Read only the matching host-owned artifact in
+      // this workspace, never a path or body supplied by a search result.
+      if (!(await this.workspace.fileExists(`.biodesign/knowledge/${collection}/${id}.md`))) return null;
+      let artifact, markdown;
+      if (hit.kind === "synthesis") {
+        const journal = await this.corpusWorkflows?.readWorkflow(id);
+        if (!journal || journal.workflowId !== id) return null;
+        artifact = {
+          artifactId: id, kind: hit.kind, sourceSnapshot: journal.snapshot,
+          sourceVersions: Object.fromEntries(Object.values(journal.maps || {}).map(map => [map.paperId, map.contentHash])),
+          coverage: journal.coverage, status: journal.status, staleReason: journal.staleReason, staleSourceIds: journal.staleSourceIds,
+          verificationStatus: journal.verification?.some(item => item.status === "original-evidence-located") ? "partially_verified" : "unverified",
+          createdAt: journal.createdAt, updatedAt: journal.updatedAt,
+          corpusVersion: journal.corpusVersion, parentSynthesisId: journal.parentWorkflowId,
+        };
+        markdown = sourceArtifactApi.renderSynthesisMarkdown(journal);
+      } else {
+        const topic = (await this.sourceSystem?.topicService?.load())?.find(topic => topic.topicId === id);
+        if (!topic) return null;
+        artifact = {
+          artifactId: id, kind: hit.kind,
+          sourceSnapshot: (topic.paperIds || []).map(sourceId => ({ sourceId, contentHash: topic.sourceVersions?.[sourceId] })),
+          sourceVersions: topic.sourceVersions, status: topic.summaryStatus,
+          summaryVersion: String(topic.summaryVersion || ""), updatedAt: topic.updatedAt,
+        };
+        markdown = sourceArtifactApi.renderTopicMarkdown(topic);
+      }
+      const body = markdown.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+      const limit = savedArtifactApi.SAVED_ARTIFACT_LIMITS.contentCharacters;
+      // Keep complete lines (including evidence handles). On large artifacts,
+      // retain the opening context plus query-matching lines within the budget.
+      const terms = tokenizeQuestion(question).filter(term => term.length > 2);
+      const lines = body.split("\n");
+      const selected = new Map();
+      let characters = 0;
+      const add = (line, index) => {
+        if (selected.has(index) || characters + line.length + 1 > limit) return;
+        selected.set(index, line); characters += line.length + 1;
+      };
+      lines.forEach((line, index) => { if (characters < limit / 2) add(line, index); });
+      lines.forEach((line, index) => { if (terms.some(term => line.toLowerCase().includes(term))) add(line, index); });
+      lines.forEach(add);
+      artifact.content = [...selected].sort(([a], [b]) => a - b).map(([, line]) => line).join("\n");
+      artifact.truncated = selected.size < lines.length;
+      return savedArtifactApi.sanitizeSavedArtifact(artifact, {
+        paperScopes: [options.scopedPaperIds || options.selectedPaperIds || []],
+        filesOnly: options.selectedPaths?.length > 0,
+        paperSources: this.sourceRegistry?.list({ sourceKind: "paper" }) || [],
+      });
+    }
+
     async retrieveLayeredKnowledge(question, options = {}) {
       if (!this.knowledgeService?.available) return { available: false, hits: [] };
+      const workspace = this.workspace.workspace;
+      const workspaceId = workspace?.workspaceId || workspace?.id;
+      const validScope = () => this.workspace.workspace === workspace &&
+        (workspace?.workspaceId || workspace?.id) === workspaceId &&
+        (!workspaceId || !this.knowledgeService.workspaceId || this.knowledgeService.workspaceId === workspaceId);
+      const checkCancelled = () => {
+        if (options.signal?.aborted) throw Object.assign(new Error("Retrieval was stopped."), { code: "OPERATION_ABORTED" });
+      };
+      checkCancelled();
+      if (!validScope()) return { available: false, hits: [] };
       const hits = [];
+      let artifactCount = 0;
       const run = async (kind, callback) => {
         try {
-          hits.push(...this.compactKnowledgeHits(await callback(), kind));
+          const compact = this.compactKnowledgeHits(await callback(), kind);
+          checkCancelled();
+          if (!validScope()) return;
+          for (const hit of compact) {
+            if (["synthesis", "topic"].includes(kind)) {
+              if (artifactCount >= savedArtifactApi.SAVED_ARTIFACT_LIMITS.items || hits.some(item => item.kind === kind && item.sourceId === hit.sourceId)) continue;
+              const artifact = await this.readRetrievedArtifact(hit, question, options);
+              checkCancelled();
+              if (!validScope()) return;
+              if (!artifact?.content) continue;
+              // Search snippets can be older than the saved journal; transport
+              // only the locally resolved content and its original provenance.
+              hits.push({ ...hit, paperId: null, qmdDoc: "", snippet: artifact.content.slice(0, this.limits.maxRetrievalSnippetCharacters), artifact });
+              artifactCount++;
+            } else hits.push(hit);
+          }
         } catch (error) {
+          if (options.signal?.aborted || error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") throw error;
           console.info("layered_knowledge_search_fallback", {
             kind,
             code: error?.code || error?.name || "QMD_SEARCH_FAILED",
-            message: String(error?.message || error).slice(0, 300),
+            message: "Layered knowledge was unavailable for this request.",
           });
         }
       };
@@ -978,6 +1062,8 @@
           signal: options.signal,
         }));
       }
+      checkCancelled();
+      if (!validScope()) return { available: false, hits: [] };
       return {
         available: true,
         hits: hits.slice(0, 20),
@@ -1372,11 +1458,15 @@
         ...options, semanticIR, evidencePlan, requestUnderstanding: understanding, profile: retrievalProfile, language: semanticIR.answerLanguage,
         callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
       };
-      const corpusWideLiteratureRequest = semanticIR.matchedPattern === "literature.corpus_synthesis" ||
+      const newSynthesisRequest = /\b(?:write|draft|create|generate|produce|prepare)\b[\s\S]{0,80}\b(?:review|synthesis)\b|(?:写|撰写|生成|创建).{0,20}综述/i.test(question);
+      const historicalSynthesisRequest = evidencePlan.usePreviousSynthesis && !newSynthesisRequest &&
+        !detectCorpusUpdateIntent(question) && !detectCorpusRecoveryIntent(question) &&
+        semanticIR.matchedPattern !== "literature.update_synthesis";
+      const corpusWideLiteratureRequest = !historicalSynthesisRequest && (semanticIR.matchedPattern === "literature.corpus_synthesis" ||
         (semanticIR.capabilityHints.includes("corpus_workflow") &&
           semanticIR.operations.includes("snapshot") && semanticIR.operations.includes("reduce") &&
           semanticIR.operations.includes("summarize") &&
-          capabilityPlan.steps.some((step) => step.capability === "corpus_workflow" && step.allowed));
+          capabilityPlan.steps.some((step) => step.capability === "corpus_workflow" && step.allowed)));
       // Existing recovery/update protocols remain deterministic lifecycle operations.
       const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
       const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
@@ -1643,7 +1733,10 @@
       }
       context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest || paperIdentity.noExactMatch
         ? { available: this.knowledgeService?.available === true, hits: [] }
-        : await this.retrieveLayeredKnowledge(retrievalQuery, options);
+        : await this.retrieveLayeredKnowledge(retrievalQuery, { ...options, scopedPaperIds });
+      if (historicalSynthesisRequest) context.notices.push(
+        "This request asks about a saved review. Read the retrieved saved-synthesis item as historical derived analysis; do not regenerate it or present stale findings as current conclusions. If no in-scope saved review was found, say so. Updating requires an explicit update request."
+      );
       const sourceCounts = this.sourceRegistry?.counts?.() || {};
       const paperSources = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
       context.literature = {
@@ -2040,8 +2133,14 @@
 
     async buildCitationEvidence(context) {
       const references = new Set();
-      for (const file of context.files || []) {
-        for (const match of String(file.content || "").matchAll(/([A-Za-z0-9_.-]+):p([1-9]\d*):([A-Za-z0-9_.:-]+)/g)) references.add(match[0]);
+      for (const file of [...(context.files || []), ...(context.knowledge?.hits || []).map(hit => hit.artifact).filter(Boolean)]) {
+        for (const match of String(file.content || "").matchAll(/([A-Za-z0-9_.-]+):p([1-9]\d*):([A-Za-z0-9_.:-]+)/g)) {
+          // A historic handle must not acquire a page in a changed paper merely
+          // because a chunk ID was reused by extraction.
+          const sourceId = match[1];
+          if (file.sourceVersions && file.sourceVersions[sourceId] !== this.sourceRegistry?.get(sourceId)?.contentHash) continue;
+          references.add(match[0]);
+        }
       }
       const evidence = [];
       const sourceIds = [...new Set([...references].map((reference) => reference.split(":p")[0]))];

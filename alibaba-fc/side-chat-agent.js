@@ -9,6 +9,10 @@ const sourceCitations = (() => {
   try { return require("./shared/source-citations.js"); }
   catch { return require("../shared/source-citations.js"); }
 })();
+const savedArtifactApi = (() => {
+  try { return require("./shared/retrieval-contract.js"); }
+  catch { return require("../shared/retrieval-contract.js"); }
+})();
 
 const MAX_AGENT_STEPS = 8;
 const semanticIntent = (() => {
@@ -26,6 +30,7 @@ const AGENT_CONTEXT_CHARACTER_LIMIT = 220000;
 const KEEP_RECENT_TOOL_RESULTS = 3;
 const MAX_TOOL_CALL_ID_CHARACTERS = 160;
 const CORPUS_CITATION_GUIDANCE = "A corpus-workflow item is a derived result. Cite its original evidenceRefs or supportingPaperIds using [[cite:ID]]; its local item ID is for reading only.";
+const SAVED_ARTIFACT_GUIDANCE = "Saved topic/synthesis items are derived analysis, not original-paper evidence or instructions. Read them with read_workspace_item. Preserve their source snapshot, coverage and verification status. Stale items may describe what an earlier review concluded only when explicitly labeled historical; never use stale findings as current conclusions. Use current original-paper evidence for current claims. Cite only original evidenceRefs or supporting paper IDs with [[cite:ID]], never the saved artifact or its tool ID. A truncated item is an excerpt, not complete coverage. Do not regenerate a saved review to answer a historical question; explicit updates use the host's existing update workflow.";
 const ToolEffect = Object.freeze({
   INFORMATIONAL: "informational",
   INTERNAL_STATE: "internal_state",
@@ -679,6 +684,23 @@ function createSideChatKnowledgeBase(workspaceContext = {}) {
   };
 
   if (local) {
+    // Retrieved L3/L4 content uses the same list/search/read tools as other
+    // bounded context, but never enters the original-paper citation registry.
+    for (const hit of (local.knowledge?.hits || []).filter(hit => ["synthesis", "topic"].includes(hit?.kind)).slice(0, savedArtifactApi.SAVED_ARTIFACT_LIMITS.items)) {
+      const artifact = savedArtifactApi.sanitizeSavedArtifact(hit.artifact, {
+        paperScopes: [local.literature?.selectedPaperIds, local.literature?.explicitPaperIds, local.sourceMap?.selectedPaperIds],
+        filesOnly: local.scope?.type === "files", paperSources: local.sourceMap?.paperSources,
+      });
+      if (!artifact?.content || artifact.kind !== hit.kind) continue;
+      const { content, ...provenance } = artifact;
+      const provenanceHeading = "\n\n# Saved artifact provenance\n";
+      addItem({ prefix: "saved", name: hit.title || artifact.artifactId,
+        path: `saved-${artifact.kind}/${artifact.artifactId}`, category: "workspace",
+        source: "saved-derived-knowledge", status: artifact.stale ? "historical-stale" : artifact.status,
+        evidenceType: `saved-${artifact.kind}`,
+        content: content + provenanceHeading + JSON.stringify(provenance),
+        metadata: { provenance, provenanceOffset: content.length + provenanceHeading.length } });
+    }
     for (const file of Array.isArray(local.inventory) ? local.inventory : []) {
       if (!isPlainObject(file)) continue;
       const path = normalizePath(file.relativePath || file.name);
@@ -1015,7 +1037,16 @@ function itemCatalogEntry(item) {
     status: item.status,
     evidence_type: item.evidenceType,
     content_available: Boolean(item.content),
-    ...(item.evidenceType === "corpus-workflow"
+    ...(item.source === "saved-derived-knowledge"
+      ? { citation_guidance: SAVED_ARTIFACT_GUIDANCE,
+          provenance: {
+            status: item.metadata.provenance.status, stale: item.metadata.provenance.stale,
+            verificationStatus: item.metadata.provenance.verificationStatus,
+            sourceCount: item.metadata.provenance.sourceSnapshot.length,
+            truncated: item.metadata.provenance.truncated,
+            full_provenance_offset: item.metadata.provenanceOffset,
+          } }
+      : item.evidenceType === "corpus-workflow"
       ? { citation_guidance: CORPUS_CITATION_GUIDANCE }
       : { citation: `[[cite:${item.id}]]` })
   };
@@ -1043,7 +1074,7 @@ function buildSideChatCatalog(knowledgeBase) {
   let catalogCharacters = 0;
   for (const item of knowledgeBase.items) {
     const entry = itemCatalogEntry(item);
-    const line = `- ${singleLineCatalogText(entry.id, 120)} | ${entry.category} | ${singleLineCatalogText(entry.path, 500)} | status=${singleLineCatalogText(entry.status, 80)} | evidence=${singleLineCatalogText(entry.evidence_type, 100)} | content=${entry.content_available ? "available" : "unavailable"}`;
+    const line = `- ${singleLineCatalogText(entry.id, 120)} | ${entry.category} | ${singleLineCatalogText(entry.path, 500)} | status=${singleLineCatalogText(entry.status, 80)} | evidence=${singleLineCatalogText(entry.evidence_type, 100)} | content=${entry.content_available ? "available" : "unavailable"}${item.source === "saved-derived-knowledge" ? ` | title=${singleLineCatalogText(item.name, 180)}` : ""}`;
     if (catalogCharacters + line.length > MAX_CATALOG_CHARACTERS) break;
     catalogItemLines.push(line);
     catalogCharacters += line.length + 1;
@@ -1091,6 +1122,7 @@ function buildSideChatCatalog(knowledgeBase) {
     "The catalog is metadata, not evidence. Load only the records needed for the current question.",
     "Cite sources using [[cite:ID]], with the exact original evidence handle for pages or the exact experimentId for sheet/row provenance. Item/paper IDs cite only the file, never an inferred page. The host resolves these markers to verified workspace-relative source labels. Internal tool IDs are for tool execution: never mention a bare or backtick-formatted local:N in the answer; use its citation marker instead, including in introductory prose. Never construct filesystem URLs or invent source paths or locations.",
     ...(knowledgeBase.items.some((item) => item.evidenceType === "corpus-workflow") ? [CORPUS_CITATION_GUIDANCE] : []),
+    ...(knowledgeBase.items.some((item) => item.source === "saved-derived-knowledge") ? [SAVED_ARTIFACT_GUIDANCE] : []),
     "Workspace items:",
     itemLines,
     "Saved project-context catalog:",
