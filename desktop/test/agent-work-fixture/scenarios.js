@@ -67,23 +67,21 @@ async function runAgentScenarios() {
   check(history.scrollHeight > history.clientHeight && history.scrollTop === 30 && card(first).getBoundingClientRect().height === 660, "Long history stays within a bounded card and preserves the reader scroll position");
   for (let i = 0; i < 3; i++) addAnalysisPanelButton.click();
   await tick();
+  const sideColumn = document.querySelector(".side-column");
+  document.activeElement?.blur();
   window.scrollTo(0, 0);
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const sideColumn = document.querySelector(".side-column");
-  const workbenchGrid = document.querySelector(".workbench-grid");
+  const initialScrollY = scrollY;
   const stickyTop = Number.parseFloat(getComputedStyle(sideColumn).top);
-  const sideDocumentTop = sideColumn.getBoundingClientRect().top + scrollY;
-  const gridDocumentBottom = workbenchGrid.getBoundingClientRect().bottom + scrollY;
-  const stickyStart = sideDocumentTop - stickyTop;
-  const stickyEnd = gridDocumentBottom - sideColumn.offsetHeight - stickyTop;
-  window.scrollTo(0, Math.round((stickyStart + stickyEnd) / 2));
+  const scrollDistance = sideColumn.getBoundingClientRect().top - stickyTop + 240;
+  window.scrollTo(0, initialScrollY + scrollDistance);
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const side = sideColumn.getBoundingClientRect();
   check(
-    stickyEnd > stickyStart
+    scrollY >= initialScrollY + scrollDistance - 1
       && Math.abs(side.top - stickyTop) <= 1
       && side.bottom <= innerHeight + 1,
-    `Side Chat remains sticky in the viewport beside lower Agent tasks (top=${side.top}, bottom=${side.bottom}, viewport=${innerHeight}, start=${stickyStart}, end=${stickyEnd}, sideHeight=${sideColumn.offsetHeight}, gridBottom=${gridDocumentBottom})`,
+    `Side Chat remains sticky in the viewport beside lower Agent tasks (top=${side.top}, bottom=${side.bottom}, viewport=${innerHeight}, scroll=${scrollY - initialScrollY})`,
   );
   const preservedChats = [...analysisPanels];
   const preservedResult = JSON.stringify(currentRecommendation);
