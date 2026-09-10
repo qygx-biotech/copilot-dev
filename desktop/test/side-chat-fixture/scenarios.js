@@ -486,6 +486,7 @@ async function runScenarios() {
       equal(currentRecommendation.title, "Regenerated answer");
       ok(!analysisPanelStack.querySelector(".streaming-answer"), "Preview remained after commit");
       streamFailure = true; pendingRequest = null;
+      agentPanel.instruction = "Review the next result";
       await runAgentInstruction("agent-panel");
       equal(currentRecommendation.title, "Regenerated answer", "Interrupted stream replaced the official recommendation");
       equal(agentPanel.status, "streamInterrupted");

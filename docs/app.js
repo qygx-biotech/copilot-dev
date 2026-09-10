@@ -52,6 +52,8 @@ const experimentModuleCards = document.querySelectorAll("[data-experiment-module
 
 const addAnalysisPanelButton = document.querySelector("#addAnalysisPanelButton");
 const analysisPanelStack = document.querySelector("#analysisPanelStack");
+const agentWorkApi = window.BioDesignAgentWork;
+let agentWorkArea = null;
 
 const sideChatForm = document.querySelector("#sideChatForm");
 const sideChatInput = document.querySelector("#sideChatInput");
@@ -276,9 +278,41 @@ const I18N = {
     experimentNotesPlaceholder:
       "Add any context about these results: what was tested, what changed, what looked surprising, what you want the agent to focus on.",
     addNote: "Add note",
+    agentNewTask: "New Agent Task",
+    agentDeleteTask: "Delete task",
+    agentDeleteTaskLabel: "Delete task: {title}",
+    agentDeleteRunningHint: "This task can be deleted when its run finishes.",
+    agentDeleteTaskHint: "Remove this chat. Workspace files and the current recommendation are kept.",
+    agentNoTasks: "No agent tasks. Create a new Agent Chat to get started.",
+    agentLabel: "Agent",
+    agentStatus_idle: "Idle",
+    agentStatus_running: "Running",
+    agentStatus_waiting: "Waiting for user",
+    agentStatus_completed: "Completed",
+    agentStatus_failed: "Failed",
+    agentUpdated: "Updated {time}",
+    agentTurns: "{count} turns",
+    agentEmptyTitle: "Start a task",
+    agentEmptySummary: "Ask the agent to review evidence, interpret results, or recommend a next step. Each chat keeps its own task history.",
+    agentConversationLabel: "Conversation: {title}",
+    agentComposerPlaceholder: "Ask the agent to work on this task…",
+    agentNextMove: "Next move",
+    agentModel: "Model",
+    agentPermission: "Permission",
+    agentPermission_read_only: "Read Only",
+    agentPermission_workspace_write: "Workspace Write",
+    agentPermission_full_access: "Full Access",
+    agentAttachFile: "+ Attach file",
+    agentAttachImage: "Attach image",
+    agentRemoveAttachment: "Remove {name}",
+    agentRun: "Run Agent",
+    agentUiOnlyHint: "Preview: model and permission choices are saved for this move only; runs use the existing agent configuration. Attachments stay in this session and are not sent.",
+    agentMoveMetadata: "Requested: {model} · {permission} · UI only",
+    agentResultDetails: "Recommendation details",
+    agentInterrupted: "This run was interrupted. Send a new instruction to continue.",
     analysisWorkspaceEyebrow: "Agent Work",
-    analysisWorkspaceTitle: "Agent & Recommendation Panels",
-    addAnalysisPanel: "Add Panel",
+    analysisWorkspaceTitle: "Agent Chats",
+    addAnalysisPanel: "+ New Agent Chat",
     analysisPanelTitle: "Analysis Panel {number}",
     activePanel: "Active",
     frozenPanel: "Frozen history",
@@ -661,9 +695,41 @@ const I18N = {
     experimentNotesPlaceholder:
       "补充这些结果的背景：测试了什么、改变了什么、哪些现象令人意外、希望智能体重点关注什么。",
     addNote: "添加备注",
+    agentNewTask: "新智能体任务",
+    agentDeleteTask: "删除任务",
+    agentDeleteTaskLabel: "删除任务：{title}",
+    agentDeleteRunningHint: "本次运行结束后可删除此任务。",
+    agentDeleteTaskHint: "移除此对话，保留工作区文件和当前推荐。",
+    agentNoTasks: "暂无智能体任务，请新建智能体对话。",
+    agentLabel: "智能体",
+    agentStatus_idle: "空闲",
+    agentStatus_running: "运行中",
+    agentStatus_waiting: "等待用户",
+    agentStatus_completed: "已完成",
+    agentStatus_failed: "失败",
+    agentUpdated: "更新于 {time}",
+    agentTurns: "{count} 轮",
+    agentEmptyTitle: "开始一项任务",
+    agentEmptySummary: "请智能体评审证据、解读结果或推荐下一步。每个对话独立保留任务历史。",
+    agentConversationLabel: "对话：{title}",
+    agentComposerPlaceholder: "请智能体处理这项任务…",
+    agentNextMove: "下一步",
+    agentModel: "模型",
+    agentPermission: "权限",
+    agentPermission_read_only: "只读",
+    agentPermission_workspace_write: "工作区写入",
+    agentPermission_full_access: "完全访问",
+    agentAttachFile: "+ 添加文件",
+    agentAttachImage: "添加图片",
+    agentRemoveAttachment: "移除 {name}",
+    agentRun: "运行智能体",
+    agentUiOnlyHint: "预览：模型和权限选择仅记录于本轮，运行仍使用现有智能体配置。附件仅保留于本次会话，不会发送。",
+    agentMoveMetadata: "所选：{model} · {permission} · 仅界面记录",
+    agentResultDetails: "推荐详情",
+    agentInterrupted: "本次运行已中断，请发送新指令继续。",
     analysisWorkspaceEyebrow: "智能体工作",
-    analysisWorkspaceTitle: "智能体与推荐面板",
-    addAnalysisPanel: "添加面板",
+    analysisWorkspaceTitle: "智能体对话",
+    addAnalysisPanel: "+ 新建智能体对话",
     analysisPanelTitle: "分析面板 {number}",
     activePanel: "当前可编辑",
     frozenPanel: "已冻结历史",
@@ -1220,7 +1286,7 @@ EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
   });
 });
 
-addAnalysisPanelButton.addEventListener("click", addAnalysisPanel);
+addAnalysisPanelButton.addEventListener("click", () => addAnalysisPanel());
 
 analysisPanelStack.addEventListener("input", (event) => {
   const input = event.target.closest("[data-analysis-instruction]");
@@ -1230,9 +1296,34 @@ analysisPanelStack.addEventListener("input", (event) => {
   if (!panel || panel.frozen) return;
 
   panel.instruction = input.value;
-  panel.statusKey = "";
-  panel.status = "";
   saveAnalysisPanels();
+});
+
+analysisPanelStack.addEventListener("submit", async (event) => {
+  const composer = event.target.closest("[data-agent-composer]");
+  if (!composer) return;
+  event.preventDefault();
+  await runAgentInstruction(composer.dataset.agentComposer);
+});
+
+analysisPanelStack.addEventListener("keydown", (event) => {
+  if (event.target.matches("[data-analysis-instruction]") && event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
+    event.preventDefault();
+    event.target.form.requestSubmit();
+  }
+});
+
+analysisPanelStack.addEventListener("change", (event) => {
+  const input = event.target;
+  const panel = findAnalysisPanel(input.dataset.panelId);
+  if (!panel) return;
+  if (input.dataset.agentSetting === "selectedModel") panel.selectedModel = normalizeSideChatModel(input.value);
+  if (input.dataset.agentSetting === "selectedPermission") panel.selectedPermission = input.value;
+  if (input.hasAttribute("data-agent-attachments")) {
+    panel.pendingAttachments.push(...[...input.files].map(file => ({ id: makeId(), name: file.name, type: file.type, size: file.size, file })));
+  }
+  saveAnalysisPanels();
+  renderAnalysisPanels();
 });
 
 analysisPanelStack.addEventListener("click", async (event) => {
@@ -1244,6 +1335,25 @@ analysisPanelStack.addEventListener("click", async (event) => {
   if (!panel) return;
 
   const action = button.dataset.analysisAction;
+
+  if (action === "new-chat") {
+    addAnalysisPanel(panelId);
+    return;
+  }
+  if (action === "delete") {
+    deleteAnalysisPanel(panelId);
+    return;
+  }
+
+  if (action === "attach-file" || action === "attach-image") {
+    button.closest("form").querySelector(`[data-agent-attachments="${action.slice(7)}"]`).click();
+    return;
+  }
+  if (action === "remove-attachment") {
+    panel.pendingAttachments = panel.pendingAttachments.filter(item => item.id !== button.dataset.attachmentId);
+    renderAnalysisPanels();
+    return;
+  }
 
   if (action === "toggle") {
     panel.collapsed = !panel.collapsed;
@@ -3487,6 +3597,9 @@ async function runAgentInstruction(panelId) {
     return;
   }
 
+  const turn = agentWorkApi.beginTurn(panel, {
+    id: makeId(), modelLabel: getAgentModelOptions().find(model => model.value === panel.selectedModel)?.label || t("sideChatModelDefault"),
+  });
   setAgentBusy(true, panelId);
   const requestSignal = workspaceAbortController?.signal;
   let streamingPreview = null;
@@ -3553,9 +3666,9 @@ async function runAgentInstruction(panelId) {
       }
     }
 
-    const previewContainer = [...analysisPanelStack.querySelectorAll("[data-panel-id]")]
-      .find(element => element.dataset.panelId === panelId)?.querySelector(".recommendation-sections");
-    if (previewContainer) streamingPreview = createStreamingAnswer(previewContainer);
+    const previewContainer = agentWorkArea?.getStreamHost(panelId) || [...analysisPanelStack.querySelectorAll("[data-panel-id]")]
+      .find(element => element.dataset.panelId === panelId)?.querySelector(".agent-stream-slot");
+    if (previewContainer) streamingPreview = createStreamingAnswer(previewContainer, agentWorkArea?.getConversation(panelId) || previewContainer.closest(".agent-conversation"));
     response = await sendWorkbenchRequest({
       mode: "agent_instruction",
       messages: buildAgentMessages(instruction, localWorkspaceContext?.requestUnderstanding?.answerLanguage),
@@ -3577,9 +3690,9 @@ async function runAgentInstruction(panelId) {
       cloudCalls: { ...literatureModule?.api?.getTurnCallCounts?.(requestTurnId), ...(response.semanticTelemetry?.cloudCalls || {}) },
     });
     panel.recommendation = normalizeAgentResponse(response, instruction);
+    agentWorkApi.finishTurn(panel, turn, { content: response.reply || panel.recommendation.currentInterpretation, summary: panel.recommendation.recommendedNextStep, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), isResult: true });
     panel.statusKey = "recommendationUpdated";
     panel.status = "";
-    panel.collapsed = false;
     panel.updatedAt = new Date().toISOString();
     currentRecommendation = panel.recommendation;
     saveAnalysisPanels();
@@ -3594,14 +3707,16 @@ async function runAgentInstruction(panelId) {
     }
     if (error instanceof AuthRequiredError) {
       console.warn("Backend auth required.", error);
+      panel.statusKey = "";
+      panel.status = t("pleaseLogin");
       return;
     }
 
     console.warn("Agent backend failed; using local fallback.", error);
     panel.recommendation = createLocalRecommendation(instruction);
+    agentWorkApi.finishTurn(panel, turn, { content: `${t("backendFallbackMessage")}\n\n${panel.recommendation.currentInterpretation}`, isResult: true, status: "failed" });
     panel.statusKey = "backendFallbackMessage";
     panel.status = "";
-    panel.collapsed = false;
     panel.updatedAt = new Date().toISOString();
     currentRecommendation = panel.recommendation;
     saveAnalysisPanels();
@@ -3609,7 +3724,13 @@ async function runAgentInstruction(panelId) {
     renderBackendStatus("backendFallback");
   } finally {
     streamingPreview?.remove();
+    if (panel.taskStatus === "running") {
+      panel.status = requestSignal?.aborted ? t("agentInterrupted") : panel.status || t("agentInterrupted");
+      panel.statusKey = "";
+      agentWorkApi.finishTurn(panel, turn, { content: panel.status, status: requestSignal?.aborted || !authToken ? "waiting" : "failed" });
+    }
     setAgentBusy(false);
+    saveAnalysisPanels();
     renderAnalysisPanels();
   }
 }
@@ -4322,251 +4443,66 @@ ${t("localSummaryHumanReview")}
 ${t("defaultHumanReview")}`;
 }
 
+function getAgentModelOptions() {
+  // Read the existing model catalog and authenticated default label without
+  // changing Side Chat's selection or creating another catalog.
+  return [...sideChatModelSelect.options].map(option => {
+    const model = option.value === "default" ? defaultSideChatModel || option.dataset.modelName : option.value;
+    return { value: option.value, label: model ? shortSideChatModelName(model) : t("sideChatModelDefault"), title: model };
+  });
+}
+
 function renderAnalysisPanels() {
   currentRecommendation = getCurrentRecommendation();
-  analysisPanelStack.innerHTML = "";
-
-  analysisPanels.forEach((panel, index) => {
-    analysisPanelStack.appendChild(createAnalysisPanelElement(panel, index));
+  agentWorkArea ||= agentWorkApi.createAgentWorkArea({
+    container: analysisPanelStack, t, formatTime: formatTimestamp,
+    getModels: getAgentModelOptions, renderMarkdown: renderAgentMarkdown,
+    resultActions: createAgentResultActions, getProgress: getAnalysisPanelStatus,
+    isBusy: () => activeAgentRequest,
   });
+  agentWorkArea.render(analysisPanels);
 }
 
-function createAnalysisPanelElement(panel, index) {
-  const article = document.createElement("article");
-  article.className = "analysis-panel";
-  article.classList.toggle("is-frozen", Boolean(panel.frozen));
-  article.classList.toggle("is-collapsed", Boolean(panel.collapsed));
-  article.dataset.panelId = panel.id;
+function renderAgentMarkdown(container, content, citations = []) {
+  const resolved = sourceCitationApi.resolveForDisplay(content, citations, getSideChatCitationContext(true));
+  renderSideChatMarkdown(container, resolved.reply, resolved.citations);
+}
 
-  const header = document.createElement("div");
-  header.className = "analysis-panel-header";
+function buildAgentResultContent(recommendation) {
+  const sections = [
+    ["currentInterpretationHeading", recommendation.currentInterpretation],
+    ["keyEvidenceHeading", recommendation.keyEvidenceUsed],
+    ["possibleExplanationHeading", recommendation.possibleExplanation],
+    ["recommendedNextStepHeading", recommendation.recommendedNextStep],
+    ["additionalAnalysisHeading", recommendation.additionalAnalysisSuggested],
+    ["missingInformationHeading", recommendation.missingInformation],
+    ["humanReviewHeading", recommendation.humanReviewNotes],
+    ["draftSummaryHeading", recommendation.draftSummary],
+  ];
+  return sections.map(([key, value]) => `### ${t(key)}\n${Array.isArray(value) ? value.map(item => `- ${item}`).join("\n") : value || t("notAvailable")}`).join("\n\n");
+}
 
-  const titleGroup = document.createElement("div");
-  const title = document.createElement("h3");
-  title.textContent = t("analysisPanelTitle", { number: index + 1 });
-
-  const meta = document.createElement("p");
-  meta.className = "analysis-panel-meta";
-  meta.textContent = [
-    panel.frozen ? t("frozenPanel") : t("activePanel"),
-    t("panelCreatedAt", { time: formatTimestamp(panel.createdAt) }),
-  ].join(" · ");
-
-  titleGroup.append(title, meta);
-
-  const toggleButton = createAnalysisActionButton({
-    panel,
-    action: "toggle",
-    label: panel.collapsed ? t("expandPanel") : t("collapsePanel"),
-    className: "text-button",
-  });
-
-  header.append(titleGroup, toggleButton);
-  article.appendChild(header);
-
-  if (panel.collapsed) {
-    const summary = document.createElement("p");
-    summary.className = "analysis-panel-summary";
-    summary.textContent = panel.instruction || t("noInstructionYet");
-    article.appendChild(summary);
-    return article;
+function createAgentResultActions(panel) {
+  const container = document.createElement("div");
+  container.className = "agent-result-actions";
+  const review = document.createElement("span");
+  review.className = "agent-result-review";
+  review.textContent = panel.recommendation.reviewed ? t("reviewedByHuman") : t("humanReviewRequired");
+  container.append(review);
+  for (const [action, key] of [["export", "exportMarkdown"], ["copy", "copyRecommendation"], ["review", "markReviewed"]]) {
+    container.append(createAnalysisActionButton({ panel, action, label: t(key), className: "text-button", disabled: action === "review" && panel.recommendation.reviewed }));
   }
-
+  // Retain the structured recommendation alongside the natural reply, inside
+  // the latest result turn. Review/copy/export still use the original state.
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = t("agentResultDetails");
   const body = document.createElement("div");
-  body.className = "analysis-panel-body";
-  body.append(createInstructionPane(panel), createRecommendationPane(panel));
-  article.appendChild(body);
-
-  return article;
-}
-
-function createInstructionPane(panel) {
-  const pane = document.createElement("section");
-  pane.className = "analysis-pane analysis-command-pane";
-
-  const header = document.createElement("div");
-  header.className = "analysis-pane-header";
-
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = t("agentEyebrow");
-
-  const title = document.createElement("h3");
-  title.textContent = t("agentTitle");
-  header.append(eyebrow, title);
-  pane.appendChild(header);
-
-  if (panel.frozen) {
-    const notice = document.createElement("p");
-    notice.className = "frozen-panel-notice";
-    notice.textContent = t("frozenPanelNotice");
-    pane.appendChild(notice);
-
-    const frozenInstruction = document.createElement("div");
-    frozenInstruction.className = "frozen-instruction";
-    frozenInstruction.textContent = panel.instruction || t("noInstructionYet");
-    pane.appendChild(frozenInstruction);
-  } else {
-    const label = document.createElement("label");
-    label.className = "sr-only";
-    label.setAttribute("for", `agentInstruction-${panel.id}`);
-    label.textContent = t("agentTitle");
-
-    const textarea = document.createElement("textarea");
-    textarea.id = `agentInstruction-${panel.id}`;
-    textarea.rows = 8;
-    textarea.placeholder = t("agentPlaceholder");
-    textarea.value = panel.instruction || "";
-    textarea.dataset.analysisInstruction = "true";
-    textarea.dataset.panelId = panel.id;
-    textarea.disabled = activeAgentRequest;
-
-    const actions = document.createElement("div");
-    actions.className = "agent-actions";
-    actions.append(
-      createAnalysisActionButton({
-        panel,
-        action: "run",
-        label: t("analyzeRecommend"),
-        className: "primary-button",
-        disabled: activeAgentRequest,
-      }),
-      createAnalysisActionButton({
-        panel,
-        action: "clear",
-        label: t("clearInstruction"),
-        className: "text-button",
-        disabled: activeAgentRequest,
-      })
-    );
-
-    pane.append(label, textarea, actions);
-  }
-
-  const status = document.createElement("p");
-  status.className = "agent-status";
-  status.textContent = getAnalysisPanelStatus(panel);
-  pane.appendChild(status);
-
-  return pane;
-}
-
-function createRecommendationPane(panel) {
-  const recommendation = panel.recommendation || createDefaultRecommendation();
-  const pane = document.createElement("section");
-  pane.className = "analysis-pane analysis-recommendation-pane";
-
-  const header = document.createElement("div");
-  header.className = "analysis-pane-header recommendation-pane-header";
-
-  const titleGroup = document.createElement("div");
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = t("recommendationEyebrow");
-  const title = document.createElement("h3");
-  title.textContent = t("recommendationTitle");
-  titleGroup.append(eyebrow, title);
-
-  const actions = document.createElement("div");
-  actions.className = "panel-actions";
-  actions.append(
-    createAnalysisActionButton({
-      panel,
-      action: "export",
-      label: t("exportMarkdown"),
-      className: "secondary-button",
-    }),
-    createAnalysisActionButton({
-      panel,
-      action: "copy",
-      label: t("copyRecommendation"),
-      className: "secondary-button",
-    }),
-    createAnalysisActionButton({
-      panel,
-      action: "review",
-      label: t("markReviewed"),
-      className: "secondary-button",
-      disabled: panel.frozen || recommendation.reviewed,
-    })
-  );
-
-  header.append(titleGroup, actions);
-
-  const review = document.createElement("div");
-  review.className = "review-status";
-  review.classList.toggle("is-reviewed", Boolean(recommendation.reviewed));
-  review.textContent = recommendation.reviewed
-    ? t("reviewedByHuman")
-    : t("humanReviewRequired");
-
-  const sections = document.createElement("div");
-  sections.className = "recommendation-sections";
-  sections.append(
-    createRecommendationTextSection(
-      t("currentInterpretationHeading"),
-      recommendation.currentInterpretation
-    ),
-    createRecommendationListSection(
-      t("keyEvidenceHeading"),
-      recommendation.keyEvidenceUsed
-    ),
-    createRecommendationTextSection(
-      t("possibleExplanationHeading"),
-      recommendation.possibleExplanation
-    ),
-    createRecommendationTextSection(
-      t("recommendedNextStepHeading"),
-      recommendation.recommendedNextStep
-    ),
-    createRecommendationTextSection(
-      t("additionalAnalysisHeading"),
-      recommendation.additionalAnalysisSuggested
-    ),
-    createRecommendationListSection(
-      t("missingInformationHeading"),
-      recommendation.missingInformation
-    ),
-    createRecommendationTextSection(
-      t("humanReviewHeading"),
-      recommendation.humanReviewNotes
-    ),
-    createRecommendationTextSection(
-      t("draftSummaryHeading"),
-      recommendation.draftSummary,
-      "memo-section"
-    )
-  );
-
-  pane.append(header, review, sections);
-  return pane;
-}
-
-function createRecommendationTextSection(heading, value, extraClass = "") {
-  const section = document.createElement("section");
-  if (extraClass) section.classList.add(extraClass);
-
-  const title = document.createElement("h3");
-  title.textContent = heading;
-
-  const body = document.createElement(extraClass === "memo-section" ? "div" : "p");
-  body.className = extraClass === "memo-section" ? "memo-preview" : "";
-  body.textContent = value || t("notAvailable");
-
-  section.append(title, body);
-  return section;
-}
-
-function createRecommendationListSection(heading, items) {
-  const section = document.createElement("section");
-  const title = document.createElement("h3");
-  title.textContent = heading;
-
-  const list = document.createElement("ul");
-  renderList(list, items);
-
-  section.append(title, list);
-  return section;
+  body.className = "side-message-body";
+  renderSideChatMarkdown(body, buildAgentResultContent(panel.recommendation));
+  details.append(summary, body);
+  container.append(details);
+  return container;
 }
 
 function createAnalysisActionButton({
@@ -4586,23 +4522,29 @@ function createAnalysisActionButton({
   return button;
 }
 
-function addAnalysisPanel() {
-  analysisPanels = analysisPanels.map((panel) => ({
-    ...panel,
-    frozen: true,
-    collapsed: true,
-  }));
-
+function addAnalysisPanel(afterPanelId = "") {
   const nextPanel = createAnalysisPanel();
-  analysisPanels.push(nextPanel);
-  currentRecommendation = nextPanel.recommendation;
+  const index = analysisPanels.findIndex(panel => panel.id === afterPanelId);
+  if (index < 0) analysisPanels.push(nextPanel);
+  else analysisPanels.splice(index + 1, 0, nextPanel);
   saveAnalysisPanels();
   renderAnalysisPanels();
   focusAnalysisPanelInstruction(nextPanel.id);
 }
 
+function deleteAnalysisPanel(panelId) {
+  const index = analysisPanels.findIndex(panel => panel.id === panelId);
+  if (index < 0 || panelId === activeAgentPanelId || analysisPanels[index].taskStatus === "running") return;
+  analysisPanels.splice(index, 1);
+  saveAnalysisPanels();
+  renderAnalysisPanels();
+  const nextPanel = analysisPanels[index] || analysisPanels[index - 1];
+  const nextCard = [...analysisPanelStack.children].find(card => card.dataset.panelId === nextPanel?.id);
+  (nextCard?.querySelector(".agent-chat-heading") || addAnalysisPanelButton).focus({ preventScroll: true });
+}
+
 function createAnalysisPanel(overrides = {}) {
-  return {
+  return agentWorkApi.hydrate({
     id: makeId(),
     createdAt: new Date().toISOString(),
     updatedAt: "",
@@ -4614,32 +4556,26 @@ function createAnalysisPanel(overrides = {}) {
     status: "",
     retrieval: null,
     ...overrides,
-  };
+  }, { resultContent: buildAgentResultContent });
 }
 
 function findAnalysisPanel(panelId) {
   return analysisPanels.find((panel) => panel.id === panelId);
 }
 
-function getActiveAnalysisPanel() {
-  return (
-    analysisPanels.find((panel) => !panel.frozen) ||
-    analysisPanels[analysisPanels.length - 1]
-  );
-}
-
 function getCurrentRecommendation() {
-  return (
-    getActiveAnalysisPanel()?.recommendation ||
-    analysisPanels[analysisPanels.length - 1]?.recommendation ||
-    createDefaultRecommendation()
-  );
+  // Task deletion removes chat history, not the last committed recommendation.
+  const savedRecommendation = loadSessionJson(RECOMMENDATION_STORAGE_KEY, null);
+  return [...analysisPanels.map(panel => panel.recommendation), savedRecommendation]
+    .filter(recommendation => recommendation?.updatedAt)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+    || analysisPanels[analysisPanels.length - 1]?.recommendation || createDefaultRecommendation();
 }
 
 function getAnalysisPanelStatus(panel) {
   if (panel.statusKey) return t(panel.statusKey);
   if (panel.status) return panel.status;
-  return panel.frozen ? t("frozenPanel") : t("readyForAnalysis");
+  return panel.taskStatus === "waiting" ? t("agentInterrupted") : "";
 }
 
 function refreshDefaultAnalysisPanels() {
@@ -5985,21 +5921,21 @@ function saveAnalysisPanels() {
   currentRecommendation = getCurrentRecommendation();
   sessionStorage.setItem(
     ANALYSIS_PANELS_STORAGE_KEY,
-    JSON.stringify(analysisPanels)
+    JSON.stringify(agentWorkApi.serialize(analysisPanels))
   );
   saveCurrentRecommendation();
 }
 
 function loadAnalysisPanels() {
-  const storedPanels = loadSessionJson(ANALYSIS_PANELS_STORAGE_KEY, []);
+  const storedPanels = loadSessionJson(ANALYSIS_PANELS_STORAGE_KEY, null);
 
-  if (Array.isArray(storedPanels) && storedPanels.length) {
+  if (Array.isArray(storedPanels)) {
     const normalizedPanels = storedPanels
       .map(normalizeStoredAnalysisPanel)
       .filter(Boolean);
 
-    if (normalizedPanels.length) {
-      return ensureOneEditableAnalysisPanel(normalizedPanels);
+    if (normalizedPanels.length || !storedPanels.length) {
+      return normalizedPanels;
     }
   }
 
@@ -6022,6 +5958,12 @@ function normalizeStoredAnalysisPanel(panel) {
   if (!panel || typeof panel !== "object") return null;
 
   return createAnalysisPanel({
+    title: panel.title,
+    summary: panel.summary,
+    messages: Array.isArray(panel.messages) ? panel.messages : undefined,
+    selectedModel: normalizeSideChatModel(panel.selectedModel),
+    selectedPermission: panel.selectedPermission,
+    taskStatus: panel.taskStatus,
     id: typeof panel.id === "string" && panel.id ? panel.id : makeId(),
     createdAt:
       typeof panel.createdAt === "string" && panel.createdAt
@@ -6064,18 +6006,6 @@ function normalizeRecommendation(recommendation) {
         ? recommendation.updatedAt
         : fallback.updatedAt,
   };
-}
-
-function ensureOneEditableAnalysisPanel(panels) {
-  const editablePanels = panels.filter((panel) => !panel.frozen);
-
-  if (editablePanels.length === 1) return panels;
-
-  return panels.map((panel, index) => ({
-    ...panel,
-    frozen: index < panels.length - 1,
-    collapsed: index < panels.length - 1 ? true : panel.collapsed,
-  }));
 }
 
 function saveExperimentModules() {

@@ -24,7 +24,7 @@ const functions = [
   "setSideChatEmptyState", "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
   "getSideChatCitationContext", "navigateSideChatCitation", "createSideChatActivitySummary", "addSideChatMessage",
   "createStreamingAnswer", "normalizeSideChatModel", "shortSideChatModelName", "updateSideChatModelConfiguration", "renderSideChatModelControl", "saveWorkspaceStateNow",
-  "runAgentInstruction", "setAgentBusy",
+  "runAgentInstruction", "setAgentBusy", "getAgentModelOptions",
   "initializeSideChatImages", "submitSideChat", "understandSideChatImages",
 ].map(actualFunction).join("\n");
 const modelEvents = source.match(/^sideChatModelSelect.addEventListener[\s\S]*?^\}\);/m)[0];
@@ -64,14 +64,16 @@ window.fetch = async (url, options) => {
   if (imageGate) await imageGate;
   return new Response(JSON.stringify(imageResponseStatus === 200 ? { understanding: { text: "Image 1: enzyme activity 25 U/mL at pH 7.0; error bars unclear.", model: "vision-fixture" }, imageCount: body.images.length } : { error: "IMAGE_PROVIDER_FAILED" }), { status: imageResponseStatus });
 };
-const USE_BACKEND = true;
+const USE_BACKEND = true, authToken = "fixture";
+const agentWorkApi = window.BioDesignAgentWork;
+let agentWorkArea = null;
 let activeAgentRequest = false, activeAgentPanelId = "", currentRecommendation = { title: "Existing recommendation" };
 const agentPanel = { id: "agent-panel", instruction: "Review evidence", recommendation: currentRecommendation, frozen: false };
 const analysisPanelStack = document.createElement("div"); document.body.append(analysisPanelStack);
 const findAnalysisPanel = id => id === agentPanel.id ? agentPanel : null;
 let panelSaves = [];
 const saveAnalysisPanels = () => panelSaves.push(structuredClone(agentPanel));
-const renderAnalysisPanels = () => { analysisPanelStack.innerHTML = '<article data-panel-id="agent-panel"><div class="recommendation-sections"></div></article>'; };
+const renderAnalysisPanels = () => { analysisPanelStack.innerHTML = '<article data-panel-id="agent-panel"><div class="agent-stream-slot"></div></article>'; };
 const renderBackendStatus = () => {};
 const buildAgentMessages = instruction => [{ role: "user", content: instruction }];
 const normalizeAgentResponse = response => ({ title: response.reply });
@@ -132,6 +134,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     await win.webContents.executeJavaScript(`document.body.insertAdjacentHTML("beforeend", ${JSON.stringify('<button data-debug-open data-debug-label="open">Debug Console</button>' + debugMarkup)})`);
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/runtime-log.js"), "utf8"));
     await win.webContents.executeJavaScript("window.BioDesignRuntimeLog.installPanel()");
+    await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/agent-work-area.js"), "utf8"));
     await win.webContents.executeJavaScript(`${setup}\n${functions}\n${scrollInspection}\n${modelEvents}\n${historyEvents}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("initializeSideChatImages()");
     const result = await win.webContents.executeJavaScript("runScenarios()");

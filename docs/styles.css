@@ -1082,8 +1082,11 @@ textarea:focus {
 
 .analysis-panel-stack {
   display: grid;
-  gap: 14px;
+  gap: 24px;
 }
+
+.agent-work-header { margin-bottom: 0; }
+.agent-work-empty { margin: 0; padding: 18px; color: var(--muted); font-size: 0.88rem; }
 
 .analysis-panel {
   display: grid;
@@ -1235,8 +1238,158 @@ textarea:focus {
   white-space: pre-wrap;
 }
 
+.agent-chat-card {
+  height: 660px;
+  min-width: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(20, 39, 33, 0.07);
+}
+
+.agent-chat-card .analysis-panel-header { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+.agent-chat-heading { flex: 1 1 220px; }
+.agent-task-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.agent-task-actions > button { width: auto; padding: 6px 8px; font-size: 0.74rem; }
+.agent-delete-task { color: var(--danger); }
+
+.agent-chat-card.is-collapsed {
+  height: auto;
+  grid-template-rows: auto;
+}
+
+.agent-chat-heading,
+.agent-chat-summary {
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+
+.agent-chat-heading h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 5px;
+  text-transform: none;
+  font-size: 0.95rem;
+}
+
+.agent-chat-heading .analysis-panel-meta {
+  display: block;
+  font-size: 0.73rem;
+}
+
+.agent-task-status::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.agent-task-status.is-running::before,
+.agent-task-status.is-completed::before { background: var(--accent); }
+.agent-task-status.is-running { color: var(--accent); font-weight: 760; }
+.agent-task-status.is-waiting::before { background: var(--gold); }
+.agent-task-status.is-failed::before { background: var(--danger); }
+
+.agent-chat-summary span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.agent-chat-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.agent-chat-body[hidden] { display: none; }
+
+.agent-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 3px;
+}
+
+.agent-conversation > * { flex-shrink: 0; min-width: 0; }
+.agent-stream-slot:empty { display: none; }
+.agent-message { max-width: 100%; }
+.agent-message.user { margin-left: 18px; }
+.agent-message.assistant { background: transparent; border: 0; padding-left: 0; padding-right: 0; }
+
+.agent-chat-empty {
+  margin: auto 0;
+  padding: 20px 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.agent-chat-empty h3 { text-transform: none; font-size: 1rem; }
+.agent-chat-empty p { margin: 0; }
+
+.agent-chat-progress,
+.agent-composer-hint,
+.agent-turn-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.71rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.agent-chat-progress:empty { display: none; }
+.agent-chat-progress { max-height: 2.8em; overflow-y: auto; }
+.agent-turn-meta { margin-top: 8px; color: inherit; opacity: 0.85; }
+
+.agent-composer { display: grid; gap: 9px; min-width: 0; }
+.agent-composer textarea { min-height: 74px; height: 74px; max-height: 120px; resize: vertical; }
+.agent-next-move { min-width: 0; margin: 0; padding: 0; border: 0; }
+.agent-next-move legend { padding: 0; margin-bottom: 5px; color: var(--accent-dark); font-size: 0.73rem; font-weight: 760; }
+.agent-move-selectors { display: flex; flex-wrap: wrap; gap: 8px; }
+.agent-move-control { display: grid; flex: 1 1 140px; min-width: 0; gap: 3px; color: var(--muted); font-size: 0.71rem; }
+.agent-move-control:first-child { flex-grow: 1.4; }
+.agent-move-control select {
+  width: 100%; min-width: 0; max-width: 100%; padding: 7px;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); font: inherit; font-size: 0.77rem; text-overflow: ellipsis;
+}
+.agent-composer-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.agent-attachment-picker { display: flex; flex-wrap: wrap; gap: 4px; }
+.agent-composer-actions button { width: auto; padding: 7px 9px; font-size: 0.76rem; }
+.agent-attachment-chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.agent-composer > .agent-attachment-chips { max-height: 68px; overflow-y: auto; }
+.agent-attachment-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 7px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--accent-dark); background: var(--surface-muted); font-size: 0.74rem; }
+.agent-attachment-chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-message .agent-attachment-chips { margin-top: 8px; }
+.agent-result-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+.agent-result-actions > button { width: auto; padding: 3px 0; font-size: 0.72rem; }
+.agent-result-review { width: 100%; color: var(--gold); font-size: 0.73rem; }
+.agent-result-actions details { width: 100%; }
+.agent-result-actions summary { cursor: pointer; color: var(--muted); font-size: 0.76rem; }
+.agent-result-actions details .side-message-body { margin-top: 12px; }
+
 .side-column {
   position: sticky;
+  align-self: start;
+  /* The application header scrolls with the page; keep the existing top gutter. */
   top: 16px;
   min-width: 0;
 }
@@ -1248,7 +1401,7 @@ textarea:focus {
   min-width: 0;
   max-width: 100%;
   max-height: calc(100vh - 32px);
-  min-height: 440px;
+  min-height: min(440px, calc(100vh - 32px));
   overflow: hidden;
 }
 
@@ -1758,6 +1911,13 @@ textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   #loginButton.is-loading::before {
     animation-duration: 1.6s;
+  }
+}
+
+/* Let the composer wrap just above the existing stacked-layout breakpoint. */
+@media (min-width: 1281px) and (max-width: 1320px) {
+  .workbench-grid {
+    grid-template-columns: minmax(300px, 0.75fr) minmax(500px, 1.25fr) minmax(380px, 0.85fr);
   }
 }
 

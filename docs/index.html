@@ -235,19 +235,19 @@
         </div>
 
         <div class="workspace-column center-column">
-          <section class="workbench-panel analysis-workspace-panel" aria-label="Agent analysis panels">
-            <div class="panel-header">
+          <section class="analysis-workspace-panel" aria-label="Agent Work">
+            <div class="workbench-panel panel-header agent-work-header">
               <div>
                 <p class="eyebrow" data-i18n="analysisWorkspaceEyebrow">Agent Work</p>
-                <h2 data-i18n="analysisWorkspaceTitle">Agent & Recommendation Panels</h2>
+                <h2 data-i18n="analysisWorkspaceTitle">Agent Chats</h2>
               </div>
               <div class="panel-actions">
                 <button id="addAnalysisPanelButton" class="secondary-button" type="button" data-i18n="addAnalysisPanel">
-                  Add Panel
+                  + New Agent Chat
                 </button>
               </div>
             </div>
-            <div id="analysisPanelStack" class="analysis-panel-stack" aria-live="polite"></div>
+            <div id="analysisPanelStack" class="analysis-panel-stack"></div>
           </section>
         </div>
 
@@ -353,6 +353,7 @@
     <!-- KaTeX safely renders dollar-delimited math in Side Chat messages. -->
     <script src="vendor/katex/katex.min.js"></script>
     <script src="vendor/katex/auto-render.min.js"></script>
+    <script src="agent-work-area.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
