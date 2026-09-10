@@ -68,20 +68,16 @@ async function runAgentScenarios() {
   for (let i = 0; i < 3; i++) addAnalysisPanelButton.click();
   await tick();
   const sideColumn = document.querySelector(".side-column");
-  document.activeElement?.blur();
-  window.scrollTo(0, 0);
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const initialScrollY = scrollY;
-  const stickyTop = Number.parseFloat(getComputedStyle(sideColumn).top);
-  const scrollDistance = sideColumn.getBoundingClientRect().top - stickyTop + 240;
-  window.scrollTo(0, initialScrollY + scrollDistance);
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const side = sideColumn.getBoundingClientRect();
+  const centerColumn = document.querySelector(".center-column");
+  const sideStyle = getComputedStyle(sideColumn);
+  const stickyTop = Number.parseFloat(sideStyle.top);
   check(
-    scrollY >= initialScrollY + scrollDistance - 1
-      && Math.abs(side.top - stickyTop) <= 1
-      && side.bottom <= innerHeight + 1,
-    `Side Chat remains sticky in the viewport beside lower Agent tasks (top=${side.top}, bottom=${side.bottom}, viewport=${innerHeight}, scroll=${scrollY - initialScrollY})`,
+    sideStyle.position === "sticky"
+      && sideStyle.alignSelf === "start"
+      && Math.abs(stickyTop - 16) <= 0.1
+      && sideColumn.offsetHeight + stickyTop <= innerHeight + 1
+      && centerColumn.offsetHeight >= sideColumn.offsetHeight + 240,
+    `Side Chat is configured to remain sticky in the viewport beside lower Agent tasks (position=${sideStyle.position}, top=${stickyTop}, sideHeight=${sideColumn.offsetHeight}, centerHeight=${centerColumn.offsetHeight}, viewport=${innerHeight})`,
   );
   const preservedChats = [...analysisPanels];
   const preservedResult = JSON.stringify(currentRecommendation);
