@@ -176,10 +176,14 @@ async function runSmoke(window) {
     debugConsolePresent: Boolean(document.getElementById("debugConsoleOutput")) && typeof window.BioDesignRuntimeLog?.record === "function",
     debugConsoleButtonCount: document.querySelectorAll("[data-debug-open]").length,
     updateButtonDisabled: document.getElementById("betaUpdateButton")?.disabled === true,
-    retrievalProfilePresent: Boolean(document.getElementById("retrievalProfileSelect")),
-    retrievalProfileValue: document.getElementById("retrievalProfileSelect")?.value,
-    retrievalProfileOptions: [...(document.getElementById("retrievalProfileSelect")?.options || [])]
+    sideChatModelPresent: Boolean(document.getElementById("sideChatModelSelect")),
+    sideChatModelValue: document.getElementById("sideChatModelSelect")?.value,
+    sideChatModelOptions: [...(document.getElementById("sideChatModelSelect")?.options || [])]
       .map((option) => option.value),
+    sideChatModelLabels: [...(document.getElementById("sideChatModelSelect")?.options || [])]
+      .map((option) => option.textContent),
+    chatHistorySelectorPresent: Boolean(document.getElementById("sideChatConversationSelect")),
+    newChatButtonLabel: document.getElementById("clearSideChatButton")?.textContent.trim(),
     sideChatScrollable: ${sideChatLayout.bounded}
   })`);
   const acceptedSmokeTitles = new Set([
@@ -193,9 +197,10 @@ async function runSmoke(window) {
       renderer.updateButtonPresent &&
       renderer.debugConsolePresent && renderer.debugConsoleButtonCount === 3 &&
       renderer.updateButtonDisabled === !updates.eligible &&
-      renderer.retrievalProfilePresent &&
-      renderer.retrievalProfileValue === "light" &&
-      JSON.stringify(renderer.retrievalProfileOptions) === JSON.stringify(["light", "medium", "high"]) &&
+      renderer.sideChatModelPresent &&
+      renderer.sideChatModelValue === "default" &&
+      JSON.stringify(renderer.sideChatModelOptions) === JSON.stringify(["default", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"]) &&
+      renderer.chatHistorySelectorPresent && ["New Chat", "新建聊天"].includes(renderer.newChatButtonLabel) &&
       renderer.sideChatScrollable &&
       headerLayout.compact &&
       headerLayout.utilityRowPresent &&

@@ -2,24 +2,33 @@
 
 The Mac app now requests streamed answers for Side Chat and Analyze & Recommend. The FC code calls Requesty with `stream: true` and `stream_options: { include_usage: true }`, assembles streamed tool calls, and forwards answer text through an authenticated SSE connection. Complete answers still pass the existing validation and citation resolution before they are saved or committed. Paper Cards retain their structured generation and quota fallback.
 
-**Uploading this code to a built-in Node.js event runtime alone will not enable streaming.** Alibaba documents that SSE requires a custom runtime or container, with a chunked HTTP response. The package includes the custom-runtime HTTP server and an executable `bootstrap`; the existing `index.handler` remains compatible with buffered clients.
+**Uploading this code to an event-handler deployment alone will not enable streaming.** Alibaba documents that Web Functions support SSE; Event and Task Functions do not. The package includes the HTTP server in `src/index.js` and an executable `bootstrap`; the existing `index.handler` remains compatible with buffered clients. An HTTP trigger on an Event Function does not turn it into a Web Function.
+
+On 2026-09-09, the endpoint configured in `docs/app.js` (`https://biodesi-api-dev-jvvowibabk.cn-beijing.fcapp.run/health`) returned `streamingSupported: false`. That identifies the buffered handler path: `/chat` only opens streaming when the HTTP adapter supplies its transport. In that path, the handler deliberately omits Requesty's streaming options and the renderer receives the completed JSON answer. The 12 existing streaming integration tests passed, including actual local HTTP delivery before provider completion, tool calls, cancellation, and buffered-client compatibility. Requesty responses in these tests were mocked; live authenticated model streaming was not tested.
 
 ## Console settings
 
-Use the supplied `alibaba-fc-streaming.zip` for an FC Web function/custom runtime:
+Use the current backend ZIP for an FC **Web Function**. `Archive-beta-users-2026-09-09.zip` already contains the current `src/index.js`, `requesty-stream.js`, `shared/event-stream.js`, and backend handler; another code-only upload to the buffered deployment is insufficient.
+
+For the existing Beijing region, configure:
 
 | Setting | Value |
 | --- | --- |
+| Function type | Web Function |
 | Runtime | Custom runtime, Debian 12 (`custom.debian12`) |
-| Startup command | `/code/bootstrap` |
+| Official public layer | `Nodejs22`, version 3 (`acs:fc:cn-beijing:official:layers/Nodejs22/versions/3`) |
+| Startup command | `/opt/nodejs22/bin/node` |
+| Startup arguments | `/code/src/index.js` |
 | Listening port | `9000` |
 | Timeout | `300` seconds |
 | HTTP trigger | Keep POST and OPTIONS enabled, plus GET for health/login checks |
 | Environment, RAM role and CORS | Retain the current configuration, including Requesty and JWT settings |
 
-The bootstrap uses the installed Node.js 20 runtime. Keep the current function's endpoint if migrating it in place. If Alibaba requires a new Web function, copy its endpoint into `ALIBABA_FC_URL` in `docs/app.js` and rebuild the Mac app; until the endpoint is changed, the app will continue contacting the old backend.
+Debian 12 alone does not supply Node.js. Add the official runtime layer, or use a Node.js Web Function template that installs it. The absolute startup command above avoids relying on `PATH`. If the console has a single command field, use `/opt/nodejs22/bin/node /code/src/index.js`. The existing `/code/bootstrap` remains usable with its documented Node.js 20 installation paths or a supported `node` on `PATH`.
 
-After deployment, `GET /health` should report `"streamingSupported": true`. A built-in event-handler deployment reports `false`. The updated Mac app accepts both SSE and the previous JSON format, so it remains usable before deployment.
+Keep the current function's endpoint if FC supports migrating it in place. If a new Web Function is required, retain the existing function until the new endpoint passes health and authenticated streaming checks, then set `ALIBABA_FC_URL` in `docs/app.js` to the new endpoint. Restart `npm run desktop:dev` for development, or rebuild the packaged Mac app. Requesty model/API-key and login environment values do not need to change; a new function needs the same existing values and CORS configuration.
+
+After deployment, `GET /health` must report `"streamingSupported": true`. This confirms the adapter is running; the authenticated check below additionally confirms streaming reaches the client. An event-handler deployment reports `false`. The Mac app accepts both SSE and the previous JSON format, so it remains usable before deployment.
 
 ## Verify streaming
 
@@ -46,4 +55,4 @@ chmod +x bootstrap
 zip -r ../alibaba-fc-streaming.zip index.js side-chat-agent.js requesty-stream.js image-understanding.js src shared bootstrap package.json package-lock.json node_modules
 ```
 
-References: [Requesty streaming](https://docs.requesty.ai/features/streaming), [Alibaba SSE support](https://www.alibabacloud.com/help/doc-detail/2527059.html), [custom-runtime environments](https://help.aliyun.com/en/functioncompute/custom-runtime/), [custom-runtime startup](https://help.aliyun.com/en/functioncompute/principles-1).
+References: [Requesty streaming](https://docs.requesty.ai/features/streaming), [Alibaba SSE support](https://help.aliyun.com/en/functioncompute/does-function-compute-support-sse-streaming-response), [custom-runtime environments](https://help.aliyun.com/en/functioncompute/custom-runtime/), [official Node.js 22 layer](https://github.com/awesome-fc/awesome-layers/blob/main/docs/Nodejs22/README.md), [custom-runtime startup](https://help.aliyun.com/en/functioncompute/principles-1).

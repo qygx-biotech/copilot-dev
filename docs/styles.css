@@ -733,14 +733,16 @@ textarea:focus {
 
 .side-chat-panel .panel-header {
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .side-chat-panel .panel-actions {
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
-.retrieval-profile-control {
+.side-chat-model-control {
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -750,8 +752,9 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.retrieval-profile-control select {
-  width: 106px;
+.side-chat-model-control select {
+  width: 230px;
+  max-width: 100%;
   min-height: 34px;
   padding: 5px 25px 5px 8px;
   border: 1px solid var(--line);
@@ -763,9 +766,33 @@ textarea:focus {
   cursor: pointer;
 }
 
-.retrieval-profile-control select:focus-visible {
+.side-chat-model-control select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.side-chat-history-control {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.side-chat-history-control select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
 }
 
 .panel-helper {
@@ -1320,7 +1347,7 @@ textarea:focus {
   flex-direction: column;
   gap: 10px;
   max-height: none;
-  min-height: 150px;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;

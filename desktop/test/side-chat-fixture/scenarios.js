@@ -8,10 +8,14 @@ function resetConversation() {
   requests = []; saves = []; toasts = []; saveFailAt = 0; requestFailure = false; pendingRequest = null;
   exists = true; existenceGate = null; fileChecks = [];
   streamEvents = []; streamFailure = false; lastStreamCallback = null;
-  sideChatBusy = false;
-  sideChatImageComposer?.clear(); imageCalls = []; contextCalls = []; imageResponseStatus = 200; imageGate = null;
+  sideChatBusy = false; sideChatModel = "default"; defaultSideChatModel = ""; renderSideChatModelControl();
+  sideChatImageComposer?.clear(); imageCalls = []; contextCalls = []; contextModels = []; imageModels = []; imageResponseStatus = 200; imageGate = null;
   sideChatMessages = structuredClone(oldMessages);
   sideChatConversation = { id: "chat", title: "Chat", messages: sideChatMessages };
+  sideChatNavigationBusy = false; historyGate = null;
+  savedConversations.clear(); savedConversations.set("chat", structuredClone(sideChatConversation));
+  sideChatConversations = [{ id: "chat", title: "Chat", messageCount: sideChatMessages.length }];
+  renderSideChatConversationSelect();
   workspaceManager.workspace.workspaceId = "w-1";
   sources[0].catalogStatus = "ready"; sources[0].contentHash = "hash-a";
   renderSideChatConversation();
@@ -65,6 +69,141 @@ function contrast(foreground, background) { const a = luminance(foreground), b =
 async function runScenarios() {
   const passed = [], failed = [];
   async function scenario(name, callback) { resetConversation(); try { await callback(); passed.push(name); } catch (error) { failed.push({ name, error: error.message }); } }
+  await scenario("New Chat preserves the previous conversation and history selection resumes its context", async () => {
+    const recommendation = structuredClone(currentRecommendation);
+    sideChatInput.value = "Unsent draft";
+    clearSideChatButton.click(); await idle();
+    const newId = sideChatConversation.id;
+    ok(newId !== "chat", "New Chat reused a nonempty conversation");
+    equal(sideChatMessages, []);
+    equal(savedConversations.get("chat").messages, oldMessages);
+    equal(sideChatInput.value, "");
+    equal(sideChatConversationSelect.options.length, 2);
+    equal(sideChatConversationSelect.value, newId);
+    clearSideChatButton.click(); await idle();
+    equal(sideChatConversation.id, newId, "Empty New Chat should be reused");
+    sideChatConversationSelect.value = "chat";
+    sideChatConversationSelect.dispatchEvent(new Event("change")); await idle();
+    equal(sideChatMessages, oldMessages);
+    equal(sideChatConversation.id, "chat");
+    equal(sideChatConversationSelect.value, "chat");
+    await askSideChat("Continue the earlier discussion");
+    equal(requests[0].messages.slice(0, oldMessages.length).map(message => message.content), oldMessages.map(message => message.content));
+    equal(currentRecommendation, recommendation);
+  });
+  await scenario("History controls lock during an answer or switch, and failed saves keep the current chat", async () => {
+    setSideChatBusy(true);
+    ok(clearSideChatButton.disabled && sideChatConversationSelect.disabled, "History controls must lock during answers");
+    await changeSideChatConversation();
+    equal(savedConversations.size, 1);
+    setSideChatBusy(false);
+    saveFailAt = 1;
+    await changeSideChatConversation();
+    equal(sideChatConversation.id, "chat");
+    equal(sideChatMessages, oldMessages);
+    equal(savedConversations.size, 1);
+    ok(toasts.length === 1, "Failed saves must be visible");
+    saveFailAt = 0;
+    let release; historyGate = new Promise(resolve => { release = resolve; });
+    const pending = changeSideChatConversation(); await tick();
+    ok(clearSideChatButton.disabled && sideChatConversationSelect.disabled, "History controls must lock during switches");
+    await changeSideChatConversation();
+    release(); await pending;
+    equal(savedConversations.size, 2, "A double click created duplicate chats");
+    ok(!sideChatConversationSelect.disabled, "History did not unlock");
+  });
+  for (const width of [1500, 1200, 900]) await scenario(`Chat history fits the full Side Chat panel at ${width}px`, async () => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = `width:${width}px;height:720px;max-width:none;border:0`;
+    const loaded = new Promise(resolve => { frame.onload = resolve; });
+    frame.srcdoc = `<style>${document.querySelector("style").textContent}</style><div style="max-width:${width > 1280 ? "480px" : "none"}">${sideChatPanelMarkup}</div>`;
+    document.body.append(frame);
+    try {
+      await loaded;
+      const doc = frame.contentDocument;
+      const panel = doc.querySelector(".side-chat-panel");
+      const select = doc.getElementById("sideChatConversationSelect");
+      for (let i = 0; i < 5; i++) {
+        const option = doc.createElement("option");
+        option.textContent = "A long saved literature discussion with 中文标题 ".repeat(3);
+        select.append(option);
+      }
+      const panelBox = panel.getBoundingClientRect(), selectBox = select.getBoundingClientRect();
+      ok(selectBox.left >= panelBox.left && selectBox.right <= panelBox.right, "History selector overflowed the panel");
+      const sendBox = doc.getElementById("sendSideChatButton").getBoundingClientRect();
+      if (sendBox.bottom > panelBox.bottom) {
+        const control = doc.querySelector(".side-chat-history-control");
+        control.style.display = "none";
+        const withoutHistory = doc.getElementById("sendSideChatButton").getBoundingClientRect().bottom;
+        throw new Error("History hid the Send button: " + JSON.stringify({ panelBottom: panelBox.bottom, sendBottom: sendBox.bottom, withoutHistory }));
+      }
+      ok(doc.getElementById("sideChatForm").getBoundingClientRect().bottom <= panelBox.bottom, "History clipped the composer");
+      if (width === 1200) {
+        equal(frame.contentWindow.getComputedStyle(doc.querySelector(".side-chat-history-control")).gridColumn, "1 / -1");
+      }
+    } finally { frame.remove(); }
+  });
+  await scenario("Model selection replaces levels, persists independently, and is sent with Side Chat", async () => {
+    equal(sideChatModelSelect.options.length, 2);
+    updateSideChatModelConfiguration({ chatModel: "google/gemini-fixture" });
+    equal(sideChatModelSelect.options[0].textContent, "google/gemini-fixture");
+    equal(sideChatModelSelect.options[1].textContent, "nvidia/nemotron-3-nano-omni");
+    equal(sideChatModelSelect.value, "default");
+    equal(sideChatModelSelect.title, "google/gemini-fixture");
+    updateSideChatModelConfiguration({});
+    equal(defaultSideChatModel, "");
+    equal(sideChatModelSelect.options[0].textContent, "google/gemma-4-31b-it");
+    equal(sideChatModelSelect.title, "google/gemma-4-31b-it");
+    equal(normalizeSideChatModel("high"), "default");
+    const model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+    sideChatModelSelect.value = model;
+    sideChatModelSelect.dispatchEvent(new Event("change"));
+    equal(sideChatModel, model); equal(retrievalProfile, "light");
+    equal(workspaceManager.state.ui.sideChatModel, model);
+    equal(workspaceManager.state.ui.retrievalProfile, "light");
+    equal(sideChatModelSelect.title, model);
+    await askSideChat("Summarize this paper");
+    equal(requests[0].model, model);
+  });
+  await scenario("An in-flight Side Chat keeps its chosen model while the next choice changes", async () => {
+    const model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+    sideChatModel = model;
+    const pending = askSideChat("Summarize this paper");
+    sideChatModel = "default";
+    await pending;
+    equal(requests[0].model, model);
+    equal(contextModels, [model]);
+  });
+  await scenario("The configured display name survives older FC responses and localization without overriding routing", async () => {
+    const option = sideChatModelSelect.querySelector('option[value="default"]');
+    const originalName = option.dataset.modelName;
+    const originalTranslation = translations.sideChatModelDefault;
+    try {
+      option.dataset.modelName = "google/default-fixture";
+      translations.sideChatModelDefault = "默认模型";
+      for (const data of [{}, { chatModel: null }, { chatModel: "   " }]) {
+        updateSideChatModelConfiguration(data);
+        equal(option.textContent, "google/default-fixture");
+        equal(sideChatModelSelect.title, "google/default-fixture");
+        equal(sideChatModelDescription.textContent, "google/default-fixture");
+      }
+      updateSideChatModelConfiguration({ chatModel: "google/updated-fixture" });
+      equal(option.textContent, "google/updated-fixture");
+      equal(sideChatModelSelect.title, "google/updated-fixture");
+      // The language pass may replace text; rendering must restore the model name.
+      option.textContent = t("sideChatModelDefault");
+      renderSideChatModelControl();
+      equal(option.textContent, "google/updated-fixture");
+      await askSideChat("Summarize this paper");
+      equal(requests[0].model, "default");
+      equal(retrievalProfile, "light");
+    } finally {
+      if (originalName === undefined) delete option.dataset.modelName;
+      else option.dataset.modelName = originalName;
+      if (originalTranslation === undefined) delete translations.sideChatModelDefault;
+      else translations.sideChatModelDefault = originalTranslation;
+    }
+  });
   await scenario("Debug Console shows live stages, copies metadata, clears, localizes, and closes without blocking chat", async () => {
     const log = window.BioDesignRuntimeLog;
     const panel = document.getElementById("debugConsole"), output = document.getElementById("debugConsoleOutput");
@@ -496,11 +635,17 @@ async function runScenarios() {
   await scenario("Vision finishes before context preparation and the final answer receives image observations plus the typed question", async () => {
     await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Compare this activity with the papers";
     let release; imageGate = new Promise(resolve => { release = resolve; });
+    const model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+    sideChatModel = model;
     const pending = submitSideChat();
     for (let i = 0; i < 100 && !imageCalls.length; i++) await tick();
     equal(imageCalls.length, 1); equal(contextCalls.length, 0); equal(requests.length, 0);
     ok(sideChatHistory.querySelector(".chat-image-previews img"), "Sent message lost its image preview");
+    equal(imageModels, [model]);
+    sideChatModel = "default";
     release(); await pending;
+    equal(contextModels, [model]);
+    equal(requests[0].model, model);
     equal(contextCalls.length, 1); ok(contextCalls[0].includes("Compare this activity") && contextCalls[0].includes("25 U/mL"), "Context omitted text or image evidence");
     ok(requests[0].messages.at(-1).content.includes("25 U/mL"), "Main answer did not receive image understanding");
     ok(!JSON.stringify(requests).includes("data:image"), "Raw image bytes leaked into the normal answer pipeline");

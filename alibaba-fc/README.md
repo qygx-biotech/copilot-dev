@@ -6,11 +6,21 @@ This folder contains the authoritative cloud gateway for BioDesign Copilot. Elec
 docs/ frontend -> Alibaba Function Compute HTTP endpoint -> Requesty
 ```
 
-Electron never calls Requesty directly. The retired `worker/` implementation contains no Requesty client; Requesty credentials and cloud model configuration exist only in Function Compute environment variables or secrets.
+Electron never calls Requesty directly. The retired `worker/` implementation contains no Requesty client; Requesty credentials remain in Function Compute environment variables or secrets. The backend validates Side Chat model choices before forwarding them to Requesty.
+
+## Side Chat model selection
+
+The Side Chat selector replaces the former Light/Medium/High control. **Default model** uses the existing `REQUESTY_MODEL`; **Nemotron 3 Nano Omni** sends `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` through the same FC → Requesty client. The dropdown displays provider/model labels: the default uses the actual `REQUESTY_MODEL` reported by authenticated login/session responses, and NVIDIA is shortened to `nvidia/nemotron-3-nano-omni`. Hover shows the full ID. Older backends without this session metadata use the confirmed `google/gemma-4-31b-it` display fallback in `docs/index.html`; this label does not override the backend model. Authenticated model metadata takes precedence when available. The choice is saved per workspace and captured when a Side Chat turn starts. It applies to every model task triggered by that turn: image understanding, knowledge-sync Paper Cards, semantic interpretation, search planning/reranking, context routing, corpus mapping/repair, native PDF analysis when supported, and the answer/tool loop. Retries inherit the same selection. Agent Command and requests without a selection keep their existing role-specific configuration.
+
+No new FC environment variable or API key is needed for this option. Keep the existing `REQUESTY_MODEL` and `REQUESTY_API_KEY`, ensure the Requesty account can access the NVIDIA model, and deploy the updated backend **before** releasing the updated frontend. The answer endpoint receives `model`; preparatory endpoints and their configuration requests receive the validated `X-BioDesign-Chat-Model` header. FC uses a request-local environment copy, never mutating shared configuration. `default` selects `REQUESTY_MODEL` for all tasks in that Side Chat turn. Existing clients that omit the selection keep their configured role models. Arbitrary model overrides are rejected before provider execution or streaming starts.
+
+To make NVIDIA the global default instead, `REQUESTY_MODEL` can be changed to its full ID, but that also changes every capability that falls back to this variable. That is unnecessary for the selector. Future selectable models must be added to the shared `sideChatModelEnvironment` allowlist in `index.js` and the options in `docs/index.html`; credentials must never be added to the frontend. Local routing tests use mocked Requesty responses and do not certify live model access or tool-calling behavior.
+
+Per-model capabilities continue to use `REQUESTY_MODEL_CAPABILITIES_JSON`. A selected model never inherits PDF support, strict JSON Schema support, or context limits from a different configured model. Existing local/text fallbacks remain in place when a capability is unavailable; the system does not silently substitute another model. Model-dependent configurations, cache keys, and learned input limits are scoped to the selection. Valid saved knowledge and completed workflows remain reusable.
 
 ## Required Environment Variables
 
-- `REQUESTY_API_KEY` - Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code.
+- `REQUESTY_API_KEY` - Existing admin's Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code. Beta users use their own mapped key variables.
 - `REQUESTY_MODEL` - Requesty model name.
 - `REQUESTY_SEARCH_PLANNER_MODEL` - optional model for strict search-plan output. Falls back to `REQUESTY_MODEL` when absent.
 - `REQUESTY_RERANK_MODEL` - optional model for strict candidate reranking output. Falls back to `REQUESTY_MODEL` when absent.
@@ -19,6 +29,8 @@ Electron never calls Requesty directly. The retired `worker/` implementation con
 - `ADMIN_ACCOUNT` - Existing stable login account used in the authenticated OSS ownership prefix.
 - `ADMIN_PASSWORD_HASH` - Existing bcrypt password hash.
 - `JWT_SECRET` - Existing JWT signing secret.
+- `BETA_USERS_JSON` - Optional JSON array of beta users; see the exact setup below. Omit it or use `[]` to retain admin-only login.
+- `REQUESTY_KEY_BETA01`, `REQUESTY_KEY_BETA02`, etc. - Each beta user's own Requesty API key, resolved only from that user's `requestyKeyEnv` field on FC.
 - `OSS_BUCKET` - Legacy private OSS bucket used by retained diagnostic/document endpoints.
 - `OSS_REGION` - Legacy OSS region ID, such as `oss-cn-beijing`.
 - `OSS_INTERNAL_ENDPOINT` - Legacy internal OSS endpoint.
@@ -27,6 +39,79 @@ Electron never calls Requesty directly. The retired `worker/` implementation con
 The OSS variables and RAM role are not used by the active local-workspace literature routes. They are still required only if the retained `/api/test-oss` or `/api/documents/*` endpoints must remain operational.
 
 Do not configure permanent Alibaba Cloud AccessKeys for the function. OSS operations use temporary STS credentials supplied by the attached Function Compute RAM role through the Node.js invocation context (with the Function Compute-provided `ALIBABA_CLOUD_*` environment variables as a runtime fallback).
+
+## Multi-user beta login
+
+The existing account/password screen requires no frontend change. A beta user enters their chosen `account` and **original password**. FC compares it against that user's bcrypt `passwordHash`; the hash itself is not a login password. The existing `ADMIN_ACCOUNT`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, and `REQUESTY_API_KEY` retain their roles. The admin's stable ID is `admin`; beta users have role `beta` and a configured stable ID.
+
+New 12-hour HS256 JWTs contain only `id`, `sub` (the same stable ID), `account`, `role`, `iat`, and `exp`. Login and `/api/me` return only public user identity and the existing `chatModel` metadata, plus the token at login. Password hashes, key mappings and Requesty keys are never returned. Existing admin JWTs without IDs remain accepted until expiry if their account matches the configured admin.
+
+FC validates the beta configuration and rechecks the token's ID, account and active status on **every authenticated request**, including `/api/me`, images, configurations, legacy document routes and Agent Command. Removing a user or setting `active: false` rejects their next request even before JWT expiry. Changing an account or ID also invalidates its existing tokens. Each invocation snapshots FC configuration; an already-running invocation retains its starting configuration.
+
+The user's key is placed in an invocation-local environment copy before model selection. All provider work inherits it: semantic interpretation, schema mapping, planning/reranking, Paper Cards and literature processing, corpus and native-PDF workers, image understanding, document review, repairs/retries, answer/tool loops and streaming. Side Chat's selected model and Agent Command's role models keep their existing behavior independently. Client body/header fields cannot select another identity or key. Existing account-based OSS ownership and local workspace/history behavior remain intact.
+
+### Configure the first beta user on FC
+
+1. Keep the existing FC values for `ADMIN_ACCOUNT`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, `REQUESTY_API_KEY`, `REQUESTY_MODEL`, model capability/role settings, and any existing OSS settings. Do not replace the admin key with a beta user's key. `JWT_SECRET` remains one shared server secret.
+2. Choose an account name, stable ID such as `beta01`, and original password. Generate a bcrypt hash locally from that original password. This command prompts without echoing the password and avoids placing it in shell history or command arguments (requires Python 3 and installed backend dependencies):
+
+   ```sh
+   cd '/Users/wei/Documents/Columbia University/PhD/AI4S/Dev/alibaba-fc'
+   python3 -c 'import getpass,sys; sys.stdout.write(getpass.getpass("Beta password: "))' |
+     node -e 'let p=""; process.stdin.setEncoding("utf8"); process.stdin.on("data",s=>p+=s); process.stdin.on("end",async()=>console.log(await require("bcryptjs").hash(p,12)));'
+   ```
+
+   Use a password of at most 72 UTF-8 bytes; bcrypt only uses its first 72 bytes. Preserve intentional password spaces. Copy the complete 60-character hash, including its `$` characters.
+3. In the FC function's environment variables, add **`REQUESTY_KEY_BETA01`** with the actual Requesty key belonging to this beta user. Store the secret value only on FC. Ensure that Requesty account has access to the configured models and any selected Side Chat models.
+4. Add **`BETA_USERS_JSON`** with the following JSON, replacing the hash placeholder with the generated hash. Paste the JSON directly into the FC value field, with no Markdown fences or surrounding shell quotes:
+
+   ```json
+   [
+     {
+       "id": "beta01",
+       "account": "example-user",
+       "passwordHash": "<bcrypt hash>",
+       "requestyKeyEnv": "REQUESTY_KEY_BETA01",
+       "active": true
+     }
+   ]
+   ```
+
+   Save the matching key variable and JSON together. Do not put the actual Requesty key inside the JSON, frontend, repository or ZIP.
+
+### Validation and adding another user
+
+All five fields are required, and unknown fields are rejected. `active` must be the JSON boolean `true` or `false`. IDs must match `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`; `admin` is reserved. Accounts must be nonempty, at most 128 characters, with no leading/trailing whitespace or control characters. IDs/accounts must be unique without regard to case; account uniqueness also uses Unicode NFKC normalization to match the existing OSS ownership boundary. A beta account cannot alias `ADMIN_ACCOUNT`.
+
+Hashes must be canonical 60-character bcrypt `$2a$`, `$2b$` or `$2y$` values with a valid cost (the command above uses cost 12). Key variable names must match `REQUESTY_KEY_[A-Z0-9][A-Z0-9_]{0,63}` and be distinct for each configured user. Mapping to `REQUESTY_API_KEY`, `JWT_SECRET`, arbitrary environment names or inline keys is rejected.
+
+To add another user, generate their hash, set **`REQUESTY_KEY_BETA02`** to their own key, and append a second object to the existing `BETA_USERS_JSON` array:
+
+```json
+{
+  "id": "beta02",
+  "account": "another-user",
+  "passwordHash": "<second bcrypt hash>",
+  "requestyKeyEnv": "REQUESTY_KEY_BETA02",
+  "active": true
+}
+```
+
+Keep existing rows and IDs. No backend rebuild is needed to add, disable or remove users. To disable a user, set their `active` to `false` or remove their row and save the FC configuration. To rotate a Requesty key, replace the value of that user's mapped FC variable; their next request uses the new value. Keep IDs and accounts stable and do not reassign a former user's identity to a different person, since account names still determine legacy OSS ownership.
+
+Malformed JSON/configuration returns HTTP 500 with `Invalid BETA_USERS_JSON configuration.` and blocks authenticated use, including admin use, until corrected. An absent variable or `[]` is valid; a blank string is malformed. Invalid passwords and inactive/removed users return HTTP 401. An otherwise valid beta user whose mapped key is missing, empty or contains whitespace gets HTTP 503 `BETA_REQUESTY_KEY_MISSING` at login and on protected requests. This never falls back to the admin key; other properly configured users remain usable. Disabled users may have their key removed while their valid inactive row remains.
+
+### Deploy the tested beta backend
+
+The supplied package is **`alibaba-fc/Archive-beta-users-2026-09-09.zip`**, with a matching `.zip.sha256` checksum and `.manifest.json` file listing every archived file's SHA-256. `alibaba-fc/Archive.zip` is preserved. The package contains the tested root handler, streaming/image helpers, HTTP adapter, shared contracts, executable `bootstrap`, dependency manifests and production `node_modules`; it contains no environment files or credentials.
+
+1. Upload `Archive-beta-users-2026-09-09.zip` as the function code ZIP with `index.js` at its root. Keep the current endpoint, trigger, CORS, role, memory and timeout settings.
+2. Keep the existing runtime mode. For a built-in Node.js 20 event function, retain handler **`index.handler`**. For an existing streaming custom runtime, retain **`/code/bootstrap`** and listening port **`9000`**. The ZIP supports both; see [streaming deployment](STREAMING_DEPLOYMENT.md) if changing runtime modes separately.
+3. Save the FC variables from the steps above. No frontend deployment or desktop rebuild is required for beta login.
+4. Verify admin login and a normal Side Chat answer. Then log in as `example-user` using the original password; test Side Chat with Default and the alternate model, image understanding, literature preparation, and Agent Command. Verify usage in the corresponding Requesty accounts. Local tests mock Requesty/OSS and do not certify live model entitlement or FC configuration.
+5. Test revocation with a beta session: set its `active` to `false` and save. `/api/me` and the next protected request must return 401. Re-enable the user when finished. Check that the admin still works.
+
+Nothing in the local implementation or packaging process deploys code or changes live secrets. The FC upload and configuration steps above are manual.
 
 ## Local Testing
 
@@ -80,7 +165,7 @@ For live streamed answers, use the [streaming deployment instructions](STREAMING
    cd alibaba-fc
    npm ci --omit=dev
    npm run sync:shared
-   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js shared package.json package-lock.json node_modules
+   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js requesty-stream.js image-understanding.js src shared bootstrap package.json package-lock.json node_modules
    ```
 
 8. Upload `alibaba-fc-local-workspace.zip`. Keep the handler set to `index.handler`.

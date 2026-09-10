@@ -9,6 +9,7 @@ const profile = fs.mkdtempSync(path.join(os.tmpdir(), "biodesign-side-chat-ui-")
 app.setPath("userData", profile);
 app.commandLine.appendSwitch("disable-background-networking");
 const source = fs.readFileSync(path.join(root, "docs/app.js"), "utf8");
+const sideChatPanelMarkup = fs.readFileSync(path.join(root, "docs/index.html"), "utf8").match(/<section class="workbench-panel side-chat-panel"[\s\S]*?<\/section>/)[0];
 const applicationSource = fs.readFileSync(path.join(root, "desktop/main/application.mjs"), "utf8");
 const scrollInspection = applicationSource.match(/^function inspectSideChatScrollLayout\([\s\S]*?^}/m)?.[0];
 if (!scrollInspection) throw new Error("Missing production Side Chat smoke inspection");
@@ -18,18 +19,21 @@ function actualFunction(name) {
   return match[0];
 }
 const functions = [
-  "persistSideChatConversation", "renderSideChatConversation", "beginSideChatMessageEdit", "showSideChatEditError", "reviseLatestSideChatMessage",
+  "persistSideChatConversation", "renderSideChatConversation", "renderSideChatConversationSelect", "changeSideChatConversation", "beginSideChatMessageEdit", "showSideChatEditError", "reviseLatestSideChatMessage",
   "setSideChatBusy", "askSideChat", "addSideChatThinking", "updateSideChatThinking", "getSideChatActivitySteps", "sideChatProgressText", "formatCorpusPaperProgress",
   "setSideChatEmptyState", "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
   "getSideChatCitationContext", "navigateSideChatCitation", "createSideChatActivitySummary", "addSideChatMessage",
-  "createStreamingAnswer",
+  "createStreamingAnswer", "normalizeSideChatModel", "shortSideChatModelName", "updateSideChatModelConfiguration", "renderSideChatModelControl", "saveWorkspaceStateNow",
   "runAgentInstruction", "setAgentBusy",
   "initializeSideChatImages", "submitSideChat", "understandSideChatImages",
 ].map(actualFunction).join("\n");
+const modelEvents = source.match(/^sideChatModelSelect.addEventListener[\s\S]*?^\}\);/m)[0];
+const historyEvents = source.slice(source.indexOf('clearSideChatButton.addEventListener("click"'), source.indexOf("async function changeSideChatConversation"));
 const events = source.slice(source.indexOf('sideChatHistory.addEventListener("click"'), source.indexOf("function normalizeBetaUpdateStatus"));
 const contextApi = require(path.join(root, "docs/project-context-service.js"));
 const setup = `
 const sourceCitationApi = window.BioDesignSourceCitations;
+const sideChatPanelMarkup = ${JSON.stringify(sideChatPanelMarkup)};
 const chatImageApi = window.BioDesignChatImages, runtimeLog = window.BioDesignRuntimeLog;
 let sideChatImageComposer = null;
 let sideChatMessageEdit = null;
@@ -39,17 +43,24 @@ const sideChatHistory = document.querySelector("#history"), sideChatInput = docu
 const translations = { editLastMessage: "Edit latest message", cancelEdit: "Cancel", saveAndRegenerate: "Save and regenerate", editMessageRequired: "Enter a message before saving.", chatPersistenceFailed: "Could not save. Please try again.", sideChatUserLabel: "You", sideChatAssistantLabel: "Copilot", citationUnavailable: "Source unavailable", backendFallbackMessage: "Request failed; local fallback", thinking: "Thinking..." };
 const t = key => translations[key] || key;
 let sideChatBusy = false, sideChatMessages = [], sideChatConversation, activeCorpusProgress = null, activeLiteratureOperations = 0, lastSourceUsage;
+const sideChatModelSelect = document.getElementById("sideChatModelSelect"), sideChatModelDescription = document.getElementById("sideChatModelDescription");
+const projectContextInput = { value: "Test goal" };
+let sideChatModel = "default", defaultSideChatModel = "";
+const sideChatConversationSelect = document.querySelector("#sideChatConversationSelect");
+let sideChatConversations = [], sideChatNavigationBusy = false, historyGate = null;
+const savedConversations = new Map();
+const scheduleWorkspaceStateSave = () => saveWorkspaceStateNow();
 let currentLanguage = "en", retrievalProfile = "light", workspaceAbortController = null, knowledgeService = null;
 let requests = [], saves = [], toasts = [], saveFailAt = 0, requestFailure = false, pendingRequest = null, sequence = 0, exists = true, existenceGate = null, fileChecks = [];
 let streamEvents = [], streamFailure = false, lastStreamCallback = null;
-let imageCalls = [], contextCalls = [], imageResponseStatus = 200, imageGate = null;
+let imageCalls = [], contextCalls = [], contextModels = [], imageModels = [], imageResponseStatus = 200, imageGate = null;
 const imageStore = new Map();
 const backendUrl = path => path;
 const getAuthHeaders = extra => ({ ...extra, Authorization: "Bearer fixture" });
 const requireLoginForUnauthorized = response => { if (response.status === 401) throw new AuthRequiredError(); };
 window.fetch = async (url, options) => {
   if (url !== "/api/chat/understand-images") throw new Error("Unexpected fixture endpoint");
-  const body = JSON.parse(options.body); imageCalls.push(body);
+  const body = JSON.parse(options.body); imageCalls.push(body); imageModels.push(options.headers["X-BioDesign-Chat-Model"]);
   if (imageGate) await imageGate;
   return new Response(JSON.stringify(imageResponseStatus === 200 ? { understanding: { text: "Image 1: enzyme activity 25 U/mL at pH 7.0; error bars unclear.", model: "vision-fixture" }, imageCount: body.images.length } : { error: "IMAGE_PROVIDER_FAILED" }), { status: imageResponseStatus });
 };
@@ -66,13 +77,16 @@ const buildAgentMessages = instruction => [{ role: "user", content: instruction 
 const normalizeAgentResponse = response => ({ title: response.reply });
 const createLocalRecommendation = () => ({ title: "Local fallback" });
 const sources = [{ sourceId: "paper-a", path: "literature/中文/酶活性.pdf", contentHash: "hash-a", catalogStatus: "ready" }];
-const workspaceManager = { workspace: { workspaceId: "w-1", name: "Project Folder" }, fileExists: async path => { fileChecks.push(path); if (existenceGate) await existenceGate; return exists; } };
+const workspaceManager = { state: { project: {}, ui: {} }, saveState: async state => { workspaceManager.state = state; }, workspace: { workspaceId: "w-1", name: "Project Folder" }, fileExists: async path => { fileChecks.push(path); if (existenceGate) await existenceGate; return exists; } };
 let workspaceTree = { type: "directory", relativePath: "", children: [{ type: "file", relativePath: sources[0].path }] };
 const flattenWorkspaceTree = tree => tree.children;
 const expandedWorkspacePaths = new Set([""]), selectedWorkspacePaths = new Set();
 const literatureModule = { documents: [], sourceRegistry: { list: () => sources, get: id => sources.find(s => s.sourceId === id) } };
-const projectContextService = { buildConversationContext: conversation => structuredClone(conversation.messages), buildContext: async options => { contextCalls.push(options.question); return { literature: {}, files: [] }; } };
-const workspaceChatStore = { saveConversation: async conversation => { saves.push(structuredClone(conversation)); if (saves.length === saveFailAt) throw new Error("disk unavailable"); return structuredClone(conversation); },
+const projectContextService = { buildConversationContext: conversation => structuredClone(conversation.messages), buildContext: async options => { contextCalls.push(options.question); contextModels.push(options.callContext?.model); return { literature: {}, files: [] }; } };
+const workspaceChatStore = { saveConversation: async conversation => { saves.push(structuredClone(conversation)); if (saves.length === saveFailAt) throw new Error("disk unavailable"); savedConversations.set(conversation.id, structuredClone(conversation)); return structuredClone(conversation); },
+  listConversations: async () => [...savedConversations.values()].map(({ messages, ...record }) => ({ ...record, messageCount: messages.length })),
+  activateConversation: async id => { if (historyGate) await historyGate; if (!savedConversations.has(id)) throw new Error("Missing chat"); return structuredClone(savedConversations.get(id)); },
+  startNewConversation: async () => { if (historyGate) await historyGate; const conversation = { id: crypto.randomUUID(), title: "Side Chat", messages: [] }; savedConversations.set(conversation.id, conversation); return conversation; },
   saveImageAttachments: async images => images.map(image => { const attachmentId = crypto.randomUUID(); imageStore.set(attachmentId, image); return { attachmentId, name: image.name, thumbnail: image.thumbnail }; }),
   loadImageAttachments: async records => records.map(record => imageStore.get(record.attachmentId)),
 };
@@ -106,7 +120,9 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     const win = new BrowserWindow({ width: 850, height: 800, show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
     const css = fs.readFileSync(path.join(root, "docs/styles.css"), "utf8");
     const debugMarkup = fs.readFileSync(path.join(root, "docs/index.html"), "utf8").match(/<section id="debugConsole"[\s\S]*?<\/section>/)[0];
-    const fixtureHtml = `<html><head><meta charset="utf-8"><style>${css}</style></head><body style="padding:24px"><main style="max-width:700px"><div id="tree"></div><div id="history" class="side-chat-history"></div><div id="examples"></div><form id="composer" class="side-chat-form"><div id="sideChatImagePreviews" class="chat-image-previews" hidden></div><textarea id="input"></textarea><input id="sideChatImageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><div class="side-chat-compose-actions"><button id="attachSideChatImageButton" type="button">Add images</button><button id="send" type="button">Ask</button></div><p id="sideChatImageStatus" role="status"></p></form><button id="clear">Clear</button></main></body></html>`;
+    const modelMarkup = fs.readFileSync(path.join(root, "docs/index.html"), "utf8").match(/<label class="side-chat-model-control"[\s\S]*?<\/label>/)[0];
+    const historyMarkup = fs.readFileSync(path.join(root, "docs/index.html"), "utf8").match(/<label class="side-chat-history-control"[\s\S]*?<\/label>/)[0];
+    const fixtureHtml = `<html><head><meta charset="utf-8"><style>${css}</style></head><body style="padding:24px"><main style="max-width:700px"><div class="panel-actions">${modelMarkup}<button id="clear">New Chat</button></div>${historyMarkup}<div id="tree"></div><div id="history" class="side-chat-history"></div><div id="examples"></div><form id="composer" class="side-chat-form"><div id="sideChatImagePreviews" class="chat-image-previews" hidden></div><textarea id="input"></textarea><input id="sideChatImageInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden><div class="side-chat-compose-actions"><button id="attachSideChatImageButton" type="button">Add images</button><button id="send" type="button">Ask</button></div><p id="sideChatImageStatus" role="status"></p></form></main></body></html>`;
     const fixturePath = path.join(profile, "fixture.html");
     fs.writeFileSync(fixturePath, fixtureHtml);
     await win.loadFile(fixturePath);
@@ -116,7 +132,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     await win.webContents.executeJavaScript(`document.body.insertAdjacentHTML("beforeend", ${JSON.stringify('<button data-debug-open data-debug-label="open">Debug Console</button>' + debugMarkup)})`);
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/runtime-log.js"), "utf8"));
     await win.webContents.executeJavaScript("window.BioDesignRuntimeLog.installPanel()");
-    await win.webContents.executeJavaScript(`${setup}\n${functions}\n${scrollInspection}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
+    await win.webContents.executeJavaScript(`${setup}\n${functions}\n${scrollInspection}\n${modelEvents}\n${historyEvents}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("initializeSideChatImages()");
     const result = await win.webContents.executeJavaScript("runScenarios()");
     const screenshot = path.join(profile, "editor.png");

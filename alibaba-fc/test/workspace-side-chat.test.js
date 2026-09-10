@@ -371,7 +371,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.doesNotMatch(htmlSource, /Experimental Results/);
 });
 
-test("retrieval quality is a compact validated workspace setting, not a preload control", () => {
+test("Side Chat model selection replaces the levels while retaining legacy retrieval settings", () => {
   const appSource = fs.readFileSync(path.join(__dirname, "../../docs/app.js"), "utf8");
   const htmlSource = fs.readFileSync(path.join(__dirname, "../../docs/index.html"), "utf8");
   const stylesSource = fs.readFileSync(path.join(__dirname, "../../docs/styles.css"), "utf8");
@@ -380,11 +380,12 @@ test("retrieval quality is a compact validated workspace setting, not a preload 
     "utf8"
   );
 
-  assert.match(htmlSource, /id="retrievalProfileSelect"/);
-  for (const profile of ["light", "medium", "high"]) {
-    assert.match(htmlSource, new RegExp(`value="${profile}"`));
-  }
-  assert.match(stylesSource, /\.retrieval-profile-control select\s*\{[^}]*width:\s*106px/s);
+  assert.match(htmlSource, /id="sideChatModelSelect"/);
+  assert.doesNotMatch(htmlSource, /id="retrievalProfileSelect"/);
+  assert.match(htmlSource, /value="default"/);
+  assert.match(htmlSource, /value="nvidia\/nemotron-3-nano-omni-30b-a3b-reasoning"/);
+  assert.match(stylesSource, /\.side-chat-model-control select\s*\{[^}]*width:\s*230px/s);
+  assert.match(appSource, /sideChatModel\s*=\s*normalizeSideChatModel\(result\.state\.ui\?\.sideChatModel\)/);
   assert.match(appSource, /retrievalProfile\s*=\s*normalizeRetrievalProfile\(result\.state\.ui\?\.retrievalProfile\)/);
   assert.match(appSource, /ui:\s*\{[\s\S]*retrievalProfile,[\s\S]*\}/);
   assert.match(appSource, /surface:\s*"side_chat"[\s\S]*retrievalProfile,/);

@@ -226,6 +226,7 @@
       return /^[A-Za-z0-9._:-]{1,200}$/.test(text) ? text : "";
     };
     return {
+      ...(typeof value?.model === "string" ? { model: value.model } : {}),
       turnId: boundedId(value?.turnId),
       workflowId: boundedId(value?.workflowId),
       callRole,
@@ -627,9 +628,14 @@
       this.wait = options.wait || abortableDelay;
       this.paperCardQueue = [];
       this.paperCardConcurrency = 2;
+      this.paperCardRecoverySuccesses = 0;
+      this.paperCardThrottleGeneration = 0;
       this.activePaperCardRequests = 0;
       this.providerCooldownUntil = 0;
       this.inputTokenLimit = null;
+      this.modelInputTokenLimits = new Map();
+      this.modelConfigurationSignatures = new Map();
+      this.paperCardConfigurations = new WeakMap();
       this.turnCallCounts = new Map();
       this.semanticCapability = null;
       this.semanticCapabilityProbe = null;
@@ -641,19 +647,76 @@
       };
     }
 
-    async getPaperCardConfiguration(signal) {
+    async getPaperCardConfiguration(signal, callContext, workspace) {
+      assertNotAborted(signal);
+      const headers = { ...this.getHeaders() };
+      const turnId = callContext?.configurationTurnId || callContext?.turnId;
+      // Unknown turn/workspace scopes stay uncached. A workspace object also
+      // isolates reopenings and separate projects that happen to share an ID.
+      if (!turnId || !workspace || typeof workspace !== "object") {
+        return this.fetchPaperCardConfiguration(signal, callContext, headers);
+      }
+      const headersKey = JSON.stringify(Object.entries(headers).sort(([a], [b]) => a.localeCompare(b)));
+      let scope = this.paperCardConfigurations.get(workspace);
+      if (!scope || scope.headersKey !== headersKey || scope.baseUrl !== this.baseUrl) {
+        scope = { headersKey, baseUrl: this.baseUrl, turns: new Map() };
+        this.paperCardConfigurations.set(workspace, scope);
+      }
+      const key = JSON.stringify([turnId, callContext?.model || ""]);
+      const forget = (entry) => { if (scope.turns.get(key) === entry) scope.turns.delete(key); };
+      let entry = scope.turns.get(key);
+      if (!entry) {
+        entry = { controller: new AbortController(), consumers: 0, settled: false };
+        scope.turns.set(key, entry);
+        entry.promise = this.fetchPaperCardConfiguration(entry.controller.signal, callContext, headers).then(data => {
+          entry.settled = true;
+          // Keep the existing contract validator authoritative; invalid setup
+          // must be fetched again if a later caller retries in this turn.
+          if (!sourceSystemApi.normalizePaperCardContract(data)) forget(entry);
+          for (const [oldKey, oldEntry] of scope.turns) {
+            if (scope.turns.size <= 50) break;
+            if (oldEntry.settled) scope.turns.delete(oldKey);
+          }
+          return data;
+        }, error => { entry.settled = true; forget(entry); throw error; });
+      }
+      // One cancelled consumer must not abort setup still needed by another.
+      // Once all consumers leave, abort and evict the unfinished request.
+      entry.consumers++;
+      return new Promise((resolve, reject) => {
+        let done = false;
+        const finish = (callback, value) => {
+          if (done) return;
+          done = true;
+          signal?.removeEventListener("abort", abort);
+          entry.consumers--;
+          callback(value);
+          if (!entry.settled && !entry.consumers) { forget(entry); entry.controller.abort(); }
+        };
+        const abort = () => finish(reject, new LiteratureError("OPERATION_ABORTED", "The literature operation was stopped."));
+        signal?.addEventListener("abort", abort, { once: true });
+        entry.promise.then(data => finish(resolve, { ...data }), error => finish(reject, error));
+        if (signal?.aborted) abort();
+      });
+    }
+
+    async fetchPaperCardConfiguration(signal, callContext, headers) {
       const data = await this.request(
         "/api/literature/config",
         undefined,
         signal,
-        "GET"
+        "GET",
+        callContext,
+        headers
       );
-      if (this.configurationSignature && this.configurationSignature !== data.modelSignature) {
-        this.inputTokenLimit = null;
-        this.paperCardConcurrency = 2;
-        this.drainPaperCardQueue();
+      const model = callContext?.model;
+      const previousSignature = model ? this.modelConfigurationSignatures.get(model) : this.configurationSignature;
+      if (previousSignature && previousSignature !== data.modelSignature) {
+        if (model) this.modelInputTokenLimits.delete(model);
+        else this.inputTokenLimit = null;
       }
-      this.configurationSignature = data.modelSignature;
+      if (model) this.modelConfigurationSignatures.set(model, data.modelSignature);
+      else this.configurationSignature = data.modelSignature;
       this.log?.record("paper-card.configuration", { combinedTextSupported: data.combinedTextSupported === true,
         nativePdfSupported: data.nativePdfSupported === true, structuredOutputMode: data.combinedTextOutputMode || "not-advertised",
         promptVersion: data.combinedTextPromptVersion });
@@ -844,7 +907,9 @@
 
     async interpretSemantics(payload, signal) {
       assertNotAborted(signal);
-      const signature = `${this.baseUrl}\n${this.configurationSignature || ""}`;
+      const model = payload.callContext?.model;
+      const configuration = model ? this.modelConfigurationSignatures.get(model) : this.configurationSignature;
+      const signature = `${this.baseUrl}\n${model || ""}\n${configuration || ""}`;
       // Concurrent requests wait only for the capability probe; they must never
       // reuse another question's interpretation.
       if (this.semanticCapabilityProbe?.signature === signature) {
@@ -944,13 +1009,15 @@
             ? payload.availableMemoryDescriptions.slice(0, 12)
             : [],
         },
-        signal
+        signal,
+        "POST",
+        payload.callContext
       );
       return data.routing;
     }
 
-    async getKnowledgeRetrievalConfig(signal) {
-      return this.request("/api/knowledge/config", undefined, signal, "GET");
+    async getKnowledgeRetrievalConfig(signal, callContext) {
+      return this.request("/api/knowledge/config", undefined, signal, "GET", callContext);
     }
 
     async planKnowledgeSearch(payload, signal) {
@@ -982,8 +1049,8 @@
       );
     }
 
-    async request(path, body, signal, method = "POST") {
-      return this.requestInternal(path, body, signal, method);
+    async request(path, body, signal, method = "POST", callContext, headers) {
+      return this.requestInternal(path, body, signal, method, callContext, headers);
     }
 
     acquirePaperCardSlot(signal, details) {
@@ -1022,8 +1089,8 @@
       }
     }
 
-    inputQuotaCharacterBudget() {
-      return rateLimitApi.inputQuotaCharacterBudget(this.inputTokenLimit);
+    inputQuotaCharacterBudget(callContext) {
+      return rateLimitApi.inputQuotaCharacterBudget(callContext?.model ? this.modelInputTokenLimits.get(callContext.model) : this.inputTokenLimit);
     }
 
     async waitForProviderCooldown(signal, details) {
@@ -1037,18 +1104,25 @@
       assertNotAborted(signal);
     }
 
-    assertPaperCardQuotaBudget(path, body) {
-      const learnedBudget = this.inputQuotaCharacterBudget();
+    assertPaperCardQuotaBudget(path, body, callContext) {
+      const inputTokenLimit = callContext?.model ? this.modelInputTokenLimits.get(callContext.model) : this.inputTokenLimit;
+      const learnedBudget = this.inputQuotaCharacterBudget(callContext);
       if (path === "/api/literature/create-paper-card-from-text" && learnedBudget && String(body?.text || "").length > learnedBudget) {
-        this.log?.record("paper-card.quota-route", { paperId: body?.paperId, route: "map-reduce", inputTokenLimit: this.inputTokenLimit }, "warn");
+        this.log?.record("paper-card.quota-route", { paperId: body?.paperId, route: "map-reduce", inputTokenLimit }, "warn");
         throw Object.assign(new LiteratureError("ProviderRateLimited", "The full paper exceeds the conservative budget learned from the provider's input-token quota."),
-          { providerStatus: 429, verifiedInputTokenRateLimit: true, inputTokenLimit: this.inputTokenLimit, attempts: 0 });
+          { providerStatus: 429, verifiedInputTokenRateLimit: true, inputTokenLimit, attempts: 0 });
       }
     }
 
-    async requestInternal(path, body, signal, method = "POST") {
+    async requestInternal(path, body, signal, method = "POST", callContext = body?.callContext, headers) {
       assertNotAborted(signal);
-      this.assertPaperCardQuotaBudget(path, body);
+      // Keep routing outside strict task schemas and provider trace metadata.
+      const model = callContext?.model;
+      if (body?.callContext && Object.hasOwn(body.callContext, "model")) {
+        const { model: _model, ...providerContext } = body.callContext;
+        body = { ...body, callContext: providerContext };
+      }
+      this.assertPaperCardQuotaBudget(path, body, callContext);
       const roles = { "/api/semantic/interpret": "semantic_parser", "/api/semantic/map-schema": "schema_mapper", "/api/knowledge/plan-search": "search_planner", "/api/knowledge/rerank": "reranker", "/api/corpus/map-paper": "corpus_mapper", "/api/literature/analyze-pdf-native": "native_pdf", "/api/literature/create-paper-card-from-text": "combined_text_paper_card" };
       this.recordTurnCall(body?.callContext?.turnId, roles[path]);
       this.endpointAccounting.logicalEndpointCalls[path] =
@@ -1062,30 +1136,34 @@
         // Acquire per transport attempt, so retries also obey a concurrency
         // reduction learned while another paper's request was in flight.
         const release = PAPER_CARD_ENDPOINTS.has(path) ? await this.acquirePaperCardSlot(signal, details) : null;
-        let finish;
+        let finish, throttleGeneration;
         try {
           assertNotAborted(signal);
-          this.assertPaperCardQuotaBudget(path, body);
+          this.assertPaperCardQuotaBudget(path, body, callContext);
           if (method !== "GET") await this.waitForProviderCooldown(signal, details);
           this.endpointAccounting.transportAttempts[path] =
             (this.endpointAccounting.transportAttempts[path] || 0) + 1;
           finish = this.log?.begin("backend-request", { ...details, method,
             workflowId: body?.callContext?.workflowId, role: roles[path] || body?.callContext?.callRole,
             attempt: attempt + 1, ...(release ? { activeRequests: this.activePaperCardRequests, concurrency: this.paperCardConcurrency } : {}) });
+          throttleGeneration = this.providerCooldownUntil <= this.now() ? this.paperCardThrottleGeneration : null;
           const response = await this.fetch(`${this.baseUrl}${path}`, {
             method,
             headers: {
-              ...this.getHeaders(),
+              ...(headers || this.getHeaders()),
+              ...(model ? { "X-BioDesign-Chat-Model": model } : {}),
               ...(body === undefined ? {} : { "Content-Type": "application/json" }),
             },
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             signal,
           });
+          assertNotAborted(signal);
           if (response.status === 401) {
             this.onUnauthorized();
             throw new LiteratureError("AUTH_REQUIRED", "Your login session has expired.");
           }
           const data = await response.json().catch(() => ({}));
+          assertNotAborted(signal);
           this.endpointAccounting.providerAttempts[path] =
             (this.endpointAccounting.providerAttempts[path] || 0) +
             Math.max(0, Number(data.attempts) || 0);
@@ -1094,10 +1172,22 @@
               (this.endpointAccounting.cacheHits[path] || 0) + 1;
           }
           if (response.ok && data.ok) {
+            // Require three consecutive uncached successes after the latest
+            // cooldown. A pre-throttle request finishing late is not recovery.
+            if (release && data.cached !== true && this.paperCardConcurrency === 1 &&
+                throttleGeneration === this.paperCardThrottleGeneration && this.providerCooldownUntil <= this.now()) {
+              if (++this.paperCardRecoverySuccesses >= 3) {
+                this.paperCardRecoverySuccesses = 0;
+                this.paperCardConcurrency = 2;
+                this.log?.record("paper-card.concurrency-restored", { ...details, concurrency: 2 });
+                this.drainPaperCardQueue();
+              }
+            }
             finish?.("completed", { status: response.status, providerAttempts: Math.max(0, Number(data.attempts) || 0), cached: data.cached === true,
               structuredOutputMode: data.diagnostics?.structuredOutputMode });
             return data;
           }
+          if (release) this.paperCardRecoverySuccesses = 0;
           const error = new LiteratureError(
             data.error || "LLM_REQUEST_FAILED",
             data.message || `Function Compute returned HTTP ${response.status}.`
@@ -1118,8 +1208,13 @@
             data.terminalProviderFailure === true;
           const rateLimit = rateLimitApi.parseRateLimit(response.status, data, response.headers?.get?.("retry-after"), this.now());
           if (rateLimit) {
+            this.paperCardThrottleGeneration++;
+            this.paperCardRecoverySuccesses = 0;
             Object.assign(error, rateLimit, { code: "ProviderRateLimited" });
-            if (rateLimit.verifiedInputTokenRateLimit) this.inputTokenLimit = rateLimit.inputTokenLimit;
+            if (rateLimit.verifiedInputTokenRateLimit) {
+              if (model) this.modelInputTokenLimits.set(model, rateLimit.inputTokenLimit);
+              else this.inputTokenLimit = rateLimit.inputTokenLimit;
+            }
             if (this.paperCardConcurrency !== 1) {
               this.paperCardConcurrency = 1;
               this.log?.record("paper-card.concurrency-reduced", { ...details, concurrency: 1,
@@ -1141,6 +1236,7 @@
           if (!retryable || attempt + 1 >= maximumAttempts) throw error;
           lastError = error;
         } catch (error) {
+          if (release) this.paperCardRecoverySuccesses = 0;
           finish?.(error?.name === "AbortError" || error?.code === "OPERATION_ABORTED" ? "cancelled" : "failed",
             { code: error?.code || (error?.name === "AbortError" ? "OPERATION_ABORTED" : "NETWORK_ERROR") });
           if (error?.name === "AbortError") {
@@ -1192,7 +1288,7 @@
         generatePaperCard: (payload) => this.generatePaperCardFromPrepared(payload),
         getPaperCardConfiguration:
           typeof this.api?.getPaperCardConfiguration === "function"
-            ? (signal) => this.api.getPaperCardConfiguration(signal)
+            ? (signal, callContext, workspace) => this.api.getPaperCardConfiguration(signal, callContext, workspace)
             : null,
         schemaMapper: typeof this.api?.mapExperimentSchema === "function"
           ? (payload, mapperOptions) => this.api.mapExperimentSchema({
@@ -1209,6 +1305,7 @@
                     mapAttempt: workerOptions?.attempt,
                     language: this.getLanguage(),
                     callContext: {
+                      ...workerOptions?.callContext,
                       turnId: workerOptions?.turnId,
                       workflowId: workerOptions?.workflowId,
                       paperId: workerOptions?.paperId || payload.paperId,
@@ -1228,6 +1325,7 @@
                     fallback: true,
                     language: this.getLanguage(),
                     callContext: {
+                      ...workerOptions?.callContext,
                       turnId: workerOptions?.turnId,
                       workflowId: workerOptions?.workflowId,
                       paperId: workerOptions?.paperId || payload.paperId,
@@ -1797,7 +1895,7 @@
         typeof this.api?.createPaperCardFromText === "function"
       );
       let useMapReduce = false;
-      let quotaCharacterBudget = this.api.inputQuotaCharacterBudget?.() || 0;
+      let quotaCharacterBudget = this.api.inputQuotaCharacterBudget?.(callContext) || 0;
       if (!synthesized && quotaCharacterBudget && sourceText.length > quotaCharacterBudget) {
         useMapReduce = true;
         mapReduceReason = "combined-text-input-token-rate-limit";
@@ -2014,7 +2112,7 @@
         // quota, reduce bounded groups before the final synthesis instead of
         // truncating evidence or resubmitting an oversized summary payload.
         let synthesisInputs = chunkSummaries;
-        const synthesisBudget = this.api.inputQuotaCharacterBudget?.() || quotaCharacterBudget;
+        const synthesisBudget = this.api.inputQuotaCharacterBudget?.(callContext) || quotaCharacterBudget;
         for (let round = 0; synthesisBudget && JSON.stringify(synthesisInputs).length > synthesisBudget; round++) {
           if (round >= 3 || synthesisInputs.length < 2) throw new LiteratureError("PAPER_CARD_QUOTA_TOO_SMALL", "The provider input-token quota is too small for the bounded synthesis.");
           const groups = [];

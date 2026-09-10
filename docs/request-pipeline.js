@@ -171,11 +171,19 @@
       try {
         let promise = key && this.turns.get(key);
         if (!promise) {
+          // Different model selections must not share a provider task. Serialize
+          // maintenance so concurrent surfaces still cannot write the same artifacts.
+          const model = options.callContext?.model || "";
+          while (this.inFlight && this.inFlightModel !== model) {
+            await this.inFlight.catch(() => {});
+            if (options.signal?.aborted) throw Object.assign(new Error("Request cancelled"), { code: "OPERATION_ABORTED" });
+          }
           if (!this.inFlight) {
             // Shared maintenance never inherits one consumer's cancellation. Every
             // consumer waits for completion; cancellation only suppresses its answer.
             const finish = this.log?.begin("preflight", { turnId: key, surface: options.surface, workspaceId: this.workspaceId });
-            const active = this.run().then((result) => {
+            this.inFlightModel = model;
+            const active = this.run(options).then((result) => {
               finish?.(result.report.status === "partial" ? "partial" : "completed", { ...result.telemetry, failureCount: result.report.failures.length });
               return result;
             }, (error) => {
@@ -202,7 +210,7 @@
     // artifact writes do not mutate L0 and never require another reconciliation.
     invalidateTurn(turnId) { this.turns.delete(turnId); }
 
-    async run() {
+    async run(options = {}) {
       this.assertWorkspace();
       const started = clock(), wallStarted = Date.now();
       const { registry, preparation, knowledgeLifecycle, topicService, projectState } = this.system;
@@ -221,7 +229,7 @@
       const diff = reconciliation.diff;
       const changes = { added: [], removed: [], modified: [] };
       const verificationFailures = [];
-      const context = { surface: "side_chat", signal: this.workspaceSignal, turnId: syncTurnId, callContext: { turnId: syncTurnId, profile: "medium" }, retrievalProfile: "medium", profile: "medium", strictKnowledgeSync: true, deferTopicUpdate: true,
+      const context = { surface: options.surface || "side_chat", signal: this.workspaceSignal, turnId: syncTurnId, callContext: { ...options.callContext, turnId: syncTurnId, configurationTurnId: options.callContext?.configurationTurnId || options.turnId || options.callContext?.turnId || syncTurnId, profile: "medium" }, retrievalProfile: "medium", profile: "medium", strictKnowledgeSync: true, deferTopicUpdate: true,
         onProgress: (event) => this.emit(event) };
       for (const source of registry.list({ includeMissing: true })) {
         if (source.syncPending === "removed") changes.removed.push(source.sourceId);

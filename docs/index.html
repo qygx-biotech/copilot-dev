@@ -262,22 +262,26 @@
                 </p>
               </div>
               <div class="panel-actions">
-                <label class="retrieval-profile-control" for="retrievalProfileSelect">
-                  <span class="sr-only" data-i18n="retrievalQualityLabel">Retrieval</span>
-                  <select id="retrievalProfileSelect" aria-describedby="retrievalProfileDescription">
-                    <option value="light" data-i18n="retrievalProfileLight">Light — lower cost, mostly local</option>
-                    <option value="medium" data-i18n="retrievalProfileMedium">Medium — Fast first, Deep when useful</option>
-                    <option value="high" data-i18n="retrievalProfileHigh">High — maximum relevant quality</option>
+                <label class="side-chat-model-control" for="sideChatModelSelect">
+                  <span class="sr-only" data-i18n="sideChatModelLabel">Side Chat model</span>
+                  <select id="sideChatModelSelect" aria-describedby="sideChatModelDescription">
+                    <option value="default" data-model-name="google/gemma-4-31b-it">google/gemma-4-31b-it</option>
+                    <option value="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning">nvidia/nemotron-3-nano-omni</option>
                   </select>
-                  <span id="retrievalProfileDescription" class="sr-only">
-                    Light — lower cost, mostly local
+                  <span id="sideChatModelDescription" class="sr-only">
+                    Use the configured default model for all tasks in this Side Chat turn.
                   </span>
                 </label>
                 <button id="clearSideChatButton" class="secondary-button" type="button" data-i18n="clearSideChat">
-                  Clear chat
+                  New Chat
                 </button>
               </div>
             </div>
+            <label class="side-chat-history-control" for="sideChatConversationSelect">
+              <span data-i18n="sideChatHistoryLabel">Chat history</span>
+              <select id="sideChatConversationSelect" aria-describedby="sideChatHistoryHint" disabled></select>
+              <span id="sideChatHistoryHint" class="sr-only" data-i18n="sideChatHistoryHint">Keeps the 5 most recent chats, including this one.</span>
+            </label>
             <div class="side-chat-context" aria-live="polite">
               <strong data-i18n="sideChatContextLabel">Context</strong>
               <div id="sideChatContextChips" class="side-chat-context-chips"></div>

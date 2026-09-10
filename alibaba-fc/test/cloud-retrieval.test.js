@@ -5,6 +5,7 @@ const test = require("node:test");
 const jwt = require("jsonwebtoken");
 const retrievalContract = require("../../shared/retrieval-contract.js");
 
+process.env.ADMIN_ACCOUNT = "scientist@example.com";
 process.env.JWT_SECRET = "cloud-retrieval-test-secret";
 process.env.REQUESTY_API_KEY = "fc-only-requesty-key";
 process.env.REQUESTY_MODEL = "requesty/general-model";

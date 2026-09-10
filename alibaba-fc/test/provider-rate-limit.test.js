@@ -132,3 +132,169 @@ test("provider cooldown is cancellable and releases the paper-card queue", async
   await api.request("/api/literature/synthesize", {});
   assert.equal(requests, 1);
 });
+
+// Explicit response gates and a fake clock keep recovery/queue tests deterministic.
+const tick = () => new Promise(resolve => setImmediate(resolve));
+function recoveryFixture() {
+  let now = 0, active = 0, peak = 0;
+  const requests = [], waits = [];
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.test", now: () => now,
+    wait: async ms => { waits.push(ms); now += ms; },
+    fetch: async (url, options) => {
+      active++; peak = Math.max(peak, active);
+      return new Promise(resolve => requests.push({ url, body: options.body && JSON.parse(options.body),
+        model: options.headers["X-BioDesign-Chat-Model"], at: now,
+        finish(status = 200, data = { ok: true }, headers = {}) {
+          active--; resolve(new Response(JSON.stringify(data), { status, headers }));
+        },
+      }));
+    },
+  });
+  const card = (id, { signal, model, path = "summarize-chunk" } = {}) => api.request(`/api/literature/${path}`,
+    { paperId: id, text: "evidence", ...(model ? { callContext: { model } } : {}) }, signal);
+  async function throttle(id, model) {
+    const pending = card(id, { model, path: "create-paper-card-from-text" });
+    const rejected = assert.rejects(pending, error => error.verifiedInputTokenRateLimit);
+    await tick();
+    requests.at(-1).finish(429, { ok: false, message: quotaMessage }, { "Retry-After": "23" });
+    await rejected;
+    assert.equal(api.paperCardConcurrency, 1);
+  }
+  async function success(id, options) {
+    const pending = card(id, options); await tick(); requests.at(-1).finish(); await pending;
+  }
+  return { api, requests, waits, card, throttle, success, advance: time => { now = time; },
+    get peak() { return peak; }, get active() { return active; } };
+}
+
+test("three post-cooldown successes restore two slots without forgetting quotas or changing request models", async () => {
+  const f = recoveryFixture();
+  await f.throttle("unscoped-quota");
+  await f.throttle("selected-quota", "default");
+  const deadline = f.api.providerCooldownUntil;
+  const learnedBudget = f.api.inputQuotaCharacterBudget({ model: "default" });
+  const models = ["default", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", undefined];
+  for (const [index, model] of models.entries()) {
+    await f.success(`success-${index}`, { model });
+    assert.equal(f.api.paperCardConcurrency, index < 2 ? 1 : 2);
+    assert.ok(f.requests.at(-1).at >= deadline);
+    assert.equal(f.requests.at(-1).model, model);
+    assert.equal(f.requests.at(-1).body.callContext?.model, undefined);
+  }
+  assert.deepEqual(f.waits, [24000, 24000]);
+  assert.equal(f.api.providerCooldownUntil, deadline);
+  assert.equal(f.api.inputTokenLimit, 16000);
+  assert.equal(f.api.modelInputTokenLimits.get("default"), 16000);
+  assert.equal(f.api.inputQuotaCharacterBudget({ model: "default" }), learnedBudget);
+  const count = f.requests.length;
+  await assert.rejects(f.api.request("/api/literature/create-paper-card-from-text", {
+    text: "x".repeat(learnedBudget + 1), callContext: { model: "default" },
+  }), error => error.verifiedInputTokenRateLimit);
+  assert.equal(f.requests.length, count, "Recovery must not resend a known oversized payload");
+});
+
+test("recovery drains queued papers in order and never starts more than two provider requests", async () => {
+  const f = recoveryFixture();
+  await f.throttle("quota");
+  const pending = Array.from({ length: 7 }, (_, index) => f.card(`queued-${index}`));
+  const done = Promise.all(pending);
+  await tick();
+  for (let index = 0; index < 3; index++) {
+    assert.equal(f.active, 1);
+    assert.equal(f.requests.length, index + 2);
+    f.requests[index + 1].finish(); await tick();
+  }
+  assert.equal(f.api.paperCardConcurrency, 2);
+  assert.equal(f.active, 2);
+  assert.equal(f.requests.length, 6);
+  for (let index = 4; index < 8; index++) { f.requests[index].finish(); await tick(); }
+  await done;
+  assert.deepEqual(f.requests.slice(1).map(request => request.body.paperId), Array.from({ length: 7 }, (_, i) => `queued-${i}`));
+  assert.equal(f.peak, 2);
+  assert.equal(f.api.activePaperCardRequests, 0);
+  assert.equal(f.api.paperCardQueue.length, 0);
+});
+
+test("late pre-throttle completions do not count, and repeated throttling requires three new successes", async () => {
+  const f = recoveryFixture();
+  const late = f.card("old-in-flight");
+  await f.throttle("quota");
+  f.advance(f.api.providerCooldownUntil);
+  f.requests[0].finish(); await late;
+  await f.success("new-1"); await f.success("new-2");
+  assert.equal(f.api.paperCardConcurrency, 1, "The old in-flight response cannot be the third success");
+  const previousDeadline = f.api.providerCooldownUntil;
+  await f.throttle("quota-again");
+  assert.ok(f.api.providerCooldownUntil > previousDeadline);
+  await f.success("retry-1"); await f.success("retry-2");
+  assert.equal(f.api.paperCardConcurrency, 1);
+  await f.success("retry-3");
+  assert.equal(f.api.paperCardConcurrency, 2);
+  await f.throttle("throttled-after-recovery");
+  await f.success("fresh-1"); await f.success("fresh-2");
+  assert.equal(f.api.paperCardConcurrency, 1);
+  await f.success("fresh-3");
+  assert.equal(f.api.paperCardConcurrency, 2);
+  assert.ok(f.peak <= 2);
+});
+
+test("cached, configuration, and non-Paper-Card responses cannot restore concurrency", async () => {
+  const f = recoveryFixture();
+  f.api.configurationSignature = "old-configuration";
+  await f.throttle("quota", "default");
+  const deadline = f.api.providerCooldownUntil;
+  const config = f.api.getPaperCardConfiguration(); await tick();
+  f.requests.at(-1).finish(200, { ok: true, modelSignature: "new-configuration" }); await config;
+  assert.equal(f.api.paperCardConcurrency, 1, "A configuration change must not bypass recovery");
+  assert.equal(f.api.providerCooldownUntil, deadline);
+  assert.equal(f.api.modelInputTokenLimits.get("default"), 16000);
+  const cached = f.card("cached"); await tick();
+  f.requests.at(-1).finish(200, { ok: true, cached: true }); await cached;
+  const planner = f.api.request("/api/knowledge/plan-search", {}); await tick();
+  f.requests.at(-1).finish(); await planner;
+  await f.success("real-1"); await f.success("real-2");
+  assert.equal(f.api.paperCardConcurrency, 1);
+  await f.success("real-3");
+  assert.equal(f.api.paperCardConcurrency, 2);
+});
+
+test("failed Paper Card responses break the recovery streak", async () => {
+  const f = recoveryFixture();
+  await f.throttle("quota");
+  await f.success("first"); await f.success("second");
+  const failed = f.card("failure");
+  const rejected = assert.rejects(failed, { code: "InvalidLlmResponse" });
+  await tick(); f.requests.at(-1).finish(502, { ok: false, error: "InvalidLlmResponse" }); await rejected;
+  await f.success("after-failure-1"); await f.success("after-failure-2");
+  assert.equal(f.api.paperCardConcurrency, 1);
+  await f.success("after-failure-3");
+  assert.equal(f.api.paperCardConcurrency, 2);
+});
+
+test("queued cancellation never starts a request; an aborted in-flight success cannot complete recovery", async () => {
+  const f = recoveryFixture();
+  await f.throttle("quota");
+  await f.success("first"); await f.success("second");
+  const inFlightController = new AbortController(), queuedController = new AbortController();
+  const inFlight = f.card("cancel-in-flight", { signal: inFlightController.signal });
+  const inFlightRejected = assert.rejects(inFlight, { code: "OPERATION_ABORTED" });
+  const queued = f.card("cancel-queued", { signal: queuedController.signal });
+  const queuedRejected = assert.rejects(queued, { code: "OPERATION_ABORTED" });
+  const remaining = [f.card("remaining-1"), f.card("remaining-2"), f.card("remaining-3")];
+  const done = Promise.all(remaining);
+  await tick();
+  const inFlightIndex = f.requests.length - 1;
+  queuedController.abort(); await queuedRejected;
+  inFlightController.abort();
+  // Simulate a response racing with cancellation: this success must not count.
+  f.requests[inFlightIndex].finish(); await inFlightRejected; await tick();
+  assert.equal(f.api.paperCardConcurrency, 1);
+  for (let index = 0; index < 3; index++) {
+    f.requests.at(-1).finish(); await remaining[index]; await tick();
+    assert.equal(f.api.paperCardConcurrency, index < 2 ? 1 : 2);
+  }
+  await done;
+  assert.ok(f.requests.every(request => request.body.paperId !== "cancel-queued"));
+  assert.equal(f.api.activePaperCardRequests, 0);
+  assert.equal(f.api.paperCardQueue.length, 0);
+});

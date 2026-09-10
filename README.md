@@ -22,18 +22,16 @@ Alibaba Function Compute remains the authenticated, secret-bearing AI gateway:
 Electron -> user-selected local workspace -> bounded evidence or on-demand private PDF -> Function Compute -> Requesty
 ```
 
+The existing account/password screen supports the admin and configured beta users. FC verifies bcrypt passwords, signs user sessions, and resolves each beta user's own server-held Requesty key for all model calls. Admin credentials and `REQUESTY_API_KEY` remain compatible when beta configuration is absent. See [beta login setup and deployment](alibaba-fc/README.md#multi-user-beta-login) for `BETA_USERS_JSON`, `REQUESTY_KEY_BETA01`, adding users, and the tested deployment ZIP.
+
 Retrieval has two production modes:
 
 - **Fast** is fully offline and runs project-local QMD/SQLite BM25 only. It makes no cloud-planning or reranking call and loads no local model.
 - **Deep** asks authenticated Alibaba FC for a structured search plan, runs every validated expansion against local lexical QMD, deterministically fuses candidates, and asks FC to rerank only opaque IDs, titles, stable evidence handles, and budgeted snippets. Evidence is reconstructed from the original local objects before answer generation.
 
-Users choose how those modes are applied with the compact **Retrieval** selector in the Side Chat header. The validated value is saved in `.biodesign/state.json`, is shared by Side Chat and Agent Command, and defaults to **Light** for existing and new workspaces:
+Side Chat and Agent Command use the current Medium retrieval policy: Fast first, escalating to Deep for conceptual/cross-language questions or insufficient local evidence. The stored Light/Medium/High values remain compatible with older workspaces; the UI now selects a model instead.
 
-- **Light** preserves the previous production policy exactly: Han literature queries use Deep; other literature queries and all project-memory, synthesis, topic, and experiment-note lookups use Fast. The optional context router stays off.
-- **Medium** runs Fast first. A DOI, exact title, author/year, gene/protein/enzyme or strain identifier, mutation, `Km`, or `kcat` match is accepted locally. Cross-language or conceptual/discovery/comparison intent, no usable result, or incomplete lexical coverage escalates to Deep. The rule is deterministic and never asks an LLM whether to escalate.
-- **High** uses Deep for every relevant literature discovery/content search and enables the existing authenticated FC context router with deterministic local fallback. It prefers native-PDF analysis and generates a missing/stale Paper Card only when a relevant paper and the request actually need broad or layout-critical analysis.
-
-High is not an “invoke everything” switch. Workspace open/refresh never calls an LLM, generic project questions do not trigger PDF work, and L4 corpus synthesis still requires explicit whole-corpus intent in every profile. Valid plans, rankings, Paper Cards, native-PDF artifacts, and syntheses are reused. The selector controls retrieval only; the final answer-generation call remains a separate authenticated request.
+The Side Chat model selection applies to all model tasks triggered by that turn, including knowledge preparation, search planning/reranking, semantic interpretation, image understanding, corpus workers, and the answer/tool loop. Agent Command keeps its configured role models. Existing local/text fallbacks remain available when the selected model lacks a required capability. See [FC model selection](alibaba-fc/README.md#side-chat-model-selection) for deployment and capability configuration.
 
 The Deep route is fixed:
 
@@ -45,7 +43,7 @@ Electron renderer -> authenticated Alibaba Function Compute -> Requesty
 Electron renderer -> preload IPC -> main -> isolated QMD utility -> project-local SQLite BM25
 ```
 
-Requesty credentials and model names exist only in FC environment variables or secrets. Electron has no Requesty URL or client. Deep sends no absolute path, directory handle, registry, project file, token, whole Paper Card collection, experiment table, or PDF. Candidate count and text follow the existing retrieval/context budgets; project growth is handled by bounded top-K/result handles and the separate coverage-preserving corpus workflow, not a total paper-count ceiling. The existing native-PDF endpoint remains the only explicit whole-PDF route.
+Requesty credentials exist only in FC environment variables or secrets; selectable model IDs are validated by FC. Electron has no Requesty URL or client. Deep sends no absolute path, directory handle, registry, project file, token, whole Paper Card collection, experiment table, or PDF. Candidate count and text follow the existing retrieval/context budgets; project growth is handled by bounded top-K/result handles and the separate coverage-preserving corpus workflow, not a total paper-count ceiling. The existing native-PDF endpoint remains the only explicit whole-PDF route.
 
 ## Main files
 
@@ -252,8 +250,8 @@ Side Chat sends bounded recent conversation history, the current question, a com
 
 Both Side Chat and the existing **Agent instruction → Analyze & Recommend** surface call the same `ProjectContextService`, registry, readiness service, and source tools, then use the same bounded model-driven tool loop. Each tool has an effect: informational/internal-state tools are allowed from both surfaces, while official result-producing tools are reserved for Agent Command and destructive/external effects remain denied. Side Chat may therefore prepare sources, update deterministic metadata and compact typed memory, retry workflows, and recover the allowlisted browser analysis coordinator without changing the Current Recommendation. The optional context-router LLM is disabled by default, so unrelated messages make no preparatory source call.
 
-The Side Chat selector offers concise English/Chinese descriptions without adding a new row to the panel. Only `light`, `medium`, and `high` pass its UI and workspace-state validators. The setting never crosses preload as a URL, provider option, raw retrieval mode, prompt, or model name; remote model/tool output cannot update it.
+The Side Chat model selector displays provider/model labels and saves its validated selection per workspace. Changing it during a running turn affects the next turn. Remote model/tool output cannot change the selection.
 
-The complete Project context / goal remains a dedicated durable system message. Internal tool inspection is not copied to persistent chat. Typed memory records store compact reusable conclusions and source IDs—not paper text or experiment tables—and are retrieved on demand. Each user message stores a compact source-context snapshot, and the active conversation is restored from `.biodesign/chat/`; **Clear chat** deletes only that conversation. Side Chat still never invokes the Agent Work button or mutates its recommendation panels.
+The complete Project context / goal remains a dedicated durable system message. Internal tool inspection is not copied to persistent chat. Typed memory records store compact reusable conclusions and source IDs—not paper text or experiment tables—and are retrieved on demand. Each user message stores a compact source-context snapshot, and the active conversation is restored from `.biodesign/chat/`. **New Chat** preserves the previous conversation; the **Chat history** selector reopens it for continued discussion. Each workspace keeps the five most recently saved chats, including the active chat. Creating a sixth removes the oldest chat file and any images not shared with a retained chat. Repeated New Chat clicks reuse an empty chat. Opening an older workspace also removes excess conversation files left by older versions. Side Chat still never invokes the Agent Work button or mutates its recommendation panels.
 
 The Side Chat transcript is height-bounded and scrolls independently instead of expanding the entire workbench. After an answer is produced, the newest user message can be edited and regenerated: the old user/assistant turn is removed from local history before the revised question is persisted and sent again. Assistant replies retain a collapsible, bounded processing summary made from actual retrieval, workflow, and model-call status events. This is operational activity—not hidden model chain-of-thought, which is not exposed.

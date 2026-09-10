@@ -12,6 +12,8 @@
 //   ADMIN_ACCOUNT
 //   ADMIN_PASSWORD_HASH
 //   JWT_SECRET
+//   BETA_USERS_JSON (optional; per-user bcrypt hashes and Requesty key env names)
+//   REQUESTY_KEY_<USER> (one server-held key per configured beta user)
 //   OSS_BUCKET
 //   OSS_REGION
 //   OSS_INTERNAL_ENDPOINT
@@ -657,6 +659,34 @@ function selectRetrievalModel(env, environmentName) {
   };
 }
 
+// A request-local override: never mutate process.env or another surface's roles.
+function sideChatModelEnvironment(env, requestedModel) {
+  if (requestedModel === undefined) return env;
+  const model = requestedModel === "default" ? getEnvString(env, "REQUESTY_MODEL") : requestedModel;
+  if (typeof model !== "string" || ![getEnvString(env, "REQUESTY_MODEL"),
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"].includes(model)) return null;
+  const scoped = { ...env };
+  const defaultModel = getEnvString(env, "REQUESTY_MODEL");
+  const pdfModel = getEnvString(env, "REQUESTY_PDF_MODEL") || defaultModel;
+  // Global capability declarations belong to the configured models. Other
+  // selections use their own capability-map entry, or conservative text defaults.
+  if (model !== defaultModel) {
+    scoped.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
+    scoped.REQUESTY_MODEL_CONTEXT_TOKENS = "";
+  }
+  if (model !== pdfModel) {
+    scoped.REQUESTY_PDF_ENABLED = "false";
+    scoped.REQUESTY_PDF_SUPPORTS_JSON_SCHEMA = "false";
+  } else if (!getEnvString(env, "REQUESTY_PDF_MODEL") && !getEnvString(env, "REQUESTY_PDF_ENABLED")) {
+    scoped.REQUESTY_PDF_ENABLED = "false";
+  }
+  for (const name of ["REQUESTY_MODEL", "REQUESTY_SEARCH_PLANNER_MODEL", "REQUESTY_RERANK_MODEL",
+    "REQUESTY_SEMANTIC_PARSER_MODEL", "REQUESTY_SCHEMA_MAPPER_MODEL", "REQUESTY_PDF_MODEL", "REQUESTY_IMAGE_MODEL"]) {
+    scoped[name] = model;
+  }
+  return scoped;
+}
+
 function retrievalModelSignature(selection, promptVersion) {
   return crypto
     .createHash("sha256")
@@ -917,10 +947,12 @@ function getSafeOssError(error, credentials) {
         : "OssError";
 
   return {
-    code: code.slice(0, 120),
-    message: redactOssErrorMessage(error?.message, credentials),
+    code: redactOssErrorMessage(code, credentials).slice(0, 120),
+    // SDK messages can include signed requests or object contents. Keep only
+    // operational identifiers, with credentials redacted in every field.
+    message: "OSS request failed.",
     requestId:
-      typeof error?.requestId === "string" ? error.requestId.slice(0, 160) : "",
+      typeof error?.requestId === "string" && error.requestId ? redactOssErrorMessage(error.requestId, credentials).slice(0, 160) : "",
     status:
       Number.isInteger(error?.status) && error.status >= 100
         ? error.status
@@ -1132,10 +1164,7 @@ function logDocumentFailure(stage, error, details = {}) {
             : typeof error?.name === "string"
               ? error.name
               : "DocumentError",
-        message: String(error?.message || "Document processing failed.").slice(
-          0,
-          600
-        ),
+        message: "Document processing failed.",
         requestId: "",
         status: null
       };
@@ -2046,6 +2075,7 @@ function isVerifiedContextLengthError(status, responseText) {
 }
 
 async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = false, streaming = null, requestOptions = {}) {
+  const redactKey = value => String(value || "").split(apiKey).join("[redacted]");
   const requestSignal = streaming?.signal || requestOptions.signal;
   const waitBeforeRetry = async delay => {
     try {
@@ -2073,7 +2103,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       if (shouldRetry) {
         console.warn("Requesty request will retry:", {
           stage: "llmRetry",
-          code: String(error?.code || error?.name || "NETWORK_ERROR").slice(0, 120),
+          code: "NETWORK_ERROR",
           attempt: attempt + 1
         });
         await waitBeforeRetry(getRequestyRetryDelayMs(null, attempt));
@@ -2082,7 +2112,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       return {
         ok: false,
         error: "LlmRequestFailed",
-        message: String(error?.message || "The LLM request failed.").slice(0, 500),
+        message: "The LLM request failed.",
         terminalProviderFailure: true,
         attempts: attempt + 1
       };
@@ -2130,7 +2160,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       }
     }
 
-    const responseText = await response.text().catch(() => "");
+    const responseText = redactKey(await response.text().catch(() => ""));
     const rateLimit = providerRateLimit.parseRateLimit(response.status, responseText, response.headers?.get?.("retry-after"));
     const shouldRetry =
       attempt + 1 < REQUESTY_MAX_ATTEMPTS &&
@@ -2151,22 +2181,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
     return {
       ok: false,
       error: "LlmHttpError",
-      message: (() => {
-        try {
-          const parsed = JSON.parse(responseText);
-          const detail = String(
-            parsed?.error?.message || parsed?.message || ""
-          ).trim();
-          return detail
-            ? `Requesty returned HTTP ${response.status}: ${detail.slice(0, 500)}`
-            : `Requesty returned HTTP ${response.status}.`;
-        } catch {
-          const detail = responseText.trim().slice(0, 500);
-          return detail
-            ? `Requesty returned HTTP ${response.status}: ${detail}`
-            : `Requesty returned HTTP ${response.status}.`;
-        }
-      })(),
+      message: safeRequestyErrorMessage(response.status, responseText, rateLimit),
       status: response.status,
       ...(rateLimit ? { rateLimit } : {}),
       terminalProviderFailure: [401, 403].includes(response.status),
@@ -2184,6 +2199,26 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
     message: "The LLM request could not be completed.",
     attempts: REQUESTY_MAX_ATTEMPTS
   };
+}
+
+function safeRequestyErrorMessage(status, responseText, rateLimit) {
+  // Preserve the existing fallback signals without returning upstream text,
+  // which may echo credentials, messages, or extracted document content.
+  let detail = responseText;
+  try { const parsed = JSON.parse(responseText); detail = String(parsed?.error?.message || parsed?.message || "").trim(); } catch {}
+  detail = detail.trim().slice(0, 500);
+  let message = `Requesty returned HTTP ${status}.`;
+  if (/response[_ -]?format|json[_ -]?schema|structured output/i.test(detail)) message += " The response_format request was rejected.";
+  if (/json_schema|response_format|schema/i.test(detail) && /unsupported|not support|invalid|not available/i.test(detail)) message += " The requested schema is invalid or unsupported.";
+  if (/prompt_too_long|prompt too long|context_length_exceeded|context length|too many tokens|maximum context/i.test(detail)) message += " The provider context length was exceeded.";
+  if (rateLimit) {
+    message += ` Please retry in ${rateLimit.retryAfterMs / 1000}s.`;
+    // Older callers classify a wrapped 429 from its message; retain only the
+    // numeric quota/reset information they need, never arbitrary error prose.
+    if (!rateLimit.rateLimitRetryable) message += " Quota exceeded for metric: daily_quota, limit: 0.";
+    else if (rateLimit.verifiedInputTokenRateLimit) message += ` Quota exceeded for metric: input_token_count, limit: ${rateLimit.inputTokenLimit}.`;
+  }
+  return message;
 }
 
 async function requestRequestyCompletion(requestBody, apiKey) {
@@ -2875,7 +2910,7 @@ async function handleCorpusPaperMap(event, context, env) {
       fallback,
       finishReason: result.finishReason || "",
       outputLength: String(result.text || "").length,
-      schemaValidationDetails: schemaValidationDetails.slice(0, 30)
+      schemaValidationErrorCount: schemaValidationDetails.length
     });
     repairAttempted = true;
     const previousJson = String(result.text || "").slice(0, 20000);
@@ -2933,7 +2968,7 @@ async function handleCorpusPaperMap(event, context, env) {
         fallback,
         finishReason: repairResult.finishReason || "",
         outputLength: String(repairResult.text || "").length,
-        schemaValidationDetails: repairValidationDetails.slice(0, 30)
+        schemaValidationErrorCount: repairValidationDetails.length
       });
       return documentErrorResponse(
         event,
@@ -4369,7 +4404,7 @@ async function handleNativePdfAnalysis(event, context, env) {
       purpose,
       attempt: repairAttempt,
       outputLength: String(result.text || "").length,
-      schemaValidationDetails: validationErrors
+      schemaValidationErrorCount: validationErrors.length
     });
     const repairFormat = selection.capabilities.jsonSchema === true
       ? responseFormat
@@ -4409,7 +4444,7 @@ async function handleNativePdfAnalysis(event, context, env) {
       model: selection.model,
       purpose,
       outputLength: String(result.text || "").length,
-      schemaValidationDetails: validationErrors
+      schemaValidationErrorCount: validationErrors.length
     });
     return documentErrorResponse(
       event,
@@ -4594,7 +4629,7 @@ async function handleCombinedTextPaperCard(event, context, env) {
       paperId,
       model: configuration.selection.model,
       outputLength: String(result.text || "").length,
-      schemaValidationDetails: validationErrors,
+      schemaValidationErrorCount: validationErrors.length,
     });
     return documentErrorResponse(
       event,
@@ -5364,39 +5399,73 @@ function getRequestBody(event) {
   return {};
 }
 
-function getAuthConfig(env) {
+function getBetaUsers(env, adminAccount) {
+  if (env.BETA_USERS_JSON === undefined) return { users: [] };
+  const invalid = { error: "Invalid BETA_USERS_JSON configuration." };
+  let users;
+  try { users = JSON.parse(env.BETA_USERS_JSON); }
+  catch { return invalid; }
+  if (!Array.isArray(users)) return invalid;
+
+  const ids = new Set(["admin"]);
+  // OSS ownership normalizes account names with NFKC; reject aliases that
+  // could otherwise share the same existing storage prefix.
+  const accounts = new Set([adminAccount.normalize("NFKC").toLowerCase()]);
+  const keyNames = new Set();
+  const fields = ["id", "account", "passwordHash", "requestyKeyEnv", "active"];
+  // bcrypt's 16-byte salt and 23-byte checksum must use canonical base64.
+  const bcryptHash = /^\$2[aby]\$(?:0[4-9]|[12][0-9]|3[01])\$[./A-Za-z0-9]{21}[.Oeu][./A-Za-z0-9]{30}[.CGKOSWaeimquy26]$/;
+  for (const user of users) {
+    if (!isPlainObject(user) || Object.keys(user).some(key => !fields.includes(key)) ||
+        typeof user.id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(user.id) ||
+        typeof user.account !== "string" || !user.account || user.account.length > 128 ||
+        user.account !== user.account.trim() || /[\u0000-\u001f\u007f]/.test(user.account) ||
+        typeof user.passwordHash !== "string" || !bcryptHash.test(user.passwordHash) ||
+        typeof user.requestyKeyEnv !== "string" || !/^REQUESTY_KEY_[A-Z0-9][A-Z0-9_]{0,63}$/.test(user.requestyKeyEnv) ||
+        typeof user.active !== "boolean") return invalid;
+    const id = user.id.toLowerCase(), account = user.account.normalize("NFKC").toLowerCase();
+    if (ids.has(id) || accounts.has(account) || keyNames.has(user.requestyKeyEnv)) return invalid;
+    ids.add(id); accounts.add(account); keyNames.add(user.requestyKeyEnv);
+  }
+  return { users };
+}
+
+function getAuthConfig(env, forLogin = false) {
   const adminAccount = getEnvString(env, "ADMIN_ACCOUNT");
   const adminPasswordHash = getEnvString(env, "ADMIN_PASSWORD_HASH");
   const jwtSecret = getEnvString(env, "JWT_SECRET");
 
-  if (!adminAccount || !adminPasswordHash || !jwtSecret) {
+  if (!adminAccount || !jwtSecret || (forLogin && !adminPasswordHash)) {
     return {
       error:
         "Authentication is not configured. Missing ADMIN_ACCOUNT, ADMIN_PASSWORD_HASH, or JWT_SECRET."
     };
   }
 
+  const beta = getBetaUsers(env, adminAccount);
+  if (beta.error) return beta;
   return {
     adminAccount,
     adminPasswordHash,
-    jwtSecret
+    jwtSecret,
+    betaUsers: beta.users
   };
 }
 
-function getJwtConfig(env) {
-  const jwtSecret = getEnvString(env, "JWT_SECRET");
-
-  if (!jwtSecret) {
-    return {
-      error: "Authentication is not configured. Missing JWT_SECRET."
-    };
+function userEnvironment(env, user, authConfig) {
+  if (user.role === "admin") return { env: { ...env } };
+  const beta = authConfig.betaUsers.find(candidate => candidate.id === user.id && candidate.account === user.account && candidate.active);
+  const apiKey = beta && Object.hasOwn(env, beta.requestyKeyEnv) ? env[beta.requestyKeyEnv] : "";
+  if (typeof apiKey !== "string" || !apiKey || /\s/.test(apiKey)) {
+    return { error: "BETA_REQUESTY_KEY_MISSING", message: "Requesty is not configured for this user." };
   }
-
-  return { jwtSecret };
+  // Only this invocation sees the selected credential; all provider paths keep
+  // using their existing env argument, including model overrides and retries.
+  return { env: { ...env, REQUESTY_API_KEY: apiKey } };
 }
 
 async function handleLogin(event, env) {
-  const authConfig = getAuthConfig(env);
+  const authConfig = getAuthConfig(env, true);
 
   if (authConfig.error) {
     return jsonResponse(
@@ -5423,12 +5492,13 @@ async function handleLogin(event, env) {
   }
 
   const bcrypt = require("bcryptjs");
-  const passwordMatches = bcrypt.compareSync(
-    password,
-    authConfig.adminPasswordHash
-  );
+  const beta = authConfig.betaUsers.find(user => user.account === account);
+  const isAdmin = account === authConfig.adminAccount;
+  // Unknown accounts still perform a bcrypt comparison without exposing which
+  // configured account (or disabled account) was matched.
+  const passwordMatches = await bcrypt.compare(password, beta?.passwordHash || authConfig.adminPasswordHash);
 
-  if (account !== authConfig.adminAccount || !passwordMatches) {
+  if ((!isAdmin && !beta?.active) || !passwordMatches) {
     return jsonResponse(
       {
         error: "Invalid account or password"
@@ -5439,15 +5509,19 @@ async function handleLogin(event, env) {
   }
 
   const user = {
+    id: isAdmin ? "admin" : beta.id,
     account,
-    role: "admin"
+    role: isAdmin ? "admin" : "beta"
   };
+  const scoped = userEnvironment(env, user, authConfig);
+  if (scoped.error) return jsonResponse({ error: scoped.error, message: scoped.message }, 503, event);
   const token = signAuthToken(user, authConfig.jwtSecret);
 
   return jsonResponse(
     {
       ok: true,
       token,
+      chatModel: getEnvString(env, "REQUESTY_MODEL") || null,
       user
     },
     200,
@@ -5456,31 +5530,13 @@ async function handleLogin(event, env) {
 }
 
 function handleMe(event, env) {
-  if (!getBearerToken(event)) {
-    return unauthorizedResponse(event);
-  }
-
-  const jwtConfig = getJwtConfig(env);
-
-  if (jwtConfig.error) {
-    return jsonResponse(
-      {
-        error: jwtConfig.error
-      },
-      500,
-      event
-    );
-  }
-
-  const user = verifyAuthToken(event, jwtConfig.jwtSecret);
-
-  if (!user) {
-    return unauthorizedResponse(event);
-  }
+  const auth = requireAuth(event, env);
+  if (!auth.ok) return auth.response;
 
   return jsonResponse(
     {
-      user
+      user: auth.user,
+      chatModel: getEnvString(env, "REQUESTY_MODEL") || null
     },
     200,
     event
@@ -5518,14 +5574,15 @@ function handleLogout(event) {
 }
 
 function requireAuth(req, env) {
-  const jwtConfig = getJwtConfig(env);
+  if (!getBearerToken(req)) return { ok: false, response: unauthorizedResponse(req) };
+  const authConfig = getAuthConfig(env);
 
-  if (jwtConfig.error) {
+  if (authConfig.error) {
     return {
       ok: false,
       response: jsonResponse(
         {
-          error: jwtConfig.error
+          error: authConfig.error
         },
         500,
         req
@@ -5533,7 +5590,7 @@ function requireAuth(req, env) {
     };
   }
 
-  const user = verifyAuthToken(req, jwtConfig.jwtSecret);
+  const user = verifyAuthToken(req, authConfig);
 
   if (!user) {
     return {
@@ -5542,10 +5599,13 @@ function requireAuth(req, env) {
     };
   }
 
+  const scoped = userEnvironment(env, user, authConfig);
+  if (scoped.error) return { ok: false, response: jsonResponse({ error: scoped.error, message: scoped.message }, 503, req) };
   req.user = user;
   return {
     ok: true,
-    user
+    user,
+    env: scoped.env
   };
 }
 
@@ -5554,17 +5614,20 @@ function signAuthToken(user, jwtSecret) {
 
   return jwt.sign(
     {
+      id: user.id,
       account: user.account,
       role: user.role
     },
     jwtSecret,
     {
-      expiresIn: "12h"
+      expiresIn: "12h",
+      algorithm: "HS256",
+      subject: user.id
     }
   );
 }
 
-function verifyAuthToken(event, jwtSecret) {
+function verifyAuthToken(event, authConfig) {
   const token = getBearerToken(event);
 
   if (!token) {
@@ -5573,20 +5636,19 @@ function verifyAuthToken(event, jwtSecret) {
 
   try {
     const jwt = require("jsonwebtoken");
-    const payload = jwt.verify(token, jwtSecret);
+    const payload = jwt.verify(token, authConfig.jwtSecret, { algorithms: ["HS256"] });
 
-    if (
-      !payload ||
-      typeof payload.account !== "string" ||
-      payload.role !== "admin"
-    ) {
-      return null;
+    if (!payload || typeof payload.account !== "string") return null;
+    if (payload.role === "admin" && payload.account === authConfig.adminAccount &&
+        (payload.id === undefined || payload.id === "admin") &&
+        (payload.sub === undefined || payload.sub === "admin")) {
+      // Existing admin tokens had only account and role. Preserve their sessions
+      // and account-based OSS ownership, but bind them to the configured admin.
+      return { id: "admin", account: authConfig.adminAccount, role: "admin" };
     }
-
-    return {
-      account: payload.account,
-      role: "admin"
-    };
+    if (payload.role !== "beta" || typeof payload.id !== "string" || payload.sub !== payload.id) return null;
+    const beta = authConfig.betaUsers.find(user => user.id === payload.id && user.account === payload.account && user.active);
+    return beta ? { id: beta.id, account: beta.account, role: "beta" } : null;
   } catch {
     return null;
   }
@@ -6864,6 +6926,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
 
   try {
     ({ method, path, event } = getRoute(rawEvent));
+    const env = { ...process.env };
 
     if (method === "OPTIONS") {
       return {
@@ -6886,45 +6949,20 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       }, 200, event);
     }
 
-    // Temporary debug endpoint. Remove later when everything works.
-    if (path === "/debug") {
-      return jsonResponse({
-        method,
-        path,
-        eventType: typeof rawEvent,
-        isBuffer: Buffer.isBuffer(rawEvent),
-        eventKeys: Object.keys(event || {}),
-        requestContext: event.requestContext || null,
-        rawPath: event.rawPath || null,
-        pathValue: event.path || null,
-        requestPath: event.requestPath || null,
-        url: event.url || null,
-        httpMethod: event.httpMethod || null,
-        methodValue: event.method || null,
-        headers: event.headers || null,
-        hasBody: Boolean(event.body || event.rawBody),
-        bodyPreview: event.body
-          ? String(event.body).slice(0, 300)
-          : event.rawBody
-            ? String(event.rawBody).slice(0, 300)
-            : null
-      }, 200, event);
-    }
-
     if (method === "POST" && path === "/api/login") {
       try {
-        return await handleLogin(event, process.env);
+        return await handleLogin(event, env);
       } catch (error) {
-        console.error("Login route error:", error);
+        console.error("Login route error.");
         return internalServerErrorResponse(event);
       }
     }
 
     if (method === "GET" && path === "/api/me") {
       try {
-        return handleMe(event, process.env);
+        return handleMe(event, env);
       } catch (error) {
-        console.error("Current user route error:", error);
+        console.error("Current user route error.");
         return internalServerErrorResponse(event);
       }
     }
@@ -6933,172 +6971,125 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       return handleLogout(event);
     }
 
-    if (method === "POST" && path === "/api/test-oss") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
+    const scopedModelRoutes = new Set([
+      "/api/knowledge/config", "/api/literature/config", "/api/knowledge/plan-search", "/api/knowledge/rerank",
+      "/api/literature/summarize-chunk", "/api/corpus/map-paper", "/api/literature/analyze-pdf-native",
+      "/api/literature/create-paper-card-from-text", "/api/context/route", "/api/semantic/interpret",
+      "/api/semantic/map-schema", "/api/literature/synthesize", "/api/chat/understand-images",
+    ]);
+    const protectedPaths = new Set([...scopedModelRoutes, "/chat", "/api/test-oss",
+      "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"]);
+    const auth = protectedPaths.has(path) ? requireAuth(event, env) : null;
+    if (auth && !auth.ok) return auth.response;
+    const userEnv = auth?.env || env;
 
-      return handleOssTest(event, context, process.env);
+    if (method === "POST" && path === "/api/test-oss") {
+      return handleOssTest(event, context, userEnv);
+    }
+
+    let modelEnv = userEnv;
+    const modelHeader = getRequestHeader(event, "X-BioDesign-Chat-Model");
+    if (modelHeader && scopedModelRoutes.has(path)) {
+      modelEnv = sideChatModelEnvironment(userEnv, modelHeader);
+      if (!modelEnv) return jsonResponse({ error: "INVALID_CHAT_MODEL", message: "The selected Side Chat model is not supported." }, 400, event);
     }
 
     if (method === "GET" && path === "/api/knowledge/config") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleKnowledgeRetrievalConfig(event, process.env);
+      return handleKnowledgeRetrievalConfig(event, modelEnv);
     }
 
     if (method === "GET" && path === "/api/literature/config") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handlePaperCardConfiguration(event, process.env);
+      return handlePaperCardConfiguration(event, modelEnv);
     }
 
     if (method === "POST" && path === "/api/knowledge/plan-search") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleKnowledgePlanSearch(event, context, process.env);
+      return handleKnowledgePlanSearch(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/knowledge/rerank") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleKnowledgeRerank(event, context, process.env);
+      return handleKnowledgeRerank(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/literature/summarize-chunk") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
-      return handleLocalLiteratureChunk(event, context, process.env);
+      return handleLocalLiteratureChunk(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/corpus/map-paper") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
-      return handleCorpusPaperMap(event, context, process.env);
+      return handleCorpusPaperMap(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/literature/analyze-pdf-native") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleNativePdfAnalysis(event, context, process.env);
+      return handleNativePdfAnalysis(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/literature/create-paper-card-from-text") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleCombinedTextPaperCard(event, context, process.env);
+      return handleCombinedTextPaperCard(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/context/route") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
-      return handleContextRouting(event, context, process.env);
+      return handleContextRouting(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/semantic/interpret") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleSemanticInterpretation(event, context, process.env);
+      return handleSemanticInterpretation(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/semantic/map-schema") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
-      return handleSemanticSchemaMapping(event, context, process.env);
+      return handleSemanticSchemaMapping(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/literature/synthesize") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
-      return handleLocalLiteratureSynthesis(event, context, process.env);
+      return handleLocalLiteratureSynthesis(event, context, modelEnv);
     }
 
     if (method === "POST" && path === "/api/documents/upload-url") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
       return handlePdfUploadUrl(
         event,
         context,
-        process.env,
+        userEnv,
         auth.user
       );
     }
 
     if (method === "GET" && path === "/api/documents") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
       return handleListStoredPdfs(
         event,
         context,
-        process.env,
+        userEnv,
         auth.user
       );
     }
 
     if (method === "POST" && path === "/api/documents/delete") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
       return handleDeleteStoredPdf(
         event,
         context,
-        process.env,
+        userEnv,
         auth.user
       );
     }
 
     if (method === "POST" && path === "/api/documents/review") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
-      return handlePdfReview(event, context, process.env, auth.user);
+      return handlePdfReview(event, context, userEnv, auth.user);
     }
 
     if (method === "POST" && path === "/api/chat/understand-images") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) return auth.response;
       const body = getRequestBody(event);
       const callContext = normalizeProviderCallContext(body?.callContext, "image_understanding");
       if (!callContext) return jsonResponse({ error: "IMAGE_INVALID" }, 400, event);
       const result = await require("./image-understanding.js").understandImages(body, {
-        env: process.env, request: requestRequestyMessage, metadata: requestyMetadata(callContext), signal: transport?.signal,
+        env: modelEnv, request: requestRequestyMessage, metadata: requestyMetadata(callContext), signal: transport?.signal,
       });
       return jsonResponse(result.body, result.statusCode, event);
     }
 
     if (method === "POST" && path === "/chat") {
-      const auth = requireAuth(event, process.env);
-      if (!auth.ok) {
-        return auth.response;
-      }
-
       const body = getRequestBody(event);
       const messages = body.messages;
       const responseMode =
         body.mode === "side_chat" ? "side_chat" : "agent_instruction";
+      const chatEnv = responseMode === "side_chat" ? sideChatModelEnvironment(userEnv, body.model) : userEnv;
+      if (!chatEnv) return jsonResponse({ error: "INVALID_CHAT_MODEL", message: "The selected Side Chat model is not supported." }, 400, event);
       const projectContext =
         typeof body.projectContext === "string"
           ? body.projectContext.trim().slice(0, 4000)
@@ -7234,7 +7225,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         messages,
         user: auth.user,
         context,
-        env: process.env
+        env: chatEnv
       });
       if (!storedDocumentResult.ok) {
         return documentErrorResponse(
@@ -7249,7 +7240,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       if (streaming) await streaming.start(getApiHeaders(event));
       const result = await callRequesty(
         messages,
-        process.env,
+        chatEnv,
         {
           projectContext,
           referenceDocuments,
@@ -7318,7 +7309,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       event
     );
   } catch (error) {
-    if (error?.code !== "OPERATION_ABORTED") console.error("Unhandled backend error:", error);
+    if (error?.code !== "OPERATION_ABORTED") console.error("Unhandled backend error.");
     return internalServerErrorResponse(event);
   }
 };
@@ -7355,6 +7346,7 @@ exports._test = {
   retrievalConfiguration,
   isVerifiedContextLengthError,
   selectRequestyModel,
+  sideChatModelEnvironment,
   sanitizeChatMessagesForLlm,
   sanitizeLocalWorkspaceContext,
   sanitizePdfFilename,

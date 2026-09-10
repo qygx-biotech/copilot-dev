@@ -1133,9 +1133,10 @@ test("two added long papers recover from a real FC input-token quota response an
     assert.equal(result.report.status, "completed", JSON.stringify(result.report.failures));
     assert.equal(result.report.updated.paperCards, 2);
     assert.equal(fullCalls, 2, "Both new papers must reach the provider concurrently before the quota is learned");
-    assert.equal(api.paperCardConcurrency, 1);
+    assert.equal(api.paperCardConcurrency, 2, "Successful bounded requests restore the second slot");
+    assert.equal(api.inputTokenLimit, 16000, "Concurrency recovery must retain the learned input quota");
     assert.deepEqual(waits, [24000]);
-    assert.equal(peak, 1);
+    assert.ok(peak >= 1 && peak <= 2, "Provider synthesis stays within the two-request cap");
     assert.ok(excerptLengths.length >= 19 && excerptLengths.every(length => length <= 10000));
     assert.ok(synthesisLengths.length > 2 && synthesisLengths.every(length => length <= 28000), "Synthesis must also fit the learned quota without discarding excerpts");
     for (const id of result.diff.added) {

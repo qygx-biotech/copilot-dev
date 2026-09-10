@@ -103,6 +103,7 @@
       ? value.profile
       : "light";
     return Object.freeze({
+      ...(typeof value?.model === "string" ? { model: value.model } : {}),
       turnId: boundedId(value?.turnId),
       workflowId: boundedId(value?.workflowId),
       callRole,
@@ -1078,7 +1079,7 @@
       let config;
       try {
         config = this.validateCloudConfig(
-          await this.cloudApi.getKnowledgeRetrievalConfig(options.signal)
+          await this.cloudApi.getKnowledgeRetrievalConfig(options.signal, options.callContext)
         );
       } catch (error) {
         if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") {
@@ -1362,7 +1363,7 @@
             })
           : sharedCorpusPlan
             ? null
-            : this.validateCloudConfig(await this.cloudApi.getKnowledgeRetrievalConfig(options.signal));
+            : this.validateCloudConfig(await this.cloudApi.getKnowledgeRetrievalConfig(options.signal, options.callContext));
       } catch (error) {
         if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") {
           throw error?.code === "OPERATION_ABORTED" ? error : operationAbortedError();

@@ -2568,7 +2568,10 @@
         typeof this.getPaperCardConfiguration === "function"
       ) {
         paperCardContract = normalizePaperCardContract(
-          await this.getPaperCardConfiguration(requestContext.signal)
+          await this.getPaperCardConfiguration(requestContext.signal, {
+            ...requestContext.callContext,
+            turnId: requestContext.callContext?.turnId || requestContext.turnId,
+          }, this.workspace.workspace || this.workspace)
         );
         if (!paperCardContract) {
           throw new SourceSystemError(
@@ -3245,6 +3248,7 @@
             signal: requestContext.signal,
             onProgress: requestContext.onProgress,
             callContext: {
+              ...requestContext.callContext,
               turnId: requestContext.turnId,
               workflowId: requestContext.workflowId,
               paperId: source.sourceId,
@@ -3494,7 +3498,7 @@
       const responseSchema = options.responseSchema === "corpus_map"
         ? "corpus_map"
         : "paper_analysis";
-      const modelVersion = String(options.modelVersion || "requesty-configured-model").slice(0, 200);
+      const modelVersion = String(options.callContext?.model || options.modelVersion || "requesty-configured-model").slice(0, 200);
       const taskSignature = stableStringHash([
         normalizedTask,
         responseSchema,
@@ -4574,6 +4578,7 @@
         journal.workflowId,
         normalizeSynthesisQuestion(journal.question),
         CORPUS_RETRIEVAL_INTENT,
+        options.callContext?.model || "",
       ].join(":");
       if (options.forcePlannerRefresh === true) {
         this.workflowSharedPlans.delete(planKey);
@@ -4602,6 +4607,7 @@
           persistedPlan: journal.sharedRetrievalPlan || null,
           forceRefresh: options.forcePlannerRefresh === true,
           callContext: {
+            ...options.callContext,
             turnId: options.turnId,
             workflowId: journal.workflowId,
             callRole: "search_planner",
@@ -5048,6 +5054,7 @@
       for (let attempt = 1; attempt <= this.mapAttempts; attempt += 1) {
         try {
           const mapped = await this.mapWorker(workerInput, {
+            callContext: options.callContext,
             signal: options.signal,
             attempt,
             fallback: false,
@@ -5112,6 +5119,7 @@
               evidenceRefs: workerInput.evidence.map((item) => item.evidenceRef),
               language: options.language,
               callContext: {
+                ...options.callContext,
                 turnId: options.turnId,
                 workflowId: options.workflowId,
                 callRole: "native_pdf",
@@ -5167,6 +5175,7 @@
       try {
         const mapped = this.fallbackMapWorker
           ? await this.fallbackMapWorker(workerInput, {
+              callContext: options.callContext,
               signal: options.signal,
               attempt: this.mapAttempts + 1,
               fallback: true,
@@ -5999,7 +6008,7 @@
         normalizedQuestion,
         CORPUS_MAP_SCHEMA_VERSION,
         CORPUS_MAP_PROMPT_VERSION,
-        options.mapModelVersion || "default-model",
+        options.callContext?.model || options.mapModelVersion || "default-model",
       ].join("|"));
       await Promise.all(readySourceIds.map(async (sourceId) => {
         const source = this.registry.get(sourceId);
@@ -6226,6 +6235,7 @@
                 sharedRetrievalPlan,
                 sharedPlanQuery: journal.question,
                 callContext: {
+                  ...options.callContext,
                   turnId: options.turnId,
                   workflowId,
                   paperId: sourceId,
@@ -6283,6 +6293,7 @@
                 providerRequest: true,
               }));
               mappedExecution = await this.executeMapWorker(workerInput, {
+                  callContext: options.callContext,
                   signal: options.signal,
                   surface: options.surface,
                   language: options.language,
@@ -7200,6 +7211,7 @@
     hashBytes,
     isIgnoredFilesystemArtifact,
     normalizePath,
+    normalizePaperCardContract,
     paperArtifactFromExtraction,
     parseDelimited,
     parseExperimentBytes,

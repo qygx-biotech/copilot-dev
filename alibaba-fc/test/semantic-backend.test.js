@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const jwt = require("jsonwebtoken");
 
+process.env.ADMIN_ACCOUNT = "semantic-test";
 process.env.JWT_SECRET = "semantic-backend-test-secret";
 process.env.REQUESTY_API_KEY = "fc-semantic-private-key";
 process.env.REQUESTY_MODEL = "requesty/test-answer";

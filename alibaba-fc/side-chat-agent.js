@@ -1027,7 +1027,9 @@ function singleLineCatalogText(value, limit = 600) {
 
 function diagnosticIdentifier(value, limit) {
   const identifier = singleLineCatalogText(value, limit);
-  return /[/\\]/.test(identifier) ? "[path-like-identifier]" : identifier;
+  // Model-supplied IDs can contain document text or credentials. Correlate
+  // diagnostics without retaining their raw values; tool behavior is unchanged.
+  return identifier ? `sha256:${require("node:crypto").createHash("sha256").update(identifier).digest("hex").slice(0, 16)}` : "";
 }
 
 function buildSideChatCatalog(knowledgeBase) {

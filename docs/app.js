@@ -58,11 +58,12 @@ const sideChatInput = document.querySelector("#sideChatInput");
 const sideChatHistory = document.querySelector("#sideChatHistory");
 const sendSideChatButton = document.querySelector("#sendSideChatButton");
 const clearSideChatButton = document.querySelector("#clearSideChatButton");
+const sideChatConversationSelect = document.querySelector("#sideChatConversationSelect");
 const sideExampleButtons = document.querySelectorAll(".side-example-button");
 const sideChatExamples = document.querySelector("#sideChatExamples");
 const sideChatContextChips = document.querySelector("#sideChatContextChips");
-const retrievalProfileSelect = document.querySelector("#retrievalProfileSelect");
-const retrievalProfileDescription = document.querySelector("#retrievalProfileDescription");
+const sideChatModelSelect = document.querySelector("#sideChatModelSelect");
+const sideChatModelDescription = document.querySelector("#sideChatModelDescription");
 
 const sourceCitationApi = window.BioDesignSourceCitations;
 const chatImageApi = window.BioDesignChatImages;
@@ -332,17 +333,18 @@ const I18N = {
     sideChatTitle: "Side Chat",
     sideChatHelper: "Ask questions without changing the current recommendation.",
     sideChatContextLabel: "Context",
-    retrievalQualityLabel: "Retrieval",
-    retrievalProfileLight: "Light — lower cost, mostly local",
-    retrievalProfileMedium: "Medium — Fast first, Deep when useful",
-    retrievalProfileHigh: "High — maximum relevant quality",
+    sideChatModelLabel: "Side Chat model",
+    sideChatModelDefault: "Default model",
+    sideChatModelDescriptionDefault: "Use the configured default model for all tasks in this Side Chat turn.",
     sideExampleFiles: "Summarize the selected files.",
     sideExamplePatterns: "Compare the selected papers.",
     sideExamplePaper: "What does this paper suggest?",
     sideExampleClarify: "What should I clarify before running the main analysis?",
     sideQuestionLabel: "Side question",
-    clearSideChat: "Clear chat",
-    clearSideChatConfirm: "Clear this Side Chat conversation? Workspace files and paper summaries will not be changed.",
+    clearSideChat: "New Chat",
+    sideChatHistoryLabel: "Chat history",
+    sideChatHistoryHint: "Keeps the 5 most recent chats, including this one.",
+    sideChatUntitled: "New Chat",
     sideChatPlaceholder: "Ask a question without updating the project plan...",
     askButton: "Ask",
     editLastMessage: "Edit last message",
@@ -716,17 +718,18 @@ const I18N = {
     sideChatTitle: "侧边问答",
     sideChatHelper: "在不改变当前推荐的情况下提问。",
     sideChatContextLabel: "上下文",
-    retrievalQualityLabel: "检索质量",
-    retrievalProfileLight: "轻量 — 成本较低，主要使用本地检索",
-    retrievalProfileMedium: "中等 — 先快速检索，必要时深度检索",
-    retrievalProfileHigh: "高 — 在相关范围内提供最高检索质量",
+    sideChatModelLabel: "侧边问答模型",
+    sideChatModelDefault: "默认模型",
+    sideChatModelDescriptionDefault: "使用配置的默认模型处理本轮侧边问答的所有任务。",
     sideExampleFiles: "总结所选文件。",
     sideExamplePatterns: "比较所选论文。",
     sideExamplePaper: "这篇论文提示了什么？",
     sideExampleClarify: "运行主分析前我应该澄清什么？",
     sideQuestionLabel: "侧边问题",
-    clearSideChat: "清空问答",
-    clearSideChatConfirm: "清空当前侧边问答吗？工作区文件和论文摘要不会改变。",
+    clearSideChat: "新建聊天",
+    sideChatHistoryLabel: "聊天记录",
+    sideChatHistoryHint: "保留最近 5 个聊天，包括当前聊天。",
+    sideChatUntitled: "新建聊天",
     sideChatPlaceholder: "提出一个不会更新项目计划的问题...",
     askButton: "提问",
     editLastMessage: "编辑最后一条消息",
@@ -917,12 +920,16 @@ let authToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "";
 let currentAccount = sessionStorage.getItem(ACCOUNT_STORAGE_KEY) || "";
 let projectContext = "";
 let retrievalProfile = "light";
+let sideChatModel = "default";
+let defaultSideChatModel = "";
 let referenceDocuments = [];
 let experimentModules = loadExperimentModules();
 let analysisPanels = loadAnalysisPanels();
 let currentRecommendation = getCurrentRecommendation();
 let sideChatMessages = [];
 let sideChatConversation = null;
+let sideChatConversations = [];
+let sideChatNavigationBusy = false;
 let activeAgentRequest = false;
 let activeAgentPanelId = "";
 let activePdfUploads = 0;
@@ -964,13 +971,9 @@ languageSelects.forEach((select) => {
   select.addEventListener("change", () => setLanguage(select.value));
 });
 
-retrievalProfileSelect.addEventListener("change", () => {
-  if (!isValidRetrievalProfile(retrievalProfileSelect.value)) {
-    renderRetrievalProfileControl();
-    return;
-  }
-  retrievalProfile = retrievalProfileSelect.value;
-  renderRetrievalProfileControl();
+sideChatModelSelect.addEventListener("change", () => {
+  sideChatModel = normalizeSideChatModel(sideChatModelSelect.value);
+  renderSideChatModelControl();
   scheduleWorkspaceStateSave();
 });
 
@@ -1044,6 +1047,7 @@ loginForm.addEventListener("submit", async (event) => {
       throw new Error(t("loginAccountMissing"));
     }
 
+    updateSideChatModelConfiguration(data);
     setAuthSession(data.token, loggedInAccount);
     showAuthenticated(loggedInAccount);
   } catch (error) {
@@ -1319,17 +1323,73 @@ async function submitSideChat() {
 }
 
 clearSideChatButton.addEventListener("click", async () => {
-  if (!workspaceChatStore || sideChatBusy) return;
-  if (sideChatMessages.length && !window.confirm(t("clearSideChatConfirm"))) return;
+  await changeSideChatConversation();
+});
+
+sideChatConversationSelect.addEventListener("change", async () => {
+  await changeSideChatConversation(sideChatConversationSelect.value);
+});
+
+async function changeSideChatConversation(id = "") {
+  if (!workspaceChatStore || sideChatBusy || sideChatImageComposer?.preparing) return;
+  if (id === sideChatConversation?.id || (!id && !sideChatMessages.length)) {
+    sideChatInput.focus();
+    return;
+  }
+  const store = workspaceChatStore;
+  const isCurrent = () => workspaceChatStore === store;
+  sideChatNavigationBusy = true;
+  setSideChatBusy(true);
   try {
-    sideChatConversation = await workspaceChatStore.clearActiveConversation();
+    // Preserve even an answer whose earlier disk write failed before navigating.
+    await persistSideChatConversation();
+    if (!isCurrent()) return;
+    const conversation = id
+      ? await store.activateConversation(id)
+      : await store.startNewConversation();
+    const conversations = await store.listConversations();
+    if (!isCurrent()) return;
+    sideChatConversation = conversation;
+    sideChatConversations = conversations;
     sideChatImageComposer?.clear();
-    sideChatMessages = sideChatConversation.messages;
+    sideChatInput.value = "";
+    sideChatMessages = conversation.messages;
+    lastSourceUsage = null;
+    activeCorpusProgress = null;
+    renderSideChatConversationSelect();
+    renderSideChatContext();
     renderSideChatConversation();
   } catch (error) {
-    showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+    if (isCurrent()) {
+      renderSideChatConversationSelect();
+      showToast(t("workspaceLoadFailed", { message: error.message || t("loginFailed") }));
+    }
+  } finally {
+    if (isCurrent()) {
+      sideChatNavigationBusy = false;
+      setSideChatBusy(false);
+      sideChatInput.focus();
+    }
   }
-});
+}
+
+function renderSideChatConversationSelect() {
+  const options = sideChatConversations.map((conversation) => {
+    const option = document.createElement("option");
+    option.value = conversation.id;
+    const title = conversation.title === "Side Chat" ? t("sideChatUntitled") : conversation.title;
+    const date = new Date(conversation.updatedAt);
+    const time = Number.isNaN(date.getTime()) ? "" : date.toLocaleString(currentLanguage === "zh" ? "zh-CN" : "en", {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    option.textContent = time ? `${title.slice(0, 64)} · ${time}` : title.slice(0, 64);
+    option.title = title;
+    return option;
+  });
+  sideChatConversationSelect.replaceChildren(...options);
+  sideChatConversationSelect.value = sideChatConversation?.id || "";
+  sideChatConversationSelect.disabled = sideChatBusy || !options.length;
+}
 
 sideChatHistory.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-side-chat-action]");
@@ -1496,6 +1556,7 @@ async function checkCurrentUser() {
       return;
     }
 
+    updateSideChatModelConfiguration(data);
     const accountName = getAccountName(data) || currentAccount || t("signedIn");
     if (accountName !== t("signedIn")) {
       setAuthSession(authToken, accountName);
@@ -1519,6 +1580,7 @@ function showAuthenticated(accountName) {
 }
 
 function showLoggedOut(message) {
+  updateSideChatModelConfiguration({});
   closeWorkspaceInMemory();
   clearAuthSession();
   currentAccountName.textContent = t("notSignedIn");
@@ -1594,13 +1656,16 @@ async function openSelectedWorkspace(initialize) {
   });
   workspaceChatStore = new WorkspaceChatStore({ workspace: workspaceManager });
   sideChatConversation = await workspaceChatStore.loadActiveConversation();
+  sideChatConversations = await workspaceChatStore.listConversations();
   sideChatMessages = sideChatConversation.messages;
   selectedWorkspacePaths = new Set();
   expandedWorkspacePaths = new Set([""]);
   projectContext = result.state.project.goal || "";
   retrievalProfile = normalizeRetrievalProfile(result.state.ui?.retrievalProfile);
+  sideChatModel = normalizeSideChatModel(result.state.ui?.sideChatModel);
   projectContextInput.value = projectContext;
-  renderRetrievalProfileControl();
+  renderSideChatModelControl();
+  renderSideChatConversationSelect();
   workspaceNameLabel.textContent = result.workspace.name;
   applyLiteratureScan(documents);
   renderWorkspaceExplorer();
@@ -1729,6 +1794,7 @@ async function saveWorkspaceStateNow() {
     ui: {
       ...workspaceManager.state.ui,
       retrievalProfile,
+      sideChatModel,
     },
   };
   await workspaceManager.saveState(nextState);
@@ -1766,6 +1832,9 @@ function closeWorkspaceInMemory() {
   lastSourceUsage = null;
   workspaceChatStore = null;
   sideChatConversation = null;
+  sideChatConversations = [];
+  sideChatNavigationBusy = false;
+  renderSideChatConversationSelect();
   workspaceManager.closeWorkspace();
   referenceDocuments = [];
   workspaceTree = null;
@@ -1896,7 +1965,8 @@ function applyLanguage() {
   renderAnalysisPanels();
   renderWorkspaceExplorer();
   renderSideChatContext();
-  renderRetrievalProfileControl();
+  renderSideChatModelControl();
+  renderSideChatConversationSelect();
   renderBetaUpdateStatus();
 
   if (!sideChatMessages.length && sideChatHistory.childElementCount <= 1) {
@@ -1906,14 +1976,33 @@ function applyLanguage() {
   }
 }
 
-function renderRetrievalProfileControl() {
-  if (!retrievalProfileSelect || !retrievalProfileDescription) return;
-  retrievalProfile = normalizeRetrievalProfile(retrievalProfile);
-  retrievalProfileSelect.value = retrievalProfile;
-  const key = `retrievalProfile${retrievalProfile[0].toUpperCase()}${retrievalProfile.slice(1)}`;
-  const description = t(key);
-  retrievalProfileSelect.title = description;
-  retrievalProfileDescription.textContent = description;
+function normalizeSideChatModel(value) {
+  return [...sideChatModelSelect.options].some(option => option.value === value) ? value : "default";
+}
+
+function shortSideChatModelName(model) {
+  return model === "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    ? "nvidia/nemotron-3-nano-omni" : model;
+}
+
+function updateSideChatModelConfiguration(data) {
+  defaultSideChatModel = typeof data?.chatModel === "string" ? data.chatModel.trim().slice(0, 200) : "";
+  renderSideChatModelControl();
+}
+
+function renderSideChatModelControl() {
+  if (!sideChatModelSelect || !sideChatModelDescription) return;
+  const defaultModel = defaultSideChatModel || sideChatModelSelect.querySelector('option[value="default"]')?.dataset.modelName || "";
+  sideChatModel = normalizeSideChatModel(sideChatModel);
+  sideChatModelSelect.value = sideChatModel;
+  for (const option of sideChatModelSelect.options) {
+    const model = option.value === "default" ? defaultModel : option.value;
+    option.textContent = model ? shortSideChatModelName(model) : t("sideChatModelDefault");
+    option.title = model || t("sideChatModelDescriptionDefault");
+  }
+  const description = (sideChatModel === "default" ? defaultModel : sideChatModel) || t("sideChatModelDescriptionDefault");
+  sideChatModelSelect.title = description;
+  sideChatModelDescription.textContent = description;
 }
 
 function requireLoginForUnauthorized(response) {
@@ -3536,6 +3625,7 @@ function setAgentBusy(isBusy, panelId = "") {
 // shared source system, but it must never mutate the Current Recommendation.
 async function sendWorkbenchRequest({
   mode,
+  model = null,
   messages,
   localWorkspaceContext = null,
   callContext = null,
@@ -3555,6 +3645,7 @@ async function sendWorkbenchRequest({
       : [];
   const requestBody = {
     mode,
+    ...(isSideChat && model ? { model } : {}),
     stream: true,
     messages,
     projectContext: getProjectContext(),
@@ -3675,12 +3766,12 @@ function createStreamingAnswer(container, scrollContainer = null) {
   };
 }
 
-async function understandSideChatImages(question, images, { turnId, signal } = {}) {
+async function understandSideChatImages(question, images, { turnId, signal, model } = {}) {
   const finish = runtimeLog?.begin("image-understanding", { turnId, surface: "side_chat", imageCount: images.length, endpoint: "/api/chat/understand-images" });
   try {
     literatureModule?.api?.recordTurnCall?.(turnId, "image_understanding");
     const response = await fetch(backendUrl("/api/chat/understand-images"), {
-      method: "POST", headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      method: "POST", headers: getAuthHeaders({ "Content-Type": "application/json", ...(model ? { "X-BioDesign-Chat-Model": model } : {}) }),
       signal: AbortSignal.any([signal, AbortSignal.timeout(130000)].filter(Boolean)),
       body: JSON.stringify({ question, images: chatImageApi.validateImages(images),
         callContext: { turnId, callRole: "image_understanding", profile: retrievalProfile } }),
@@ -3734,14 +3825,24 @@ function buildAgentMessages(instruction, answerLanguage) {
 
 async function persistSideChatConversation() {
   if (!workspaceChatStore || !sideChatConversation) return;
-  sideChatConversation = await workspaceChatStore.saveConversation({
+  const store = workspaceChatStore;
+  const conversationId = sideChatConversation.id;
+  const isCurrent = () => workspaceChatStore === store && sideChatConversation?.id === conversationId;
+  const saved = await store.saveConversation({
     ...sideChatConversation,
     messages: sideChatMessages,
   });
-  sideChatMessages = sideChatConversation.messages;
+  if (!isCurrent()) return;
+  sideChatConversation = saved;
+  sideChatMessages = saved.messages;
+  const conversations = await store.listConversations();
+  if (!isCurrent()) return;
+  sideChatConversations = conversations;
+  renderSideChatConversationSelect();
 }
 
 function saveSideChatMessages() {
+  if (sideChatNavigationBusy) return;
   persistSideChatConversation().catch((error) => {
     console.warn("Could not persist Side Chat in the workspace.", error);
     showToast(t("chatPersistenceFailed"));
@@ -4585,6 +4686,7 @@ function setSideChatBusy(isBusy) {
   sideChatInput.disabled = isBusy;
   sendSideChatButton.disabled = isBusy;
   clearSideChatButton.disabled = isBusy;
+  sideChatConversationSelect.disabled = isBusy || !sideChatConversations.length;
   sideChatHistory.querySelectorAll('[data-side-chat-action], [data-side-chat-edit-input]').forEach((button) => {
     button.disabled = isBusy;
   });
@@ -4653,6 +4755,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
   if (revision?.imageDraft) images = revision.imageDraft.filter(image => !image.attachmentId);
   if (images.length + revisionImages.length > chatImageApi.limits.count) { showToast(t("imageCountLimit")); return; }
   if ((images.length || revisionImages.length) && question.length > chatImageApi.limits.questionCharacters) { showToast(t("chatImageQuestionLong")); return; }
+  const requestModel = sideChatModel;
   let effectiveQuestion = question;
   const requestSignal = workspaceAbortController?.signal;
   const requestWorkspaceId = workspaceManager?.workspace?.workspaceId;
@@ -4713,7 +4816,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       const retainedImages = revisionImages.length ? await requestChatStore.loadImageAttachments(revisionImages, { signal: requestSignal }) : [];
       const preparedImages = [...retainedImages, ...images];
       if (requestSignal?.aborted || !isCurrentRequest()) return;
-      userMessage.imageUnderstanding = await understandSideChatImages(question, preparedImages, { turnId: userMessage.id, signal: requestSignal });
+      userMessage.imageUnderstanding = await understandSideChatImages(question, preparedImages, { turnId: userMessage.id, signal: requestSignal, model: requestModel });
       if (requestSignal?.aborted || !isCurrentRequest()) return;
       effectiveQuestion = chatImageApi.combineQuestion(question, userMessage.imageUnderstanding);
       await persistSideChatConversation();
@@ -4724,6 +4827,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
     userMessage.context = contextSnapshot;
     const localWorkspaceContext = await projectContextService.buildContext({
       surface: "side_chat",
+      callContext: { model: requestModel },
       turnId: userMessage.id,
       question: effectiveQuestion,
       retrievalProfile,
@@ -4787,6 +4891,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       streamingPreview = createStreamingAnswer(sideChatHistory, sideChatHistory);
       const response = await sendWorkbenchRequest({
         mode: "side_chat",
+        model: requestModel,
         messages: messagesForBackend,
         localWorkspaceContext,
         signal: requestSignal,

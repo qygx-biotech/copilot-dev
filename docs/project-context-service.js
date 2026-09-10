@@ -24,6 +24,7 @@
     (typeof require === "function" ? require("../shared/chat-images.js") : {});
   const pipelineApi = root?.AgentRequestPipeline ? root : (typeof require === "function" ? require("./request-pipeline.js") : {});
   const CHAT_SCHEMA_VERSION = 1;
+  const MAX_SAVED_CHATS = 5;
   const CONTEXT_LIMITS = {
     maxInventoryFiles: 500,
     maxProjectSummaries: 20,
@@ -629,6 +630,31 @@
       this.limits = { ...CONTEXT_LIMITS, ...(options.limits || {}) };
       this.indexPath = ".biodesign/chat/index.json";
       this.conversationsDirectory = ".biodesign/chat/conversations";
+      this.workspaceId = this.workspace.workspace?.workspaceId;
+      this.workspaceReference = this.workspace.workspace;
+      this.pending = Promise.resolve();
+    }
+
+    ensureCurrentWorkspace() {
+      if (this.workspace.workspace !== this.workspaceReference || this.workspace.workspace?.workspaceId !== this.workspaceId) {
+        throw Object.assign(new Error("Workspace changed."), { code: "OPERATION_ABORTED" });
+      }
+    }
+
+    async io(method, ...args) {
+      this.ensureCurrentWorkspace();
+      const result = await this.workspace[method](...args);
+      this.ensureCurrentWorkspace();
+      return result;
+    }
+
+    enqueue(operation) {
+      const next = this.pending.then(() => {
+        this.ensureCurrentWorkspace();
+        return operation();
+      });
+      this.pending = next.catch(() => {});
+      return next;
     }
 
     timestamp() {
@@ -636,22 +662,23 @@
     }
 
     conversationPath(id) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error("Invalid conversation ID.");
       return `${this.conversationsDirectory}/${id}.json`;
     }
 
     async readIndex() {
-      await this.workspace.ensureDirectory(this.conversationsDirectory);
-      if (!(await this.workspace.fileExists(this.indexPath))) {
+      await this.io("ensureDirectory", this.conversationsDirectory);
+      if (!(await this.io("fileExists", this.indexPath))) {
         const index = {
           schemaVersion: CHAT_SCHEMA_VERSION,
           activeConversationId: "",
           conversations: [],
           updatedAt: this.timestamp(),
         };
-        await this.workspace.writeJson(this.indexPath, index);
+        await this.io("writeJson", this.indexPath, index);
         return index;
       }
-      return this.workspace.readJson(this.indexPath);
+      return this.io("readJson", this.indexPath);
     }
 
     createConversation() {
@@ -667,20 +694,53 @@
       };
     }
 
-    async loadActiveConversation() {
-      const index = await this.readIndex();
-      if (index.activeConversationId) {
-        const path = this.conversationPath(index.activeConversationId);
-        if (await this.workspace.fileExists(path)) {
-          return this.workspace.readJson(path);
-        }
-      }
-      const conversation = this.createConversation();
-      await this.saveConversation(conversation, index);
-      return conversation;
+    loadActiveConversation() {
+      return this.enqueue(() => this.loadActiveConversationNow(true));
     }
 
-    async saveConversation(conversation, suppliedIndex = null) {
+    async loadActiveConversationNow(sweep = false) {
+      let index = await this.readIndex();
+      const available = [];
+      for (const record of index.conversations) {
+        if (await this.io("fileExists", this.conversationPath(record.id))) available.push(record);
+      }
+      index = await this.commitIndex({ ...index, conversations: available }, { sweep });
+      if (index.activeConversationId) {
+        const path = this.conversationPath(index.activeConversationId);
+        return this.io("readJson", path);
+      }
+      return this.saveConversationNow(this.createConversation(), index);
+    }
+
+    listConversations() {
+      return this.enqueue(async () => (await this.readIndex()).conversations);
+    }
+
+    activateConversation(id) {
+      return this.enqueue(async () => {
+        const index = await this.readIndex();
+        if (!index.conversations.some((record) => record.id === id)) throw new Error("Chat is no longer available.");
+        const conversation = await this.io("readJson", this.conversationPath(id));
+        await this.commitIndex({ ...index, activeConversationId: id });
+        return conversation;
+      });
+    }
+
+    startNewConversation() {
+      return this.enqueue(async () => {
+        const current = await this.loadActiveConversationNow();
+        if (!current.messages.length) return current;
+        return this.saveConversationNow(this.createConversation());
+      });
+    }
+
+    saveConversation(conversation, suppliedIndex = null) {
+      // Capture the turn before another UI action can mutate its message array.
+      const snapshot = structuredClone(conversation);
+      return this.enqueue(() => this.saveConversationNow(snapshot, suppliedIndex));
+    }
+
+    async saveConversationNow(conversation, suppliedIndex = null) {
       const timestamp = this.timestamp();
       const normalized = normalizeStoredConversation(
         {
@@ -694,8 +754,9 @@
         },
         this.limits
       );
-      await this.workspace.writeJson(this.conversationPath(normalized.id), normalized);
       const index = suppliedIndex || (await this.readIndex());
+      const existed = await this.io("fileExists", this.conversationPath(normalized.id));
+      await this.io("writeJson", this.conversationPath(normalized.id), normalized);
       const record = {
         id: normalized.id,
         title: normalized.title.slice(0, 120),
@@ -706,14 +767,67 @@
       const conversations = [
         record,
         ...index.conversations.filter((item) => item.id !== normalized.id),
-      ].slice(0, 50);
-      await this.workspace.writeJson(this.indexPath, {
+      ];
+      await this.commitIndex({
         schemaVersion: CHAT_SCHEMA_VERSION,
         activeConversationId: normalized.id,
         conversations,
         updatedAt: timestamp,
-      });
+      }, { rollbackId: existed ? "" : normalized.id });
       return normalized;
+    }
+
+    async commitIndex(index, { sweep = false, rollbackId = "" } = {}) {
+      const seen = new Set();
+      const ordered = index.conversations.filter((record) => {
+        if (seen.has(record.id)) return false;
+        seen.add(record.id);
+        return true;
+      });
+      const conversations = ordered.slice(0, MAX_SAVED_CHATS);
+      const retained = new Set(conversations.map((record) => record.id));
+      const discarded = new Set(ordered.slice(MAX_SAVED_CHATS).map((record) => record.id));
+      // Older versions limited only the index, leaving conversation files behind.
+      if (sweep && typeof this.workspace.listFiles === "function") {
+        for (const file of await this.io("listFiles", this.conversationsDirectory)) {
+          const id = file.name?.match(/^([a-zA-Z0-9_-]+)\.json$/)?.[1];
+          if (id && !retained.has(id)) discarded.add(id);
+        }
+      }
+      const next = { ...index, conversations,
+        activeConversationId: retained.has(index.activeConversationId) ? index.activeConversationId : conversations[0]?.id || "",
+      };
+      try {
+        await this.io("writeJson", this.indexPath, next);
+      } catch (error) {
+        if (rollbackId) await this.io("removeFile", this.conversationPath(rollbackId)).catch(() => {});
+        throw error;
+      }
+      await this.removeConversationFiles([...discarded], conversations);
+      return next;
+    }
+
+    async removeConversationFiles(ids, retained) {
+      if (!ids.length) return;
+      const retainedImages = new Set();
+      const imageIds = (conversation) => (conversation.messages || []).flatMap((message) =>
+        chatImages.normalizeAttachments(message.images).map((image) => image.attachmentId));
+      for (const record of retained) {
+        const conversation = await this.io("readJson", this.conversationPath(record.id));
+        for (const id of imageIds(conversation)) retainedImages.add(id);
+      }
+      for (const id of ids) {
+        const path = this.conversationPath(id);
+        if (!(await this.io("fileExists", path))) continue;
+        const conversation = await this.io("readJson", path);
+        await this.io("removeFile", path);
+        for (const imageId of imageIds(conversation)) {
+          const imagePath = `.biodesign/chat/attachments/${imageId}.json`;
+          if (!retainedImages.has(imageId) && await this.io("fileExists", imagePath)) {
+            await this.io("removeFile", imagePath);
+          }
+        }
+      }
     }
 
     async saveImageAttachments(images, { signal } = {}) {
@@ -1094,6 +1208,7 @@
             recentlyReferencedPaperIds: input.recentPaperIds,
             literatureIndex: input.literatureIndex,
             availableMemoryDescriptions: input.memoryDescriptions,
+            callContext: options.callContext,
           },
           options.signal
         );
@@ -1243,7 +1358,7 @@
         remoteParser: typeof this.literature?.api?.interpretSemantics === "function"
           ? (payload) => this.literature.api.interpretSemantics({
               ...payload,
-              callContext: { turnId: options.turnId, profile: retrievalProfile },
+              callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
             }, options.signal)
           : null,
       });
@@ -1255,7 +1370,7 @@
       const retrievalQuery = question;
       options = {
         ...options, semanticIR, evidencePlan, requestUnderstanding: understanding, profile: retrievalProfile, language: semanticIR.answerLanguage,
-        callContext: { turnId: options.turnId, profile: retrievalProfile },
+        callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
       };
       const corpusWideLiteratureRequest = semanticIR.matchedPattern === "literature.corpus_synthesis" ||
         (semanticIR.capabilityHints.includes("corpus_workflow") &&
@@ -1368,7 +1483,7 @@
             retrievalProfile,
             requestUnderstanding: understanding,
             turnId: options.turnId,
-            callContext: { turnId: options.turnId, profile: retrievalProfile },
+            callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
             signal: options.signal,
             ...(scopedPaperIds.length
               ? { candidatePaperIds: scopedPaperIds }
@@ -1388,7 +1503,7 @@
           const boundQuery = [...semanticIR.entities.map((entity) => entity.canonicalId), identifier, ...semanticIR.comparisonVariables].join(" ");
           const found = await this.matchPapers(boundQuery, {
             topK: 5, readyOnly: false, retrievalProfile,
-            callContext: { turnId: options.turnId, profile: retrievalProfile },
+            callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
             signal: options.signal,
             ...(selectedPaperIds.length ? { candidatePaperIds: selectedPaperIds } : {}),
           });

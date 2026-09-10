@@ -3085,6 +3085,42 @@ test("stale, missing, malformed, and content-mismatched Paper Cards are rebuilt"
   });
 });
 
+test("preflight children and initiating turn share configuration while compatible cards stay reusable", async (t) => {
+  const { createFixture } = require("./helpers/preflight-fixture.js");
+  const f = await createFixture();
+  let configurationCalls = 0;
+  const contract = { ...TEST_NATIVE_PAPER_CARD_CONTRACT };
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.test", fetch: async () => {
+    configurationCalls++;
+    return new Response(JSON.stringify({ ok: true, ...contract }));
+  } });
+  const counters = makeRouteCounters();
+  f.system.preparation.getPaperCardConfiguration = (...args) => api.getPaperCardConfiguration(...args);
+  f.system.preparation.setPaperCardGenerator(paperCardGenerator(f.workspace, counters));
+  for (let i = 1; i <= 3; i++) f.workspace.set(`literature/p${i}.pdf`, "The tested variant improved EctD activity.");
+  const options = { turnId: "initiating-turn", callContext: { model: "default" } };
+  const preflight = await f.pipeline.preflight(options);
+  assert.equal(preflight.report.status, "completed");
+  const ids = f.system.registry.list({ sourceKind: "paper" }).map(source => source.sourceId);
+  const ready = await f.system.preparation.ensureSourceReady(ids, "paper_card", options);
+  assert.ok(ready.sources.every(source => source.cached));
+  const coldCounts = { configurationCalls, generations: counters.counts[FC_ROUTES.paperCardSynthesize] };
+  t.diagnostic(`Three-paper preflight plus initiating readiness: ${JSON.stringify(coldCounts)}`);
+
+  const warm = await f.system.preparation.ensureSourceReady(ids, "paper_card", { ...options, turnId: "next-turn" });
+  assert.ok(warm.sources.every(source => source.cached));
+  assert.equal(configurationCalls, coldCounts.configurationCalls + 1, "The next turn fetches fresh configuration");
+  assert.equal(counters.counts[FC_ROUTES.paperCardSynthesize], 3, "Warm compatible cards require zero regenerations");
+
+  contract.modelSignature = "a".repeat(64);
+  const changed = await f.system.preparation.ensureSourceReady(ids, "paper_card", { ...options, turnId: "changed-model-turn" });
+  assert.ok(changed.sources.every(source => !source.cached));
+  assert.equal(counters.counts[FC_ROUTES.paperCardSynthesize], 6, "Changed backend model invalidates all three cards");
+  assert.equal(configurationCalls, coldCounts.configurationCalls + 2);
+  assert.equal(coldCounts.generations, 3);
+  assert.equal(coldCounts.configurationCalls, 1, "Child and parent setup should require one configuration request");
+});
+
 test("canonical cache invalidates on generation, native, combined-text, and parsing contract changes", async () => {
   const contract = {
     ...TEST_NATIVE_PAPER_CARD_CONTRACT,
@@ -3092,7 +3128,13 @@ test("canonical cache invalidates on generation, native, combined-text, and pars
   const { counters, system, paperIds } = await createCorpusScenario(1, [], {
     paperCardContract: contract,
   });
-  await system.corpusWorkflows.run("First corpus question.", { retrievalProfile: "high" });
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.test", fetch: async () => {
+    counters.hit(FC_ROUTES.paperCardConfig);
+    return new Response(JSON.stringify({ ok: true, ...contract }));
+  } });
+  system.preparation.getPaperCardConfiguration = (...args) => api.getPaperCardConfiguration(...args);
+  let turn = 0;
+  await system.corpusWorkflows.run("First corpus question.", { retrievalProfile: "high", turnId: `contract-turn-${turn++}` });
   assertRouteCounts(counters, {
     paperCardConfig: 1,
     summarize: 1,
@@ -3101,7 +3143,7 @@ test("canonical cache invalidates on generation, native, combined-text, and pars
 
   const assertRebuilt = async (question) => {
     counters.reset();
-    const result = await system.corpusWorkflows.run(question, { retrievalProfile: "high" });
+    const result = await system.corpusWorkflows.run(question, { retrievalProfile: "high", turnId: `contract-turn-${turn++}` });
     const journal = await resolveWorkflowResult(system, result);
     assert.equal(journal.processingAccounting.canonicalArtifactsCreated, 1);
     assert.equal(journal.processingAccounting.canonicalArtifactsReused, 0);
