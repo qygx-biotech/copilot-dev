@@ -71,13 +71,16 @@ async function runAgentScenarios() {
   const centerColumn = document.querySelector(".center-column");
   const sideStyle = getComputedStyle(sideColumn);
   const stickyTop = Number.parseFloat(sideStyle.top);
+  const wideLayout = innerWidth > 1280;
   check(
-    sideStyle.position === "sticky"
-      && sideStyle.alignSelf === "start"
-      && Math.abs(stickyTop - 16) <= 0.1
-      && sideColumn.offsetHeight + stickyTop <= innerHeight + 1
+    (wideLayout
+      ? sideStyle.position === "sticky"
+        && sideStyle.alignSelf === "start"
+        && Math.abs(stickyTop - 16) <= 0.1
+        && sideColumn.offsetHeight + stickyTop <= innerHeight + 1
+      : sideStyle.position === "static")
       && centerColumn.offsetHeight >= sideColumn.offsetHeight + 240,
-    `Side Chat is configured to remain sticky in the viewport beside lower Agent tasks (position=${sideStyle.position}, top=${stickyTop}, sideHeight=${sideColumn.offsetHeight}, centerHeight=${centerColumn.offsetHeight}, viewport=${innerHeight})`,
+    `Side Chat retains its sticky desktop and stacked responsive layout beside lower Agent tasks (position=${sideStyle.position}, width=${innerWidth}, top=${stickyTop}, sideHeight=${sideColumn.offsetHeight}, centerHeight=${centerColumn.offsetHeight}, viewport=${innerHeight})`,
   );
   const preservedChats = [...analysisPanels];
   const preservedResult = JSON.stringify(currentRecommendation);
@@ -106,6 +109,7 @@ async function checkResponsive(width) {
   check(actions.scrollWidth <= actions.clientWidth + 1, `Task actions fit at ${width}px`);
   check(card(first).querySelector(".analysis-panel-header").getBoundingClientRect().height < 150 && card(first).querySelector(".agent-conversation").clientHeight >= 150, `Task header stays compact and leaves room for conversation at ${width}px`);
   check(document.documentElement.scrollWidth <= innerWidth + 1, `Page has no horizontal overflow at ${width}px`);
-  if (width <= 1280) check(getComputedStyle(document.querySelector(".side-column")).position === "static", `Existing responsive Side Chat stacking retained at ${width}px`);
-  else check(getComputedStyle(document.querySelector(".workbench-grid")).gridTemplateColumns.split(" ").length === 3, `Three desktop columns retained at ${width}px`);
+  const viewportWidth = innerWidth;
+  if (viewportWidth <= 1280) check(getComputedStyle(document.querySelector(".side-column")).position === "static", `Existing responsive Side Chat stacking retained at ${viewportWidth}px`);
+  else check(getComputedStyle(document.querySelector(".workbench-grid")).gridTemplateColumns.split(" ").length === 3, `Three desktop columns retained at ${viewportWidth}px`);
 }
