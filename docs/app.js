@@ -3707,7 +3707,7 @@ async function runAgentInstruction(panelId, revision = null) {
       mode: "agent_instruction",
       originalRequest: instruction,
       model: turn.requestedModel,
-      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, permission: turn.permission, projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
+      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, academicVersion: 1, permission: turn.permission, projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
       messages: buildAgentMessages(instruction, localWorkspaceContext?.requestUnderstanding?.answerLanguage),
       localWorkspaceContext,
       signal: requestSignal,
@@ -3729,13 +3729,13 @@ async function runAgentInstruction(panelId, revision = null) {
     if (response.taskOutcome && (response.taskOutcome.status !== "completed" || localWorkspaceContext?.semantic?.ir?.operations.every(operation => ["search", "store"].includes(operation)))) {
       agentWorkApi.finishTurn(panel, turn, { content: response.reply, isResult: response.taskOutcome.status === "completed",
         status: response.taskOutcome.status === "completed" ? "completed" : response.taskOutcome.status === "blocked" ? "waiting" : "failed",
-        citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata });
+        citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata, academicSources: response.academicSources });
       panel.statusKey = "";
       panel.status = response.reply;
       return;
     }
     panel.recommendation = normalizeAgentResponse(response, instruction);
-    agentWorkApi.finishTurn(panel, turn, { content: response.reply || panel.recommendation.currentInterpretation, summary: panel.recommendation.recommendedNextStep, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata, isResult: true });
+    agentWorkApi.finishTurn(panel, turn, { content: response.reply || panel.recommendation.currentInterpretation, summary: panel.recommendation.recommendedNextStep, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata, academicSources: response.academicSources, isResult: true });
     panel.statusKey = "recommendationUpdated";
     panel.status = "";
     panel.updatedAt = new Date().toISOString();
@@ -3923,7 +3923,8 @@ async function sendWorkbenchRequestOnce({
       taskStatus: data.taskOutcome?.status });
     if (data.desktopToolCalls) {
       const api = window.BioDesignSourceDownload;
-      if (!api?.allowed(isSideChat ? "side_chat" : "agent_command", desktopTools?.permission) ||
+      const academic = window.BioDesignAcademicTools;
+      if (isSideChat || !desktopTools || !api ||
         !window.biodesignDesktop?.execution?.runWorkflow || desktopRound >= 8 || !data.desktopContinuation ||
         !Array.isArray(data.desktopToolCalls) || data.desktopToolCalls.length > 24) {
         throw Object.assign(new Error("Desktop source download is unavailable or exceeds this move's permission/budget."), { code: "PERMISSION_DENIED" });
@@ -3937,7 +3938,23 @@ async function sendWorkbenchRequestOnce({
       const results = [];
       for (const call of data.desktopToolCalls) {
         ensureCurrent();
+        if (academic?.isTool(call.name)) {
+          if (desktopTools.academicVersion !== 1 || !academic.allowed(call.name, "agent_command", desktopTools.permission)) throw Object.assign(new Error("Academic tool unavailable on this move."), { code: "PERMISSION_DENIED" });
+          const args = academic.validateInput(call.name, call.args);
+          onStream({ type: "reset" }); onStream({ type: "status", stage: "tool-running", capability: call.name });
+          let result;
+          try {
+            result = academic.validateResult(call.name, await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { args, surface: "agent_command", permission: desktopTools.permission } }));
+          } catch (error) {
+            if (error.code === "OPERATION_ABORTED") throw error;
+            result = academic.failure(error.code);
+          }
+          ensureCurrent();
+          results.push({ id: call.id, result });
+          continue;
+        }
         if (call.name !== "download_sources") throw Object.assign(new Error("Unknown desktop tool."), { code: "TOOL_NOT_ALLOWED" });
+        if (!api.allowed("agent_command", desktopTools.permission)) throw Object.assign(new Error("Source writing is not allowed."), { code: "PERMISSION_DENIED" });
         const args = api.validateInput(call.args);
         onStream({ type: "reset" }); onStream({ type: "status", stage: "tool-running", capability: "download_sources" });
         let downloaded;

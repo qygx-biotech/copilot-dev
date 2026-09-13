@@ -66,11 +66,21 @@ jobs:
           gh release view $env:BIODESIGN_RELEASE_TAG *> $null
           if ($LASTEXITCODE -eq 0) { throw "A GitHub release already exists for this tag." }
 
+      - name: Set up Python for the bundled local paper MCP
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
       - name: Install locked desktop dependencies
         run: npm ci
 
       - name: Install locked Alibaba FC dependencies
         run: npm --prefix alibaba-fc ci
+
+      - name: Build and test the bundled local paper MCP
+        run: |
+          npm run paper:build
+          desktop/paper-search/.venv/Scripts/python.exe -m unittest discover -s desktop/paper-search/tests
 
       - name: Check source syntax
         run: npm run check

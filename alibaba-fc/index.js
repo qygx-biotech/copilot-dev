@@ -6959,12 +6959,14 @@ async function callRequesty(
   const toolMode = require("./requesty-models.js").toolMode(env);
   const supportsWebSearch = await require("./requesty-models.js").webSearchCapability(env, model, selection.capabilities.supportsWebSearch);
   const retrievalScope = require("./requesty-search-stage.js").retrievalScope(workspaceContext.localWorkspaceContext?.semantic?.ir);
+  const localAcademicMode = require("./academic-agent.js").enabled({ surface: responseMode === "side_chat" ? "side_chat" : "agent_command", desktopAcademic: desktopContext.academic, ir: workspaceContext.localWorkspaceContext?.semantic?.ir });
   console.info("requesty_web_search", { model, provider: selection.provider, toolMode, retrievalScope, webSearchSupported: supportsWebSearch,
-    webSearchEnabled: supportsWebSearch && (toolMode === "combined" || ["web", "both"].includes(retrievalScope) && !desktopContext.resume?.searchStage) });
+    webSearchEnabled: !localAcademicMode && supportsWebSearch && (toolMode === "combined" || ["web", "both"].includes(retrievalScope) && !desktopContext.resume?.searchStage) });
   const result = await runSideChatAgent({
     toolMode, model,
     supportsWebSearch,
     desktopDownloads: desktopContext.enabled === true,
+    desktopAcademic: desktopContext.academic === true,
     downloadPermission: desktopContext.permission || "read_only",
     resume: desktopContext.resume || null,
     surface: responseMode === "side_chat" ? "side_chat" : "agent_command",
@@ -7381,8 +7383,10 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         );
       }
       const desktopContext = { originalRequest, enabled: responseMode !== "side_chat" && body.desktopTools?.version === 1,
+        academic: responseMode !== "side_chat" && body.desktopTools?.version === 1 && body.desktopTools?.academicVersion === 1,
         permission: ["workspace_write", "full_access"].includes(body.desktopTools?.permission) ? body.desktopTools.permission : "read_only" };
       const continuationBinding = { account: auth.user.account, turnId: callContext.turnId, messages, originalRequest,
+        ...(desktopContext.academic ? { academicVersion: 1 } : {}),
         model: getEnvString(chatEnv, "REQUESTY_MODEL"), permission: desktopContext.permission,
         projectId: body.desktopTools?.projectId || localWorkspaceContext?.project?.workspaceId || "", surface: responseMode,
         workspaceId: localWorkspaceContext?.project?.workspaceId || "",
@@ -7401,8 +7405,10 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       }
       if (body.desktopContinuation !== undefined) {
         try {
-          if (!desktopContext.enabled || !sourceDownload.allowed("agent_command", desktopContext.permission)) throw new Error();
-          desktopContext.resume = agentContinuation.withResults(agentContinuation.open(body.desktopContinuation, continuationBinding, env.JWT_SECRET), body.desktopToolResults);
+          if (!desktopContext.enabled) throw new Error();
+          const state = agentContinuation.open(body.desktopContinuation, continuationBinding, env.JWT_SECRET);
+          if (!sourceDownload.allowed("agent_command", desktopContext.permission) && (!desktopContext.academic || state.pending?.some(call => !require("./shared/academic-tools.js").allowed(call.name, "agent_command", desktopContext.permission)))) throw new Error();
+          desktopContext.resume = agentContinuation.withResults(state, body.desktopToolResults);
         } catch { return jsonResponse({ error: "INVALID_TOOL_CONTINUATION", message: "Invalid or expired desktop tool continuation." }, 400, event); }
       }
       const streaming = body.stream === true && typeof transport?.start === "function" ? transport : null;

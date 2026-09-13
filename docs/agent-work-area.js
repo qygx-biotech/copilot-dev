@@ -57,9 +57,9 @@
     return turn;
   }
 
-  function finishTurn(chat, turn, { content, summary = content, citations = [], webSearchSources = [], webSearchMetadata = [], isResult = false, status = "completed" }) {
+  function finishTurn(chat, turn, { content, summary = content, citations = [], webSearchSources = [], webSearchMetadata = [], academicSources = [], isResult = false, status = "completed" }) {
     const now = new Date().toISOString();
-    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, isResult, createdAt: now });
+    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, academicSources, isResult, createdAt: now });
     chat.summary = String(summary || "").replace(/[#*`>]/g, "").replace(/\s+/g, " ").trim().slice(0, 360);
     chat.updatedAt = now;
     chat.taskStatus = status;
@@ -161,6 +161,10 @@
       } else {
         renderMarkdown(body, message.content, message.citations);
         root.BioDesignWebSearch?.renderSources(body, message.webSearchSources);
+        root.BioDesignWebSearch?.renderSources(body, (message.academicSources || []).flatMap(paper => {
+          const location = paper.locations?.find(item => item.kind === "landing_page") || paper.locations?.[0];
+          return location ? [{ title: paper.title, url: location.url }] : [];
+        }));
       }
       article.append(body);
       if (message.attachments?.length) article.append(createAttachmentChips(chat, message.attachments, false));

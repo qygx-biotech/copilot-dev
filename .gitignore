@@ -13,3 +13,8 @@ worker/.dev.vars
 .DS_Store
 learn-claude-code/
 paper-search-mcp/
+desktop/paper-search/.venv/
+desktop/paper-search/build/
+desktop/paper-search/dist/
+desktop/paper-search/*.spec
+__pycache__/

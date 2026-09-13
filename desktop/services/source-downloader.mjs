@@ -80,6 +80,7 @@ export async function downloadSources(input, context, dependencies = {}) {
       ensureCurrent();
       if (!Buffer.isBuffer(result.bytes) || result.bytes.length > LIMITS.bytes) throw failure("FILE_TOO_LARGE", "The source exceeds the download size limit.");
       result.contentType = detectContentType(result.bytes, result.contentType);
+      if (dependencies.requirePdf && result.contentType !== "application/pdf") throw failure("INVALID_PDF", "The paper source is not a PDF.");
       validateSourceUrl(result.resolvedUrl);
       const filename = sourceFilename(source, result), extension = path.posix.extname(filename), stem = filename.slice(0, -extension.length);
       let localPath;
@@ -94,7 +95,8 @@ export async function downloadSources(input, context, dependencies = {}) {
       const metadata = { source_url: source.url, resolved_url: result.resolvedUrl, title: source.title || matchingSources[0]?.title || "", local_path: localPath,
         content_type: result.contentType, downloaded_at: new Date().toISOString(), download_method: method,
         response_bytes: result.bytes.length, web_search_sources: matchingSources,
-        web_search_metadata: webSearch.mergeMetadata(input.webSearchMetadata || []) };
+        web_search_metadata: webSearch.mergeMetadata(input.webSearchMetadata || []),
+        ...(dependencies.paperMetadata ? { academic_paper: dependencies.paperMetadata, content_sha256: crypto.createHash("sha256").update(result.bytes).digest("hex") } : {}) };
       try { ensureCurrent(); await filesystem.writeText(metadataPath, JSON.stringify(metadata, null, 2) + "\n"); }
       catch (error) { await filesystem.remove(localPath).catch(() => {}); throw error; }
       results.push({ url: source.url, status: "downloaded", path: localPath, metadataPath, resolvedUrl: result.resolvedUrl, contentType: result.contentType,

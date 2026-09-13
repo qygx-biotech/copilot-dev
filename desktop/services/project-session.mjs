@@ -4,6 +4,8 @@ import { JobManager } from "./job-manager.mjs";
 import { LocalExecutionService } from "./local-execution-service.mjs";
 import { downloadSources } from "./source-downloader.mjs";
 import { QmdWorkerClient } from "../workers/qmd-worker-client.mjs";
+import { PaperMcpClient } from "./paper-mcp-client.mjs";
+import { registerAcademicWorkflows } from "./academic-workflows.mjs";
 
 export class ProjectSessionManager extends EventEmitter {
   constructor(options) {
@@ -11,6 +13,7 @@ export class ProjectSessionManager extends EventEmitter {
     this.utilityProcess = options.utilityProcess;
     this.appPath = options.appPath;
     this.qmdCacheRoot = options.qmdCacheRoot;
+    this.paperOptions = { appPath: options.appPath, resourcesPath: options.resourcesPath, packaged: options.packaged };
     this.active = null;
   }
 
@@ -28,6 +31,8 @@ export class ProjectSessionManager extends EventEmitter {
       sourceDownloads: new AbortController(),
     };
     const active = this.active;
+    active.paperMcp = new PaperMcpClient(this.paperOptions);
+    registerAcademicWorkflows(active, active.paperMcp, () => this.active === active);
     active.execution.register({ id: "download_sources", effect: "source_write" }, (input, context) => downloadSources(input, {
       ...context, signal: active.sourceDownloads.signal, isCurrent: () => this.active === active,
     }));
@@ -103,6 +108,7 @@ export class ProjectSessionManager extends EventEmitter {
     const active = this.active;
     this.active = null;
     active.sourceDownloads.abort();
+    await active.paperMcp?.close().catch(() => {});
     await active.jobs.close().catch(() => {});
     await active.qmd?.close().catch(() => {});
     this.emit("closed");

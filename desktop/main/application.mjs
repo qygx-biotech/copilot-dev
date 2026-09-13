@@ -237,6 +237,15 @@ async function runSmoke(window) {
       matchedSmokeMarker: JSON.stringify(search.results || []).includes("smoke-marker"),
       nativeDiagnostics: smokeDiagnostics,
     };
+    if (app.isPackaged) {
+      try {
+        await sessionManager.active.paperMcp.call("get_academic_paper", { paper_ref: "paper_000000000000000000000000" });
+        throw new Error("The bundled paper MCP accepted an unknown handle.");
+      } catch (error) {
+        if (error.code !== "PAPER_HANDLE_EXPIRED") throw error;
+      }
+      result.paperMcp = { bundled: true, stdioRoundTrip: true, networkRequiredForSmoke: false };
+    }
     await sessionManager.close();
   }
   if (smokeResultArgument) {
@@ -258,6 +267,8 @@ app.whenReady().then(async () => {
   installSecurityPolicy();
   sessionManager = new ProjectSessionManager({
     utilityProcess,
+    resourcesPath: process.resourcesPath,
+    packaged: app.isPackaged,
     appPath: applicationRoot,
     qmdCacheRoot: smokeQmdCacheArgument
       ? smokeQmdCacheArgument.slice("--smoke-qmd-cache=".length)

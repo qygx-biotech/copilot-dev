@@ -1,4 +1,4 @@
-import { access, readdir, stat } from "node:fs/promises";
+import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
 import {
@@ -15,6 +15,12 @@ const resourcesRoot = process.platform === "darwin"
   : path.join(packageRoot, "resources");
 const archivePath = path.join(resourcesRoot, "app.asar");
 await access(archivePath);
+const paperBundle = path.join(resourcesRoot, "paper-search-server");
+await access(path.join(paperBundle, process.platform === "win32" ? "paper-search-server.exe" : "paper-search-server"));
+const paperManifest = JSON.parse(await readFile(path.join(paperBundle, "manifest.json"), "utf8"));
+if (paperManifest.platform !== process.platform || paperManifest.arch !== process.arch || !/^[a-f0-9]{64}$/.test(paperManifest.sourceDigest)) {
+  throw new Error("The local paper MCP bundle does not match the packaged application.");
+}
 
 const executablePath = process.platform === "darwin"
   ? path.join(packageRoot, "BioDesign.app", "Contents", "MacOS", "BioDesign")
@@ -109,6 +115,8 @@ const textExtensions = new Set([".cjs", ".html", ".js", ".json", ".mjs"]);
 const suspicious = [];
 for (const { raw, normalized: entry } of archiveEntries) {
   if (!textExtensions.has(path.extname(entry))) continue;
+  const entryStat = asar.statFile(archivePath, archiveEntryForExtraction(raw));
+  if (entryStat.files || entryStat.link) continue;
   const bytes = asar.extractFile(archivePath, archiveEntryForExtraction(raw));
   if (bytes.byteLength > 10 * 1024 * 1024) continue;
   const text = bytes.toString("utf8");
@@ -143,9 +151,13 @@ async function collectResourceFiles(directory) {
 }
 await collectResourceFiles(resourcesRoot);
 const forbiddenLooseFiles = resourceFiles.filter((entry) =>
-  /(?:^|\/)(?:\.env(?:\..*)?|[^/]+\.(?:map|p12|pem|pfx|key))$/i.test(entry) ||
+  (/(?:^|\/)(?:\.env(?:\..*)?|[^/]+\.(?:map|p12|pem|pfx|key))$/i.test(entry) &&
+    entry !== "paper-search-server/_internal/certifi/cacert.pem") ||
   /\/(?:alibaba-fc|worker)(?:\/|$)/i.test(`/${entry}`)
 );
+// certifi's public CA trust store is needed for HTTPS; private keys remain forbidden.
+const paperTrustStore = await readFile(path.join(paperBundle, "_internal/certifi/cacert.pem"), "utf8");
+if (!paperTrustStore.includes("-----BEGIN CERTIFICATE-----") || /PRIVATE KEY/.test(paperTrustStore)) throw new Error("Invalid paper MCP CA trust store.");
 if (forbiddenLooseFiles.length) {
   throw new Error(`Forbidden loose resource was packaged: ${forbiddenLooseFiles.slice(0, 20).join(", ")}`);
 }
@@ -153,6 +165,7 @@ const archiveSize = (await stat(archivePath)).size;
 if (!natives.length) throw new Error("No unpacked native modules were found in the desktop package.");
 console.log(JSON.stringify({
   packageRoot,
+  localPaperMcp: { bundled: true, platform: paperManifest.platform, arch: paperManifest.arch },
   archiveBytes: archiveSize,
   entryCount: entries.length,
   nativeModuleCount: natives.length,

@@ -3,6 +3,7 @@ const crypto = require("node:crypto");
 const zlib = require("node:zlib");
 const invalid = () => Object.assign(new Error("The desktop tool continuation is invalid or expired."), { code: "INVALID_TOOL_CONTINUATION" });
 const digest = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const academic = require("./shared/academic-tools.js");
 function seal(state, binding, secret) {
   if (!secret) throw invalid();
   const data = Buffer.from(JSON.stringify({ state, binding: digest(binding), expires: Date.now() + 15 * 60000 }));
@@ -24,9 +25,19 @@ function open(token, binding, secret) {
   } catch { throw invalid(); }
 }
 function withResults(state, results) {
-  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > 60000) throw invalid();
+  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState ? 180000 : 60000)) throw invalid();
   for (const call of state.pending) {
     const matches = results.filter(item => item?.id === call.id);
+    if (academic.isTool(call.name)) {
+      if (!state.academicState || matches.length !== 1) throw invalid();
+      try {
+        const result = require("./academic-agent.js").recordResult(state.academicState, call, matches[0].result);
+        const message = state.agentMessages.find(item => item.role === "tool" && item.tool_call_id === call.id);
+        if (!message) throw invalid();
+        message.content = JSON.stringify(result);
+      } catch { throw invalid(); }
+      continue;
+    }
     if (matches.length !== 1 || !Array.isArray(matches[0].results) || matches[0].results.length !== call.args.sources.length) throw invalid();
     const output = matches[0].results.map((item, index) => {
       if (item?.url !== call.args.sources[index].url || !["downloaded", "failed"].includes(item.status)) throw invalid();

@@ -167,6 +167,8 @@ The tested OSS implementation and its legacy endpoints remain in `alibaba-fc/ind
 
 ## Desktop development, checks, and packaging
 
+Agent Work includes [local academic search and PDF downloading](docs/LOCAL_PAPER_MCP.md) through a bundled stdio MCP server. It supports 19 anonymous provider modes and saves public PDFs with provenance into the project. Building the desktop requires Python 3.10+ in addition to Node; Python and the MCP server are bundled for end users.
+
 Use Node 22 or 24 for repository development (`package.json` enforces `>=22 <25`), then install dependencies once. End users run the packaged application and do not need Node, npm, QMD, a local server, or Python.
 
 ```bash

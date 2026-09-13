@@ -1,5 +1,7 @@
 # Hosted web search and local source downloads
 
+Agent Work online literature requests from the updated Electron desktop use the [local paper MCP workflow](LOCAL_PAPER_MCP.md). Its structured search and PDF acquisition are local. The native web-search and generic source-download behavior below continues for other requests and Side Chat retains its existing behavior.
+
 Search, download and ingestion have separate owners:
 
 - **Search:** Requesty/provider executes native `web_search` inside Chat Completions. There is no local search engine or function named `web_search`.

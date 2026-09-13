@@ -35,6 +35,7 @@ const excludedTopLevel = new Set([
   "coverage",
   "evals",
   "learn-claude-code",
+  "paper-search-mcp",
   "out",
   "worker",
 ]);
@@ -43,7 +44,13 @@ const forbiddenPackageSegment = /[/\\](?:__tests__|coverage|examples?|fixtures?|
 const forbiddenPackageFile = /(?:^|[/\\])(?:\.env(?:\..*)?|.*\.(?:map|p12|pem|pfx|key))$/i;
 
 module.exports = {
+  hooks: {
+    generateAssets: async (_config, platform, arch) => {
+      await (await import("./desktop/scripts/build-paper-mcp.mjs")).buildPaperMcp(platform, arch);
+    },
+  },
   packagerConfig: {
+    extraResource: [path.join(__dirname, "desktop", "paper-search", "dist", targetNativeKey, "paper-search-server")],
     name: "BioDesign",
     executableName: "BioDesign",
     appBundleId: "ai.biodesign.copilot",
@@ -74,7 +81,7 @@ module.exports = {
         /^[/\\]local-backend[/\\]package-lock\.json$/.test(filePath) ||
         /^[/\\]local-backend[/\\]src[/\\](knowledge-cli|server)\.js$/.test(filePath) ||
         /^[/\\]docs[/\\].*\.md$/.test(filePath) ||
-        /^[/\\]desktop[/\\](scripts|test)([/\\]|$)/.test(filePath)
+        /^[/\\]desktop[/\\](scripts|test|paper-search)([/\\]|$)/.test(filePath)
       );
     },
   },

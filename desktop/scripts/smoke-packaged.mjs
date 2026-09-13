@@ -45,6 +45,7 @@ if (!result.rendererLoaded || !result.security?.contextIsolation || result.secur
   throw new Error(`Packaged smoke failed: ${JSON.stringify(result)}`);
 }
 if (!result.qmd?.available || !result.qmd?.matchedSmokeMarker) throw new Error(`Packaged QMD smoke failed: ${JSON.stringify(result.qmd)}`);
+if (!result.paperMcp?.bundled || !result.paperMcp?.stdioRoundTrip) throw new Error("The packaged local paper MCP did not complete its offline protocol check.");
 if ((result.qmd.nativeDiagnostics || []).some((message) => /sqlite-vec|dlopen|vec0\./i.test(message))) {
   throw new Error(`Packaged sqlite-vec smoke failed: ${JSON.stringify(result.qmd.nativeDiagnostics)}`);
 }
