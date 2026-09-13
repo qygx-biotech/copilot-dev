@@ -314,19 +314,8 @@
     return extensionFor(value).replace(/^\./, "");
   }
 
-  function isIgnoredFilesystemArtifact(value) {
-    const basename = normalizePath(value).split("/").at(-1) || "";
-    const lowered = basename.toLowerCase();
-    return (
-      [".ds_store", "thumbs.db", "desktop.ini"].includes(lowered) ||
-      basename.startsWith("._") ||
-      basename.startsWith("~$") ||
-      lowered.endsWith(".tmp") ||
-      lowered.endsWith(".temp") ||
-      lowered.endsWith(".lock") ||
-      basename.endsWith("~")
-    );
-  }
+  const sourceFiles = root?.BioDesignSourceCitations || (typeof require === "function" ? require("../shared/source-citations.js") : {});
+  const isIgnoredFilesystemArtifact = sourceFiles.isIgnoredFilesystemArtifact;
 
   function flattenTree(tree) {
     const entries = [];
@@ -2033,6 +2022,7 @@
     ["kcat", /\bkcat\b/i, /\bk_?cat\b[^\n]{0,100}\d/i],
     ["mutation", /\b(?:mutation|variant)\b|\b[A-Z]\d+[A-Z]\b|突变/i, /\b[A-Z]\d{1,5}[A-Z]\b/],
     ["method", /\b(?:methods?|protocol|assay)\b|方法|实验步骤/i, /\b(?:methods?|protocol|assay|measured|performed)\b|方法|测定/i],
+    ["code_availability", /\b(?:source\s+code|code\s+availability|open[- ]source|github|gitlab|code\s+repository)\b|源代码|源码|开源|代码.{0,12}(?:公开|获取|下载|仓库)/i, /\bcode\s+availability\b|\b(?:source\s+code|software|implementation|code)\b[^\n]{0,100}\b(?:available|released|provided|github|gitlab)\b|代码可用性|源代码[^\n]{0,60}(?:公开|获取|下载|提供)/i],
   ];
 
   function requestedLiteratureFacts(question, options) {
@@ -3765,6 +3755,7 @@
           const runKnowledgeSearch = (mode) => this.knowledgeService.searchLiterature({
               query: qmdQuery,
               requestUnderstanding: options.requestUnderstanding,
+              callContext: options.callContext || null,
               paperIds: allowed ? [...allowed] : undefined,
               mode,
               collections: options.collections || [KNOWLEDGE_COLLECTIONS.literatureEvidence],

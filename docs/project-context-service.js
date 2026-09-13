@@ -20,6 +20,7 @@
 
   const citationApi = root?.BioDesignSourceCitations ||
     (typeof require === "function" ? require("../shared/source-citations.js") : {});
+  const webSearchApi = root?.BioDesignWebSearch || (typeof require === "function" ? require("../shared/web-search.js") : {});
   const chatImages = root?.BioDesignChatImages ||
     (typeof require === "function" ? require("../shared/chat-images.js") : {});
   const pipelineApi = root?.AgentRequestPipeline ? root : (typeof require === "function" ? require("./request-pipeline.js") : {});
@@ -585,6 +586,8 @@
             }
           : {}),
         ...(message.role === "assistant" ? { citations: citationApi.normalizeCitations(message.citations) } : {}),
+        ...(message.role === "assistant" && message.webSearchSources ? { webSearchSources: webSearchApi.mergeSources(message.webSearchSources) } : {}),
+        ...(message.role === "assistant" && message.webSearchMetadata ? { webSearchMetadata: webSearchApi.mergeMetadata(message.webSearchMetadata) } : {}),
         createdAt: message.createdAt,
       }));
     const messages = candidates.slice(-limits.maxStoredMessages);
@@ -999,6 +1002,7 @@
     }
 
     async retrieveLayeredKnowledge(question, options = {}) {
+      if (options.semanticIR && !semanticApi.retrievalPolicy(options.semanticIR).workspaceRetrievalAllowed) return { available: this.knowledgeService?.available === true, hits: [] };
       const localWiki = this.sourceSystem?.literatureWiki;
       if (!this.knowledgeService?.available && !localWiki) return { available: false, hits: [] };
       const workspace = this.workspace.workspace;
@@ -1084,28 +1088,65 @@
       };
     }
 
-    buildConversationContext(conversation) {
-      const recentlyDiscussedPaperIds = [];
+    buildInterpretationContext(conversation, selectedPaperIds = [], namedPaperIds = []) {
+      const workspaceId = this.workspace.workspace?.workspaceId || this.workspace.workspace?.id;
+      const selected = selectedPaperIds.length ? new Set(selectedPaperIds) : null;
+      const candidates = new Map();
+      const add = (id, citation = null) => {
+        const document = this.literature?.documents?.find(item => item.id === id && item.isLiteraturePaper);
+        const source = this.sourceRegistry?.get(id);
+        if (!document || (selected && !selected.has(id)) || (this.sourceRegistry && (!source || source.sourceKind !== "paper" || ["missing", "deleted", "removed"].includes(source.catalogStatus)))) return null;
+        if (citation && (citation.status !== "resolved" || !workspaceId || citation.workspaceId !== workspaceId)) return null;
+        if (!candidates.has(id)) {
+          if (candidates.size >= 8) return null;
+          candidates.set(id, { sourceId: id, title: String(document.discovery?.title || document.title || document.filename).slice(0, 300),
+            currentness: !citation?.contentHash || !source?.contentHash ? "unverified" : citation.contentHash === source.contentHash && source.hashStatus === "ready" ? "current" : "changed" });
+        }
+        if (citation?.contentHash && source?.contentHash && candidates.get(id).currentness === "unverified") {
+          candidates.get(id).currentness = citation.contentHash === source.contentHash && source.hashStatus === "ready" ? "current" : "changed";
+        }
+        return id;
+      };
+      for (const id of [...namedPaperIds, ...selectedPaperIds]) add(id);
+      const recent = (conversation?.messages || []).filter(message => ["user", "assistant"].includes(message?.role)).slice(-4);
+      const hasCitations = recent.some(message => message.role === "assistant" && message.citations?.length);
+      const messages = [];
+      // Process newest first so an older long list cannot evict the current focus.
+      for (const message of [...recent].reverse()) {
+        let paperIds = [];
+        if (message.role === "assistant" && Array.isArray(message.citations)) {
+          const citations = citationApi.normalizeCitations(message.citations);
+          const order = [...String(message.content || "").matchAll(/biodesign-citation:(citation-\d{1,4})/g)].map(match => match[1]);
+          const seen = new Set();
+          for (const key of order) {
+            const citation = citations.find(item => item.id === key);
+            const identity = citation?.sourceId || key;
+            if (seen.has(identity)) continue;
+            seen.add(identity);
+            // Null retains the position of a deleted/out-of-scope citation. An
+            // ordinal must never slide onto a different paper after filtering.
+            paperIds.push(citation ? add(citation.sourceId, citation) : null);
+            if (paperIds.length >= 8) break;
+          }
+        } else if (!hasCitations) {
+          paperIds = [...new Set([...(message.context?.selectedPaperIds || []), ...(message.context?.relevantPaperIds || [])])].slice(0, 8).map(id => add(id));
+        }
+        // Citation labels/paths are UI data, not extra uploads to the interpreter.
+        const content = String(message.content || "").replace(/\[(?:\\.|[^\]])*\]\(biodesign-citation:citation-\d{1,4}\)/g, "[paper citation]");
+        messages.unshift({ role: message.role, content, paperIds });
+      }
+      return semanticApi.compactSemanticInput({ conversationContext: messages, paperCandidates: [...candidates.values()] });
+    }
+
+    buildConversationContext(conversation, options = {}) {
+      const interpretation = this.buildInterpretationContext(conversation, options.selectedPaperIds, options.namedPaperIds);
+      const recentlyDiscussedPaperIds = [...new Set([...interpretation.conversationContext].reverse().flatMap(message => message.paperIds || []).filter(Boolean))];
       const recentlyDiscussedExperimentIds = [];
       const recentCorpusWorkflowIds = [];
       for (const message of [...(conversation?.messages || [])].reverse()) {
         const workflowId = String(message?.context?.corpusWorkflowId || "").trim();
         if (workflowId && !recentCorpusWorkflowIds.includes(workflowId)) {
           recentCorpusWorkflowIds.push(workflowId);
-        }
-        const ids = [
-          ...(message?.context?.relevantPaperIds || []),
-          ...(message?.context?.selectedPaperIds || []),
-        ];
-        for (const paperId of ids) {
-          if (
-            typeof paperId === "string" &&
-            paperId &&
-            !recentlyDiscussedPaperIds.includes(paperId)
-          ) {
-            recentlyDiscussedPaperIds.push(paperId);
-          }
-          if (recentlyDiscussedPaperIds.length >= this.limits.maxEvidenceFiles) break;
         }
         for (const sourceId of [
           ...(message?.context?.relevantExperimentIds || []),
@@ -1125,6 +1166,8 @@
           conversation?.summary || this.workspace.state?.memory?.conversationSummary || ""
         ).slice(0, this.limits.maxConversationSummaryCharacters),
         recentMessages: boundedMessages(conversation?.messages, this.limits),
+        interpretationMessages: interpretation.conversationContext,
+        paperCandidates: interpretation.paperCandidates,
         recentlyDiscussedPaperIds,
         recentlyDiscussedExperimentIds,
         recentCorpusWorkflowIds,
@@ -1281,6 +1324,10 @@
     }
 
     async decideContextRouting(input, options = {}) {
+      if (options.semanticIR && !semanticApi.retrievalPolicy(options.semanticIR).workspaceRetrievalAllowed) return {
+        useLiterature: false, paperIds: [], useProjectMemory: false, memoryIds: [],
+        mode: "semantic", reason: `Retrieval scope: ${options.semanticIR.retrievalScope}; workspace retrieval is not requested.`,
+      };
       const fallback = this.localRoutingDecision(input);
       if (options.semanticIR && typeof this.literature?.api?.interpretSemantics === "function") {
         const wantsLiterature = options.semanticIR.objects.includes("literature");
@@ -1412,7 +1459,9 @@
       );
       const question = String(options.question || "");
       const paperIdentity = this.resolveExplicitPaperIdentity(question, { paperIds: selectedPaperIds });
-      const scopedPaperIds = selectedPaperIds.length ? selectedPaperIds : paperIdentity.relatedDiscovery ? [] : paperIdentity.paperIds;
+      const namedOutsideSelection = selectedPaperIds.length && this.resolveExplicitPaperIdentity(question).paperIds.some(id => !selectedPaperIds.includes(id));
+      const selectionUnavailable = Array.isArray(options.selectedPaperIds) && options.selectedPaperIds.length > 0 && !selectedPaperIds.length;
+      let scopedPaperIds = selectedPaperIds.length ? selectedPaperIds : paperIdentity.relatedDiscovery ? [] : paperIdentity.paperIds;
       const surface = options.surface === "agent_command" ? "agent_command" : "side_chat";
       options = { ...options, surface };
       const internalStateUpdates = [];
@@ -1438,10 +1487,10 @@
         .filter((source) => source?.sourceKind === "experiment")
         .map((source) => source.sourceId);
 
-      const conversationContext = this.buildConversationContext(options.conversation);
+      const conversationContext = this.buildConversationContext(options.conversation, { selectedPaperIds, namedPaperIds: paperIdentity.paperIds });
       const activeScope = {
         projectId: String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || ""),
-        paperIds: scopedPaperIds,
+        paperIds: selectedPaperIds,
         experimentSourceIds: selectedExperimentIds,
         currentTopic: String(this.workspace.state?.agent?.sideChat?.currentTopic || "").slice(0, 500),
         projectObjective: String(options.projectGoal || this.workspace.state?.project?.goal || "").slice(0, 1000),
@@ -1449,11 +1498,14 @@
         knownMetrics: this.workspace.state?.project?.knownMetrics || [],
       };
       options.onProgress?.({ stage: "interpreting-request" });
-      const interpretation = await this.semanticInterpreter.interpret({
+      const interpretationWorkspace = this.workspace.workspace;
+      const interpretationWorkspaceId = activeScope.projectId;
+      const semanticInput = {
         query: question,
         profile: retrievalProfile,
         activeScope,
-        conversationContext: { summary: conversationContext.summary.slice(0, 2000) },
+        conversationContext: conversationContext.interpretationMessages,
+        paperCandidates: conversationContext.paperCandidates,
         projectSemanticRegistry: this.workspace.state?.semanticRegistry || {},
         remoteParser: typeof this.literature?.api?.interpretSemantics === "function"
           ? (payload) => this.literature.api.interpretSemantics({
@@ -1461,13 +1513,59 @@
               callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
             }, options.signal)
           : null,
-      });
+      };
+      const interpretation = await this.semanticInterpreter.interpret(semanticInput);
+      if (options.signal?.aborted || this.workspace.workspace !== interpretationWorkspace || String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || "") !== interpretationWorkspaceId) throw Object.assign(new Error("Interpretation was stopped or the workspace changed."), { code: "OPERATION_ABORTED" });
       const semanticIR = interpretation.ir;
-      const capabilityPlan = semanticApi.planCapabilities(semanticIR, { surface, activeScope });
-      await this.sourceSystem?.topicService?.load();
-      const evidencePlan = semanticApi.planEvidenceNeeds(semanticIR, {
-        originalQuery: question, hasLiteratureWikiMatch: this.sourceSystem?.literatureWiki?.search(question, 1).length > 0,
+      const retrieval = semanticApi.retrievalPolicy(semanticIR);
+      const { workspaceRetrievalAllowed } = retrieval;
+      root.BioDesignRuntimeLog?.record("retrieval.decision", {
+        turnId: options.turnId, surface, retrievalScope: retrieval.retrievalScope,
+        webSearchExpected: retrieval.webSearchExpected, downloadRequested: retrieval.downloadRequested,
+        route: interpretation.telemetry?.semantic?.route, fallbackReason: interpretation.telemetry?.semantic?.fallback,
+        semanticParserCalls: interpretation.telemetry?.semanticParserCalls, matchedPattern: semanticIR.matchedPattern,
       });
+      const referenceResolution = !workspaceRetrievalAllowed
+        ? { status: "no-literature-needed", paperIds: [], reason: `retrieval-scope-${retrieval.retrievalScope}` }
+        : semanticApi.resolveLiteratureReference(semanticApi.compactSemanticInput(semanticInput), semanticIR, {
+        namedPaperIds: paperIdentity.relatedDiscovery || paperIdentity.noExactMatch ? [] : paperIdentity.paperIds,
+        interpretationUnavailable: interpretation.telemetry?.semantic?.route === "local-fallback",
+        remoteInterpretation: interpretation.telemetry?.semantic?.route === "remote",
+        lifecycleRequest: detectCorpusFailureFollowUpIntent(question) || detectCorpusUpdateIntent(question) || Boolean(wikiContract.command(question)),
+      });
+      if (workspaceRetrievalAllowed && (selectionUnavailable || (namedOutsideSelection && !paperIdentity.noExactMatch))) {
+        referenceResolution.status = "reference-unresolved"; referenceResolution.paperIds = [];
+        referenceResolution.reason = selectionUnavailable ? "selected-papers-unavailable" : "named-paper-outside-selection";
+      }
+      referenceResolution.interpretation = interpretation.telemetry?.semantic?.route === "local-fallback" ? "unavailable" : interpretation.telemetry?.semantic?.route === "remote" ? "remote" : "local";
+      // The interpreter's IDs are suggestions. Recheck current host ownership and
+      // hard selection after its asynchronous call before preparing any evidence.
+      if (referenceResolution.status === "resolved" && referenceResolution.paperIds.some(id =>
+          !this.literature.documents.some(document => document.id === id && document.isLiteraturePaper) ||
+          (this.sourceRegistry && (this.sourceRegistry.get(id)?.sourceKind !== "paper" || ["missing", "deleted", "removed"].includes(this.sourceRegistry.get(id)?.catalogStatus))) || (selectedPaperIds.length && !selectedPaperIds.includes(id)))) {
+        referenceResolution.status = "reference-unresolved"; referenceResolution.paperIds = []; referenceResolution.reason = "source-no-longer-in-scope";
+      }
+      if (referenceResolution.status === "resolved" && !paperIdentity.noExactMatch && !paperIdentity.relatedDiscovery) {
+        scopedPaperIds = referenceResolution.paperIds;
+        semanticIR.scope.papers = [...scopedPaperIds];
+        if (!semanticIR.objects.includes("literature")) {
+          semanticIR.objects.push("literature");
+          semanticIR.operations = [...new Set([...semanticIR.operations, "read"])];
+          semanticIR.matchedPattern = null;
+        }
+        semanticIR.unresolvedSlots = semanticIR.unresolvedSlots.filter(slot => !["paper_reference", "target_object", "requested_operations"].includes(slot));
+      }
+      const referenceBlocked = ["reference-unresolved", "interpretation-unavailable"].includes(referenceResolution.status);
+      const referenceNotNeeded = referenceResolution.status === "no-literature-needed";
+      const capabilityPlan = semanticApi.planCapabilities(semanticIR, { surface, activeScope });
+      if (workspaceRetrievalAllowed) await this.sourceSystem?.topicService?.load();
+      const evidencePlan = semanticApi.planEvidenceNeeds(semanticIR, {
+        originalQuery: question, hasLiteratureWikiMatch: workspaceRetrievalAllowed && this.sourceSystem?.literatureWiki?.search(question, 1).length > 0,
+      });
+      if (referenceResolution.status === "resolved" && !evidencePlan.evidenceNeeds.some(need => need.type === "literature_evidence")) {
+        evidencePlan.evidenceNeeds = evidencePlan.evidenceNeeds.filter(need => need.type !== "no_project_evidence");
+        evidencePlan.evidenceNeeds.push({ type: "literature_evidence", scope: scopedPaperIds, purpose: "Resolve the conversational reference using current original-paper evidence" });
+      }
       const understanding = semanticApi.requestUnderstanding(semanticIR, question);
       options.onProgress?.({ stage: "retrieving-evidence" });
       const retrievalQuery = question;
@@ -1479,17 +1577,17 @@
       const historicalSynthesisRequest = evidencePlan.usePreviousSynthesis && !newSynthesisRequest &&
         !detectCorpusUpdateIntent(question) && !detectCorpusRecoveryIntent(question) &&
         semanticIR.matchedPattern !== "literature.update_synthesis";
-      const wikiCommand = wikiContract.command(question);
+      const wikiCommand = workspaceRetrievalAllowed ? wikiContract.command(question) : null;
       const wikiUpdateSubject = /\b(?:update|refresh|revise|regenerate)\s+(?:(?:the|my|our)\s+)?(?:literature\s+)?wiki\b|(?:更新|刷新|修订).{0,6}(?:文献维基|知识维基)/i.test(question);
-      const corpusWideLiteratureRequest = !wikiCommand && !historicalSynthesisRequest && (semanticIR.matchedPattern === "literature.corpus_synthesis" ||
+      const corpusWideLiteratureRequest = workspaceRetrievalAllowed && !wikiCommand && !historicalSynthesisRequest && (semanticIR.matchedPattern === "literature.corpus_synthesis" ||
         (semanticIR.capabilityHints.includes("corpus_workflow") &&
           semanticIR.operations.includes("snapshot") && semanticIR.operations.includes("reduce") &&
           semanticIR.operations.includes("summarize") &&
           capabilityPlan.steps.some((step) => step.capability === "corpus_workflow" && step.allowed)));
       // Existing recovery/update protocols remain deterministic lifecycle operations.
-      const corpusFailureFollowUpRequest = detectCorpusFailureFollowUpIntent(question);
-      const corpusRecoveryRequest = detectCorpusRecoveryIntent(question);
-      const corpusUpdateRequest = !wikiCommand && !wikiUpdateSubject && (semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question));
+      const corpusFailureFollowUpRequest = workspaceRetrievalAllowed && detectCorpusFailureFollowUpIntent(question);
+      const corpusRecoveryRequest = workspaceRetrievalAllowed && detectCorpusRecoveryIntent(question);
+      const corpusUpdateRequest = workspaceRetrievalAllowed && !wikiCommand && !wikiUpdateSubject && (semanticIR.matchedPattern === "literature.update_synthesis" || detectCorpusUpdateIntent(question));
       const paperQuestion = corpusWideLiteratureRequest || corpusFailureFollowUpRequest || corpusUpdateRequest ||
         paperIdentity.paperIds.length > 0 || paperIdentity.kind === "exact-title" ||
         semanticIR.objects.includes("literature") || evidencePlan.evidenceNeeds.some((need) => need.type === "literature_evidence") || questionMayNeedLiterature(question);
@@ -1558,7 +1656,7 @@
           )
       );
       const followUpNeedsLiterature = Boolean(
-        recentIds.length && LITERATURE_FOLLOW_UP_PATTERN.test(question)
+        !referenceBlocked && !referenceNotNeeded && (referenceResolution.status === "resolved" || recentIds.length && LITERATURE_FOLLOW_UP_PATTERN.test(question))
       );
       const recentExperimentIds = conversationContext.recentlyDiscussedExperimentIds.filter(
         (sourceId) => Boolean(this.sourceRegistry?.get(sourceId))
@@ -1568,11 +1666,11 @@
       const followUpNeedsExperiments = Boolean(
         !literatureOnly && recentExperimentIds.length && EXPERIMENT_FOLLOW_UP_PATTERN.test(question)
       );
-      const relevantExperimentIds = await this.resolveExperimentSourceIds(question, {
+      const relevantExperimentIds = workspaceRetrievalAllowed ? await this.resolveExperimentSourceIds(question, {
         selectedExperimentIds, recentExperimentIds,
         shouldUseExperiments: experimentQuestion || followUpNeedsExperiments,
         semanticIR,
-      });
+      }) : [];
       const semanticExperimentResult = experimentQuestion && relevantExperimentIds.length &&
         typeof this.experimentTools?.executeSemanticQuery === "function" &&
         semanticIR.operations.some((operation) => ["rank", "aggregate", "statistics", "filter"].includes(operation))
@@ -1581,7 +1679,7 @@
             })
           : null;
       const memoryDescriptions = this.buildMemoryDescriptions();
-      const shouldSearchLiterature = paperQuestion || followUpNeedsLiterature;
+      const shouldSearchLiterature = workspaceRetrievalAllowed && !referenceBlocked && !referenceNotNeeded && (paperQuestion || followUpNeedsLiterature);
       let matches = shouldSearchLiterature && !paperIdentity.noExactMatch &&
         !corpusWideLiteratureRequest &&
         !corpusUpdateRequest &&
@@ -1627,7 +1725,11 @@
         ...recentIds,
         ...matches.map((match) => match.paperId),
       ]);
-      const routing = paperIdentity.noExactMatch
+      const routing = !workspaceRetrievalAllowed
+        ? await this.decideContextRouting({}, options)
+        : referenceBlocked
+        ? { useLiterature: false, paperIds: [], useProjectMemory: false, memoryIds: [], mode: referenceResolution.status, reason: referenceResolution.reason }
+        : paperIdentity.noExactMatch
         ? { useLiterature: false, paperIds: [], useProjectMemory: false, memoryIds: [],
             mode: "exact-title-no-match", reason: "No current paper has the requested normalized exact title within the active scope." }
         : !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp && scopedPaperIds.length && shouldSearchLiterature
@@ -1676,9 +1778,14 @@
             options
           );
 
+      if (referenceNotNeeded) { routing.useLiterature = false; routing.paperIds = []; }
       let relevantPaperIds = [];
       let discoveryMode = "not-needed";
-      if (paperIdentity.noExactMatch) {
+      if (!workspaceRetrievalAllowed) {
+        discoveryMode = retrieval.retrievalScope;
+      } else if (referenceBlocked) {
+        discoveryMode = referenceResolution.status;
+      } else if (paperIdentity.noExactMatch) {
         discoveryMode = "exact-title-no-match";
       } else if (corpusWorkflowFollowUp) {
         relevantPaperIds = [...(corpusWorkflowStatus.coverage?.includedPaperIds || [])];
@@ -1695,7 +1802,7 @@
       } else if (routing.useLiterature) {
         if (scopedPaperIds.length) {
           relevantPaperIds = [...scopedPaperIds];
-          discoveryMode = selectedPaperIds.length ? "selected" : "explicit-paper";
+          discoveryMode = selectedPaperIds.length ? "selected" : paperIdentity.paperIds.length ? "explicit-paper" : "conversation-follow-up";
         } else {
           let routedPaperIds = routing.paperIds;
           if (!routedPaperIds.length && followUpNeedsLiterature) {
@@ -1729,7 +1836,7 @@
         }
       }
 
-      if (paperIdentity.relatedDiscovery && !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp) {
+      if (workspaceRetrievalAllowed && paperIdentity.relatedDiscovery && !corpusWideLiteratureRequest && !corpusUpdateRequest && !corpusWorkflowFollowUp) {
         relevantPaperIds = [...new Set([...relevantPaperIds, ...paperIdentity.paperIds])];
         routing.useLiterature = relevantPaperIds.length > 0;
         routing.paperIds = [...relevantPaperIds];
@@ -1741,7 +1848,14 @@
         selectedFiles,
         routing
       );
-      context.routing = routing;
+      context.routing = { ...routing, ...retrieval };
+      root.BioDesignRuntimeLog?.record("retrieval.routing", {
+        turnId: options.turnId, surface, retrievalScope: retrieval.retrievalScope,
+        requestedCapabilities: capabilityPlan.steps.map(step => step.capability).concat(capabilityPlan.hostedTools || []),
+        matchedPattern: semanticIR.matchedPattern,
+        workspaceRetrievalTriggered: workspaceRetrievalAllowed && Boolean(shouldSearchLiterature || routing.useProjectMemory || relevantExperimentIds.length || evidencePlan.useTopics || evidencePlan.usePreviousSynthesis),
+        webSearchExpected: retrieval.webSearchExpected, downloadRequested: retrieval.downloadRequested,
+      });
       context.semantic = { ir: semanticIR, telemetry: interpretation.telemetry, plan: capabilityPlan };
       context.requestUnderstanding = understanding;
       context.evidencePlan = evidencePlan;
@@ -1751,7 +1865,8 @@
         if (preflight.report.failures.length) context.notices.push("Knowledge synchronization is incomplete for the reported source IDs. Use ready sources; do not claim complete coverage. Retry a required failed source through its bounded source tool or explain the limitation.");
         if (preflight.wikiMaintenance) context.notices.push(`Literature wiki maintenance: ${JSON.stringify(preflight.wikiMaintenance, (key, value) => key === "configuration" ? undefined : value).slice(0, 4000)}. Wiki pages are derived interpretations. Missing or stale coverage requires original L1 evidence or an explicit limitation. Checks do not establish semantic truth.`);
       }
-      context.knowledge = corpusWideLiteratureRequest || corpusUpdateRequest || paperIdentity.noExactMatch
+      if (referenceBlocked) context.notices.push(`The paper reference is unresolved (${referenceResolution.reason}; interpretation ${referenceResolution.interpretation}). Ask the user to clarify which paper they mean before making paper-specific claims. Current candidates: ${conversationContext.paperCandidates.map(paper => paper.title).join("; ") || "none in the current scope"}. Historical citations do not establish current evidence or grant access.`);
+      context.knowledge = !workspaceRetrievalAllowed || referenceBlocked || referenceNotNeeded || corpusWideLiteratureRequest || corpusUpdateRequest || paperIdentity.noExactMatch
         ? { available: this.knowledgeService?.available === true, hits: [] }
         : await this.retrieveLayeredKnowledge(retrievalQuery, { ...options, scopedPaperIds, evidencePlan: wikiCommand ? { ...evidencePlan, useTopics: true } : evidencePlan });
       if (historicalSynthesisRequest) context.notices.push(
@@ -1768,8 +1883,9 @@
           reason: "literature-retrieval-not-needed",
         },
         selectedPaperIds,
-        explicitPaperIds: paperIdentity.relatedDiscovery ? [] : paperIdentity.paperIds,
+        explicitPaperIds: paperIdentity.relatedDiscovery ? [] : referenceResolution.status === "resolved" ? scopedPaperIds : paperIdentity.paperIds,
         identityResolution: paperIdentity,
+        referenceResolution,
         relevantPaperIds,
         discoveryMode,
         corpusWideRequest:
@@ -1918,7 +2034,7 @@
         // Exact workflow failures are deliberately available through the compact
         // status tool instead of being copied into every active chat prompt.
         paperEvidence = [];
-      } else {
+      } else if (workspaceRetrievalAllowed) {
         paperEvidence = await this.retrievePaperEvidence(
           retrievalQuery,
           relevantPaperIds,
@@ -1927,7 +2043,7 @@
       }
       if (routing.useLiterature && relevantPaperIds.length && !corpusWorkflowFollowUp &&
           typeof this.literatureTools?.completeEvidence === "function") {
-        const completionPaperIds = paperIdentity.paperIds.length && !paperIdentity.relatedDiscovery ? paperIdentity.paperIds : relevantPaperIds;
+        const completionPaperIds = referenceResolution.status === "resolved" ? relevantPaperIds : paperIdentity.paperIds.length && !paperIdentity.relatedDiscovery ? paperIdentity.paperIds : relevantPaperIds;
         const completionSlots = new Map(completionPaperIds.map((paperId) => {
           const existing = paperEvidence.find((item) => item.paperId === paperId && item.evidenceType !== "corpus-workflow");
           const budget = Math.max(existing?.content.length || 0, this.limits.maxSourceCharactersPerFile);
@@ -1975,7 +2091,7 @@
       ])];
       context.sourceMap.activeExperimentIds = [...context.experiments.relevantExperimentIds];
       const otherEvidence = [];
-      for (const file of selectedNonPaperFiles.slice(0, this.limits.maxEvidenceFiles)) {
+      for (const file of (workspaceRetrievalAllowed ? selectedNonPaperFiles : []).slice(0, this.limits.maxEvidenceFiles)) {
         const source = this.sourceRegistry?.getByPath(file.relativePath);
         if (source?.sourceKind === "experiment") continue;
         otherEvidence.push(await this.buildFileEvidence(file, options));
@@ -2037,6 +2153,7 @@
       }
 
       if (
+        workspaceRetrievalAllowed &&
         !selectedPaperIds.length &&
         !relevantPaperIds.length &&
         !corpusUpdateRequest &&
@@ -2097,10 +2214,10 @@
         );
       }
       context.internalStateUpdates = internalStateUpdates.slice(-30);
-      if (paperIdentity.noExactMatch) {
+      if (workspaceRetrievalAllowed && paperIdentity.noExactMatch) {
         context.notices.push("No exact title match exists in the current active paper scope. Do not substitute semantic candidates for the requested paper.");
       }
-      this.addLibraryNotices(context);
+      if (workspaceRetrievalAllowed) this.addLibraryNotices(context);
       this.addFileNotices(context);
       this.applyProgressiveInventory(context, question);
       context.citationEvidence = await this.buildCitationEvidence(context);
@@ -2317,6 +2434,27 @@
             (normalized.length >= 16 && ` ${normalizedQuery} `.includes(` ${normalized} `)));
         });
       }).map((document) => document.id);
+      if (!paperIds.length) {
+        // A distinctive leading name in a current title/filename (e.g. SurfDock)
+        // can identify a paper without the words "paper" or "这篇". Require a
+        // unique catalog match; ordinary title words and partial names are not IDs.
+        const aliases = new Map();
+        for (const document of documents) {
+          for (const title of [document.discovery?.title, document.title, document.filename]) {
+            for (const name of String(title || "").trim().match(/^[A-Za-z][A-Za-z0-9]{3,39}(?=$|[^A-Za-z0-9_])/) || []) {
+              if (!/[a-z][A-Z]/.test(name)) continue;
+              const key = name.toLowerCase();
+              const ids = aliases.get(key) || new Set(); ids.add(document.id); aliases.set(key, ids);
+            }
+          }
+        }
+        for (const [name, ids] of aliases) {
+          // Latin identifiers may directly adjoin Chinese words, but not Latin
+          // letters/digits (SurfDocking must not resolve to SurfDock).
+          if (ids.size === 1 && new RegExp(`(?:^|[^a-z0-9_])${name}(?=$|[^a-z0-9_])`, "i").test(query)) paperIds.push(...ids);
+        }
+        paperIds.splice(0, paperIds.length, ...new Set(paperIds));
+      }
       // A named paper can be the reference point of discovery. Keep its evidence
       // in context, while allowing the search to find the related/compared papers.
       const relatedDiscovery = paperIds.length > 0 &&
@@ -2441,6 +2579,151 @@
       return ranked;
     }
 
+    // Recovery resumes the same answer request, never buildContext/preflight:
+    // those workflows may generate L2/L3/L4 artifacts. Only local L1 is read here.
+    async answerWithEvidenceRecovery({ localWorkspaceContext, request, signal, isCurrent = () => true,
+      surface = "side_chat", callContext = {}, onRecovery = () => {} }) {
+      const workspace = this.workspace.workspace;
+      const workspaceId = workspace?.workspaceId || workspace?.id;
+      const scopeKey = context => JSON.stringify([context.literature?.selectedPaperIds || [], context.literature?.explicitPaperIds || [], context.sourceMap?.selectedPaperIds || []]);
+      const initialScope = scopeKey(localWorkspaceContext);
+      const check = () => {
+        if (signal?.aborted || !isCurrent() || this.workspace.workspace !== workspace ||
+            (workspace?.workspaceId || workspace?.id) !== workspaceId || scopeKey(localWorkspaceContext) !== initialScope) {
+          throw Object.assign(new Error("The evidence recovery request is no longer current."), { code: "OPERATION_ABORTED" });
+        }
+      };
+      check();
+      const context = JSON.parse(JSON.stringify(localWorkspaceContext));
+      context.evidenceRecovery = { version: 1, cycle: 0 };
+      const first = await request(context);
+      check();
+      if (!first.evidenceRecovery) return first;
+      onRecovery();
+      const recovery = savedArtifactApi.normalizeEvidenceRecovery(first.evidenceRecovery, true);
+      if (!recovery) throw Object.assign(new Error("The host rejected an invalid evidence recovery request."), { code: "EVIDENCE_RECOVERY_INVALID" });
+      const limits = savedArtifactApi.EVIDENCE_RECOVERY_LIMITS;
+      const scopes = [context.literature?.selectedPaperIds, context.literature?.explicitPaperIds, context.sourceMap?.selectedPaperIds].filter(ids => ids?.length);
+      const originalSources = new Map((context.sourceMap?.paperSources || []).map(source => [source.sourceId, source]));
+      const outcomes = [], verifiedVersions = new Map();
+      const ids = [...new Set(recovery.requests.map(item => item.paperId))];
+      for (const paperId of ids) {
+        check();
+        const queries = recovery.requests.filter(item => item.paperId === paperId);
+        const initial = originalSources.get(paperId);
+        const current = () => this.sourceRegistry?.get(paperId);
+        const document = this.literature?.documents?.find(item => item.id === paperId && item.isLiteraturePaper);
+        const unavailable = () => !current() || current().sourceKind !== "paper" || ["missing", "deleted", "removed"].includes(current().catalogStatus);
+        const changed = () => current()?.path !== initial?.path || (initial?.contentHash && current()?.contentHash !== initial.contentHash);
+        let status = !initial || !document ? "unknown-source" : scopes.some(scope => !scope.includes(paperId)) ? "outside-scope"
+          : unavailable() ? "source-unavailable" : changed() ? "source-changed" : null;
+        try {
+          if (!status) {
+            // Verify current local bytes through the existing source lifecycle.
+            // The returned bytes stay local and are never part of this exchange.
+            await this.literature.preparation.readSourceBytesForUse(paperId, { signal });
+            check();
+            if (unavailable() || changed()) throw Object.assign(new Error("Source changed"), { code: "SOURCE_CHANGED_DURING_PREPARATION" });
+            // full_text cannot request a Paper Card, a wiki page, or a synthesis.
+            await this.literature.preparation.ensureSourceReady([paperId], "full_text", { surface, signal, callContext, turnId: callContext.turnId });
+            check();
+            if (unavailable()) status = "source-unavailable";
+            else if (changed()) status = "source-changed";
+            else {
+              const artifact = await this.literature.preparation.readPaperArtifact(paperId);
+              check();
+              const source = current();
+              if (unavailable() || changed() || source.hashStatus !== "ready" || !source.contentHash || artifact.contentHash !== source.contentHash) status = "source-changed";
+              else {
+                verifiedVersions.set(paperId, { path: source.path, hash: source.contentHash });
+                const chunks = (artifact.chunks || []).filter(chunk => Number.isInteger(chunk.page) && chunk.page > 0 &&
+                  typeof chunk.chunkId === "string" && /^[A-Za-z0-9_.:-]{1,200}$/.test(chunk.chunkId) && typeof chunk.text === "string");
+                const chosen = [];
+                // Give each query a matching excerpt before adding extra chunks.
+                const rankings = queries.map(item => chunks.map(chunk => ({ chunk, score: this.scorePaperChunk(chunk, item.query) }))
+                  .filter(item => item.score > 0).sort((a, b) => b.score - a.score));
+                for (let rank = 0; rank < limits.chunksPerPaper; rank++) for (let q = 0; q < queries.length; q++) {
+                  const chunk = rankings[q][rank]?.chunk;
+                  if (chunk && !chosen.some(item => item.chunk === chunk) && chosen.length < limits.chunksPerPaper) chosen.push({ chunk, query: queries[q].query });
+                }
+                const header = `Original-paper evidence for ${source.path}:\n`;
+                let content = header;
+                const citations = [];
+                for (const { chunk, query } of chosen) {
+                  const terms = tokenizeQuestion(query);
+                  const position = Math.min(...terms.map(term => chunk.text.toLowerCase().indexOf(term)).filter(index => index >= 0));
+                  const start = Number.isFinite(position) ? Math.max(0, position - 200) : 0;
+                  const reference = `${paperId}:p${chunk.page}:${chunk.chunkId}`;
+                  const prefix = `[${reference}]\n`;
+                  const excerpt = chunk.text.slice(start, start + Math.max(0, Math.min(1200, limits.charactersPerPaper - content.length - prefix.length - 2)));
+                  if (!excerpt) continue;
+                  content += `${prefix}${excerpt}\n\n`;
+                  citations.push({ sourceId: paperId, reference, page: chunk.page, contentHash: source.contentHash });
+                }
+                if (citations.length) {
+                  context.files = (context.files || []).filter(file => (file.paperId || file.sourceId) !== paperId);
+                  context.files.push({ paperId, sourceId: paperId, name: document.filename, relativePath: source.path, extension: "pdf",
+                    analysisStatus: "processed", evidenceType: "original-paper-evidence", content });
+                  context.citationEvidence = [...(context.citationEvidence || []).filter(item => item.sourceId !== paperId), ...citations];
+                  Object.assign(initial, { contentHash: source.contentHash, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus });
+                }
+                for (const item of queries) outcomes.push({ paperId, query: item.query,
+                  status: citations.length && this.scorePaperChunk({ text: content.slice(header.length) }, item.query) > 0 ? "recovered" : "no-matching-passage" });
+              }
+            }
+          }
+        } catch (error) {
+          check();
+          if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") throw error;
+          status = ["SOURCE_MISSING", "SOURCE_NOT_FOUND"].includes(error?.code) ? "source-unavailable"
+            : ["SOURCE_CHANGED_DURING_PREPARATION", "SOURCE_STILL_CHANGING"].includes(error?.code) ? "source-changed" : "retrieval-failed";
+        }
+        if (status) {
+          if (initial) Object.assign(initial, { contentHash: current()?.contentHash || null, catalogStatus: current()?.catalogStatus || "missing", hashStatus: current()?.hashStatus || "absent" });
+          // An old prepared excerpt cannot survive a failed currentness check.
+          context.files = (context.files || []).filter(file => (file.paperId || file.sourceId) !== paperId);
+          context.citationEvidence = (context.citationEvidence || []).filter(item => item.sourceId !== paperId);
+          for (const item of queries) outcomes.push({ paperId, query: item.query, status });
+        }
+      }
+      check();
+      const verifyRecovered = () => {
+        check();
+        for (const [id, version] of verifiedVersions) {
+          const source = this.sourceRegistry?.get(id);
+          if (!source || source.contentHash !== version.hash || source.path !== version.path || source.hashStatus !== "ready" || ["missing", "deleted", "removed"].includes(source.catalogStatus)) {
+            throw Object.assign(new Error("The recovered source changed before the answer completed."), { code: "OPERATION_ABORTED" });
+          }
+        }
+      };
+      context.evidenceRecovery = { version: 1, cycle: 1, outcomes };
+      const limitations = outcomes.filter(item => item.status !== "recovered");
+      const limitationDescriptions = {
+        "no-matching-passage": "no matching passage was found in the bounded local search",
+        "unknown-source": "the requested paper could not be identified in this workspace",
+        "outside-scope": "the requested paper is outside the current selection",
+        "source-unavailable": "the original source is no longer available",
+        "source-changed": "the source changed, so its earlier evidence could not be reused",
+        "retrieval-failed": "the local original evidence could not be read",
+      };
+      const limitationText = limitations.length ? `${limitations.map(item => {
+        const document = this.literature?.documents?.find(paper => paper.id === item.paperId);
+        const title = String(document?.discovery?.title || document?.filename || "Requested paper").slice(0, 300);
+        return `${title}: ${limitationDescriptions[item.status]}`;
+      }).join("; ")}. This describes retrieved evidence only and does not prove that information is absent from a paper.` : "";
+      context.notices = [...(context.notices || []), `One local evidence recovery cycle completed: ${JSON.stringify(outcomes)}. No further recovery is available. State any limitation precisely; missing retrieved evidence never proves absence from the paper.`];
+      verifyRecovered();
+      const resumed = await request(context);
+      verifyRecovered();
+      if (resumed.evidenceRecovery) throw Object.assign(new Error("The single permitted evidence recovery cycle was exhausted."), { code: "EVIDENCE_RECOVERY_EXHAUSTED" });
+      if (limitationText && typeof resumed.reply === "string") resumed.reply += `\n\n${limitationText}`;
+      const before = first.semanticTelemetry, after = resumed.semanticTelemetry;
+      if (before || after) resumed.semanticTelemetry = { ...after, capabilitiesUsed: [...new Set([...(before?.capabilitiesUsed || []), ...(after?.capabilitiesUsed || [])])],
+        cloudCalls: { ...after?.cloudCalls, answer: after?.cloudCallsCumulative === true
+          ? (after?.cloudCalls?.answer || 0) : (before?.cloudCalls?.answer || 0) + (after?.cloudCalls?.answer || 0) } };
+      return { ...resumed, evidenceRecoveryStatus: { version: 1, cycle: 1, outcomes } };
+    }
+
     async retrievePaperEvidence(query, paperIds, options = {}) {
       const boundedIds = [...new Set(Array.isArray(paperIds) ? paperIds : [])]
         .slice(0, this.limits.maxEvidenceFiles);
@@ -2523,6 +2806,7 @@
           files: files.map((file) => file.relativePath),
         },
         project: {
+          workspaceId: String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || ""),
           workspaceName: this.workspace.workspace?.name || "",
           goal: String(options.projectGoal || this.workspace.state?.project?.goal || ""),
           projectSummary: memoryValue("project_summary", memory.projectSummary),

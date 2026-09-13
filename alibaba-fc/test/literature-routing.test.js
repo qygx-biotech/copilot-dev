@@ -4,6 +4,8 @@ const assert = require("node:assert/strict");
 const { ProjectContextService } = require("../../docs/project-context-service.js");
 const { LiteratureTools } = require("../../docs/source-system.js");
 const semantic = require("../../shared/semantic-intent.js");
+const { sanitizeLocalWorkspaceContext } = require("../index.js")._test;
+const sideChat = require("../side-chat-agent.js");
 
 function fixture(options = {}) {
   const documents = [
@@ -43,6 +45,101 @@ function fixture(options = {}) {
   return { service, build, literature, sources, artifacts, reads, searches, experimentCalls, literatureTools };
 }
 
+function namedPaperFixture() {
+  const f = fixture({ objects: [] }); // The remote semantic parser may fail or find no known pattern.
+  const document = f.literature.documents[0];
+  document.filename = "SurfDock-is-a-surface-informed-model-for-docking.pdf";
+  document.relativePath = `literature/${document.filename}`;
+  document.discovery.title = "SurfDock is a surface-informed model for docking";
+  f.sources[0].path = document.relativePath; f.sources[0].displayName = document.filename;
+  f.sources.forEach(source => { source.catalogStatus = "ready"; });
+  f.artifacts.get("P31").chunks = Array.from({ length: 20 }, (_, index) => ({
+    chunkId: `chunk-${index + 1}`, page: index + 1,
+    text: `SurfDock background discussion. ${"Synthetic methodological background. ".repeat(80)}` +
+      (index === 16 ? "\nCode availability\nThe source code is available on GitHub at https://example.invalid/synthetic/surfdock." : ""),
+  }));
+  const tools = new LiteratureTools({ registry: f.service.sourceRegistry, preparation: f.literature.preparation });
+  f.literatureTools.completeEvidence = tools.completeEvidence.bind(tools);
+  f.literatureTools.evidenceCompletionStatus = tools.evidenceCompletionStatus.bind(tools);
+  return f;
+}
+
+test("a distinctive paper name activates bounded source-code evidence retrieval without a semantic match", async t => {
+  for (const question of ["SurfDock有源代码么？", "Does surfdock have source code?", "SurfDock有GitHub仓库吗？"]) {
+    const f = namedPaperFixture();
+    const conversation = { messages: [
+      { role: "user", content: "详细讲解一下SurfDock这篇", context: { relevantPaperIds: ["P31", "P52"] } },
+      { role: "assistant", content: "Earlier paper explanation [SurfDock](biodesign-citation:citation-1)", citations: [{ id: "citation-1", reference: "local:3", sourceId: "P31" }] },
+    ] };
+    const saved = JSON.stringify(conversation);
+    const context = await f.build(question, { conversation });
+    assert.deepEqual(context.literature.relevantPaperIds, ["P31"]);
+    assert.deepEqual(f.searches[0].options.paperIds, ["P31"]);
+    assert.equal(context.files.length, 1);
+    assert.match(context.files[0].content, /Code availability[\s\S]*https:\/\/example.invalid\/synthetic\/surfdock/);
+    assert.ok(context.files[0].content.length <= f.service.limits.maxSourceCharactersPerFile + 400, "Existing evidence budget plus file/handle headings remains bounded");
+    assert.deepEqual(context.literature.evidenceCompletion.missingByPaper, []);
+    assert.equal(context.literature.evidenceCompletion.calls, question === "SurfDock有源代码么？" ? 1 : 0);
+    assert.ok(context.citationEvidence.some(item => item.sourceId === "P31" && item.page === 17));
+    assert.equal(JSON.stringify(conversation), saved, "Existing saved chat and citations are not rewritten");
+    t.diagnostic(`${question}: 1 evidence-bearing paper, ${context.literature.evidenceCompletion.calls} targeted local lookups, no provider regeneration.`);
+  }
+});
+
+test("distinctive-name resolution rejects partial words, ambiguous names, deleted papers and out-of-scope papers", async () => {
+  const f = namedPaperFixture();
+  for (const query of ["SurfDocking有源代码吗？", "What is a surface-informed model?", "BioDesign UI button help"])
+    assert.deepEqual(f.service.resolveExplicitPaperIdentity(query).paperIds, []);
+  assert.deepEqual(f.service.resolveExplicitPaperIdentity("SurfDock有源代码吗？", { paperIds: ["P52"] }).paperIds, []);
+  f.literature.documents[1].discovery.title = "SurfDock evaluation in another study";
+  assert.deepEqual(f.service.resolveExplicitPaperIdentity("SurfDock有源代码吗？").paperIds, []);
+  assert.deepEqual(f.service.resolveExplicitPaperIdentity("SurfDock有源代码吗？", { paperIds: ["P52"] }).paperIds, ["P52"]);
+  f.sources.splice(0, 1);
+  assert.deepEqual(f.service.resolveExplicitPaperIdentity("SurfDock有源代码吗？", { paperIds: ["P31"] }).paperIds, []);
+  assert.deepEqual(fixture().service.resolveExplicitPaperIdentity("SurfDock有源代码吗？").paperIds, []);
+  const ordinary = fixture();
+  ordinary.literature.documents[0].discovery.title = "Engineering the EctD A163V variant";
+  ordinary.literature.documents[1].discovery.title = "ENGINEERING computational methods";
+  assert.deepEqual(ordinary.service.resolveExplicitPaperIdentity("What exact kcat was reported for the A163V EctD variant?").paperIds, []);
+  assert.deepEqual(ordinary.service.resolveExplicitPaperIdentity("What are engineering methods?").paperIds, []);
+});
+
+test("active Side Chat recovers from an obsolete local handle using the stable paper ID and original citations", async () => {
+  const f = namedPaperFixture(), question = "SurfDock有源代码么？";
+  const local = sanitizeLocalWorkspaceContext(await f.build(question), question);
+  const kb = sideChat.createSideChatKnowledgeBase({ localWorkspaceContext: local });
+  const call = (name, args) => ({ id: "fixture-tool", type: "function", function: { name, arguments: JSON.stringify(args) } });
+  const unknown = JSON.parse(sideChat.executeSideChatTool(call("read_paper_evidence", { paper_id: "local:3" }), kb));
+  assert.equal(unknown.error, "PAPER_NOT_FOUND_IN_SCOPE");
+  const search = JSON.parse(sideChat.executeSideChatTool(call("search_papers", { query: "SurfDock" }), kb));
+  assert.equal(search.results[0].paper_id, "P31"); assert.equal(search.results[0].content_available, true);
+  let calls = 0;
+  const result = await sideChat.runSideChatAgent({
+    workspaceContext: { localWorkspaceContext: local }, conversationMessages: [{ role: "user", content: question }],
+    systemPrompt: "Read original evidence before answering.", parseFinalAnswer: reply => ({ reply }),
+    requestTurn: async ({ messages }) => {
+      if (++calls === 1) return { ok: true, message: { tool_calls: [call("read_paper_evidence", { paper_id: "P31", query: "source code GitHub repository availability" })] } };
+      const read = JSON.parse(messages.find(message => message.role === "tool").content);
+      assert.equal(read.content_available, true); assert.match(read.content, /https:\/\/example.invalid\/synthetic\/surfdock/);
+      return { ok: true, message: { content: "The paper provides its source code. [[cite:P31:p17:chunk-17]]" } };
+    },
+  });
+  assert.equal(result.ok, true); assert.equal(calls, 2);
+  assert.equal(result.data.citations[0].sourceId, "P31"); assert.equal(result.data.citations[0].page, 17);
+  assert.equal(result.data.citations[0].status, "resolved");
+});
+
+test("missing or restricted code availability is not silently converted into an open-source claim", async () => {
+  const f = namedPaperFixture();
+  f.artifacts.get("P31").chunks = [{ chunkId: "body", page: 1, text: "SurfDock computational methods background only." }];
+  const missing = await f.build("SurfDock有源代码么？");
+  assert.deepEqual(missing.literature.evidenceCompletion.missingByPaper, [{ paperId: "P31", dimensions: ["code_availability"] }]);
+  f.artifacts.get("P31").chunks.push({ chunkId: "restricted", page: 17, text: "Code availability\nThe source code is not publicly available; access requires permission." });
+  const restricted = await f.build("SurfDock有源代码么？");
+  assert.match(restricted.files[0].content, /not publicly available; access requires permission/);
+  assert.deepEqual(restricted.literature.evidenceCompletion.missingByPaper, []);
+});
+
 test("explicit current paper ID reaches original evidence despite generic-definition routing and an unrelated ranked hit", async () => {
   const f = fixture();
   const context = await f.build("What is the current corrected mean modulus in P31? Cite the page.");
@@ -72,7 +169,12 @@ test("exact filenames and normalized recognized titles preserve paper scope", as
 test("explicit paper references cannot widen an active selection and token substrings cannot resolve IDs", async () => {
   const f = fixture();
   const context = await f.build("What is the mean modulus in P31?", { selectedPaperIds: ["P52"] });
-  assert.deepEqual(context.literature.relevantPaperIds, ["P52"]);
+  assert.deepEqual(context.literature.relevantPaperIds, []);
+  assert.deepEqual(f.reads, []);
+  assert.equal(context.literature.referenceResolution.status, "reference-unresolved");
+  assert.match(context.notices.join("\n"), /clarify/);
+  const inScope = await f.build("What is the mean modulus in P52?", { selectedPaperIds: ["P52"] });
+  assert.deepEqual(inScope.literature.relevantPaperIds, ["P52"]);
   assert.deepEqual(f.reads, ["P52"]);
   assert.deepEqual(f.service.resolveExplicitPaperIdentity("What is P310?").paperIds, []);
   f.sources.splice(f.sources.findIndex((source) => source.sourceId === "P31"), 1);

@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 // capability allowlist self-contained and parity-test it against channels.cjs.
 const channels = Object.freeze({
   runtimeInfo: "biodesign:runtime:info",
+  sourceOpen: "biodesign:source:open",
   updateCheck: "biodesign:updates:check",
   updateStatus: "biodesign:updates:status",
   projectOpen: "biodesign:project:open",
@@ -65,6 +66,7 @@ function deepFreeze(value) {
 const api = {
   runtime: {
     info: () => invoke(channels.runtimeInfo),
+    openSource: (payload) => invoke(channels.sourceOpen, payload),
   },
   updates: {
     requestUpdateCheck: () => invoke(channels.updateCheck),

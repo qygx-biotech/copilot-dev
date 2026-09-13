@@ -73,8 +73,12 @@ test("history resumes messages and image understanding after reopening, and cont
   const reopened = await new WorkspaceChatStore({ workspace }).loadActiveConversation();
   assert.equal(reopened.id, chats[0].id);
   assert.equal((await store.loadImageAttachments(reopened.messages[0].images))[0].dataUrl, png);
-  const context = new ProjectContextService({ workspace }).buildConversationContext(reopened);
+  // Restored history is unchanged; only a current catalog paper may become an
+  // interpretation candidate. Saved selection metadata alone is not authority.
+  const literature = { documents: [{ id: "paper-1", isLiteraturePaper: true, title: "Current paper" }] };
+  const context = new ProjectContextService({ workspace, literature }).buildConversationContext(reopened);
   assert.deepEqual(context.recentlyDiscussedPaperIds, ["paper-1"]);
+  assert.deepEqual(new ProjectContextService({ workspace }).buildConversationContext(reopened).recentlyDiscussedPaperIds, []);
   assert.match(context.recentMessages[0].content, /Activity is 25 U\/mL/);
   await turn(store, selected, "Follow-up on Question 0");
   const fresh = await store.startNewConversation();
@@ -150,4 +154,17 @@ test("a copied workspace with the same saved ID still invalidates operations fro
   const chat = await store.loadActiveConversation();
   workspace.workspace = { ...workspace.workspace };
   await assert.rejects(store.saveConversation(chat), { code: "OPERATION_ABORTED" });
+});
+
+
+test("Side Chat preserves provider web sources and raw citation locations across disk reload", async t => {
+  const { store } = await fixture(t);
+  const conversation = await store.createConversation();
+  const sources = [{ url: "https://papers.example.org/ectd.pdf", title: "EctD" }, { url: "javascript:alert(1)" }];
+  const metadata = [{ annotations: [{ type: "url_citation", url: sources[0].url, start_index: 1, end_index: 6 }] }];
+  const saved = await store.saveConversation({ ...conversation, messages: [{ id: randomUUID(), role: "assistant", content: "Found a paper", webSearchSources: sources,
+    webSearchMetadata: metadata, createdAt: "2026-09-11T00:00:00.000Z" }] });
+  const loaded = await store.activateConversation(saved.id);
+  assert.deepEqual(loaded.messages[0].webSearchSources, sources.slice(0, 1));
+  assert.deepEqual(loaded.messages[0].webSearchMetadata, metadata);
 });

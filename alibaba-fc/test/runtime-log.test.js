@@ -36,6 +36,28 @@ test("waiting events have elapsed time and stop after success or failure", async
   assert.equal(new Set(log.entries().map((entry) => entry.details.operationId)).size, 1);
 });
 
+test("semantic fallback and the submitted retrieval scope remain observable without logging IR or prompts", () => {
+  const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
+  const fields = { retrievalScope: "workspace", webSearchExpected: false, downloadRequested: false,
+    workspaceRetrievalTriggered: true, route: "local-fallback", fallbackReason: "invalid_structured_output", semanticParserCalls: 1 };
+  assert.deepEqual(log.record("retrieval.decision", { ...fields, ir: { goal: "private task" }, prompt: "private task" }).details, fields);
+  log.begin("main-agent", { semanticContextPresent: true, retrievalScope: "web" })("completed");
+  assert.equal(log.entries().at(-1).details.retrievalScope, "web");
+  assert.equal(log.entries().at(-1).details.semanticContextPresent, true);
+  assert.doesNotMatch(log.exportText(), /private task|goal|prompt/);
+});
+
+test("task execution diagnostics retain primitive outcomes without private task or source data", () => {
+  const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
+  const fields = { originalRequestPreserved: true, semanticContextPresent: true, retrievalScope: "web", stage: "answer-received",
+    downloadRequested: true, downloadExposed: true, downloadPermitted: true, sourceCount: 3,
+    downloadAttemptCount: 3, downloadResultCount: 3, downloadSuccessCount: 2, downloadFailureCount: 1,
+    correctiveContinuation: true, taskStatus: "incomplete" };
+  assert.deepEqual(log.record("main-agent.partial", { ...fields, originalRequest: "private task", sources: [{ url: "https://private.example.org/paper" }],
+    providerError: "private error", headers: { Authorization: "secret" } }).details, fields);
+  assert.doesNotMatch(log.exportText(), /private|secret|https:/);
+});
+
 test("real preflight logs one shared sync worker, L1/L2 failure, cache reuse on retry, and no spawn for unchanged sources", async () => {
   const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
   let release, fail = true;

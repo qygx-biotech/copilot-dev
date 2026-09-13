@@ -2,6 +2,7 @@
 
 module.exports = Object.freeze({
   runtimeInfo: "biodesign:runtime:info",
+  sourceOpen: "biodesign:source:open",
   updateCheck: "biodesign:updates:check",
   updateStatus: "biodesign:updates:status",
   projectOpen: "biodesign:project:open",

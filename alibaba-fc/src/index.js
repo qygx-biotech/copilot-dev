@@ -60,6 +60,7 @@ async function handler(req, res) {
     if (started) {
       const data = JSON.parse(response.body || "{}");
       if (response.statusCode >= 400 || data.fallback) await transport.emit("error", { code: data.error || "STREAM_INTERRUPTED" });
+      else if (data.evidenceRecovery) { await transport.emit("reset", {}); await transport.emit("evidence-recovery", data); }
       else await transport.emit("complete", data);
       res.end();
       return;

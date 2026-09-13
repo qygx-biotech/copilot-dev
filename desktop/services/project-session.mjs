@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { ProjectFilesystem } from "./project-filesystem.mjs";
 import { JobManager } from "./job-manager.mjs";
 import { LocalExecutionService } from "./local-execution-service.mjs";
+import { downloadSources } from "./source-downloader.mjs";
 import { QmdWorkerClient } from "../workers/qmd-worker-client.mjs";
 
 export class ProjectSessionManager extends EventEmitter {
@@ -24,7 +25,12 @@ export class ProjectSessionManager extends EventEmitter {
       execution: new LocalExecutionService(),
       qmd: null,
       workspaceId: null,
+      sourceDownloads: new AbortController(),
     };
+    const active = this.active;
+    active.execution.register({ id: "download_sources", effect: "source_write" }, (input, context) => downloadSources(input, {
+      ...context, signal: active.sourceDownloads.signal, isCurrent: () => this.active === active,
+    }));
     return {
       ...this.status(),
       initialized: await filesystem.exists(".biodesign/workspace.json"),
@@ -96,6 +102,7 @@ export class ProjectSessionManager extends EventEmitter {
     if (!this.active) return { closed: true };
     const active = this.active;
     this.active = null;
+    active.sourceDownloads.abort();
     await active.jobs.close().catch(() => {});
     await active.qmd?.close().catch(() => {});
     this.emit("closed");

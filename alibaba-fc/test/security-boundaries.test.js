@@ -37,7 +37,7 @@ test.beforeEach(t => {
   // Legacy review checks its sidecar before reading PDF metadata; keep every
   // storage operation local to the test, including this cache miss.
   t.mock.method(OSS.prototype, "get", async () => { throw Object.assign(new Error("No fixture object"), { code: "NoSuchKey", status: 404 }); });
-  global.fetch = async (_url, options) => { providerRequests.push(options); return completion(finalAnswer); };
+  global.fetch = async (_url, options) => { if (String(_url).endsWith("/v1/models")) return new Response(JSON.stringify({ data: [] })); providerRequests.push(options); return completion(finalAnswer); };
 });
 test.after(() => {
   for (const [key, value] of Object.entries(savedEnv)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
@@ -59,7 +59,7 @@ const chat = { mode: "side_chat", messages: [{ role: "user", content: "Explain t
 const protectedPaths = ["/api/me", "/api/knowledge/update-wiki", "/api/knowledge/config", "/api/literature/config", "/api/knowledge/plan-search", "/api/knowledge/rerank",
   "/api/literature/summarize-chunk", "/api/corpus/map-paper", "/api/literature/analyze-pdf-native", "/api/literature/create-paper-card-from-text",
   "/api/context/route", "/api/semantic/interpret", "/api/semantic/map-schema", "/api/literature/synthesize", "/api/chat/understand-images",
-  "/chat", "/api/test-oss", "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"];
+  "/chat", "/api/sources/fetch", "/api/test-oss", "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"];
 
 test("debug is unavailable and cannot echo credentials, headers or document previews", async t => {
   const results = [];
@@ -108,17 +108,17 @@ test("cross-account and traversal object keys remain denied despite forged owner
 
 test("forged models cannot select keys; valid beta and admin answer modes retain their server-authorized behavior", async () => {
   for (const model of ["REQUESTY_KEY_BETA2", "forged/model", { role: "admin" }]) {
-    assert.equal((await invoke("/chat", { ...chat, model })).status, 400);
+    for (const mode of ["side_chat", "agent_instruction"]) assert.equal((await invoke("/chat", { ...chat, mode, model })).status, 400);
     assert.equal((await invoke("/api/literature/config", undefined, token(), "GET", { "X-BioDesign-Chat-Model": String(model) })).status, 400);
   }
   assert.equal(providerRequests.length, 0);
   for (const [identity, key] of [[token(), env.REQUESTY_KEY_BETA1], [token(1), env.REQUESTY_KEY_BETA2], [token(-1), env.REQUESTY_API_KEY]]) {
-    for (const mode of ["side_chat", "agent_instruction"]) {
-      const result = await invoke("/chat", { ...chat, mode, model: mode === "side_chat" ? "default" : "ignored/forged-model",
+    for (const [mode, model] of [["side_chat", "default"], ["agent_instruction", "default"], ["agent_instruction", "google/gemini-3.1-flash-lite:flex"]]) {
+      const result = await invoke("/chat", { ...chat, mode, model,
         role: "admin", account: users[1].account, requestyKeyEnv: "REQUESTY_KEY_BETA2", apiKey: "forged-key", env: { REQUESTY_API_KEY: "forged-key" } }, identity);
       assert.equal(result.body.fallback, false); assert.equal(result.body.reply, finalAnswer.reply);
       assert.ok(providerRequests.at(-1).headers.Authorization === `Bearer ${key}`, "Only the verified identity selects the key");
-      assert.equal(JSON.parse(providerRequests.at(-1).body).model, env.REQUESTY_MODEL);
+      assert.equal(JSON.parse(providerRequests.at(-1).body).model, model === "default" ? env.REQUESTY_MODEL : model);
       assertClean(result);
     }
   }

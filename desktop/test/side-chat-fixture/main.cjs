@@ -25,7 +25,7 @@ const functions = [
   "getSideChatCitationContext", "navigateSideChatCitation", "createSideChatActivitySummary", "addSideChatMessage",
   "createStreamingAnswer", "normalizeSideChatModel", "shortSideChatModelName", "updateSideChatModelConfiguration", "renderSideChatModelControl", "saveWorkspaceStateNow",
   "runAgentInstruction", "setAgentBusy", "getAgentModelOptions",
-  "initializeSideChatImages", "submitSideChat", "understandSideChatImages",
+  "initializeSideChatImages", "submitSideChat", "understandSideChatImages", "sendWorkbenchRequest",
 ].map(actualFunction).join("\n");
 const modelEvents = source.match(/^sideChatModelSelect.addEventListener[\s\S]*?^\}\);/m)[0];
 const historyEvents = source.slice(source.indexOf('clearSideChatButton.addEventListener("click"'), source.indexOf("async function changeSideChatConversation"));
@@ -52,6 +52,7 @@ const savedConversations = new Map();
 const scheduleWorkspaceStateSave = () => saveWorkspaceStateNow();
 let currentLanguage = "en", retrievalProfile = "light", workspaceAbortController = null, knowledgeService = null;
 let requests = [], saves = [], toasts = [], saveFailAt = 0, requestFailure = false, pendingRequest = null, sequence = 0, exists = true, existenceGate = null, fileChecks = [];
+let recoveryReplies = [];
 let streamEvents = [], streamFailure = false, lastStreamCallback = null;
 let imageCalls = [], contextCalls = [], contextModels = [], imageModels = [], imageResponseStatus = 200, imageGate = null;
 const imageStore = new Map();
@@ -106,13 +107,14 @@ const buildSideChatMessages = (question, context, _language, understanding) => [
 const buildLocalSideChatReply = () => "Recoverable fallback";
 const showToast = text => toasts.push(text);
 class AuthRequiredError extends Error {}
-const sendWorkbenchRequest = async request => {
-  const { onStream, signal, ...payload } = request;
+const getSelectedPaperIds = () => [];
+const sendWorkbenchRequestOnce = async request => {
+  const { onStream, signal, isCurrentRequest, ...payload } = request;
   requests.push(structuredClone(payload)); lastStreamCallback = onStream;
   for (const event of streamEvents) onStream?.(event);
   if (pendingRequest) await pendingRequest;
   if (streamFailure) throw Object.assign(new Error("Stream interrupted"), { code: "STREAM_INTERRUPTED" });
-  if (requestFailure) throw new Error("request unavailable"); return { reply: "Regenerated answer" };
+  if (requestFailure) throw new Error("request unavailable"); return recoveryReplies.shift() || { reply: "Regenerated answer" };
 };
 const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren(); for (const file of workspaceTree.children) { const row = document.createElement("label"); row.className = "workspace-file-row"; const input = document.createElement("input"); input.type = "checkbox"; input.dataset.workspaceFile = file.relativePath; row.append(input, file.relativePath); workspaceTreeContainer.append(row); } };
 `;
@@ -129,6 +131,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     fs.writeFileSync(fixturePath, fixtureHtml);
     await win.loadFile(fixturePath);
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/source-citations.js"), "utf8"));
+    for (const script of ["shared/retrieval-contract.js", "shared/semantic-intent.js", "docs/project-context-service.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/chat-images.js"), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/chat-image-composer.js"), "utf8"));
     await win.webContents.executeJavaScript(`document.body.insertAdjacentHTML("beforeend", ${JSON.stringify('<button data-debug-open data-debug-label="open">Debug Console</button>' + debugMarkup)})`);

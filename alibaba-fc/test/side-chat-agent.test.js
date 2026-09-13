@@ -227,7 +227,7 @@ test("the backend loop exposes internal-state tools with centralized effects", (
     SIDE_CHAT_TOOL_DEFINITIONS.find(
       (tool) => tool.function.name === "search_papers"
     ).function.description,
-    /content_available.*only when content_available is true/i
+    /content_available.*targeted query.*host recovery when offered/i
   );
 });
 
@@ -247,7 +247,8 @@ test("durable project context becomes system guidance without duplicating the go
   assert.match(message, /Long-term project context and final goal/);
   assert.match(message, new RegExp(goal));
   assert.equal(message.split(goal).length - 1, 1);
-  assert.match(message, /every answer or recommendation/);
+  assert.match(message, /does not introduce operations or narrow the research topic/);
+  assert.match(message, /original user request controls the immediate objective and deliverables/);
 });
 
 test("catalog is progressive and file content loads only through an exact item id", () => {
@@ -899,9 +900,10 @@ test("the agent loop keeps inspection private and returns only the final answer"
   assert.equal(requests.length, 2);
   assert.ok(requests[0].tools.length > 0);
   assert.equal(requests[0].messages[1].role, "system");
-  assert.match(requests[0].messages[1].content, /Understand EctD variants/);
-  assert.match(requests[0].messages[2].content, /workspace catalog/i);
-  assert.equal(requests[0].messages[3].role, "user");
+  assert.match(requests[0].messages[1].content, /Original user request:\nWhat does the A163V reference report\?/);
+  assert.ok(requests[0].messages.some(message => message.role === "system" && /Understand EctD variants/.test(message.content)));
+  assert.ok(requests[0].messages.some(message => message.role === "system" && /workspace catalog/i.test(message.content)));
+  assert.ok(requests[0].messages.some(message => message.role === "user" && message.content === "What does the A163V reference report?"));
   assert.equal(
     requests[1].messages.some(
       (message) =>

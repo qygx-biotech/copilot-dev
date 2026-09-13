@@ -6,8 +6,22 @@
   "use strict";
   const plain = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
   const text = (value, limit = 500) => typeof value === "string" ? value.slice(0, limit) : "";
+  function isIgnoredFilesystemArtifact(value) {
+    const basename = String(value || "").replaceAll("\\", "/").split("/").at(-1) || "";
+    const lowered = basename.toLowerCase();
+    return (
+      [".ds_store", "thumbs.db", "desktop.ini"].includes(lowered) ||
+      basename.startsWith("._") ||
+      basename.startsWith("~$") ||
+      lowered.endsWith(".tmp") ||
+      lowered.endsWith(".temp") ||
+      lowered.endsWith(".lock") ||
+      basename.endsWith("~")
+    );
+  }
+
   function relativePath(value) {
-    if (typeof value !== "string" || !value || value.length > 1000 || /[\x00-\x1f\x7f\\:]/.test(value) || value.startsWith("/")) return null;
+    if (typeof value !== "string" || !value || isIgnoredFilesystemArtifact(value) || value.length > 1000 || /[\x00-\x1f\x7f\\:]/.test(value) || value.startsWith("/")) return null;
     return value.split("/").some((part) => !part || part === "." || part === "..") ? null : value;
   }
   function normalizeCitation(value) {
@@ -185,5 +199,5 @@
     };
     return resolveAnswer(answer, registry, saved);
   }
-  return Object.freeze({ relativePath, normalizeCitation, normalizeCitations, label, navigationTarget, bindToWorkspace, createRegistry, resolveAnswer, resolveForDisplay });
+  return Object.freeze({ isIgnoredFilesystemArtifact, relativePath, normalizeCitation, normalizeCitations, label, navigationTarget, bindToWorkspace, createRegistry, resolveAnswer, resolveForDisplay });
 });

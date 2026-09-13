@@ -274,10 +274,36 @@ test("experimental evidence hashes survive citation binding and identify changed
   assert.equal(bound[0].status, "missing");
 });
 
-test("model-supplied citation metadata is discarded even when no citation token resolves", () => {
+for (const surface of ["side_chat", "agent_command"]) test(`${surface}: model-supplied citation metadata is discarded even when no citation token resolves`, () => {
   const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: sanitizeLocalWorkspaceContext(fixture()) });
-  const result = agent.resolveSideChatAnswerCitations({ reply: "Answer", citations: [{ id: "citation-1", relativePath: "/outside", page: 999, status: "resolved" }] }, kb, "side_chat");
+  const result = agent.resolveSideChatAnswerCitations({ reply: "Answer", citations: [{ id: "citation-1", relativePath: "/outside", page: 999, status: "resolved" }] }, kb, surface);
   assert.deepEqual(result, { reply: "Answer" });
+});
+
+test("Agent finalization resolves supplied file/page handles into saved navigable citations", async () => {
+  const context = fixture();
+  const project = { summary: "Preserve the project result." };
+  const result = await agent.runSideChatAgent({ surface: "agent_command", systemPrompt: "Answer with sources.",
+    workspaceContext: { localWorkspaceContext: sanitizeLocalWorkspaceContext(context) },
+    conversationMessages: [{ role: "user", content: "Explain the supplied evidence." }], parseFinalAnswer: JSON.parse,
+    requestTurn: async request => {
+      assert.ok(request.messages.some(message => message.content.includes("ordinal numbers are not source IDs")));
+      return { ok: true, message: { content: JSON.stringify({ reply: "Evidence [[cite:local:1]], [[cite:paper-a:p5:chunk-9]], [[cite:paper-c]].", project }) } };
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data.project, project);
+  assert.equal(result.data.citations.length, 3);
+  assert.doesNotMatch(result.data.reply, /\[\[cite:/);
+  const sources = context.sourceMap.paperSources;
+  const workspace = { workspaceId: "workspace-a", workspaceName: "Project Folder", getSource: id => sources.find(source => source.sourceId === id), files: sources.map(source => ({ type: "file", relativePath: source.path })) };
+  const saved = citations.bindToWorkspace(result.data.citations, workspace);
+  const display = citations.resolveForDisplay(result.data.reply, JSON.parse(JSON.stringify(saved)), workspace);
+  for (const reference of display.citations) assert.ok(citations.navigationTarget(reference, workspace));
+  assert.equal(display.citations[1].page, 5);
+  assert.equal(display.citations[2].relativePath, "literature/中文/酶活性研究.pdf");
+  const invalid = agent.resolveSideChatAnswerCitations({ reply: "[[cite:3]]" }, agent.createSideChatKnowledgeBase({ localWorkspaceContext: context }), "agent_command");
+  assert.ok(!invalid.citations?.some(reference => reference.status === "resolved"), "Never infer numeric IDs from catalog order");
 });
 
 test("grouped and single cite markers resolve without leaking IDs or extra brackets", () => {

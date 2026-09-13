@@ -7,7 +7,7 @@ const oldMessages = [
 function resetConversation() {
   requests = []; saves = []; toasts = []; saveFailAt = 0; requestFailure = false; pendingRequest = null;
   exists = true; existenceGate = null; fileChecks = [];
-  streamEvents = []; streamFailure = false; lastStreamCallback = null;
+  recoveryReplies = []; streamEvents = []; streamFailure = false; lastStreamCallback = null;
   sideChatBusy = false; sideChatModel = "default"; defaultSideChatModel = ""; renderSideChatModelControl();
   sideChatImageComposer?.clear(); imageCalls = []; contextCalls = []; contextModels = []; imageModels = []; imageResponseStatus = 200; imageGate = null;
   sideChatMessages = structuredClone(oldMessages);
@@ -459,6 +459,53 @@ async function runScenarios() {
     equal(sideChatMessages.at(-1).content, "Regenerated answer");
     equal(sideChatMessages.filter(message => message.content === "Regenerated answer").length, 1);
     ok(!sideChatHistory.querySelector(".streaming-answer"), "Provisional duplicate remained after completion");
+  });
+  for (const cancelled of [false, true]) await scenario(`Evidence recovery ${cancelled ? "cancellation" : "resumption"} preserves one user turn and only a final answer`, async () => {
+    const previousBuild = projectContextService.buildContext;
+    const previousSources = structuredClone(sources), previousDocuments = literatureModule.documents;
+    let release, reads = 0;
+    const gate = new Promise(resolve => { release = resolve; });
+    const controller = new AbortController(); workspaceAbortController = controller;
+    Object.assign(sources[0], { sourceKind: "paper", hashStatus: "ready" });
+    literatureModule.documents = [{ id: "paper-a", isLiteraturePaper: true, filename: "paper.pdf" }];
+    Object.assign(projectContextService, {
+      workspace: workspaceManager, sourceRegistry: literatureModule.sourceRegistry, literature: {
+        documents: literatureModule.documents,
+        preparation: { readSourceBytesForUse: async () => {}, ensureSourceReady: async (_ids, capability, options) => {
+          equal(capability, "full_text"); equal(options.callContext.model, sideChatModel);
+        }, readPaperArtifact: async () => { reads++; await gate; return { contentHash: "hash-a", chunks: [{ page: 12, chunkId: "code", text: "Source code license is provided." }] }; } },
+      },
+      answerWithEvidenceRecovery: window.ProjectContextService.prototype.answerWithEvidenceRecovery,
+      scorePaperChunk: window.ProjectContextService.prototype.scorePaperChunk,
+      buildContext: async () => ({ files: [], notices: [], literature: { explicitPaperIds: ["paper-a"] }, sourceMap: { paperSources: structuredClone(sources) } }),
+    });
+    recoveryReplies = [{ evidenceRecovery: { version: 1, cycle: 0, requests: [{ paperId: "paper-a", query: "license", reason: "PAPER_EVIDENCE_NOT_AVAILABLE" }] } }, { reply: "Recovered final answer" }];
+    streamEvents = [{ type: "delta", text: "Provisional evidence check" }];
+    try {
+      const pending = askSideChat("Does that method provide code?");
+      for (let i = 0; i < 50 && !reads; i++) await tick();
+      equal(reads, 1); equal(requests.length, 1);
+      equal(sideChatMessages.at(-1).role, "user");
+      ok(!saves.some(save => JSON.stringify(save).includes("Provisional evidence check")), "Saved an interim answer");
+      if (cancelled) controller.abort();
+      release(); await pending;
+      equal(requests.length, cancelled ? 1 : 2);
+      equal(sideChatMessages.filter(message => message.content === "Does that method provide code?").length, 1);
+      equal(sideChatMessages.filter(message => message.content === "Recovered final answer").length, cancelled ? 0 : 1);
+      ok(!sideChatHistory.querySelector(".streaming-answer"), "Recovery left a duplicate preview");
+      if (!cancelled) {
+        equal(requests[0].messages, requests[1].messages);
+        equal(requests[0].model, requests[1].model);
+        equal(requests[0].callContext.turnId, requests[1].callContext.turnId);
+        equal(requests[1].localWorkspaceContext.evidenceRecovery.cycle, 1);
+        ok(saves.at(-1).messages.at(-1).content === "Recovered final answer", "Final answer was not persisted");
+      }
+    } finally {
+      release(); workspaceAbortController = null;
+      for (const key of ["workspace", "sourceRegistry", "literature", "answerWithEvidenceRecovery", "scorePaperChunk"]) delete projectContextService[key];
+      projectContextService.buildContext = previousBuild;
+      sources.splice(0, sources.length, ...previousSources); literatureModule.documents = previousDocuments;
+    }
   });
   await scenario("Interrupted streams keep a clearly incomplete draft without persisting a fake assistant answer", async () => {
     streamEvents = [{ type: "delta", text: "Partial result" }]; streamFailure = true;

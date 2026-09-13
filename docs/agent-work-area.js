@@ -20,6 +20,7 @@
       messages,
       instruction: !hasHistory && messages.length ? "" : chat.instruction || "",
       pendingAttachments: [], // File objects never enter session/workspace storage.
+      messageEdit: null,
       selectedModel: typeof chat.selectedModel === "string" ? chat.selectedModel : "default",
       selectedPermission: permissions.includes(chat.selectedPermission) ? chat.selectedPermission : "read_only",
       taskStatus: chat.taskStatus === "running" ? "waiting" : statuses.includes(chat.taskStatus) ? chat.taskStatus : messages.length ? "completed" : "idle",
@@ -29,36 +30,43 @@
     };
   }
 
-  function beginTurn(chat, { id, modelLabel, now = new Date().toISOString() }) {
-    // Future execution adapter input. These choices are requested UI metadata,
-    // not claims about the model or permissions used by the legacy backend.
+  function beginTurn(chat, { id, modelLabel, revision = null, now = new Date().toISOString() }) {
+    // Capture the move's model and download permission before later UI changes.
     const turn = {
-      id, content: chat.instruction.trim(),
+      id, content: revision ? revision.content : chat.instruction.trim(),
       requestedModel: chat.selectedModel || "default", modelLabel,
       permission: chat.selectedPermission || "read_only",
-      attachments: [...(chat.pendingAttachments || [])],
+      attachments: [...(revision ? revision.message.attachments || [] : chat.pendingAttachments || [])],
       createdAt: now,
     };
     chat.messages ||= [];
+    if (revision) {
+      const index = chat.messages.indexOf(revision.message);
+      chat.messages.splice(index);
+      if (index === 0) chat.title = "";
+    }
     chat.messages.push({ ...turn, role: "user", attachments: turn.attachments.map(attachmentMetadata) });
     if (!chat.title) chat.title = turn.content.replace(/\s+/g, " ").slice(0, 64);
-    chat.instruction = "";
-    chat.pendingAttachments = [];
+    if (!revision) {
+      chat.instruction = "";
+      chat.pendingAttachments = [];
+    }
+    chat.messageEdit = null;
     chat.updatedAt = now;
     chat.taskStatus = "running";
     return turn;
   }
 
-  function finishTurn(chat, turn, { content, summary = content, citations = [], isResult = false, status = "completed" }) {
+  function finishTurn(chat, turn, { content, summary = content, citations = [], webSearchSources = [], webSearchMetadata = [], isResult = false, status = "completed" }) {
     const now = new Date().toISOString();
-    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, isResult, createdAt: now });
+    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, isResult, createdAt: now });
     chat.summary = String(summary || "").replace(/[#*`>]/g, "").replace(/\s+/g, " ").trim().slice(0, 360);
     chat.updatedAt = now;
     chat.taskStatus = status;
   }
 
   function serialize(chats) {
-    return chats.map(({ pendingAttachments, ...chat }) => chat);
+    return chats.map(({ pendingAttachments, messageEdit, ...chat }) => chat);
   }
 
   function element(tag, className, text) {
@@ -132,15 +140,38 @@
       return chips;
     }
 
-    function createAgentMessage(chat, message, latestResult) {
+    function createAgentMessage(chat, message, latestResult, latestUser) {
       const article = element("article", `side-message agent-message ${message.role === "user" ? "user" : "assistant"}`);
       article.append(element("strong", "", message.role === "user" ? t("sideChatUserLabel") : t("agentLabel")));
       const body = element("div", "side-message-body");
-      renderMarkdown(body, message.content, message.citations);
+      if (message === latestUser && chat.messageEdit && chat.messageEdit.messageId === message.id) {
+        const input = element("textarea", "side-message-edit-input");
+        input.dataset.agentEditInput = "true";
+        input.dataset.panelId = chat.id;
+        input.value = chat.messageEdit.content;
+        input.rows = 4;
+        input.setAttribute("aria-label", t("editLastMessage"));
+        input.disabled = isBusy();
+        const actions = element("div", "side-message-edit-actions");
+        const cancel = action(chat, "cancel-edit", t("cancelEdit"), "secondary-button");
+        const save = action(chat, "save-edit", t("saveAndRegenerate"), "primary-button");
+        cancel.disabled = save.disabled = isBusy();
+        actions.append(cancel, save);
+        body.append(input, actions);
+      } else {
+        renderMarkdown(body, message.content, message.citations);
+        root.BioDesignWebSearch?.renderSources(body, message.webSearchSources);
+      }
       article.append(body);
       if (message.attachments?.length) article.append(createAttachmentChips(chat, message.attachments, false));
       if (message.requestedModel) {
         article.append(element("p", "agent-turn-meta", t("agentMoveMetadata", { model: message.modelLabel || message.requestedModel, permission: t(`agentPermission_${message.permission}`) })));
+      }
+      if (message === latestUser && message.id && !chat.messageEdit) {
+        const edit = action(chat, "edit", t("editLastMessage"), "side-message-edit-button");
+        edit.dataset.messageId = message.id;
+        edit.disabled = isBusy();
+        article.append(edit);
       }
       if (message === latestResult) article.append(resultActions(chat));
       return article;
@@ -160,7 +191,8 @@
         conversation.append(empty);
       }
       const latestResult = [...chat.messages].reverse().find(message => message.isResult);
-      chat.messages.forEach(message => conversation.append(createAgentMessage(chat, message, latestResult)));
+      const latestUser = chat.messages.findLast(message => message.role === "user");
+      chat.messages.forEach(message => conversation.append(createAgentMessage(chat, message, latestResult, latestUser)));
       if (!streamHosts.has(chat.id)) streamHosts.set(chat.id, element("div", "agent-stream-slot"));
       conversation.append(streamHosts.get(chat.id));
       return conversation;
@@ -210,6 +242,7 @@
       input.id = label.htmlFor;
       input.rows = 3;
       input.placeholder = t("agentComposerPlaceholder");
+      input.setAttribute("aria-describedby", `agentKeyboardHint-${chat.id}`);
       input.value = chat.instruction;
       input.dataset.analysisInstruction = "true";
       input.dataset.panelId = chat.id;
@@ -227,7 +260,9 @@
       run.disabled = isBusy();
       actions.append(createAttachmentPicker(chat), run);
       controls.append(selectors, actions);
-      composer.append(controls, element("p", "agent-composer-hint", t("agentUiOnlyHint")));
+      const hint = element("p", "agent-composer-hint", t("agentKeyboardHint"));
+      hint.id = `agentKeyboardHint-${chat.id}`;
+      composer.append(controls, hint, element("p", "agent-composer-hint", t("agentUiOnlyHint")));
       return composer;
     }
 
@@ -250,7 +285,7 @@
 
     function render(chats) {
       const focused = container.contains(document.activeElement) ? document.activeElement : null;
-      const focusKey = focused && { panelId: focused.dataset.panelId, instruction: focused.hasAttribute("data-analysis-instruction"), setting: focused.dataset.agentSetting, action: focused.dataset.analysisAction, start: focused.selectionStart, end: focused.selectionEnd };
+      const focusKey = focused && { panelId: focused.dataset.panelId, instruction: focused.hasAttribute("data-analysis-instruction"), editing: focused.hasAttribute("data-agent-edit-input"), setting: focused.dataset.agentSetting, action: focused.dataset.analysisAction, start: focused.selectionStart, end: focused.selectionEnd };
       container.querySelectorAll("[data-agent-conversation]").forEach(node => {
         scrollPositions.set(node.dataset.agentConversation, { top: node.scrollTop, atEnd: node.scrollHeight - node.clientHeight - node.scrollTop < 32 });
       });
@@ -262,9 +297,9 @@
         node.scrollTop = !position || position.atEnd ? node.scrollHeight : position.top;
       });
       if (focusKey) {
-        const node = [...container.querySelectorAll("[data-panel-id]")].find(node => node.dataset.panelId === focusKey.panelId && (focusKey.instruction ? node.hasAttribute("data-analysis-instruction") : focusKey.setting ? node.dataset.agentSetting === focusKey.setting : focusKey.action && node.dataset.analysisAction === focusKey.action));
+        const node = [...container.querySelectorAll("[data-panel-id]")].find(node => node.dataset.panelId === focusKey.panelId && (focusKey.instruction ? node.hasAttribute("data-analysis-instruction") : focusKey.editing ? node.hasAttribute("data-agent-edit-input") : focusKey.setting ? node.dataset.agentSetting === focusKey.setting : focusKey.action && node.dataset.analysisAction === focusKey.action));
         node?.focus({ preventScroll: true });
-        if (focusKey.instruction) node?.setSelectionRange(focusKey.start, focusKey.end);
+        if (focusKey.instruction || focusKey.editing) node?.setSelectionRange(focusKey.start, focusKey.end);
       }
     }
     return { render, getStreamHost: id => streamHosts.get(id), getConversation: id => conversations.get(id) };

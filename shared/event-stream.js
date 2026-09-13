@@ -89,15 +89,15 @@
       let data;
       try { data = JSON.parse(event.data); } catch { throw failure("STREAM_INVALID", "The server returned an invalid stream event."); }
       if (result) throw failure("STREAM_INVALID", "The server sent data after the final response.");
-      if (event.event === "complete") { result = data; return false; }
+      if (event.event === "complete" || event.event === "evidence-recovery") { result = data; return false; }
       else if (event.event === "error") throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");
-      else if (["delta", "reset", "status"].includes(event.event)) await onEvent({ ...data, type: event.event });
+      else if (["delta", "reset", "status", "sources"].includes(event.event)) await onEvent({ ...data, type: event.event });
     }, { signal }); } catch (error) {
       if (signal?.aborted || error?.code === "OPERATION_ABORTED") throw failure("OPERATION_ABORTED", "The request was cancelled.");
       if (String(error?.code || "").startsWith("STREAM_")) throw error;
       throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");
     }
-    if (!result || (!result.reply && !result.project)) throw failure("STREAM_INTERRUPTED", "The response ended before a complete answer arrived.");
+    if (!result || (!result.reply && !result.project && !result.evidenceRecovery && !result.desktopToolCalls)) throw failure("STREAM_INTERRUPTED", "The response ended before a complete answer arrived.");
     return result;
   }
   return Object.freeze({ readEvents, previewReply, readWorkbenchResponse });

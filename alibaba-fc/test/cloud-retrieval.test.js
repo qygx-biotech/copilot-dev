@@ -22,6 +22,7 @@ global.fetch = async (_url, options = {}) => {
   });
   const response = providerResponses.shift();
   if (response instanceof Error) throw response;
+  if (response instanceof Response) return response;
   return new Response(JSON.stringify({
     choices: [{ message: { content: JSON.stringify(response) }, finish_reason: "stop" }],
     usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 },
@@ -294,6 +295,40 @@ test("reranking rejects hallucinated and duplicate candidate IDs instead of trus
     candidates,
   });
   assert.equal(duplicate.status, 502);
+});
+
+test("rerank wire schema remains small while host validation enforces score and text bounds", async () => {
+  const candidates = [candidate("a", "Paper", "Evidence")];
+  const body = { query: "AI and synthetic biology", intent: "retrieve evidence", candidates };
+  const ranked = { candidateId: candidates[0].candidateId, score: 0.8, reason: "Relevant" };
+  providerResponses.push({ ranked: [ranked] });
+  assert.equal((await invoke("POST", "/api/knowledge/rerank", body)).status, 200);
+  const format = providerRequests[0].body.response_format;
+  assert.equal(format.type, "json_schema");
+  assert.equal(format.json_schema.strict, true);
+  const properties = format.json_schema.schema.properties.ranked.items.properties;
+  assert.deepEqual(properties.score, { type: "number" });
+  assert.deepEqual(properties.reason, { type: "string" });
+  for (const invalid of [{ score: 1.1 }, { score: -0.1 }, { reason: "x".repeat(RETRIEVAL_LIMITS.outputTextCharacters + 1) }]) {
+    providerResponses.push({ ranked: [{ ...ranked, ...invalid }] });
+    const result = await invoke("POST", "/api/knowledge/rerank", body);
+    assert.equal(result.status, 502);
+    assert.equal(result.body.error, "InvalidStructuredOutput");
+  }
+});
+
+test("opaque rerank INVALID_ARGUMENT is logged without guessing compatibility or changing models", async t => {
+  const logs = [];
+  t.mock.method(console, "warn", (event, data) => { if (event === "knowledge_rerank_failed") logs.push(data); });
+  providerResponses.push(new Response(JSON.stringify({ error: { status: "INVALID_ARGUMENT", message: "Request contains an invalid argument." } }), { status: 400 }));
+  const result = await invoke("POST", "/api/knowledge/rerank", { query: "AI", intent: "retrieve evidence", candidates: [candidate("a", "Paper", "Evidence")] });
+  assert.equal(result.status, 502);
+  assert.equal(providerRequests.length, 1);
+  assert.equal(logs[0].providerStatus, 400);
+  assert.equal(logs[0].providerCode, "invalid_argument");
+  assert.equal(logs[0].structuredOutputCompatibility, false);
+  assert.equal(logs[0].model, process.env.REQUESTY_RERANK_MODEL);
+  assert.doesNotMatch(JSON.stringify(logs), /fc-only-requesty-key|Request contains an invalid argument/);
 });
 
 test("FC privacy validation rejects absolute paths, whole PDFs, and duplicate submitted IDs before Requesty", async () => {

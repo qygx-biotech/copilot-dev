@@ -31,7 +31,7 @@ Retrieval has two production modes:
 
 Side Chat and Agent Command use the current Medium retrieval policy: Fast first, escalating to Deep for conceptual/cross-language questions or insufficient local evidence. The stored Light/Medium/High values remain compatible with older workspaces; the UI now selects a model instead.
 
-The Side Chat model selection applies to all model tasks triggered by that turn, including knowledge preparation, search planning/reranking, semantic interpretation, image understanding, corpus workers, and the answer/tool loop. Agent Command keeps its configured role models. Existing local/text fallbacks remain available when the selected model lacks a required capability. See [FC model selection](alibaba-fc/README.md#side-chat-model-selection) for deployment and capability configuration.
+The Side Chat model selection applies to all model tasks triggered by that turn, including knowledge preparation, search planning/reranking, semantic interpretation, image understanding, corpus workers, and the answer/tool loop. The middle Agent panel captures its selected model, including `google/gemini-3.1-flash-lite:flex`, for preparation, knowledge updates, retrieval, recovery and the answer/tool loop. Agent Default keeps the configured role models. Existing local/text fallbacks remain available when the selected model lacks a required capability. See [FC model selection](alibaba-fc/README.md#side-chat-model-selection) for deployment and capability configuration.
 
 The Deep route is fixed:
 
@@ -200,7 +200,7 @@ npm ci
 npm start -- --project "/absolute/path/to/project"
 ```
 
-Then open `http://127.0.0.1:43127`. Login and AI requests use the `ALIBABA_FC_URL` configured in `docs/app.js`. A plain static server remains supported and automatically uses legacy retrieval when QMD is absent:
+Then open `http://127.0.0.1:43127`. Login and AI requests use the FC endpoint selected in `shared/backend-config.js` (see below). A plain static server remains supported and automatically uses legacy retrieval when QMD is absent:
 
 ```bash
 python3 -m http.server 3000 --directory docs
@@ -218,9 +218,15 @@ npm run benchmark -- --fixture --model lexical --output /tmp/cloud-retrieval-ben
 
 Use `--model default` or `--model both` only when explicitly benchmarking optional local embeddings. Add `--cpu` if that native backend can allocate a supported CPU context.
 
+## Switching the FC backend
+
+Edit [shared/backend-config.js](shared/backend-config.js): set `FC_ENVIRONMENT` to `"development"` or `"testing"`. Update either URL in `FC_ENDPOINTS` when a deployment changes. Development defaults to `https://biodesidev-base-nkindwwsvf.cn-beijing.fcapp.run`; testing retains the previous deployment URL.
+
+This single selection controls login, chat, literature requests and the desktop source-download fallback. After editing, run `npm run desktop:prepare` and restart the app (or reload the browser). `npm run desktop:dev` prepares assets automatically. Packaged applications need a rebuild; changing a source file does not update an installed application. Sign in again after switching deployments.
+
 ## GitHub Pages deployment
 
-1. Set `ALIBABA_FC_URL` in `docs/app.js` to the deployed HTTPS Function Compute endpoint.
+1. Select the deployed HTTPS Function Compute endpoint in `shared/backend-config.js` and run `npm run desktop:prepare` to refresh the renderer assets.
 2. Push this branch without merging it to `main` until it has been reviewed.
 3. In the GitHub repository, open **Settings -> Pages**.
 4. Choose **Deploy from a branch**, select the branch to publish, choose `/docs`, and save.

@@ -4,6 +4,7 @@ import {
   dialog,
   ipcMain,
   session,
+  shell,
   utilityProcess,
 } from "electron";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
@@ -289,6 +290,7 @@ app.whenReady().then(async () => {
     });
   }
   unregisterHandlers = registerIpcHandlers({
+    openExternal: url => shell.openExternal(url),
     ipcMain,
     dialog,
     sessionManager,

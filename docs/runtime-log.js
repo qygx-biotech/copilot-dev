@@ -23,6 +23,8 @@
     "reconciliationMs", "knowledgeSyncMs", "changedSourceCount", "l1UpdateMs", "l3LlmCallCount", "l3LlmMs",
     "experimentNormalizationCount", "experimentNormalizationMs", "paperCardGenerationCount", "schemaMapperCalls", "mainAgentStartMs",
     "providerStatus", "retryAfterMs", "quotaMetric", "inputTokenLimit", "verifiedInputTokenRateLimit", "rateLimitRetryable", "mapReduceReason", "fallbackReason",
+    "retrievalScope", "webSearchExpected", "downloadRequested", "workspaceRetrievalTriggered", "matchedPattern", "semanticParserCalls", "semanticContextPresent",
+    "originalRequestPreserved", "downloadExposed", "downloadPermitted", "downloadAttemptCount", "downloadResultCount", "downloadSuccessCount", "downloadFailureCount", "correctiveContinuation", "taskStatus",
   ]);
   const token = (value) => String(value || "").replace(/[^A-Za-z0-9._:/-]/g, "_").slice(0, 160);
   function sanitize(details) {

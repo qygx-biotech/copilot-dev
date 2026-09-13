@@ -4070,3 +4070,32 @@ test("managed worker recovery is allowlisted, preserves journals, and resumes in
   assert.equal(preparationResumeCalls, 1);
   assert.equal(resumeCalls, 1);
 });
+
+test("answer recovery uses real source verification and L1 preparation without L2/L3/L4 generation", async () => {
+  const workspace = new MemoryWorkspace(); workspace.workspace = { id: "recovery-workspace" };
+  workspace.setFile("literature/recovery.pdf", "Code availability: source code has a restrictive license. Methods used a numerical solver.");
+  let generated = 0, configurations = 0;
+  const system = await makeSystem(workspace, {
+    generatePaperCard: async () => { generated++; throw new Error("No generation during recovery"); },
+    getPaperCardConfiguration: async () => { configurations++; throw new Error("No card setup during recovery"); },
+  });
+  await system.registry.reconcile(treeFor(workspace));
+  const literature = makeLiteratureHarness(system);
+  const service = new ProjectContextService({ workspace, literature, sourceSystem: literature.sourceSystem });
+  service.buildContext = system.corpusWorkflows.run = async () => { generated++; throw new Error("No synthesis or synchronization"); };
+  const source = system.registry.list({ sourceKind: "paper" })[0];
+  const local = { files: [], notices: [], literature: { explicitPaperIds: [source.sourceId] }, sourceMap: { paperSources: [clone(source)] } };
+  let requests = 0;
+  const result = await service.answerWithEvidenceRecovery({ localWorkspaceContext: local, callContext: { turnId: "real-L1-recovery", model: "chosen-model" }, request: async context => {
+    if (++requests === 1) return { evidenceRecovery: { version: 1, cycle: 0, requests: [{ paperId: source.sourceId, query: "license", reason: "PAPER_EVIDENCE_NOT_AVAILABLE" }] } };
+    assert.match(context.files[0].content, /restrictive license/);
+    assert.equal(context.files[0].evidenceType, "original-paper-evidence");
+    assert.equal(context.citationEvidence[0].contentHash, system.registry.get(source.sourceId).contentHash);
+    return { reply: "The original passage reports a restrictive license." };
+  } });
+  assert.equal(requests, 2); assert.equal(system.parseCalls, 1);
+  assert.equal(generated, 0); assert.equal(configurations, 0);
+  assert.equal(result.evidenceRecoveryStatus.outcomes[0].status, "recovered");
+  assert.equal(system.registry.get(source.sourceId).paperCardStatus, "absent");
+  assert.ok(![...workspace.json.keys()].some(path => /syntheses|wiki\/pages|paper-cards/.test(path)));
+});

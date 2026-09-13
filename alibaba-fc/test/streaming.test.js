@@ -115,18 +115,25 @@ test("real HTTP delivery streams before completion, runs tool calls, and finaliz
   }); } finally { global.fetch = originalFetch; }
 });
 
-test("Agent Command streams readable reply text while its structured result waits for validation", async () => {
+test("Agent Command streams its selected Gemini Flex model while the structured result waits for validation", async () => {
   const originalFetch = global.fetch;
+  const model = "google/gemini-3.1-flash-lite:flex", requests = [];
   const resultBody = { reply: "Readable analysis 中文", project: { summary: "Analysis", organism: "Unknown", missingInformation: [], safetyLevel: "Review", safetyNotes: "Review", draftMemo: "Draft" } };
-  global.fetch = async (url, options) => String(url).includes("router.requesty.ai")
-    ? response(frame({ content: '{"reply":"Readable analysis ' }) + frame({ content: '中文","project":' + JSON.stringify(resultBody.project) + '}' }, "stop") + done)
-    : originalFetch(url, options);
+  global.fetch = async (url, options) => {
+    if (!String(url).includes("router.requesty.ai")) return originalFetch(url, options);
+    if (!options?.body) return new Response(JSON.stringify({ data: [] }));
+    requests.push(JSON.parse(options.body));
+    return response(frame({ content: '{"reply":"Readable analysis ' }) + frame({ content: '中文","project":' + JSON.stringify(resultBody.project) + '}' }, "stop") + done);
+  };
   try { await serverFixture(async url => {
-    const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(chatBody("agent_instruction")) });
+    const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...chatBody("agent_instruction"), model }) });
     const deltas = [];
     const result = await readWorkbenchResponse(res, { onEvent: event => { if (event.type === "delta") deltas.push(event.text); } });
     assert.equal(deltas.join(""), resultBody.reply);
     assert.deepEqual(result.project, resultBody.project);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].model, model);
+    assert.equal(requests[0].stream, true);
   }); } finally { global.fetch = originalFetch; }
 });
 
@@ -195,4 +202,43 @@ test("cancellation stops a provider quota retry wait promptly without issuing an
     assert.equal(attempts, 1);
     assert.ok(Date.now() - started < 1000, "Cancellation waited for the quota retry delay");
   } finally { global.fetch = originalFetch; }
+});
+
+test("HTTP streaming yields one recovery event, resumes with the same question/model, and completes one cited answer", async () => {
+  const { followUpFixture } = require("./helpers/follow-up-fixture.js");
+  const f = followUpFixture();
+  f.literature.preparation.readSourceBytesForUse = async () => {};
+  const local = { files: [], notices: [], literature: { explicitPaperIds: ["P2"] }, sourceMap: { paperSources: f.sources.map(s => ({ ...s })) } };
+  const originalFetch = global.fetch, providerRequests = [], terminalEvents = [], httpBodies = [];
+  const model = process.env.REQUESTY_MODEL;
+  global.fetch = async (url, options) => {
+    if (!String(url).includes("router.requesty.ai")) return originalFetch(url, options);
+    const body = JSON.parse(options.body); providerRequests.push(body);
+    if (providerRequests.length <= 2) return response(frame({ tool_calls: [{ index: 0, id: `read-${providerRequests.length}`, function: { name: "read_paper_evidence", arguments: '{"paper_id":"P2","query":"license"}' } }] }, "tool_calls") + done);
+    const output = JSON.parse(body.messages.findLast(m => m.role === "tool").content);
+    assert.equal(output.content_available, true); assert.match(output.content, /license is restrictive/);
+    return response(frame({ content: "The paper reports a restrictive license [[cite:P2:p4:original]]." }, "stop") + done);
+  };
+  try { await serverFixture(async url => {
+    const result = await f.service.answerWithEvidenceRecovery({ localWorkspaceContext: local,
+      callContext: { turnId: "stream-recovery", model },
+      request: async context => {
+        const body = { ...chatBody("side_chat"), model, messages: [{ role: "user", content: "Does it provide source code?" }],
+          localWorkspaceContext: context, callContext: { turnId: "stream-recovery", callRole: "answer", profile: "medium" } };
+        httpBodies.push(body);
+        const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+        // Read the actual adapter frames, then feed those same frames through the production reader.
+        const frames = await res.text();
+        terminalEvents.push(...[...frames.matchAll(/^event: (complete|evidence-recovery)$/gm)].map(m => m[1]));
+        return readWorkbenchResponse(response(frames));
+      } });
+    assert.deepEqual(terminalEvents, ["evidence-recovery", "complete"]);
+    assert.equal(httpBodies.length, 2); assert.equal(providerRequests.length, 3);
+    assert.deepEqual(httpBodies[0].messages, httpBodies[1].messages);
+    assert.deepEqual(httpBodies[0].callContext, httpBodies[1].callContext);
+    assert.ok(providerRequests.every(request => request.model === model && request.stream === true));
+    assert.equal(result.citations[0].sourceId, "P2"); assert.equal(result.citations[0].page, 4);
+    assert.equal(result.citations[0].contentHash, "hash-P2");
+    assert.equal(result.evidenceRecoveryStatus.cycle, 1);
+  }); } finally { global.fetch = originalFetch; }
 });

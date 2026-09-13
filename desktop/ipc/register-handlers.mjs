@@ -1,5 +1,6 @@
 import channels from "./channels.cjs";
 import retrievalContract from "../../shared/retrieval-contract.js";
+import webSearch from "../../shared/web-search.js";
 import {
   assertCollections,
   assertOnlyKeys,
@@ -90,6 +91,14 @@ export function registerIpcHandlers(options) {
   handle(channels.runtimeInfo, async (_event, payload) => {
     assertOnlyKeys(payload, []);
     return runtimeInfo();
+  });
+  handle(channels.sourceOpen, async (event, payload) => {
+    assertTrustedIpcSender(event, getWindow);
+    assertOnlyKeys(payload, ["url"]);
+    const url = webSearch.safeUrl(payload.url);
+    if (!url) throw new ValidationError("INVALID_URL", "Only HTTP(S) source links may be opened.");
+    await options.openExternal(url);
+    return { opened: true };
   });
 
   handle(channels.updateCheck, async (event, payload) => {
@@ -237,8 +246,9 @@ export function registerIpcHandlers(options) {
     const { active } = projectPayload(sessionManager, rawPayload, []);
     return active.execution.list();
   });
-  handle(channels.executionRun, async (_event, rawPayload) => {
+  handle(channels.executionRun, async (event, rawPayload) => {
     const { active, payload } = projectPayload(sessionManager, rawPayload, ["workflowId", "input"]);
+    if (payload.workflowId === "download_sources") assertTrustedIpcSender(event, getWindow);
     return active.execution.run(boundedString(payload.workflowId, "workflowId", 100), assertRecord(payload.input || {}, "input"), { jobs: active.jobs, filesystem: active.filesystem });
   });
 

@@ -129,7 +129,38 @@
     return JSON.stringify(artifact).length <= SAVED_ARTIFACT_LIMITS.serializedCharacters ? artifact : null;
   }
 
+  // One host exchange, two distinct paper/query pairs (at most two papers).
+  // Each paper is prepared/read once, locally. No generation or retrieval retry.
+  const EVIDENCE_RECOVERY_LIMITS = Object.freeze({ cycles: 1, requests: 2, queryCharacters: 300,
+    chunksPerPaper: 3, charactersPerPaper: 4000, totalCharacters: 8000 });
+  const EVIDENCE_RECOVERY_OUTCOMES = Object.freeze(["recovered", "no-matching-passage", "unknown-source", "outside-scope", "source-unavailable", "source-changed", "retrieval-failed"]);
+  function normalizeEvidenceRecovery(value, response = false) {
+    const object = item => item && typeof item === "object" && !Array.isArray(item);
+    const keys = (item, allowed) => object(item) && Object.keys(item).every(key => allowed.includes(key));
+    const identity = id => typeof id === "string" && /^[A-Za-z0-9_.-][A-Za-z0-9_.:-]{0,255}$/.test(id) && !/^local:\d+$/i.test(id);
+    const query = text => typeof text === "string" && Boolean(text.trim()) && text.length <= EVIDENCE_RECOVERY_LIMITS.queryCharacters;
+    if (!keys(value, ["version", "cycle", "requests", "outcomes"]) || value.version !== 1 || ![0, 1].includes(value.cycle)) return null;
+    if (response && (value.cycle !== 0 || !Array.isArray(value.requests) || !value.requests.length)) return null;
+    const output = { version: 1, cycle: value.cycle };
+    for (const field of ["requests", "outcomes"]) {
+      if (value[field] === undefined) continue;
+      if (!Array.isArray(value[field]) || value[field].length > EVIDENCE_RECOVERY_LIMITS.requests) return null;
+      const seen = new Set(); output[field] = [];
+      for (const item of value[field]) {
+        if (!keys(item, field === "requests" ? ["paperId", "query", "reason"] : ["paperId", "query", "status"]) || !identity(item.paperId) || !query(item.query)) return null;
+        if (field === "requests" ? !["PAPER_EVIDENCE_NOT_AVAILABLE", "EVIDENCE_NOT_LOCATED"].includes(item.reason) : !EVIDENCE_RECOVERY_OUTCOMES.includes(item.status)) return null;
+        const normalizedQuery = item.query.normalize("NFKC").trim().replace(/\s+/g, " ");
+        const key = `${item.paperId}\n${normalizedQuery.toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key); output[field].push({ ...item, query: normalizedQuery });
+      }
+    }
+    return output;
+  }
+
   return {
+    EVIDENCE_RECOVERY_LIMITS,
+    normalizeEvidenceRecovery,
     CLOUD_RETRIEVAL,
     RETRIEVAL_COLLECTIONS,
     RETRIEVAL_LIMITS,

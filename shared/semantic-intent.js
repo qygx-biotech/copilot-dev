@@ -6,11 +6,12 @@
   "use strict";
 
   const SEMANTIC_SCHEMA_VERSION = 1;
-  const PATTERN_LIBRARY_VERSION = 1;
+  const PATTERN_LIBRARY_VERSION = 3;
+  const RETRIEVAL_SCOPES = Object.freeze(["workspace", "web", "both", "none"]);
   // Calibrated against scripts/fixtures/semantic-intent.json; a runner-up near
   // the winner is uncertainty, not a reason to pick a forced intent.
   const DEFAULT_THRESHOLDS = Object.freeze({ known: 0.86, uncertain: 0.64, margin: 0.08 });
-  const EFFECTS = Object.freeze(["informational", "internal_state", "result_producing", "destructive_source", "external_side_effect"]);
+  const EFFECTS = Object.freeze(["informational", "internal_state", "result_producing", "destructive_source", "external_side_effect", "source_write"]);
   const OPERATIONS = Object.freeze([
     "search", "read", "list", "filter", "aggregate", "rank", "compare", "find-conflicts",
     "analyze-conditions", "summarize", "snapshot", "prepare", "map", "group", "reduce", "verify",
@@ -37,6 +38,7 @@
     entry("get_local_worker_status", ["workspace"], ["status"]),
     entry("restart_local_worker", ["workspace"], ["recover"], "internal_state"),
     entry("update_recommendation", ["recommendation"], ["update"], "result_producing"),
+    entry("download_sources", ["literature", "workspace"], ["store"], "source_write", true),
     entry("corpus_workflow", ["literature"], ["summarize", "snapshot", "prepare", "map", "group", "reduce", "verify", "update"], "internal_state", true),
     entry("ensure_paper_card", ["literature"], ["summarize"], "internal_state", true),
     entry("analyze_pdf_native", ["literature"], ["read", "verify"], "internal_state", true)
@@ -120,6 +122,7 @@
   const scopedIds = { anyOf: [{ type: "null" }, { type: "string", enum: ["current-project"] }, list(str(256), 500)] };
   const SEMANTIC_IR_SCHEMA = Object.freeze(obj({
     version: { type: "integer", enum: [SEMANTIC_SCHEMA_VERSION] },
+    retrievalScope: { type: "string", enum: RETRIEVAL_SCOPES },
     inputLanguage: str(24), answerLanguage: str(24), matchedPattern: nullable({ type: "string", enum: SEMANTIC_PATTERNS.map((item) => item.patternId) }),
     patternConfidence: { type: "number", minimum: 0, maximum: 1 }, goal: str(4000),
     operations: list({ type: "string", enum: OPERATIONS }), objects: list(str(80), 12),
@@ -198,9 +201,12 @@
     }
   }
   function validateSemanticIR(value, context = {}) {
+    // Older stored/client IRs keep their existing workspace routing. New model
+    // responses must supply the field; the FC wire contract requires it.
+    if (plain(value) && !Object.hasOwn(value, "retrievalScope") && !context.requireRetrievalScope) value = { ...value, retrievalScope: "workspace" };
     validateNode(value, SEMANTIC_IR_SCHEMA);
     const knownPattern = patternMap.get(value.matchedPattern);
-    if (knownPattern && (value.patternConfidence < (context.thresholds?.known ?? DEFAULT_THRESHOLDS.known) || value.operations.some((operation) => ![...knownPattern.defaultOperations, ...knownPattern.allowedOperations].includes(operation)) || !patternCoversDomains(knownPattern, value.objects) || !knownPattern.objects.every((object) => value.objects.includes(object)))) throw new Error("Semantic IR forced an uncertain or compositional request into a narrow pattern");
+    if (knownPattern && !patternFitsIR(knownPattern, value, context)) throw new Error("Semantic IR forced an uncertain or compositional request into a narrow pattern");
     for (const marker of extractProtectedIdentifiers(context.query)) {
       if (!value.entities.some((item) => item.mention === marker && item.canonicalId === marker)) throw new Error("Semantic IR omitted or rewrote a protected identifier");
     }
@@ -211,7 +217,37 @@
     for (const [key, hardIds] of [["papers", active.paperIds], ["experiments", active.experimentSourceIds]]) {
       if (Array.isArray(hardIds) && hardIds.length && value.scope[key] !== null && (!Array.isArray(value.scope[key]) || value.scope[key].some((id) => !hardIds.includes(id)))) throw new Error("Semantic IR expanded the active source scope");
     }
+    if (Array.isArray(context.paperCandidates) && Array.isArray(value.scope.papers)) {
+      const allowed = new Set([...(active.paperIds || []), ...context.paperCandidates.map(paper => paper.sourceId)]);
+      if (value.scope.papers.some(id => !allowed.has(id))) throw new Error("Semantic IR invented a conversational paper identity");
+    }
     return JSON.parse(JSON.stringify(value));
+  }
+  function patternFitsIR(pattern, value, context) {
+    return value.patternConfidence >= (context.thresholds?.known ?? DEFAULT_THRESHOLDS.known) &&
+      value.operations.every(operation => [...pattern.defaultOperations, ...pattern.allowedOperations].includes(operation)) &&
+      patternCoversDomains(pattern, value.objects) && pattern.objects.every(object => value.objects.includes(object));
+  }
+  function normalizeModelSemanticIR(value, context = {}) {
+    // Only normalize model output, never stored permissions or host context.
+    // Reject malformed fields before touching optional pattern annotations.
+    validateNode(value, SEMANTIC_IR_SCHEMA);
+    const ir = JSON.parse(JSON.stringify(value));
+    ir.objects = unique(ir.objects.map(object => ["paper", "papers", "article", "articles"].includes(object) ? "literature" : object));
+    const pattern = patternMap.get(ir.matchedPattern);
+    // A shortcut is optional. A composition that outgrows it keeps its complete
+    // operations and retrieval scope instead of falling back to another task.
+    if (pattern && !patternFitsIR(pattern, ir, context)) ir.matchedPattern = null;
+    return validateSemanticIR(ir, { ...context, requireRetrievalScope: true });
+  }
+  function retrievalPolicy(ir) {
+    const retrievalScope = ir?.retrievalScope || "workspace";
+    return {
+      retrievalScope,
+      workspaceRetrievalAllowed: retrievalScope === "workspace" || retrievalScope === "both",
+      webSearchExpected: retrievalScope === "web" || retrievalScope === "both",
+      downloadRequested: ir?.capabilityHints?.includes("download_sources") === true,
+    };
   }
   function compactSemanticInput(input = {}) {
     const registry = plain(input.projectSemanticRegistry) ? input.projectSemanticRegistry : {};
@@ -229,11 +265,61 @@
     }
     if (!semanticRegistry.metrics && Array.isArray(active.knownMetrics)) semanticRegistry.metrics = active.knownMetrics.slice(0, 40).filter((field) => typeof field === "string").map((canonicalField) => ({ canonicalField: canonicalField.slice(0, 120), aliases: [] }));
     const conversation = typeof input.conversationContext === "string" ? [{ role: "user", content: input.conversationContext }] : Array.isArray(input.conversationContext) ? input.conversationContext : typeof input.conversationContext?.summary === "string" ? [{ role: "user", content: input.conversationContext.summary }] : [];
+    const candidates = Array.isArray(input.paperCandidates) ? input.paperCandidates.filter(paper => plain(paper) && typeof paper.sourceId === "string" && paper.sourceId.length <= 256 && typeof paper.title === "string")
+      .slice(0, 8).map(paper => ({ sourceId: paper.sourceId, title: paper.title.slice(0, 300), currentness: ["current", "changed", "unverified"].includes(paper.currentness) ? paper.currentness : "unverified" })) : null;
+    const candidateIds = new Set(candidates?.map(paper => paper.sourceId));
+    const boundedExchange = item => {
+      const content = String(item.content || "");
+      return { role: item.role, content: content.length > 500 ? `${content.slice(0, 300)}\n[truncated]\n${content.slice(-187)}` : content,
+        ...(Array.isArray(item.paperIds) ? { paperIds: item.paperIds.slice(0, 8).map(id => typeof id === "string" && id.length <= 256 && (!candidates || candidateIds.has(id)) ? id : null) } : {}) };
+    };
     return {
       query: String(input.query || "").slice(0, 20000),
-      conversationContext: conversation.slice(-4).filter((item) => plain(item) && ["user", "assistant"].includes(item.role)).map((item) => ({ role: item.role, content: String(item.content || "").slice(0, 500) })),
+      conversationContext: conversation.slice(-4).filter((item) => plain(item) && ["user", "assistant"].includes(item.role)).map(boundedExchange),
+      ...(candidates ? { paperCandidates: candidates } : {}),
       activeScope: scope, profile: ["light", "medium", "high"].includes(input.profile) ? input.profile : "light", projectSemanticRegistry: semanticRegistry
     };
+  }
+
+  // Resolve linguistic references against ordered host-supplied citations, not
+  // a retrieval ranking or a growing list of topic keywords. This also supplies
+  // a deterministic offline fallback; semantic scope handles novel phrasing.
+  function resolveLiteratureReference(input, ir, options = {}) {
+    const query = String(input.query || ""), candidates = input.paperCandidates || [];
+    const allowed = new Set([...candidates.map(paper => paper.sourceId), ...(input.activeScope?.paperIds || [])]);
+    const result = (status, paperIds = [], reason = "") => ({ status, paperIds: unique(paperIds), reason });
+    if (options.lifecycleRequest || ir?.matchedPattern === "literature.corpus_synthesis" || ir?.matchedPattern === "literature.update_synthesis" || (ir && planEvidenceNeeds(ir, { originalQuery: query }).usePreviousSynthesis)) return result("not-applicable");
+    const singular = /\b(?:it|its|that method|this method|that paper|this paper|that study|same paper)\b|它(?!们)|这篇|该论文|该方法|这个方法/i.test(query);
+    const plural = /\b(?:they|their|them|these papers|those papers|both)\b|它们|这些论文|这两篇|两者/i.test(query);
+    const pairOrdinals = [...query.matchAll(/\b(former|latter)\b|前者|后者/gi)];
+    const ordinals = [...query.matchAll(/\b(first|second|third)\s+(?:paper|study|method|one)\b|第([一二三123])篇/gi)];
+    const indices = unique([...ordinals.map(match => ({ first: 0, second: 1, third: 2, 一: 0, 二: 1, 三: 2, 1: 0, 2: 1, 3: 2 })[(match[1] || match[2]).toLowerCase()]),
+      ...pairOrdinals.map(match => /former|前者/i.test(match[0]) ? 0 : 1)]);
+    const comparing = /\b(?:compare|comparison|contrast|versus|differ)\b|比较|对比|相比|差异/i.test(query);
+    const named = (options.namedPaperIds || []).filter(id => allowed.has(id));
+    if (named.length && !(comparing && (singular || plural || indices.length))) return result("resolved", named, "newly-named-paper");
+    if (!named.length && !ir?.objects?.includes("literature") && /\b(?:interface|sidebar|button|font|theme|UI)\b|界面|侧边栏|按钮|字号/i.test(query)) return result("no-literature-needed", [], "unrelated-interface-request");
+    if (options.remoteInterpretation && ir?.unresolvedSlots?.includes("paper_reference")) return result("reference-unresolved", [], "semantic-reference-unresolved");
+    if (options.remoteInterpretation && !ir?.objects?.includes("literature") && !ir?.unresolvedSlots?.length) return result("no-literature-needed", [], "interpreted-unrelated-request");
+    const messages = input.conversationContext || [];
+    const answers = [...messages].reverse().filter(message => message.role === "assistant" && Array.isArray(message.paperIds));
+    const latest = answers[0] || [...messages].reverse().find(message => message.paperIds?.length);
+    const group = indices.length ? answers.find(message => message.paperIds.length >= Math.max(...indices.map(index => index + 1), 2)) || latest
+      : plural ? answers.find(message => message.paperIds.length > 1) || latest : latest;
+    if (plural && input.activeScope?.paperIds?.length && !singular && !indices.length) return result("resolved", input.activeScope.paperIds, "selected-paper-reference");
+    if (singular || plural || indices.length) {
+      const refs = group?.paperIds?.length ? group.paperIds : input.activeScope?.paperIds || [];
+      const requested = indices.length ? indices.map(index => refs[index]) : refs;
+      if (requested.length && requested.every(id => allowed.has(id)) &&
+          (indices.length || plural || requested.length === 1) && (!pairOrdinals.length || refs.length === 2)) {
+        return result("resolved", [...named, ...requested], "recent-citation-reference");
+      }
+      if (candidates.length || messages.some(message => message.paperIds?.length)) return result("reference-unresolved", [], "ambiguous-or-unavailable-reference");
+    }
+    if (ir?.unresolvedSlots?.includes("paper_reference")) return result("reference-unresolved", [], "semantic-reference-unresolved");
+    if (ir?.objects?.includes("literature") && Array.isArray(ir.scope?.papers) && ir.scope.papers.length && ir.scope.papers.every(id => allowed.has(id))) return result("resolved", ir.scope.papers, "semantic-reference");
+    if (options.interpretationUnavailable && candidates.length && !ir?.objects?.length) return result("interpretation-unavailable", [], "no-safe-reference-resolution");
+    return result("not-applicable");
   }
   function answerLanguagePreference(query, input) {
     const explicit = /(?:answer|reply|respond|write)\s+(?:me\s+)?in\s+(english|chinese|japanese|french|spanish|german|korean|russian|arabic|portuguese|italian|hindi|hebrew)|用(中文|英文|英语|日文|法语|西班牙语|德语|韩语|俄语|阿拉伯语|葡萄牙语|意大利语|印地语|希伯来语)(?:回答|回复|写)/i.exec(query);
@@ -334,6 +420,9 @@
     if (!operations.length) unresolvedSlots.push("requested_operations");
     const ir = {
       version: SEMANTIC_SCHEMA_VERSION, inputLanguage: detectLanguage(query), answerLanguage: answerLanguage(query, input),
+      // Local/offline interpretation preserves the previous policy. External
+      // discovery scope is inferred by the existing semantic model, not aliases.
+      retrievalScope: "workspace",
       matchedPattern: p?.patternId || null, patternConfidence: candidate.confidence,
       goal: query.trim().slice(0, 4000) || "Clarify the requested goal", operations: unique(operations), objects, entities,
       metrics: operations.includes("rank") ? [{ canonicalField: rankMetric, direction }] : mentionedFields.filter((field) => !["temperature", "culture_time"].includes(field)).map((field) => ({ canonicalField: field, direction: null })),
@@ -342,7 +431,16 @@
       requestedOutput: { type: p?.output || (operations.includes("find-conflicts") ? "discrepancy-analysis" : operations.includes("rank") ? "ranked-comparison" : "open-response"), limit },
       capabilityHints: p ? [...p.requiredCapabilities] : corpusComposition ? ["corpus_workflow"] : [], unresolvedSlots
     };
-    if (!p) ir.capabilityHints = planCapabilities(ir, { activeScope: input.activeScope }).steps.map((item) => item.capability);
+    if (input.paperCandidates) {
+      const reference = resolveLiteratureReference(input, ir);
+      if (reference.status === "resolved") {
+        ir.objects = unique([...ir.objects, "literature"]); ir.operations = unique([...ir.operations, "read"]);
+        ir.scope.papers = reference.paperIds;
+        if (p && (!patternCoversDomains(p, ir.objects) || ir.operations.some(op => ![...p.defaultOperations, ...p.allowedOperations].includes(op)))) ir.matchedPattern = null;
+        ir.unresolvedSlots = ir.unresolvedSlots.filter(slot => !["target_object", "requested_operations"].includes(slot));
+      } else if (reference.status === "reference-unresolved") ir.unresolvedSlots.push("paper_reference");
+    }
+    if (!ir.matchedPattern) ir.capabilityHints = planCapabilities(ir, { activeScope: input.activeScope }).steps.map((item) => item.capability);
     return validateSemanticIR(ir, { ...input, thresholds: options.thresholds });
   }
   function authorizeCapability(surface, capability) {
@@ -351,7 +449,9 @@
     return { allowed: Boolean(item && allowedEffects.includes(item.effect)), effect: item?.effect || null };
   }
   function planCapabilities(ir, input = {}) {
+    if (plain(ir) && !Object.hasOwn(ir, "retrievalScope")) ir = { ...ir, retrievalScope: "workspace" };
     validateNode(ir, SEMANTIC_IR_SCHEMA);
+    const retrieval = retrievalPolicy(ir);
     const p = patternMap.get(ir.matchedPattern);
     const requested = unique([...(p?.requiredCapabilities || []), ...ir.capabilityHints]);
     // Cover each requested (object, operation) with bounded existing capabilities.
@@ -371,6 +471,7 @@
     }
     const steps = unique(requested).filter((capability) => {
       const item = capabilityMap.get(capability);
+      if (!retrieval.workspaceRetrievalAllowed && ["list_workspace_items", "search_workspace_items", "read_workspace_item", "read_project_context", "list_papers", "search_papers", "read_paper_evidence", "list_experiment_sources", "query_experiment_results", "corpus_workflow", "ensure_paper_card", "analyze_pdf_native"].includes(capability)) return false;
       return !(ir.objects.includes("literature") && !ir.objects.includes("experiments") &&
         item.supportsObjects.includes("experiments") && !item.supportsObjects.includes("literature"));
     }).map((capability) => {
@@ -378,9 +479,14 @@
       const authorization = authorizeCapability(input.surface, capability);
       return { capability, tool: item.tool, hostOnly: item.hostOnly, operations: item.operations.filter((operation) => ir.operations.includes(operation)), effect: item.effect, allowed: authorization.allowed };
     });
-    return { mode: p ? "known-pattern" : "compositional", pattern: p?.patternId || null, advisory: true, steps, blocked: steps.filter((step) => !step.allowed).map((step) => step.capability), unresolved: unique([...ir.unresolvedSlots, ...ir.operations.filter((op) => !steps.some((step) => capabilityMap.get(step.capability).operations.includes(op)) && !["explain", "summarize", "find-conflicts"].includes(op)).map((op) => `capability:${op}`)]) };
+    return { mode: p ? "known-pattern" : "compositional", pattern: p?.patternId || null, advisory: true, retrievalScope: retrieval.retrievalScope, hostedTools: retrieval.webSearchExpected ? ["web_search"] : [], steps, blocked: steps.filter((step) => !step.allowed).map((step) => step.capability), unresolved: unique([...ir.unresolvedSlots, ...ir.operations.filter((op) => !(op === "search" && retrieval.webSearchExpected) && !steps.some((step) => capabilityMap.get(step.capability).operations.includes(op)) && !["explain", "summarize", "find-conflicts"].includes(op)).map((op) => `capability:${op}`)]) };
   }
   function planEvidenceNeeds(ir, options = {}) {
+    const retrieval = retrievalPolicy(ir);
+    if (!retrieval.workspaceRetrievalAllowed) return {
+      evidenceNeeds: [{ type: retrieval.webSearchExpected ? "web_evidence" : "no_project_evidence", scope: retrieval.retrievalScope, purpose: retrieval.webSearchExpected ? "Discover external sources through provider-hosted web search" : "Answer without forced retrieval" }],
+      usePaperCards: false, useTopics: false, usePreviousSynthesis: false, needsNativePdf: false, advisory: true,
+    };
     const objects = new Set(ir.objects || []), operations = new Set(ir.operations || []);
     const query = String(options.originalQuery || ir.goal || "");
     const exactFact = /\b(?:Km|kcat|temperature|titer|value|concentration)\b|温度|数值|浓度/u.test(query) && !operations.has("compare");
@@ -390,6 +496,7 @@
     const needsNativePdf = literature && /(?:figure|layout|scan|native pdf)|图中|版式|扫描/i.test(query);
     const evidenceNeeds = [];
     const add = (type, scope, purpose) => evidenceNeeds.push({ type, scope, purpose });
+    if (retrieval.webSearchExpected) add("web_evidence", "web", "Discover external sources and keep provider citations separate from workspace evidence");
     if (literature && !previous) add("literature_evidence", ir.scope.papers || "all-or-relevant", "Support scientific claims with original page evidence");
     if (broad) { add("paper_cards", ir.scope.papers || "all-or-relevant", "Route whole-paper understanding and comparison"); add("topics", "current-project", "Find themes and relevant papers"); }
     if (previous) add("previous_syntheses", "current-project", "Inspect the prior review with historical coverage");
@@ -438,14 +545,17 @@
       if (cached) return { ir: validateSemanticIR(cached, { ...input, thresholds: this.thresholds }), telemetry: this.telemetry(input, cached, cached, false, "cache", null) };
       const local = this.interpretLocal(input);
       const complex = local.objects.filter((object) => ["literature", "experiments", "memory", "recommendation"].includes(object)).length > 1 || local.constraints.length > 0 || local.operations.filter((op) => !["snapshot", "prepare", "map", "group", "reduce", "verify"].includes(op)).length >= 4;
-      const needsRemote = input.profile !== "light" && (!local.matchedPattern || local.unresolvedSlots.length > 0 || complex || (input.profile === "high" && local.operations.length >= 3));
+      // Literature category confidence cannot resolve workspace vs external
+      // discovery. Ask the same semantic model once for search/comparison scope.
+      const discoveryScopeUnresolved = local.objects.includes("literature") && local.operations.some(op => ["search", "compare"].includes(op));
+      const needsRemote = input.profile !== "light" && (discoveryScopeUnresolved || !local.matchedPattern || local.unresolvedSlots.length > 0 || complex || (input.profile === "high" && local.operations.length >= 3));
       const remoteParser = rawInput.remoteParser || this.remoteParser;
       let ir = local, used = false, route = "local", fallback = null;
       if (needsRemote && typeof remoteParser === "function") {
         used = true;
         try {
           const response = await remoteParser(input);
-          ir = validateSemanticIR(response?.ir || response?.semanticIR || response, { ...input, thresholds: this.thresholds });
+          ir = normalizeModelSemanticIR(response?.ir || response?.semanticIR || response, { ...input, thresholds: this.thresholds });
           // The current request/preference owns output language, not model whim.
           const explicitLanguage = answerLanguagePreference(input.query, input);
           const confidentlyEnglish = /\b(?:the|which|what|our|my|please|find|summari[sz]e|rank|why|compare|explain|review|update|search|show|read|write|do it)\b/i.test(input.query);
@@ -453,9 +563,10 @@
           ir.answerLanguage = explicitLanguage || (local.inputLanguage !== "en" || confidentlyEnglish ? local.answerLanguage : ir.inputLanguage);
           route = "remote";
         } catch (error) {
+          if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") throw error;
           if (error?.semanticParserAttempted === false) used = false;
           route = "local-fallback";
-          fallback = error?.capabilityUnavailable ? "semantic-parser-capability-unavailable" : "semantic-parser-unavailable-or-invalid";
+          fallback = error?.fallbackReason || (error?.capabilityUnavailable ? "semantic-parser-capability-unavailable" : "semantic-parser-unavailable-or-invalid");
         }
       } else if (needsRemote) { route = "local-fallback"; fallback = "semantic-parser-unavailable"; }
       if (ir.matchedPattern && !ir.unresolvedSlots.length && route !== "local-fallback") {
@@ -468,5 +579,5 @@
       return { profile: input.profile, semantic: { localPattern: local.matchedPattern, localConfidence: local.patternConfidence, matchState: local.matchedPattern ? "known" : local.patternConfidence >= this.thresholds.uncertain ? "uncertain" : "novel", remoteSemanticParserUsed: used, finalPattern: ir.matchedPattern, route, fallback, inputLanguage: ir.inputLanguage, canonicalEnglishAvailable: Boolean(requestUnderstanding(ir, input.query).canonicalQueryEn) }, operations: [...ir.operations], capabilitiesUsed: [], capabilityHints: [...ir.capabilityHints], semanticParserCalls: used ? 1 : 0, cost: { semanticParserCalls: used ? 1 : 0 } };
     }
   }
-  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, compactSemanticInput, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, requestUnderstanding, literatureQueryForms });
+  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, RETRIEVAL_SCOPES, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, normalizeModelSemanticIR, compactSemanticInput, resolveLiteratureReference, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, retrievalPolicy, requestUnderstanding, literatureQueryForms });
 });

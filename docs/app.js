@@ -94,7 +94,7 @@ const SUPPORTED_DOCUMENT_EXTENSIONS = new Set([
   "xls",
 ]);
 
-const ALIBABA_FC_URL = "https://biodesi-api-dev-jvvowibabk.cn-beijing.fcapp.run";
+const ALIBABA_FC_URL = window.BioDesignBackendConfig.FC_BASE_URL;
 const WORKER_URL = ALIBABA_FC_URL;
 const USE_BACKEND = true;
 // Retained OSS code is intentionally inactive for local-workspace storage.
@@ -296,6 +296,7 @@ const I18N = {
     agentEmptySummary: "Ask the agent to review evidence, interpret results, or recommend a next step. Each chat keeps its own task history.",
     agentConversationLabel: "Conversation: {title}",
     agentComposerPlaceholder: "Ask the agent to work on this task…",
+    agentKeyboardHint: "Enter to send · Shift+Enter for a new line",
     agentNextMove: "Next move",
     agentModel: "Model",
     agentPermission: "Permission",
@@ -306,8 +307,8 @@ const I18N = {
     agentAttachImage: "Attach image",
     agentRemoveAttachment: "Remove {name}",
     agentRun: "Run Agent",
-    agentUiOnlyHint: "Preview: model and permission choices are saved for this move only; runs use the existing agent configuration. Attachments stay in this session and are not sent.",
-    agentMoveMetadata: "Requested: {model} · {permission} · UI only",
+    agentUiOnlyHint: "The selected model answers this move. Permission controls source downloads. Attachments stay in this session and are not sent.",
+    agentMoveMetadata: "Model: {model} · Download permission: {permission}",
     agentResultDetails: "Recommendation details",
     agentInterrupted: "This run was interrupted. Send a new instruction to continue.",
     analysisWorkspaceEyebrow: "Agent Work",
@@ -363,6 +364,7 @@ const I18N = {
     chatImageTimeout: "Image reading timed out. Edit the latest message to retry.",
     chatImageQuestionLong: "Keep questions with images under 12,000 characters.",
     streamInspecting: "Inspecting project evidence…",
+    streamSearching: "Searching external sources…",
     streamInterrupted: "Response interrupted. This draft is incomplete and has not been saved. Please retry.",
     sideChatTitle: "Side Chat",
     sideChatHelper: "Ask questions without changing the current recommendation.",
@@ -713,6 +715,7 @@ const I18N = {
     agentEmptySummary: "请智能体评审证据、解读结果或推荐下一步。每个对话独立保留任务历史。",
     agentConversationLabel: "对话：{title}",
     agentComposerPlaceholder: "请智能体处理这项任务…",
+    agentKeyboardHint: "Enter 发送 · Shift+Enter 换行",
     agentNextMove: "下一步",
     agentModel: "模型",
     agentPermission: "权限",
@@ -723,8 +726,8 @@ const I18N = {
     agentAttachImage: "添加图片",
     agentRemoveAttachment: "移除 {name}",
     agentRun: "运行智能体",
-    agentUiOnlyHint: "预览：模型和权限选择仅记录于本轮，运行仍使用现有智能体配置。附件仅保留于本次会话，不会发送。",
-    agentMoveMetadata: "所选：{model} · {permission} · 仅界面记录",
+    agentUiOnlyHint: "所选模型用于本轮回答。权限选项控制来源下载。附件仅保留于本次会话，不会发送。",
+    agentMoveMetadata: "所选模型：{model} · 下载权限：{permission}",
     agentResultDetails: "推荐详情",
     agentInterrupted: "本次运行已中断，请发送新指令继续。",
     analysisWorkspaceEyebrow: "智能体工作",
@@ -780,6 +783,7 @@ const I18N = {
     chatImageTimeout: "图片解读超时，请编辑最后一条消息重试。",
     chatImageQuestionLong: "附带图片的问题请控制在 12,000 字符以内。",
     streamInspecting: "正在查阅项目证据…",
+    streamSearching: "正在搜索外部来源…",
     streamInterrupted: "回答已中断。此草稿不完整，尚未保存，请重试。",
     sideChatTitle: "侧边问答",
     sideChatHelper: "在不改变当前推荐的情况下提问。",
@@ -1289,6 +1293,12 @@ EXPERIMENT_MODULE_KEYS.forEach((moduleKey) => {
 addAnalysisPanelButton.addEventListener("click", () => addAnalysisPanel());
 
 analysisPanelStack.addEventListener("input", (event) => {
+  const editInput = event.target.closest("[data-agent-edit-input]");
+  if (editInput) {
+    const panel = findAnalysisPanel(editInput.dataset.panelId);
+    if (panel?.messageEdit && !activeAgentRequest) panel.messageEdit.content = editInput.value;
+    return;
+  }
   const input = event.target.closest("[data-analysis-instruction]");
   if (!input) return;
 
@@ -1307,17 +1317,22 @@ analysisPanelStack.addEventListener("submit", async (event) => {
 });
 
 analysisPanelStack.addEventListener("keydown", (event) => {
-  if (event.target.matches("[data-analysis-instruction]") && event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.isComposing) {
-    event.preventDefault();
-    event.target.form.requestSubmit();
-  }
+  const input = event.target.closest("[data-analysis-instruction], [data-agent-edit-input]");
+  if (!input || event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+  event.preventDefault();
+  if (event.repeat || activeAgentRequest) return;
+  if (input.hasAttribute("data-agent-edit-input")) input.closest(".agent-message").querySelector('[data-analysis-action="save-edit"]').click();
+  else input.form.requestSubmit();
 });
 
 analysisPanelStack.addEventListener("change", (event) => {
   const input = event.target;
+  // Textarea change fires on blur, between pointer-down and click. Rebuilding
+  // the panel here removes the clicked Run button before it can submit.
+  if (!input.matches("[data-agent-setting], [data-agent-attachments]")) return;
   const panel = findAnalysisPanel(input.dataset.panelId);
   if (!panel) return;
-  if (input.dataset.agentSetting === "selectedModel") panel.selectedModel = normalizeSideChatModel(input.value);
+  if (input.dataset.agentSetting === "selectedModel") panel.selectedModel = normalizeAgentModel(input.value);
   if (input.dataset.agentSetting === "selectedPermission") panel.selectedPermission = input.value;
   if (input.hasAttribute("data-agent-attachments")) {
     panel.pendingAttachments.push(...[...input.files].map(file => ({ id: makeId(), name: file.name, type: file.type, size: file.size, file })));
@@ -1335,6 +1350,24 @@ analysisPanelStack.addEventListener("click", async (event) => {
   if (!panel) return;
 
   const action = button.dataset.analysisAction;
+
+  if (["edit", "cancel-edit", "save-edit"].includes(action)) {
+    if (activeAgentRequest) return;
+    if (action === "save-edit") {
+      if (panel.messageEdit) await runAgentInstruction(panelId, panel.messageEdit);
+      return;
+    }
+    if (action === "edit") {
+      const message = panel.messages.findLast(message => message.role === "user");
+      if (!message || message.id !== button.dataset.messageId) return;
+      panel.messageEdit = { messageId: message.id, content: message.content };
+    } else panel.messageEdit = null;
+    renderAnalysisPanels();
+    const input = [...analysisPanelStack.querySelectorAll("[data-agent-edit-input]")].find(input => input.dataset.panelId === panelId);
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+    return;
+  }
 
   if (action === "new-chat") {
     addAnalysisPanel(panelId);
@@ -3584,21 +3617,24 @@ function renderExperimentModuleSummary() {
   });
 }
 
-async function runAgentInstruction(panelId) {
+async function runAgentInstruction(panelId, revision = null) {
   if (activeAgentRequest) return;
 
   const panel = findAnalysisPanel(panelId);
   if (!panel || panel.frozen) return;
 
-  const instruction = panel.instruction.trim();
+  const revisedMessage = revision ? panel.messages.findLast(message => message.role === "user") : null;
+  if (revision && (!revisedMessage || revisedMessage.id !== revision.messageId)) return;
+  const instruction = String(revision ? revision.content : panel.instruction).trim();
   if (!instruction) {
-    showToast(t("tellAgentFirst"));
-    focusAnalysisPanelInstruction(panelId);
+    showToast(t(revision ? "editMessageRequired" : "tellAgentFirst"));
+    if (!revision) focusAnalysisPanelInstruction(panelId);
     return;
   }
 
   const turn = agentWorkApi.beginTurn(panel, {
     id: makeId(), modelLabel: getAgentModelOptions().find(model => model.value === panel.selectedModel)?.label || t("sideChatModelDefault"),
+    revision: revisedMessage ? { message: revisedMessage, content: instruction } : null,
   });
   setAgentBusy(true, panelId);
   const requestSignal = workspaceAbortController?.signal;
@@ -3632,6 +3668,7 @@ async function runAgentInstruction(panelId) {
         localWorkspaceContext = await projectContextService.buildContext({
           surface: "agent_command",
           turnId: requestTurnId,
+          ...(turn.requestedModel !== "default" ? { callContext: { model: turn.requestedModel } } : {}),
           question: instruction,
           retrievalProfile,
           selectedPaths: [...selectedWorkspacePaths],
@@ -3651,11 +3688,8 @@ async function runAgentInstruction(panelId) {
         panel.retrieval = normalizeRetrievalMetadata(
           localWorkspaceContext.literature?.retrievalDecision
         );
-        lastSourceUsage = {
-          literature: localWorkspaceContext.literature,
-          experiments: localWorkspaceContext.experiments,
-        };
-        renderSideChatContext();
+        // Side Chat owns its source-usage/scope chips. Agent retrieval metadata
+        // stays with this panel; catalog updates still apply to the workspace.
         applyLiteratureScan(literatureModule.documents);
         applyPreparedContextToDocuments(localWorkspaceContext);
         renderWorkspaceExplorer();
@@ -3671,6 +3705,9 @@ async function runAgentInstruction(panelId) {
     if (previewContainer) streamingPreview = createStreamingAnswer(previewContainer, agentWorkArea?.getConversation(panelId) || previewContainer.closest(".agent-conversation"));
     response = await sendWorkbenchRequest({
       mode: "agent_instruction",
+      originalRequest: instruction,
+      model: turn.requestedModel,
+      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, permission: turn.permission, projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
       messages: buildAgentMessages(instruction, localWorkspaceContext?.requestUnderstanding?.answerLanguage),
       localWorkspaceContext,
       signal: requestSignal,
@@ -3689,8 +3726,16 @@ async function runAgentInstruction(panelId) {
       capabilitiesUsed: [...(localWorkspaceContext?.semantic?.telemetry?.capabilitiesUsed || []), ...(response.semanticTelemetry?.capabilitiesUsed || [])],
       cloudCalls: { ...literatureModule?.api?.getTurnCallCounts?.(requestTurnId), ...(response.semanticTelemetry?.cloudCalls || {}) },
     });
+    if (response.taskOutcome && (response.taskOutcome.status !== "completed" || localWorkspaceContext?.semantic?.ir?.operations.every(operation => ["search", "store"].includes(operation)))) {
+      agentWorkApi.finishTurn(panel, turn, { content: response.reply, isResult: response.taskOutcome.status === "completed",
+        status: response.taskOutcome.status === "completed" ? "completed" : response.taskOutcome.status === "blocked" ? "waiting" : "failed",
+        citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata });
+      panel.statusKey = "";
+      panel.status = response.reply;
+      return;
+    }
     panel.recommendation = normalizeAgentResponse(response, instruction);
-    agentWorkApi.finishTurn(panel, turn, { content: response.reply || panel.recommendation.currentInterpretation, summary: panel.recommendation.recommendedNextStep, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), isResult: true });
+    agentWorkApi.finishTurn(panel, turn, { content: response.reply || panel.recommendation.currentInterpretation, summary: panel.recommendation.recommendedNextStep, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata, isResult: true });
     panel.statusKey = "recommendationUpdated";
     panel.status = "";
     panel.updatedAt = new Date().toISOString();
@@ -3744,16 +3789,56 @@ function setAgentBusy(isBusy, panelId = "") {
 // the Current Recommendation panel.
 // side_chat mode may update derived internal knowledge/metadata through the
 // shared source system, but it must never mutate the Current Recommendation.
-async function sendWorkbenchRequest({
+async function sendWorkbenchRequest(options) {
+  const service = projectContextService;
+  if (!options.localWorkspaceContext || !service?.answerWithEvidenceRecovery) return sendWorkbenchRequestOnce(options);
+  const requestAuth = authToken;
+  const selection = () => JSON.stringify([[...selectedWorkspacePaths].sort(), getSelectedPaperIds().slice().sort()]);
+  const requestSelection = selection();
+  const captured = { ...options, messages: JSON.parse(JSON.stringify(options.messages)), callContext: { ...options.callContext } };
+  let retainedSources = [], retainedMetadata = [];
+  return service.answerWithEvidenceRecovery({
+    localWorkspaceContext: captured.localWorkspaceContext,
+    signal: captured.signal || workspaceAbortController?.signal,
+    surface: captured.mode === "side_chat" ? "side_chat" : "agent_command",
+    callContext: { ...captured.callContext, ...(captured.mode === "side_chat" || captured.model !== "default" ? { model: captured.model } : {}) },
+    isCurrent: () => service === projectContextService && requestAuth === authToken && requestSelection === selection() && (options.isCurrentRequest?.() ?? true),
+    onRecovery: () => { captured.onStream?.({ type: "reset" }); captured.onStream?.({ type: "status", stage: "evidence-recovery" }); },
+    request: async localWorkspaceContext => {
+      const result = await sendWorkbenchRequestOnce({ ...captured, localWorkspaceContext });
+      if (result.evidenceRecovery && result.agentContinuation) {
+        captured.agentContinuation = result.agentContinuation;
+        captured.desktopContinuation = null;
+        captured.desktopToolResults = null;
+      } else if (result.evidenceRecovery && result.desktopContinuation) {
+        captured.desktopContinuation = result.desktopContinuation;
+        captured.desktopToolResults = [];
+      }
+      retainedSources = window.BioDesignWebSearch?.mergeSources(retainedSources, result.webSearchSources || []) || [];
+      retainedMetadata = window.BioDesignWebSearch?.mergeMetadata(retainedMetadata, result.webSearchMetadata || []) || [];
+      return { ...result, ...(retainedSources.length ? { webSearchSources: retainedSources } : {}), ...(retainedMetadata.length ? { webSearchMetadata: retainedMetadata } : {}) };
+    },
+  });
+}
+
+async function sendWorkbenchRequestOnce({
   mode,
   model = null,
   messages,
+  originalRequest = messages?.findLast(message => message.role === "user")?.content?.trim(),
   localWorkspaceContext = null,
   callContext = null,
   onStream = () => {},
   signal = workspaceAbortController?.signal,
+  desktopTools = null,
+  desktopContinuation = null,
+  agentContinuation = null,
+  desktopToolResults = null,
+  desktopRound = 0,
 }) {
   const isSideChat = mode === "side_chat";
+  const downloadRequestWorkspace = desktopTools ? workspaceManager?.workspace : null;
+  const downloadRequestAuth = desktopTools ? authToken : null;
   const includeLegacyExperimentEvidence = experimentModuleCards.length > 0;
   const experimentModulesPayload = buildExperimentModulesForRequest();
   const experimentDocumentsPayload = buildFlattenedExperimentDocumentsForRequest();
@@ -3766,9 +3851,13 @@ async function sendWorkbenchRequest({
       : [];
   const requestBody = {
     mode,
-    ...(isSideChat && model ? { model } : {}),
+    ...(model ? { model } : {}),
     stream: true,
+    ...(desktopTools && !isSideChat ? { desktopTools } : {}),
+    ...(desktopContinuation && !isSideChat ? { desktopContinuation, desktopToolResults } : {}),
+    ...(agentContinuation ? { agentContinuation } : {}),
     messages,
+    ...(originalRequest ? { originalRequest } : {}),
     projectContext: getProjectContext(),
     referenceDocuments: isSideChat || localWorkspaceContext
       ? []
@@ -3791,7 +3880,8 @@ async function sendWorkbenchRequest({
 
   literatureModule?.api?.recordTurnCall?.(callContext?.turnId, "answer");
   const finish = runtimeLog?.begin("main-agent", { agent: isSideChat ? "SideChatAgent" : "WorkbenchAgent",
-    surface: isSideChat ? "side_chat" : "agent_command", turnId: callContext?.turnId, endpoint: "/chat", stage: "awaiting-backend" });
+    surface: isSideChat ? "side_chat" : "agent_command", model: model || "default", turnId: callContext?.turnId, endpoint: "/chat", stage: "awaiting-backend",
+    originalRequestPreserved: Boolean(originalRequest), semanticContextPresent: Boolean(localWorkspaceContext?.semantic?.ir), retrievalScope: localWorkspaceContext?.semantic?.ir?.retrievalScope });
   try {
     const response = await fetch(backendUrl("/chat"), {
       method: "POST",
@@ -3799,9 +3889,14 @@ async function sendWorkbenchRequest({
       body: JSON.stringify(requestBody),
       signal,
     });
-    if (!response.ok) finish?.("failed", { status: response.status, code: response.status === 401 ? "AUTH_REQUIRED" : "BACKEND_HTTP_ERROR" });
+    if (response.status === 401) finish?.("failed", { status: response.status, code: "AUTH_REQUIRED" });
     requireLoginForUnauthorized(response);
-    if (!response.ok) throw new Error(t("backendReturned", { status: response.status }));
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const code = ["INVALID_CHAT_MODEL", "INVALID_CALL_CONTEXT", "INVALID_SEMANTIC_CONTEXT", "INVALID_TOOL_CONTINUATION"].includes(payload?.error)
+        ? payload.error : "BACKEND_HTTP_ERROR";
+      throw Object.assign(new Error(t("backendReturned", { status: response.status })), { code, status: response.status });
+    }
     let firstDelta = true, outputLength = 0;
     const data = await window.BioDesignEventStream.readWorkbenchResponse(response, { signal, onEvent: event => {
       if (event.type === "delta") {
@@ -3809,11 +3904,14 @@ async function sendWorkbenchRequest({
         if (firstDelta) runtimeLog?.record("main-agent.first-token", { turnId: callContext?.turnId, stage: "streaming-answer" });
         firstDelta = false;
       } else runtimeLog?.record("main-agent.stream-stage", { turnId: callContext?.turnId,
-        stage: event.stage || event.type, capability: event.capability });
+        stage: event.stage || event.type, capability: event.capability, correctiveContinuation: event.correctiveContinuation,
+        originalRequestPreserved: event.originalRequestPreserved, semanticContextPresent: event.semanticContextPresent,
+        downloadRequested: event.downloadRequested, downloadExposed: event.downloadExposed, downloadPermitted: event.downloadPermitted,
+        downloadAttemptCount: event.downloadAttemptCount, downloadResultCount: event.downloadResultCount });
       onStream(event);
     } });
     if (firstDelta) runtimeLog?.record("main-agent.buffered-response", { turnId: callContext?.turnId, stage: "answer-received" });
-    if (!data.reply && !data.project) {
+    if (!data.reply && !data.project && !data.evidenceRecovery && !data.desktopToolCalls) {
       throw Object.assign(new Error(t("backendMissingPayload")), { code: "BACKEND_MISSING_PAYLOAD" });
     }
     // The HTTP response reports these after execution; it is not a live remote
@@ -3821,10 +3919,48 @@ async function sendWorkbenchRequest({
     for (const capability of (data.semanticTelemetry?.capabilitiesUsed || [])) {
       runtimeLog?.record("backend.capability-reported", { turnId: callContext?.turnId, capability });
     }
-    finish?.("completed", { status: response.status, stage: "answer-received", outputLength });
+    finish?.(data.taskOutcome && data.taskOutcome.status !== "completed" ? "partial" : "completed", { ...data.taskOutcome, status: response.status, stage: "answer-received", model: data.model || null, outputLength,
+      taskStatus: data.taskOutcome?.status });
+    if (data.desktopToolCalls) {
+      const api = window.BioDesignSourceDownload;
+      if (!api?.allowed(isSideChat ? "side_chat" : "agent_command", desktopTools?.permission) ||
+        !window.biodesignDesktop?.execution?.runWorkflow || desktopRound >= 8 || !data.desktopContinuation ||
+        !Array.isArray(data.desktopToolCalls) || data.desktopToolCalls.length > 24) {
+        throw Object.assign(new Error("Desktop source download is unavailable or exceeds this move's permission/budget."), { code: "PERMISSION_DENIED" });
+      }
+      const requestWorkspace = downloadRequestWorkspace, requestAuth = downloadRequestAuth;
+      const ensureCurrent = () => {
+        if (signal?.aborted || requestWorkspace !== workspaceManager?.workspace || requestAuth !== authToken ||
+          desktopTools.projectId !== workspaceManager?.workspace?.workspaceId) throw Object.assign(new Error("The project or request changed."), { code: "OPERATION_ABORTED" });
+      };
+      ensureCurrent();
+      const results = [];
+      for (const call of data.desktopToolCalls) {
+        ensureCurrent();
+        if (call.name !== "download_sources") throw Object.assign(new Error("Unknown desktop tool."), { code: "TOOL_NOT_ALLOWED" });
+        const args = api.validateInput(call.args);
+        onStream({ type: "reset" }); onStream({ type: "status", stage: "tool-running", capability: "download_sources" });
+        let downloaded;
+        try {
+          downloaded = await window.biodesignDesktop.execution.runWorkflow({ workflowId: "download_sources", input: {
+            args, surface: "agent_command", permission: desktopTools.permission, authToken: requestAuth,
+            webSearchSources: data.webSearchSources || [], webSearchMetadata: data.webSearchMetadata || [],
+          } });
+        } catch (error) {
+          if (error.code === "OPERATION_ABORTED") throw error;
+          downloaded = args.sources.map(source => ({ url: source.url, status: "failed", error: { code: error.code || "DOWNLOAD_FAILED" } }));
+        }
+        ensureCurrent();
+        results.push({ id: call.id, results: downloaded });
+      }
+      // Resume the same bounded server loop with actual tool results. New raw
+      // files are picked up by normal source preflight on the next user request.
+      return sendWorkbenchRequestOnce({ mode, model, messages, originalRequest, localWorkspaceContext, callContext, onStream, signal, desktopTools,
+        desktopContinuation: data.desktopContinuation, desktopToolResults: results, desktopRound: desktopRound + 1 });
+    }
     return data;
   } catch (error) {
-    finish?.("failed", { code: error?.code || "BACKEND_REQUEST_FAILED" });
+    finish?.("failed", { code: error?.code || "BACKEND_REQUEST_FAILED", status: error?.status });
     throw error;
   }
 }
@@ -3845,7 +3981,7 @@ function createStreamingAnswer(container, scrollContainer = null) {
   if (scrollContainer) container.appendChild(element);
   else container.prepend(element);
   const context = getSideChatCitationContext(true);
-  let text = "", timer = null, removed = false;
+  let text = "", timer = null, removed = false, webSearchSources = [];
   const paint = () => {
     timer = null;
     if (removed) return;
@@ -3864,19 +4000,24 @@ function createStreamingAnswer(container, scrollContainer = null) {
     const display = completeBrackets.replace(/(?<![\w:/\\.@-])`*local:\d*`*$/, "");
     const resolved = sourceCitationApi.resolveForDisplay(display, [], context);
     renderSideChatMarkdown(body, resolved.reply, resolved.citations);
-    element.hidden = !text;
+    window.BioDesignWebSearch?.renderSources(body, webSearchSources);
+    element.hidden = !text && !webSearchSources.length;
     if (follow) scrollContainer.scrollTop = scrollContainer.scrollHeight;
   };
   return {
     get hasText() { return Boolean(text); },
     update(event) {
       if (removed) return;
+      if (event.type === "sources") { webSearchSources = window.BioDesignWebSearch?.mergeSources(webSearchSources, event.webSearchSources || []) || []; paint(); }
       if (event.type === "reset") { text = ""; clearTimeout(timer); paint(); }
       if (event.type === "delta" && typeof event.text === "string") {
         text += event.text;
         if (timer === null) timer = setTimeout(paint, 40);
       }
-      if (event.type === "status") status.textContent = event.stage === "tool-running" ? t("streamInspecting") : t("streamingAnswer");
+      if (event.type === "status") {
+        label.textContent = event.stage === "web-search" ? t("streamSearching") : t("streamingAnswer");
+        status.textContent = event.stage === "web-search" ? t("streamSearching") : event.stage === "tool-running" ? t("streamInspecting") : t("streamingAnswer");
+      }
     },
     interrupt() {
       clearTimeout(timer); paint(); element.hidden = false;
@@ -3922,18 +4063,15 @@ function requestLanguageInstruction(query, answerLanguage) {
 }
 
 function buildAgentMessages(instruction, answerLanguage) {
+  // Keep the latest user message identical to the query used for preparation.
+  // Context filenames may contain identifiers absent from that query's semantic IR.
   return [
     {
       role: "user",
       content: [
         "Mode: agent_instruction",
         requestLanguageInstruction(instruction, answerLanguage),
-        "Interpret the current synthetic-biology project context, uploaded literature, and experiment evidence grouped into Strain Engineering, Fermentation, and Downstream Processing.",
-        "Compare evidence across modules, identify possible explanations, useful next analyses, and human-reviewed next steps.",
-        "Do not assume the project is only about production volume or that problems are only in strain engineering.",
-        "Keep recommendations at design-review and planning level. Do not provide unsafe wet-lab protocols.",
-        "",
-        `Instruction: ${instruction}`,
+        "Supporting project background and file inventory follow. They are context, not additional requested tasks or scientific evidence. The separate originalRequest defines this move's objective and deliverables.",
         "",
         buildProjectContextPromptBlock(),
         buildEvidencePromptBlock(),
@@ -3941,6 +4079,7 @@ function buildAgentMessages(instruction, answerLanguage) {
         .filter(Boolean)
         .join("\n"),
     },
+    { role: "user", content: instruction },
   ];
 }
 
@@ -3988,6 +4127,7 @@ function renderSideChatConversation() {
       messageId: message.id,
       activity: message.activity,
       citations: message.citations,
+      webSearchSources: message.webSearchSources,
       images: message.images,
       canEdit: index === latestUserIndex,
     })
@@ -4444,12 +4584,19 @@ ${t("defaultHumanReview")}`;
 }
 
 function getAgentModelOptions() {
-  // Read the existing model catalog and authenticated default label without
-  // changing Side Chat's selection or creating another catalog.
-  return [...sideChatModelSelect.options].map(option => {
+  // Reuse the existing catalog and authenticated default label, with an Agent-only option.
+  const options = [...sideChatModelSelect.options].map(option => {
     const model = option.value === "default" ? defaultSideChatModel || option.dataset.modelName : option.value;
     return { value: option.value, label: model ? shortSideChatModelName(model) : t("sideChatModelDefault"), title: model };
   });
+  const model = "google/gemini-3.1-flash-lite:flex";
+  if (!options.some(option => option.value === model)) options.push({ value: model, label: model, title: model });
+  return options;
+}
+
+function normalizeAgentModel(value) {
+  if (value === "google/gemini-2.5-flash-lite:flex") value = "google/gemini-3.1-flash-lite:flex";
+  return getAgentModelOptions().some(option => option.value === value) ? value : "default";
 }
 
 function renderAnalysisPanels() {
@@ -4812,6 +4959,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
 
     let reply;
     let citations = [];
+    let webSearchSources = [], webSearchMetadata = [];
     const selectedEvidence = localWorkspaceContext.files || [];
     if (
       contextSnapshot.type === "files" &&
@@ -4827,10 +4975,12 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       streamingPreview = createStreamingAnswer(sideChatHistory, sideChatHistory);
       const response = await sendWorkbenchRequest({
         mode: "side_chat",
+        originalRequest: effectiveQuestion,
         model: requestModel,
         messages: messagesForBackend,
         localWorkspaceContext,
         signal: requestSignal,
+        isCurrentRequest,
         onStream: event => { if (isCurrentRequest() && !requestSignal?.aborted) streamingPreview.update(event); },
         callContext: {
           turnId: userMessage.id,
@@ -4845,7 +4995,8 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
         capabilitiesUsed: [...(localWorkspaceContext.semantic?.telemetry?.capabilitiesUsed || []), ...(response.semanticTelemetry?.capabilitiesUsed || [])],
         cloudCalls: { ...literatureModule?.api?.getTurnCallCounts?.(userMessage.id), ...(response.semanticTelemetry?.cloudCalls || {}) },
       });
-      citations = sourceCitationApi.bindToWorkspace(response.citations, citationContext);
+      webSearchSources = response.webSearchSources || []; webSearchMetadata = response.webSearchMetadata || [];
+      citations = sourceCitationApi.bindToWorkspace(response.citations, response.evidenceRecoveryStatus ? getSideChatCitationContext(true) : citationContext);
       reply = appendCorpusCoverage(
         response.reply || t("sideChatNoAnswer"),
         localWorkspaceContext.literature
@@ -4858,7 +5009,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       id: makeId(),
       role: "assistant",
       content: reply,
-      citations,
+      citations, webSearchSources, webSearchMetadata,
       activity: getSideChatActivitySteps(thinkingMessage),
       createdAt: new Date().toISOString(),
     };
@@ -4868,6 +5019,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       messageId: assistantMessage.id,
       activity: assistantMessage.activity,
       citations: assistantMessage.citations,
+      webSearchSources: assistantMessage.webSearchSources,
     });
     await persistSideChatConversation();
   } catch (error) {
@@ -4904,7 +5056,9 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
 
     console.warn("Side chat backend failed; using local fallback.", error);
     updateSideChatThinking(thinkingMessage, { stage: "local-fallback" });
-    const reply = contextPrepared
+    const reply = String(error?.code || "").startsWith("EVIDENCE_RECOVERY_")
+      ? `${error.message} Missing retrieved evidence does not establish that information is absent from the paper.`
+      : contextPrepared
       ? `${t("backendFallbackMessage")}\n\n${buildLocalSideChatReply(question)}`
       : t("sideChatContextFailed", { message: error.message || t("loginFailed") });
     const coveredReply = contextPrepared
@@ -4985,6 +5139,7 @@ function sideChatProgressText(progress = {}) {
     (progress.total && progress.stage.startsWith("sync-") ? ` · ${progress.completed || 0}/${progress.total}` : "");
   if (progress.stage === "preparing-request") return t("preparingRequest");
   if (progress.stage === "model-request") return t("generatingAnswer");
+  if (progress.stage === "web-search") return t("streamSearching");
   if (progress.stage === "image-understanding") return t("readingChatImages", { count: progress.imageCount || 1 });
   if (progress.stage === "images-understood") return t("chatImagesUnderstood");
   if (progress.stage === "answer-ready") return t("answerReady");
@@ -5597,7 +5752,7 @@ function createSideChatActivitySummary(activity) {
 function addSideChatMessage(
   role,
   content,
-  { isIntro = false, messageId = "", activity = [], citations = [], images = [], canEdit = false } = {}
+  { isIntro = false, messageId = "", activity = [], citations = [], webSearchSources = [], images = [], canEdit = false } = {}
 ) {
   if (!isIntro) {
     setSideChatEmptyState(false);
@@ -5620,6 +5775,7 @@ function addSideChatMessage(
   const legacy = role === "assistant"
     ? sourceCitationApi.resolveForDisplay(content, citations, getSideChatCitationContext()) : { reply: content, citations };
   renderSideChatMarkdown(body, legacy.reply, legacy.citations);
+  window.BioDesignWebSearch?.renderSources(body, webSearchSources);
 
   message.append(label);
   const activitySummary = role === "assistant"
@@ -5961,7 +6117,7 @@ function normalizeStoredAnalysisPanel(panel) {
     title: panel.title,
     summary: panel.summary,
     messages: Array.isArray(panel.messages) ? panel.messages : undefined,
-    selectedModel: normalizeSideChatModel(panel.selectedModel),
+    selectedModel: normalizeAgentModel(panel.selectedModel),
     selectedPermission: panel.selectedPermission,
     taskStatus: panel.taskStatus,
     id: typeof panel.id === "string" && panel.id ? panel.id : makeId(),

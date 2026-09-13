@@ -220,7 +220,19 @@ export class ProjectFilesystem {
       }
     }
 
-    if (options.atomic === false) {
+    if (options.exclusive === true) {
+      const handle = await open(absolutePath, "wx", 0o600);
+      try {
+        await handle.writeFile(bytes);
+        await handle.sync();
+      } catch (error) {
+        await handle.close();
+        await rm(absolutePath, { force: true });
+        throw error;
+      } finally {
+        await handle.close();
+      }
+    } else if (options.atomic === false) {
       const handle = await open(absolutePath, "w", 0o600);
       try {
         await handle.writeFile(bytes);

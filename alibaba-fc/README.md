@@ -6,15 +6,15 @@ This folder contains the authoritative cloud gateway for BioDesign Copilot. Elec
 docs/ frontend -> Alibaba Function Compute HTTP endpoint -> Requesty
 ```
 
-Electron never calls Requesty directly. The retired `worker/` implementation contains no Requesty client; Requesty credentials remain in Function Compute environment variables or secrets. The backend validates Side Chat model choices before forwarding them to Requesty.
+Electron never calls Requesty directly. The retired `worker/` implementation contains no Requesty client; Requesty credentials remain in Function Compute environment variables or secrets. The backend validates chat model choices before forwarding them to Requesty.
 
 ## Side Chat model selection
 
-The Side Chat selector replaces the former Light/Medium/High control. **Default model** uses the existing `REQUESTY_MODEL`; **Nemotron 3 Nano Omni** sends `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` through the same FC → Requesty client. The dropdown displays provider/model labels: the default uses the actual `REQUESTY_MODEL` reported by authenticated login/session responses, and NVIDIA is shortened to `nvidia/nemotron-3-nano-omni`. Hover shows the full ID. Older backends without this session metadata use the confirmed `google/gemma-4-31b-it` display fallback in `docs/index.html`; this label does not override the backend model. Authenticated model metadata takes precedence when available. The choice is saved per workspace and captured when a Side Chat turn starts. It applies to every model task triggered by that turn: image understanding, knowledge-sync Paper Cards, semantic interpretation, search planning/reranking, context routing, corpus mapping/repair, native PDF analysis when supported, and the answer/tool loop. Retries inherit the same selection. Agent Command and requests without a selection keep their existing role-specific configuration.
+The Side Chat selector replaces the former Light/Medium/High control. **Default model** uses the existing `REQUESTY_MODEL`; **Nemotron 3 Nano Omni** sends `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` through the same FC → Requesty client. The dropdown displays provider/model labels: the default uses the actual `REQUESTY_MODEL` reported by authenticated login/session responses, and NVIDIA is shortened to `nvidia/nemotron-3-nano-omni`. Hover shows the full ID. Older backends without this session metadata use the confirmed `google/gemma-4-31b-it` display fallback in `docs/index.html`; this label does not override the backend model. Authenticated model metadata takes precedence when available. The choice is saved per workspace and captured when a Side Chat turn starts. It applies to every model task triggered by that turn: image understanding, knowledge-sync Paper Cards, semantic interpretation, search planning/reranking, context routing, corpus mapping/repair, native PDF analysis when supported, and the answer/tool loop. Retries inherit the same selection. Agent Command Default and requests without a selection keep their existing role-specific configuration.
 
 No new FC environment variable or API key is needed for this option. Keep the existing `REQUESTY_MODEL` and `REQUESTY_API_KEY`, ensure the Requesty account can access the NVIDIA model, and deploy the updated backend **before** releasing the updated frontend. The answer endpoint receives `model`; preparatory endpoints and their configuration requests receive the validated `X-BioDesign-Chat-Model` header. FC uses a request-local environment copy, never mutating shared configuration. `default` selects `REQUESTY_MODEL` for all tasks in that Side Chat turn. Existing clients that omit the selection keep their configured role models. Arbitrary model overrides are rejected before provider execution or streaming starts.
 
-To make NVIDIA the global default instead, `REQUESTY_MODEL` can be changed to its full ID, but that also changes every capability that falls back to this variable. That is unnecessary for the selector. Future selectable models must be added to the shared `sideChatModelEnvironment` allowlist in `index.js` and the options in `docs/index.html`; credentials must never be added to the frontend. Local routing tests use mocked Requesty responses and do not certify live model access or tool-calling behavior.
+To make NVIDIA the global default instead, `REQUESTY_MODEL` can be changed to its full ID, but that also changes every capability that falls back to this variable. That is unnecessary for the selector. Future selectable models must be added to the shared `chatModelEnvironment` allowlist in `index.js` and the options in `docs/index.html`; credentials must never be added to the frontend. Local routing tests use mocked Requesty responses and do not certify live model access or tool-calling behavior.
 
 Per-model capabilities continue to use `REQUESTY_MODEL_CAPABILITIES_JSON`. A selected model never inherits PDF support, strict JSON Schema support, or context limits from a different configured model. Existing local/text fallbacks remain in place when a capability is unavailable; the system does not silently substitute another model. Model-dependent configurations, cache keys, and learned input limits are scoped to the selection. Valid saved knowledge and completed workflows remain reusable.
 
@@ -22,6 +22,7 @@ Per-model capabilities continue to use `REQUESTY_MODEL_CAPABILITIES_JSON`. A sel
 
 - `REQUESTY_API_KEY` - Existing admin's Requesty API key. Store this as a Function Compute environment variable or secret, never in frontend code. Beta users use their own mapped key variables.
 - `REQUESTY_MODEL` - Requesty model name.
+- `REQUESTY_TOOL_MODE` - optional, defaults to `sequential` on both chat surfaces. Only `combined` explicitly enables mixed hosted/local tools for compatibility experiments; errors never switch mode.
 - `REQUESTY_SEARCH_PLANNER_MODEL` - optional model for strict search-plan output. Falls back to `REQUESTY_MODEL` when absent.
 - `REQUESTY_RERANK_MODEL` - optional model for strict candidate reranking output. Falls back to `REQUESTY_MODEL` when absent.
 - `REQUESTY_PDF_MODEL` - optional PDF-capable Requesty model. Configuring it enables PDF capability unless `REQUESTY_PDF_ENABLED=false`. OpenAI PDF models are routed through the required `openai-responses/` prefix without changing the general text model.
@@ -40,6 +41,68 @@ The OSS variables and RAM role are not used by the active local-workspace litera
 
 Do not configure permanent Alibaba Cloud AccessKeys for the function. OSS operations use temporary STS credentials supplied by the attached Function Compute RAM role through the Node.js invocation context (with the Function Compute-provided `ALIBABA_CLOUD_*` environment variables as a runtime fallback).
 
+## Sequential hosted search deployment
+
+Deploy **`Archive-task-execution.zip`** to the current FC application and reload/rebuild the desktop client. It includes the existing sequential workflow and metadata handling, explicit original-request preservation, distinct surface prompts, a bounded completion correction and catalog/citation filtering. Keep the existing endpoint, runtime/handler, authentication, model credentials and networking settings. Nothing is deployed automatically, and earlier archives are preserved.
+
+1. Leave `REQUESTY_TOOL_MODE` unset or set it to `sequential`.
+2. Upload this ZIP with `index.js` at its root using the existing FC deployment process. For manual packaging include the new `requesty-search-stage.js` alongside all existing runtime helpers, `src`, `shared`, `bootstrap`, dependency manifests and production `node_modules`.
+3. Reload/rebuild the updated desktop client. It passes `originalRequest` and preserves it through signed desktop and evidence-recovery continuations. Older continuations predate this binding; begin a new move after updating.
+4. Test one web-only query, one authorized search/download move, and one web/local comparison needing evidence recovery. Check `requesty_tool_stage` for one search stage followed by local tools, semantic/request presence and at most one `completion-correction`. `agent_task_outcome` must distinguish actual save results from blocked/incomplete work; resumes must retain search status and avoid repeating downloads. Verify actual paths and MIME types before treating a requested PDF download as fulfilled.
+
+Sequential requests never mix `{type:"web_search"}` and functions or send Google's unverified `toolConfig` flag. Only `web`/`both` semantic scope requests a search stage; missing/legacy scope remains conservative. Both stages retain the selected model and authenticated user's Requesty key. Search findings and actual citations cross the boundary as bounded untrusted evidence; raw hosted protocol traces do not. Existing local tools, permissions, downloads and knowledge ingestion remain in their current owners. See [request shapes, recovery and limitations](../docs/WEB_SEARCH_AND_SOURCE_DOWNLOAD.md).
+
+The retained `REQUESTY_TOOL_MODE=combined` mode explicitly opts into the previous implementation and its unverified Google native-field passthrough. It is never a fallback. Verification uses mocked providers; no live Requesty behavior is certified by this deployment archive.
+
+### Diagnosing missing web-search citations
+
+First inspect `semantic-intent.success` for `retrievalScope`, `patternShortcutCleared`
+and `objectAliasesNormalized`, then the desktop `retrieval.decision` and
+`main-agent.started` scope. A successful provider generation can still fail host
+validation; the reported search/store composition formerly did so because of its
+optional search-only pattern. The shared normalizer now preserves the validated
+composition instead of falling back to workspace retrieval.
+
+Agent Command resolves local citations through the same verified source registry
+as Side Chat. Complete supplied handles are required; bare ordinal IDs are never
+guessed. The reranker sends a small wire schema, with all original bounds enforced
+by FC, consistent with [Google's guidance to validate structured values in the application](https://ai.google.dev/gemini-api/docs/structured-output).
+`knowledge_rerank_failed` records model, provider status/code and an explicit-schema
+compatibility flag. The reported generic `INVALID_ARGUMENT` does not establish
+the rejected field; no automatic model switch or blind retry is added.
+
+An assistant message with Markdown links does not establish that structured search metadata reached FC. The shared normalizer supports Requesty's documented `choices[].delta.web_search`, annotations/citations, native Google `candidates[].groundingMetadata`, and grounding inside `extra_content.google` on response/message/delta envelopes. The native extensions are compatibility coverage, not a claim that every Requesty route returns them. [Requesty's current response example](https://docs.requesty.ai/features/web-search) describes structured streaming metadata; [Google's response reference](https://ai.google.dev/api/generate-content#groundingmetadata) describes native grounding.
+
+After a fresh search move, inspect **FC logs** for `requesty_web_search_response`. The event records actual `transport` (`sse`/`json`), `requestedStreaming`, `sourceCount`, `retainedMetadataCount`, bounded `metadataPaths`/types, known `containerPaths`, and `metadataStatus`. No source values, text, URLs, signatures, keys or headers are logged.
+
+- `sources_available`: provider source URLs were extracted. If the handoff still shows an empty list, investigate the stage merge/continuation rather than model instructions.
+- `metadata_without_usable_urls`: recognized metadata exists but yields no usable URLs; check empty/malformed fields or metadata size limits. This does not test downloadability.
+- `no_recognized_metadata`: no recognized citation fields were observed. This can mean Requesty/provider omitted metadata, search was not invoked, or an unsupported response shape was returned. A dashboard's assistant-only view cannot distinguish these. Compare the raw response at the gateway with the documented format before changing provider transport or promoting text links into citations.
+
+`no_sources` is retained for compatibility but now explicitly describes a citation-metadata gap. It never means that a PDF does not exist or that a download failed. Text-only links remain unverified. Landing pages and Google's grounding redirects are not guaranteed PDF links; only actual download results establish content type/availability. The research prompt requests concrete papers relevant to the current task, rather than replacing discovery with a project roadmap. There is no automatic search retry, Markdown citation extraction, provider switch, or download triggered by prose.
+
+## Agent panel model selection
+
+The middle Agent panel adds `google/gemini-3.1-flash-lite:flex` alongside Default and Nemotron. The selected model is captured per move and sent as `model` in `POST /chat` with `mode: "agent_instruction"`. FC validates it using the same request-local model abstraction, and sends that exact ID in Requesty Chat Completions for every answer/tool-loop turn, including streaming and signed desktop download continuations. Default/older clients retain the configured answer model. Changes during a run apply to the next move.
+
+The Gemini 3.1 update is packaged in `Archive-gemini-3.1-flash-lite.zip`. Deploy this archive to the current FC application and reload the client together. Saved Agent selections of Gemini 2.5 migrate to Gemini 3.1; historical messages retain their original model metadata.
+
+The subsequent capability update is packaged in `Archive-gemini-capabilities.zip`; use this newer archive to enable Gemini's confirmed hosted-search and JSON-schema defaults. Reload the client for the accompanying Side Chat scope isolation fix.
+
+The semantic-intent compatibility update is packaged in `Archive-semantic-intent-planner.zip`, superseding those archives. It adds a separate conservative LLM schema, canonical IR validation, and one JSON-object retry only for positively identified output-schema errors. Include the new `semantic-intent-planner.js` runtime module when packaging manually. Optional `REQUESTY_SEMANTIC_PLANNER_PROFILE=gemini|openai` settings reuse the same planner; OpenAI also requires `REQUESTY_SEMANTIC_OPENAI_MODEL`. Explicit UI model choices still take precedence. See [Semantic intent through Requesty](../docs/SEMANTIC_INTENT_PLANNER.md) for request shape, capability overrides, diagnostics and limitations.
+
+The subsequent routing correction is packaged in `Archive-retrieval-scope-routing.zip`. Semantic `retrievalScope` is authoritative: external discovery bypasses local lexical/QMD retrieval, while workspace/both retain it. `search_papers` keeps its existing local meaning. See [Retrieval scope](../docs/RETRIEVAL_SCOPE.md).
+
+`Archive-gemini-combined-tools.zip` supersedes that archive for the Gemini combined-tool correction. It adds native `toolConfig.includeServerSideToolInvocations` as an extra Requesty body field for mixed tools on the selected Gemini 3.1 Flex model and preserves returned tool context across streaming/local-tool continuations. Include `requesty-tool-context.js` when packaging manually. Requesty's public schema does not explicitly document forwarding this Google flag, so a live deployed test is still required; a gateway rejection is reported as `GEMINI_COMBINED_TOOLS_UNSUPPORTED`. See [Gemini combined tools](../docs/WEB_SEARCH_AND_SOURCE_DOWNLOAD.md#gemini-combined-tools). Deploy to the current FC application; this correction requires no new client changes.
+
+Transport references: [Requesty extra body fields](https://docs.requesty.ai/frameworks/vercel-ai-sdk), [Requesty hosted web search](https://docs.requesty.ai/features/web-search), and [Google tool combination](https://ai.google.dev/gemini-api/docs/generate-content/tool-combination). Extra-body support does not by itself establish that a specific native provider option survives gateway translation.
+
+An explicit Agent selection also travels through `callContext.model` and the existing `X-BioDesign-Chat-Model` header to preparation, wiki updates, semantic interpretation, planning/reranking, corpus workers and evidence recovery. These tasks use the same selected model and its own capability configuration. Agent Default and requests without a selection retain their configured role models. Gemini Flex is an Agent-only option; Side Chat selection and download permissions are unchanged. Gemini 3.1 Flex has confirmed `supportsWebSearch: true` and `jsonSchema: true` defaults in `requesty-models.js`; explicit per-model entries in `REQUESTY_MODEL_CAPABILITIES_JSON` can override them. Other models retain metadata-based search gating. Deploy the updated FC backend before using the new client selection, and ensure the user's Requesty account can access this model. Tests mock provider responses; live model access has not been verified.
+
+For troubleshooting, the FC `chat_model_selection` log records the requested and resolved answer model, and `/chat` returns the actual request model as `model`. The client debug log includes the requested model at `main-agent.started` and the FC-reported model at `main-agent.completed`. Requesty metadata already tags each call by role (for example `biodesign:semantic_parser` or `biodesign:answer`) and turn ID, so preparation can be distinguished from the final answer.
+
+The model-propagation fix is available in `Archive-agent-model-selection.zip`. Upload it to the current FC application using the existing handler/runtime, and reload or rebuild the updated client. It includes all runtime helpers and production dependencies; the previous `Archive.zip` remains untouched.
+
 ## Multi-user beta login
 
 The existing account/password screen requires no frontend change. A beta user enters their chosen `account` and **original password**. FC compares it against that user's bcrypt `passwordHash`; the hash itself is not a login password. The existing `ADMIN_ACCOUNT`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, and `REQUESTY_API_KEY` retain their roles. The admin's stable ID is `admin`; beta users have role `beta` and a configured stable ID.
@@ -48,7 +111,7 @@ New 12-hour HS256 JWTs contain only `id`, `sub` (the same stable ID), `account`,
 
 FC validates the beta configuration and rechecks the token's ID, account and active status on **every authenticated request**, including `/api/me`, images, configurations, legacy document routes and Agent Command. Removing a user or setting `active: false` rejects their next request even before JWT expiry. Changing an account or ID also invalidates its existing tokens. Each invocation snapshots FC configuration; an already-running invocation retains its starting configuration.
 
-The user's key is placed in an invocation-local environment copy before model selection. All provider work inherits it: semantic interpretation, schema mapping, planning/reranking, Paper Cards and literature processing, corpus and native-PDF workers, image understanding, document review, repairs/retries, answer/tool loops and streaming. Side Chat's selected model and Agent Command's role models keep their existing behavior independently. Client body/header fields cannot select another identity or key. Existing account-based OSS ownership and local workspace/history behavior remain intact.
+The user's key is placed in an invocation-local environment copy before model selection. All provider work inherits it: semantic interpretation, schema mapping, planning/reranking, Paper Cards and literature processing, corpus and native-PDF workers, image understanding, document review, repairs/retries, answer/tool loops and streaming. Side Chat and Agent Command capture their selections independently for every model task in the turn; Agent Default keeps its configured role models. Client body/header fields cannot select another identity or key. Existing account-based OSS ownership and local workspace/history behavior remain intact.
 
 ### Configure the first beta user on FC
 
@@ -165,14 +228,14 @@ For live streamed answers, use the [streaming deployment instructions](STREAMING
    cd alibaba-fc
    npm ci --omit=dev
    npm run sync:shared
-   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js requesty-stream.js image-understanding.js src shared bootstrap package.json package-lock.json node_modules
+   zip -r ../alibaba-fc-local-workspace.zip index.js side-chat-agent.js agent-continuation.js requesty-models.js requesty-stream.js image-understanding.js src shared bootstrap package.json package-lock.json node_modules
    ```
 
 8. Upload `alibaba-fc-local-workspace.zip`. Keep the handler set to `index.handler`.
 9. The local-workspace routes process one bounded chunk per invocation and a separate bounded synthesis request. Keep the existing memory and timeout settings; the legacy server-side OSS review still benefits from 1 GB memory and a 300-second timeout.
 10. Keep the existing HTTP-trigger CORS origin for the GitHub Pages frontend.
 11. The local-workspace flow does not require OSS bucket CORS. Keep the old rule only if the retained legacy signed-upload endpoint is still in use elsewhere.
-12. Copy the public HTTP endpoint into `docs/app.js` as `ALIBABA_FC_URL`. There is no production provider switch or direct Requesty fallback in Electron.
+12. Set the public HTTP endpoint in `FC_ENDPOINTS` in `shared/backend-config.js`, select `FC_ENVIRONMENT`, and run `npm run desktop:prepare` from the repository root. The same configuration controls renderer API calls and desktop source-download fallback. Restart/rebuild the client after switching; sign in again for the selected deployment. There is no production provider switch or direct Requesty fallback in Electron.
 13. Publish the updated `docs/` directory through the existing GitHub Pages deployment.
 
 No production dependency was added for the local-workspace routes. The existing `unpdf@1.8.0` dependency remains for the retained legacy OSS PDF review path.
@@ -379,3 +442,35 @@ curl -i -X POST "$FC_URL/api/documents/upload-url" \
   -H "Content-Type: application/json" \
   -d '{"filename":"notes.txt","contentType":"text/plain","size":100}'
 ```
+# Web search and source downloading
+
+The architectural notes are in [WEB_SEARCH_AND_SOURCE_DOWNLOAD.md](../docs/WEB_SEARCH_AND_SOURCE_DOWNLOAD.md).
+
+The current task-execution correction is packaged as `Archive-task-execution.zip`.
+Upload it manually to the existing FC application; no deployment is performed by
+the packaging step. The archive includes the runtime entry points, executable
+`bootstrap`, shared contracts and existing dependencies at the ZIP root, without
+environment files or tests. Older deployment archives remain untouched.
+
+After deployment, reload a development desktop after `npm run desktop:prepare`;
+packaged desktops need rebuilding and relaunching to include the updated renderer
+and shared contracts. Start a new move. The client now sends `originalRequest`,
+and signed continuations bind it explicitly. Agent Work uses task-directed
+execution prompts and one bounded correction for an eligible unattempted
+download; Side Chat remains conversational and cannot download. Final
+`taskOutcome` and per-source results are host-owned. See the architecture notes
+for statuses, citation filtering and the regression evidence (750 passing tests).
+Live Requesty selection/relevance and real publisher downloads still need testing.
+
+The current Requesty contract was checked against the live documentation on 2026-09-11:
+[native web search](https://docs.requesty.ai/features/web-search) and
+[model capability metadata](https://docs.requesty.ai/api-reference/endpoint/models-list).
+Chat Completions accepts the hosted descriptor `{"type":"web_search"}` and the model catalog advertises `supports_web_search`.
+The existing per-model capability configuration can explicitly override this using `supportsWebSearch`.
+The authenticated `/api/sources/fetch` route belongs to this FC app and returns bytes for desktop-local storage only.
+
+### Agent routing boundary regression
+
+Paper discovery must pass `callContext` through `LiteratureTools.searchPapers` into `ElectronQmdKnowledgeService`; otherwise Deep planning and reranking silently use the configured role models. Agent messages carry context separately from the final user instruction, because FC validates the semantic IR against that instruction. Identifiers appearing only in filenames or project background must not be treated as missing user-query identifiers. Actual query identifiers and active source scopes remain validated.
+
+The two reproduced regressions are covered in `test/agent-model-boundaries.test.js` through real Deep retrieval and the production Agent message builder. The complete suite passed 652 tests. These functional fixes require a client reload/rebuild. `Archive-agent-routing-fix.zip` additionally includes specific `INVALID_CALL_CONTEXT` and `INVALID_SEMANTIC_CONTEXT` responses; the client logs allowlisted codes and HTTP status without logging response bodies.

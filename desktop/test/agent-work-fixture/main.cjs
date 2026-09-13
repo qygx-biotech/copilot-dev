@@ -18,7 +18,8 @@ const functions = [
   "buildAgentResultContent", "createAgentResultActions", "createAnalysisActionButton", "addAnalysisPanel", "deleteAnalysisPanel", "createAnalysisPanel",
   "findAnalysisPanel", "getCurrentRecommendation", "getAnalysisPanelStatus", "focusAnalysisPanelInstruction",
   "normalizeStoredAnalysisPanel", "normalizeRecommendation", "createDefaultRecommendation", "saveAnalysisPanels", "saveCurrentRecommendation", "loadAnalysisPanels", "loadSessionJson", "cloneValue",
-  "normalizeSideChatModel", "shortSideChatModelName", "createStreamingAnswer",
+  "normalizeSideChatModel", "normalizeAgentModel", "shortSideChatModelName", "createStreamingAnswer",
+  "renderSideChatContext", "sideChatProgressText", "formatCorpusPaperProgress", "applyRequestCatalog", "syncWorkspaceSelectionToDocuments",
   "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
 ].map(actualFunction).join("\n");
 const translations = source.slice(source.indexOf("const I18N ="), source.indexOf("let currentLanguage ="));
@@ -27,10 +28,20 @@ const setup = `
 const agentWorkApi = window.BioDesignAgentWork, sourceCitationApi = window.BioDesignSourceCitations;
 const analysisPanelStack = document.getElementById("analysisPanelStack"), addAnalysisPanelButton = document.getElementById("addAnalysisPanelButton");
 const sideChatModelSelect = document.getElementById("sideChatModelSelect");
+const sideChatContextChips = document.getElementById("sideChatContextChips");
 const ANALYSIS_PANELS_STORAGE_KEY = "fixture-panels", RECOMMENDATION_STORAGE_KEY = "fixture-recommendation";
 let currentLanguage = "en", defaultSideChatModel = "google/default-fixture", agentWorkArea = null;
 let analysisPanels = [], currentRecommendation, activeAgentRequest = false, activeAgentPanelId = "";
-const USE_BACKEND = true, authToken = "fixture", runtimeLog = null, projectContextService = null, workspaceTree = null, literatureModule = null;
+const USE_BACKEND = true, authToken = "fixture", runtimeLog = null, knowledgeService = null;
+const contextRequests = [];
+let workspaceTree = {}, selectedWorkspacePaths = new Set(), referenceDocuments = [];
+let activeLiteratureOperations = 0, lastSourceUsage, activeCorpusProgress = null;
+const literatureModule = { documents: [], api: { getTurnCallCounts: () => ({}) } };
+const projectContextService = { buildContext: async options => { contextRequests.push(options); return { literature: {} }; } };
+const retrievalProfile = "medium", getSelectedPaperIds = () => [], getProjectContext = () => "";
+const flattenWorkspaceTree = tree => tree.children || [];
+const applyLiteratureScan = documents => { literatureModule.documents = documents; referenceDocuments = documents; };
+const applyPreparedContextToDocuments = () => {}, renderWorkspaceExplorer = () => {}, renderAllDocumentLists = () => {};
 let workspaceAbortController = null, requestGate = null, requestFailure = null, requests = [], exports = [], copies = [];
 const makeId = () => crypto.randomUUID();
 const formatTimestamp = value => new Date(value).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
@@ -72,9 +83,32 @@ const check = (condition, name) => { ok(condition, name); passed.push(name); };
     const fixture = path.join(profile, "fixture.html");
     fs.writeFileSync(fixture, html.replace("</head>", `<style>${fs.readFileSync(path.join(root, "docs/styles.css"), "utf8")}</style></head>`));
     await win.loadFile(fixture);
-    for (const file of ["shared/source-citations.js", "docs/agent-work-area.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
+    for (const file of ["shared/source-citations.js", "shared/web-search.js", "docs/agent-work-area.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
     await win.webContents.executeJavaScript(`${translations}\n${setup}\n${functions}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("runAgentScenarios()");
+    await win.webContents.executeJavaScript("runAgentScopeIsolationChecks()");
+    // Native input reproduces blur/change before a real pointer click; .click()
+    // alone would miss the replaced-button regression.
+    await win.webContents.executeJavaScript("prepareNativeComposerChecks()");
+    await win.webContents.insertText("Send with one click");
+    const runPoint = await win.webContents.executeJavaScript(`(() => {
+      const button = card(composerTestChat).querySelector('[type="submit"]');
+      button.scrollIntoView({ block: 'center' });
+      const rect = button.getBoundingClientRect();
+      return { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) };
+    })()`);
+    win.webContents.sendInputEvent({ type: "mouseDown", button: "left", clickCount: 1, ...runPoint });
+    win.webContents.sendInputEvent({ type: "mouseUp", button: "left", clickCount: 1, ...runPoint });
+    await win.webContents.executeJavaScript("checkNativeComposerClick()");
+    await win.webContents.insertText("第一行");
+    win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return", modifiers: ["shift"] });
+    win.webContents.sendInputEvent({ type: "char", keyCode: "\r", modifiers: ["shift"] });
+    win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return", modifiers: ["shift"] });
+    await win.webContents.insertText("第二行");
+    await win.webContents.executeJavaScript("checkNativeComposerNewline()");
+    win.webContents.sendInputEvent({ type: "keyDown", keyCode: "Return" });
+    win.webContents.sendInputEvent({ type: "keyUp", keyCode: "Return" });
+    await win.webContents.executeJavaScript("checkNativeComposerEnterAndEditing()");
     const screenshot = path.join(profile, "agent-work-desktop.png");
     await win.webContents.executeJavaScript("window.scrollTo(0, 0); tick()");
     fs.writeFileSync(screenshot, (await win.webContents.capturePage()).toPNG());

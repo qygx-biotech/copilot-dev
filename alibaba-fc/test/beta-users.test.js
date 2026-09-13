@@ -235,7 +235,7 @@ test("every preparatory provider route keeps user credentials independent of sel
 });
 
 test("Side Chat and Agent Command answer/tool loops and streamed answers retain the caller's key", async () => {
-  for (const mode of ["side_chat", "agent_instruction"]) {
+  for (const [mode, model] of [["side_chat", nemotron], ["agent_instruction", nemotron], ["agent_instruction", "google/gemini-3.1-flash-lite:flex"]]) {
     for (const stream of [false, true]) {
       for (const [token, key] of [[betaToken(), baseEnv.REQUESTY_KEY_BETA01], [betaToken(1), baseEnv.REQUESTY_KEY_BETA02], [adminToken(), baseEnv.REQUESTY_API_KEY]]) {
         providerRequests.length = 0;
@@ -247,13 +247,13 @@ test("Side Chat and Agent Command answer/tool loops and streamed answers retain 
           return new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(finalAnswer) }, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } });
         };
         const events = [];
-        const result = await invoke("POST", "/chat", { ...chat, mode, model: nemotron, stream }, token, {}, {
+        const result = await invoke("POST", "/chat", { ...chat, mode, model, stream }, token, {}, {
           start: async () => events.push("start"), emit: async (type, data) => { assertNoSecrets(data); events.push(type); }
         });
         assert.equal(result.status, 200); assert.equal(result.body.fallback, false); assert.equal(result.body.reply, finalAnswer.reply);
         assert.equal(providerRequests.length, 2);
         for (const request of providerRequests) {
-          assert.equal(request.key, `Bearer ${key}`); assert.equal(request.body.model, mode === "side_chat" ? nemotron : baseEnv.REQUESTY_MODEL);
+          assert.equal(request.key, `Bearer ${key}`); assert.equal(request.body.model, model);
         }
         if (stream) { assert.equal(events[0], "start"); assert.ok(events.includes("delta")); }
       }

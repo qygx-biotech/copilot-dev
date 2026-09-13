@@ -29,7 +29,7 @@ const token = jwt.sign({ account: "semantic-test", role: "admin" }, process.env.
 
 function ir(overrides = {}) {
   return {
-    version: 1, inputLanguage: "en", answerLanguage: "en", matchedPattern: null,
+    version: 1, retrievalScope: "workspace", inputLanguage: "en", answerLanguage: "en", matchedPattern: null,
     patternConfidence: 0.2, goal: "Compare EctD experimental ranking with literature evidence",
     operations: ["search", "filter", "rank", "compare"], objects: ["literature", "experiments"],
     entities: [{ type: "protein", canonicalId: "EctD", mention: "EctD" }],
@@ -88,7 +88,7 @@ test("one strict semantic call handles novel multilingual composition and preser
   assert.equal(requests[0].url, "https://router.requesty.ai/v1/chat/completions");
   assert.equal(requests[0].body.model, process.env.REQUESTY_SEMANTIC_PARSER_MODEL);
   assert.deepEqual(requests[0].body.response_format, {
-    type: "json_schema", json_schema: { name: "semantic_intent_ir", strict: true, schema: semantic.SEMANTIC_IR_SCHEMA }
+    type: "json_schema", json_schema: { name: "semantic_intent_ir", strict: true, schema: require("../semantic-intent-planner.js").SEMANTIC_INTENT_LLM_SCHEMA }
   });
   assert.equal(requests[0].body.requesty.extra.call_role, "semantic_parser");
   assert.equal(requests[0].body.requesty.extra.profile, "medium");
@@ -490,4 +490,77 @@ test("FC preserves bounded literature identity and completion diagnostics and de
   assert.equal(context.literature.coverage.coverageComplete, false);
   assert.deepEqual(context.literature.evidenceCompletion.requestedDimensions, ["sample_count"]);
   assert.doesNotMatch(JSON.stringify(context), /private source|private title/);
+});
+
+test("cited follow-up context survives the host, shared compaction, renderer client, authenticated handler and active answer loop", async () => {
+  const { followUpFixture } = require("./helpers/follow-up-fixture.js");
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  const f = followUpFixture(); let serialized;
+  const saved = JSON.stringify(f.conversation);
+  const api = new LiteratureApiClient({ baseUrl: "https://fc.example.test", getHeaders: () => ({ Authorization: `Bearer ${token}` }),
+    fetch: async (url, options) => {
+      assert.equal(options.headers.Authorization, `Bearer ${token}`);
+      serialized = JSON.parse(options.body);
+      const reply = { ...semantic.interpretLocal(serialized), operations: ["read"], objects: ["literature"],
+        scope: { papers: ["P2"], experiments: null }, unresolvedSlots: [] };
+      responses.push(reply);
+      const response = await backend.handler({ requestContext: { http: { method: "POST", path: new URL(url).pathname } },
+        headers: options.headers, body: options.body }, { requestId: "follow-up-transport" });
+      return new Response(response.body, { status: response.statusCode, headers: { "Content-Type": "application/json" } });
+    } });
+  f.literature.api = api;
+  // Use the existing configured default model; also verify scoped override propagation.
+  const c = await f.build("And redistribution?", { turnId: "follow-up-transport", callContext: { model: process.env.REQUESTY_MODEL } });
+  assert.equal(requests.length, 1);
+  assert.equal(api.getTurnCallCounts("follow-up-transport").semantic_parser, 1);
+  assert.equal(requests[0].body.model, process.env.REQUESTY_MODEL);
+  const providerInput = JSON.parse(requests[0].body.messages[1].content);
+  assert.deepEqual(providerInput.conversationContext, serialized.conversationContext);
+  assert.deepEqual(providerInput.paperCandidates, serialized.paperCandidates);
+  assert.equal(providerInput.conversationContext.length, 4);
+  assert.deepEqual(providerInput.conversationContext.at(-1).paperIds, ["P2"]);
+  assert.ok(providerInput.paperCandidates.some(p => p.sourceId === "P2" && p.title === "BetaDock docking study"));
+  assert.doesNotMatch(JSON.stringify(providerInput), /Old summary|Original P2 evidence|sourceMap|files|relativePath/);
+  assert.deepEqual(c.literature.relevantPaperIds, ["P2"]); assert.equal(c.files.length, 1);
+  const local = backend._test.sanitizeLocalWorkspaceContext(c);
+  assert.equal(local.literature.referenceResolution.status, "resolved");
+  let turns = 0;
+  const result = await agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: local },
+    conversationMessages: f.conversation.messages.map(({ role, content }) => ({ role, content })),
+    originalRequest: "And redistribution?", systemPrompt: "Use original evidence", parseFinalAnswer: reply => ({ reply }),
+    requestTurn: async ({ messages }) => {
+      assert.ok(messages.some(message => message.role === "system" && message.content.includes("Original user request:\nAnd redistribution?")));
+      assert.ok(messages.some(message => message.role === "system" && message.content.includes("<semantic_ir>")));
+      if (++turns === 1) return { ok: true, message: { tool_calls: [{ id: "read-follow-up", type: "function", function: { name: "read_paper_evidence", arguments: '{"paper_id":"P2","query":"license"}' } }] } };
+      const evidence = JSON.parse(messages.find(m => m.role === "tool").content);
+      assert.equal(evidence.paper_id, "P2"); assert.equal(evidence.content_available, true);
+      assert.match(JSON.stringify(evidence), /license is restrictive/);
+      assert.match(JSON.stringify(evidence), /P2:p4:original/);
+      return { ok: true, message: { content: "The license is restrictive [cite:P2:p4:original]." } };
+    } });
+  assert.equal(result.ok, true); assert.equal(turns, 2);
+  assert.equal(JSON.stringify(f.conversation), saved);
+});
+
+test("semantic candidates are bounded reference hints, not scope expansion or provider authorization", async () => {
+  const candidate = { sourceId: "P2", title: "BetaDock docking study", currentness: "changed" };
+  const valid = input({ query: "What license does it use?", paperCandidates: [candidate],
+    conversationContext: [{ role: "assistant", content: "A recent answer", paperIds: [null, "P2"] }] });
+  const bad = [
+    { ...valid, paperCandidates: {} }, { ...valid, paperCandidates: [null] },
+    { ...valid, paperCandidates: Array(9).fill(candidate) }, { ...valid, paperCandidates: [candidate, candidate] },
+    { ...valid, paperCandidates: [{ ...candidate, title: "x".repeat(301) }] },
+    { ...valid, paperCandidates: [{ ...candidate, relativePath: "literature/full.pdf" }] },
+    { ...valid, paperCandidates: [{ ...candidate, model: "another-model" }] },
+    { ...valid, paperCandidates: [{ ...candidate, currentness: "guaranteed" }] },
+    { ...valid, activeScope: { paperIds: ["P1"] } },
+    { ...valid, conversationContext: [{ role: "assistant", content: "answer", paperIds: ["FOREIGN"] }] },
+    { ...valid, conversationContext: [{ role: "assistant", content: "answer", paperIds: Array(9).fill("P2") }] },
+  ];
+  for (const value of bad) assert.equal((await invoke("/api/semantic/interpret", value)).status, 400);
+  assert.equal((await invoke("/api/semantic/interpret", valid, false)).status, 401);
+  assert.equal(requests.length, 0);
+  responses.push(ir({ objects: ["literature"], scope: { papers: ["FOREIGN"], experiments: null } }));
+  assert.equal((await invoke("/api/semantic/interpret", valid)).status, 502);
+  assert.equal(requests.length, 1); // No repair call for an invented ID.
 });

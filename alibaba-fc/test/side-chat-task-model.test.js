@@ -8,6 +8,7 @@ const { normalizeCallContext } = require("../../docs/knowledge-service.js");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const semantic = require("../../shared/semantic-intent.js");
 const nemotron = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
+const geminiFlex = "google/gemini-3.1-flash-lite:flex";
 process.env.JWT_SECRET = "side-chat-task-model-fixture";
 process.env.ADMIN_ACCOUNT = "model-test";
 process.env.REQUESTY_API_KEY = "fixture-key";
@@ -17,7 +18,7 @@ const roleNames = ["REQUESTY_SEARCH_PLANNER_MODEL", "REQUESTY_RERANK_MODEL", "RE
 for (const name of roleNames) process.env[name] = `configured/${name.toLowerCase()}`;
 process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
 // These are declared fixture capabilities, not claims about the live provider.
-process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ [nemotron]: { pdf: true, jsonSchema: true, pdfJsonSchema: true } });
+process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify(Object.fromEntries([nemotron, geminiFlex].map(model => [model, { pdf: true, jsonSchema: true, pdfJsonSchema: true }])));
 const backend = require("../index.js");
 const token = jwt.sign({ account: process.env.ADMIN_ACCOUNT, role: "admin" }, process.env.JWT_SECRET);
 const providerRequests = [];
@@ -35,28 +36,30 @@ const api = new LiteratureApiClient({ baseUrl: "", fetch: fcFetch, getHeaders: (
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
 
 test("all preparatory API methods route to the selected model, including strict tasks and repair attempts", async () => {
-  const callContext = { model: nemotron, turnId: "scoped-turn", profile: "medium" };
-  const paper = { paperId: "paper-a", filename: "a.pdf", contentHash: "sha256:abc123", callContext };
-  const calls = [
-    ["semantic parser", () => api.interpretSemantics({ query: "Find EctD evidence", profile: "medium", activeScope: {}, conversationContext: [], projectSemanticRegistry: {}, callContext })],
-    ["schema mapper", () => api.mapExperimentSchema({ version: 1, schemaSignature: "fixture", sheet: "Results", columns: [{ columnId: "c1", rawHeader: "Activity", unit: null, valueTypes: ["number"], examples: [1], candidateFields: ["enzyme_activity"] }], ontology: [{ canonicalField: "enzyme_activity", labels: { en: "Activity" }, canonicalUnit: null, dataType: "number" }], callContext })],
-    ["planner", () => api.planKnowledgeSearch({ query: "EctD stability", intent: "scientific evidence", callContext })],
-    ["reranker", () => api.rerankKnowledgeCandidates({ query: "EctD stability", intent: "scientific evidence", candidates: [{ candidateId: `candidate-${"a".repeat(64)}`, title: "EctD", evidence: [{ evidenceHandle: `evidence-${"a".repeat(64)}-1`, snippet: "EctD activity" }] }], callContext })],
-    ["paper excerpt", () => api.summarizeChunk({ filename: "a.pdf", chunkIndex: 0, totalChunks: 1, text: "Scientific evidence from EctD.", callContext })],
-    ["paper synthesis", () => api.synthesize({ filename: "a.pdf", chunkSummaries: [{ summary: "EctD evidence" }], callContext })],
-    ["combined paper card", () => api.createPaperCardFromText({ ...paper, text: "# Page 1\nEctD evidence", pageCount: 1, chunkCount: 1 })],
-    ["corpus mapper", () => api.mapCorpusPaper({ ...paper, question: "Which EctD variants improved activity?", evidence: [{ evidenceRef: "paper-a:p1:c1", claimCandidate: "The variant improved activity." }] })],
-    ["native PDF", () => api.analyzePdfNative({ ...paper, task: "Summarize the paper", bytes: new TextEncoder().encode("%PDF-1.4\nfixture"), responseSchema: "paper_analysis" })],
-    ["context router", () => api.routeContext({ userQuery: "Which EctD papers?", literatureIndex: [], callContext })],
-    ["images", () => fcFetch("/api/chat/understand-images", { headers: { ...api.getHeaders(), "X-BioDesign-Chat-Model": nemotron }, body: JSON.stringify({ question: "Read this image", images: [{ name: "plot.png", dataUrl: png, thumbnail: png }] }) })],
-  ];
-  for (const [name, call] of calls) {
-    providerRequests.length = 0;
-    let failure;
-    try { await call(); } catch (error) { failure = error; }
-    assert.ok(providerRequests.length, `${name} did not reach the provider: ${failure?.code || failure?.message}`);
-    assert.ok(providerRequests.every(request => request.model === nemotron), name);
-    for (const request of providerRequests) assert.equal(request.requesty?.extra?.model, undefined);
+  for (const model of [nemotron, geminiFlex]) {
+    const callContext = { model, turnId: "scoped-turn", profile: "medium" };
+    const paper = { paperId: "paper-a", filename: "a.pdf", contentHash: "sha256:abc123", callContext };
+    const calls = [
+      ["semantic parser", () => api.interpretSemantics({ query: "Find EctD evidence", profile: "medium", activeScope: {}, conversationContext: [], projectSemanticRegistry: {}, callContext })],
+      ["schema mapper", () => api.mapExperimentSchema({ version: 1, schemaSignature: "fixture", sheet: "Results", columns: [{ columnId: "c1", rawHeader: "Activity", unit: null, valueTypes: ["number"], examples: [1], candidateFields: ["enzyme_activity"] }], ontology: [{ canonicalField: "enzyme_activity", labels: { en: "Activity" }, canonicalUnit: null, dataType: "number" }], callContext })],
+      ["planner", () => api.planKnowledgeSearch({ query: "EctD stability", intent: "scientific evidence", callContext })],
+      ["reranker", () => api.rerankKnowledgeCandidates({ query: "EctD stability", intent: "scientific evidence", candidates: [{ candidateId: `candidate-${"a".repeat(64)}`, title: "EctD", evidence: [{ evidenceHandle: `evidence-${"a".repeat(64)}-1`, snippet: "EctD activity" }] }], callContext })],
+      ["paper excerpt", () => api.summarizeChunk({ filename: "a.pdf", chunkIndex: 0, totalChunks: 1, text: "Scientific evidence from EctD.", callContext })],
+      ["paper synthesis", () => api.synthesize({ filename: "a.pdf", chunkSummaries: [{ summary: "EctD evidence" }], callContext })],
+      ["combined paper card", () => api.createPaperCardFromText({ ...paper, text: "# Page 1\nEctD evidence", pageCount: 1, chunkCount: 1 })],
+      ["corpus mapper", () => api.mapCorpusPaper({ ...paper, question: "Which EctD variants improved activity?", evidence: [{ evidenceRef: "paper-a:p1:c1", claimCandidate: "The variant improved activity." }] })],
+      ["native PDF", () => api.analyzePdfNative({ ...paper, task: "Summarize the paper", bytes: new TextEncoder().encode("%PDF-1.4\nfixture"), responseSchema: "paper_analysis" })],
+      ["context router", () => api.routeContext({ userQuery: "Which EctD papers?", literatureIndex: [], callContext })],
+      ["images", () => fcFetch("/api/chat/understand-images", { headers: { ...api.getHeaders(), "X-BioDesign-Chat-Model": model }, body: JSON.stringify({ question: "Read this image", images: [{ name: "plot.png", dataUrl: png, thumbnail: png }] }) })],
+    ];
+    for (const [name, call] of calls) {
+      providerRequests.length = 0;
+      let failure;
+      try { await call(); } catch (error) { failure = error; }
+      assert.ok(providerRequests.length, `${name} did not reach the provider: ${failure?.code || failure?.message}`);
+      assert.ok(providerRequests.every(request => request.model === model), name);
+      for (const request of providerRequests) assert.equal(request.requesty?.extra?.model, undefined);
+    }
   }
   assert.equal(process.env.REQUESTY_MODEL, "google/gemma-4-31b-it");
   for (const name of roleNames) assert.equal(process.env[name], `configured/${name.toLowerCase()}`);
@@ -90,13 +93,64 @@ test("unapproved task models are rejected after authentication and before any pr
 
 test("selected models never borrow another model's PDF, structured output, or context-window declaration", () => {
   const env = { REQUESTY_MODEL: "google/gemma-4-31b-it", REQUESTY_PDF_MODEL: "other/pdf", REQUESTY_PDF_ENABLED: "true", REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: "true", REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: "true", REQUESTY_MODEL_CONTEXT_TOKENS: "256000" };
-  const scoped = backend._test.sideChatModelEnvironment(env, nemotron);
+  const scoped = backend._test.chatModelEnvironment(env, nemotron);
   const selection = backend._test.selectRequestyModel(scoped, "pdf");
   assert.equal(selection.model, nemotron);
   assert.equal(selection.supported, false);
   assert.equal(selection.capabilities.jsonSchema, false);
   assert.equal(selection.capabilities.contextTokens, 0);
-  assert.equal(backend._test.selectRequestyModel(backend._test.sideChatModelEnvironment({ REQUESTY_MODEL: nemotron }, "default"), "pdf").supported, false);
+  assert.equal(backend._test.selectRequestyModel(backend._test.chatModelEnvironment({ REQUESTY_MODEL: nemotron }, "default"), "pdf").supported, false);
+});
+
+test("Agent model overrides scope every role without borrowing global capabilities or changing Default", () => {
+  const model = "google/gemini-3.1-flash-lite:flex";
+  const scoped = backend._test.chatModelEnvironment({ ...process.env, REQUESTY_MODEL_CAPABILITIES_JSON: "{}" }, model, "agent_instruction");
+  assert.equal(scoped.REQUESTY_MODEL, model);
+  for (const name of roleNames) assert.equal(scoped[name], model);
+  const capabilities = backend._test.selectRequestyModel(scoped).capabilities;
+  assert.equal(capabilities.jsonSchema, true);
+  assert.equal(capabilities.supportsWebSearch, true);
+  assert.equal(capabilities.pdf, false);
+  assert.equal(capabilities.contextTokens, 0);
+  assert.equal(backend._test.chatModelEnvironment(process.env, "default", "agent_instruction"), process.env);
+});
+
+test("Gemini capability defaults can be overridden per model without affecting unknown models", () => {
+  const env = { REQUESTY_MODEL: geminiFlex, REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: "false" };
+  assert.equal(backend._test.selectRequestyModel(env).capabilities.jsonSchema, true);
+  assert.equal(backend._test.selectRequestyModel(env).capabilities.supportsWebSearch, true);
+  const overridden = backend._test.selectRequestyModel({ ...env, REQUESTY_MODEL_CAPABILITIES_JSON:
+    JSON.stringify({ [geminiFlex]: { jsonSchema: false, supportsWebSearch: false } }) }).capabilities;
+  assert.equal(overridden.jsonSchema, false);
+  assert.equal(overridden.supportsWebSearch, false);
+  const partial = backend._test.selectRequestyModel({ ...env, REQUESTY_MODEL_CAPABILITIES_JSON:
+    JSON.stringify({ [geminiFlex]: { contextTokens: 12345 } }) }).capabilities;
+  assert.equal(partial.jsonSchema, true);
+  assert.equal(partial.supportsWebSearch, true);
+  assert.equal(partial.contextTokens, 12345);
+  const unknown = backend._test.selectRequestyModel({ REQUESTY_MODEL: "unknown/model" }).capabilities;
+  assert.equal(unknown.jsonSchema, false);
+  assert.equal(unknown.supportsWebSearch, undefined);
+});
+
+test("Gemini preparation advertises and sends json_schema without a deployment capability override", async () => {
+  const previous = process.env.REQUESTY_MODEL_CAPABILITIES_JSON;
+  process.env.REQUESTY_MODEL_CAPABILITIES_JSON = "{}";
+  try {
+    const callContext = { model: geminiFlex, turnId: "gemini-default-schema", profile: "medium" };
+    const response = await fcFetch("/api/literature/config", { method: "GET",
+      headers: { ...api.getHeaders(), "X-BioDesign-Chat-Model": geminiFlex } });
+    assert.equal(response.status, 200);
+    const config = await response.json();
+    assert.equal(config.combinedTextOutputMode, "json_schema");
+    assert.equal(config.nativePdfSupported, false);
+    providerRequests.length = 0;
+    await api.interpretSemantics({ query: "Find EctD evidence", profile: "medium", activeScope: {}, conversationContext: [], projectSemanticRegistry: {}, callContext }).catch(() => {});
+    assert.equal(providerRequests.length, 1);
+    assert.equal(providerRequests[0].model, geminiFlex);
+    assert.equal(providerRequests[0].response_format.type, "json_schema");
+    assert.equal(providerRequests[0].response_format.json_schema.strict, true);
+  } finally { process.env.REQUESTY_MODEL_CAPABILITIES_JSON = previous; }
 });
 
 test("preflight and semantic interpretation retain the initiating model; the next Agent Command stays independent", async () => {
@@ -108,8 +162,10 @@ test("preflight and semantic interpretation retain the initiating model; the nex
   f.literature.api.interpretSemantics = async payload => { observed.push(["semantic", payload.callContext.model]); return semantic.interpretLocal(payload); };
   const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
   await service.buildContext({ surface: "side_chat", turnId: "chat", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: nemotron } });
+  f.workspace.set("literature/b.pdf", "New EctD evidence");
+  await service.buildContext({ surface: "agent_command", turnId: "agent-gemini", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: geminiFlex } });
   await service.buildContext({ surface: "agent_command", turnId: "agent", question: "Hello", selectedPaths: [], selectedPaperIds: [] });
-  assert.deepEqual(observed, [["paper", nemotron], ["semantic", nemotron], ["semantic", undefined]]);
+  assert.deepEqual(observed, [["paper", nemotron], ["semantic", nemotron], ["paper", geminiFlex], ["semantic", geminiFlex], ["semantic", undefined]]);
 });
 
 test("concurrent maintenance with different selections is serialized and retries use the waiting request's model", async () => {
