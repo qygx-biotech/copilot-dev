@@ -79,3 +79,37 @@ test('successful subset does not satisfy requested paper count',()=>{
  assert.equal(academic.outcome(state,true,5,true).status,'incomplete');
  assert.equal(academic.outcome(state,true,1,true).status,'completed');
 });
+
+test('a failed first page triggers one recovery, pages the original query and counts replacement successes',async()=>{
+ const ref3='paper_'+'3'.repeat(24),ref4='paper_'+'4'.repeat(24);
+ const first=await run({requestTurn:async()=>({ok:true,message:{tool_calls:[call('search_academic_papers',{query:'enzyme engineering',limit:2})]}})});
+ assert.equal(first.data.desktopToolCalls[0].args.prefer_open_access,true);
+ const found=continuation.withResults(first.continuationState,[{id:'search_academic_papers',result:{...searchResult,next_cursor:'set:2',total_candidates:53}}]);
+ const second=await run({resume:found,requestTurn:async()=>({ok:true,message:{tool_calls:[call('download_papers',{paper_refs:[ref,ref2]})]}})});
+ const failed=continuation.withResults(second.continuationState,[{id:'download_papers',result:{version:1,status:'partial',results:[ref,ref2].map(paper_ref=>({paper_ref,status:'failed',error:{code:'NO_ACCESSIBLE_PDF'}}))}}]);
+ let count=0;
+ const third=await run({resume:failed,requestTurn:async request=>{
+  if(!count++) return {ok:true,message:{content:'Cannot download any papers due to copyright.'}};
+  assert.ok(request.messages.some(item=>item.role==='system'&&item.content.includes('one bounded recovery')));
+  assert.ok(request.messages.some(item=>item.role==='system'&&item.content.includes('set:2')));
+  return {ok:true,message:{tool_calls:[call('search_academic_papers',{query:'enzyme engineering',limit:2,cursor:'set:2'},'page2')]}};
+ }});
+ assert.equal(third.continuationState.academicState.downloadRecoveryUsed,true);
+ const paged=continuation.withResults(third.continuationState,[{id:'page2',result:{version:1,status:'completed',papers:[paper(ref3),paper(ref4)],next_cursor:null,total_candidates:53}}]);
+ const fourth=await run({resume:paged,requestTurn:async()=>({ok:true,message:{tool_calls:[call('download_papers',{paper_refs:[ref3,ref4]},'retry')]}})});
+ const saved=continuation.withResults(fourth.continuationState,[{id:'retry',result:{version:1,status:'completed',results:[ref3,ref4].map(paper_ref=>({paper_ref,status:'downloaded',path:`literature/${paper_ref}.pdf`,contentType:'application/pdf'}))}}]);
+ const final=await run({resume:saved,requestTurn:async()=>({ok:true,message:{content:'Saved two relevant papers.'}})});
+ assert.equal(final.data.taskOutcome.status,'completed');assert.equal(final.data.taskOutcome.downloadSuccessCount,2);
+ assert.equal(final.data.taskOutcome.downloadFailureCount,2);assert.equal(final.data.taskOutcome.downloadRecovery,true);
+});
+
+test('download recovery respects permissions, the existing step budget and its one-use bound',async()=>{
+ const state={...academic.initial(),searchCalls:1,papers:[paper()],attemptedRefs:[ref],downloads:[{paper_ref:ref,status:'failed',error:{code:'NO_ACCESSIBLE_PDF'}}]};
+ assert.equal(academic.recoveryMessage(state,true,false,2),'');
+ assert.equal(academic.recoveryMessage(state,false,true,2),'');
+ assert.equal(academic.recoveryMessage({...state,downloadRecoveryUsed:true},true,true,2),'');
+ let count=0;
+ const resume={academicState:state,agentMessages:[{role:'user',content:query}],originalRequest:query,step:6,totalToolCalls:2};
+ const result=await run({resume,requestTurn:async()=>{count++;return {ok:true,message:{content:'No download succeeded.'}};}});
+ assert.equal(count,1);assert.equal(result.data.taskOutcome.downloadRecovery,false);
+});

@@ -230,6 +230,8 @@ class EuropePMCSearcher(PaperSource):
                     'citation_count': item.get('citedByCount', 0),
                     'pmid': item.get('pmid', ''),
                     'pmcid': item.get('pmcid', ''),
+                    'has_pdf': item.get('hasPDF'),
+                    'full_text_urls': item.get('fullTextUrlList', {}).get('fullTextUrl', []),
                 }
             )
 

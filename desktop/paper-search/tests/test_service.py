@@ -25,7 +25,7 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
     async def test_pagination_filters_and_provider_failures_are_explicit(self):
         records = [normalize(paper(identifier=f'10.1000/{i}')) for i in range(5)]
         records[0]['published_date'] = None
-        async def collect(*args):
+        async def collect(*args, **kwargs):
             return records, {'arxiv': {'status': 'completed', 'returned': 5, 'errors': []}, 'core': {'status': 'failed', 'returned': 0, 'errors': ['RATE_LIMITED']}}
         self.service.collect = collect
         first = await self.service.search('topic', limit=2, year_from=2023)
@@ -42,7 +42,7 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         original = normalize(paper(source='pubmed'))
         self.service.store(original)
         wrong = normalize(paper(identifier='10.1000/wrong'))
-        async def collect(*args): return [wrong], {}
+        async def collect(*args, **kwargs): return [wrong], {}
         self.service.collect = collect
         result = await self.service.resolve(original['paper_ref'])
         self.assertEqual(result['status'], 'unavailable')
@@ -51,7 +51,7 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
     async def test_matching_record_merges_locations(self):
         original = normalize(paper(source='pubmed'))
         self.service.store(original)
-        async def collect(*args): return [normalize(paper())], {}
+        async def collect(*args, **kwargs): return [normalize(paper())], {}
         self.service.collect = collect
         result = await self.service.resolve(original['paper_ref'])
         self.assertEqual(result['status'], 'completed')
@@ -97,5 +97,75 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(status['status'], 'partial')
         self.assertIn('INVALID_PROVIDER_RECORD', status['errors'])
+
+    async def test_pmcid_and_alternate_repository_pdf_survive_normalization(self):
+        from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
+        raw = {'id': 'https://openalex.org/W1', 'title': 'Enabling technology and core theory of synthetic biology',
+               'doi': 'https://doi.org/10.1007/s11427-022-2214-2', 'publication_date': '2023-02-07',
+               'primary_location': {'landing_page_url': 'https://doi.org/10.1007/s11427-022-2214-2', 'pdf_url': 'https://link.springer.com/a.pdf'},
+               'open_access': {'is_oa': True}, 'locations': [
+                   {'landing_page_url': 'https://www.ncbi.nlm.nih.gov/pmc/articles/9907219', 'pdf_url': 'https://pmc.ncbi.nlm.nih.gov/articles/PMC9907219/pdf/article.pdf'}]}
+        result = normalize(OpenAlexSearcher()._parse_item(raw))
+        self.assertEqual(result['identifiers']['pmcid'], 'PMC9907219')
+        self.assertTrue(result['access'][0]['is_open_access'])
+        self.assertIn('https://europepmc.org/articles/PMC9907219?pdf=render', [x['url'] for x in result['locations']])
+        self.assertEqual(result['locations'][0]['url'], raw['locations'][0]['pdf_url'])
+        self.assertIn('https://link.springer.com/a.pdf', [x['url'] for x in result['locations']])
+
+    async def test_exact_resolution_precedes_repository_search_and_keeps_identifier(self):
+        original = normalize(paper(source='pubmed'))
+        self.service.store(original)
+        calls = []
+        async def collect(providers, query, limit, **kwargs):
+            calls.append((providers, query, kwargs))
+            value = paper(source='europepmc')
+            value.extra = {'pmcid': 'PMC9907219', 'is_open_access': True}
+            return [normalize(value)], {'europepmc': {'status': 'completed', 'returned': 1, 'errors': []}}
+        self.service.collect = collect
+        result = await self.service.resolve(original['paper_ref'])
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0][2]['exact'])
+        self.assertEqual(calls[0][1], original['doi'])
+        self.assertEqual(result['papers'][0]['identifiers']['pmcid'], 'PMC9907219')
+        self.assertIn('europepmc:identifier', result['provider_status'])
+
+    async def test_repository_fallback_uses_doi_and_title_with_one_deadline(self):
+        original = normalize(paper(source='pubmed'))
+        self.service.store(original)
+        calls = []
+        async def collect(providers, query, limit, **kwargs):
+            calls.append((providers, query, kwargs))
+            return [], {}
+        self.service.collect = collect
+        await self.service.resolve(original['paper_ref'])
+        self.assertEqual(calls[1][1], [original['doi'], original['title']])
+        self.assertIn('pmc', calls[1][0])
+        self.assertLessEqual(calls[1][2]['deadline'] - calls[0][2]['deadline'], 20.1)
+
+    async def test_open_access_preference_keeps_other_candidates_and_cursor_binding(self):
+        closed = normalize(paper(source='pubmed', identifier='10.1000/closed'))
+        available = paper(identifier='10.1000/available')
+        available.pdf_url = 'https://arxiv.org/pdf/1234.56789'
+        async def collect(*args, **kwargs):
+            return [closed, normalize(available)], {'pubmed': {'status': 'completed', 'returned': 2, 'errors': []}}
+        self.service.collect = collect
+        first = await self.service.search('topic', limit=1, prefer_open_access=True)
+        self.assertEqual(first['papers'][0]['doi'], '10.1000/available')
+        second = await self.service.search('topic', cursor=first['next_cursor'], prefer_open_access=True)
+        self.assertEqual(second['papers'][0]['doi'], closed['doi'])
+        with self.assertRaises(ValueError): await self.service.search('topic', cursor=first['next_cursor'], prefer_open_access=False)
+
+    async def test_doi_lookup_reuses_cache_and_never_accepts_nearby_search_results(self):
+        calls = []
+        async def collect(providers, query, limit, **kwargs):
+            calls.append(kwargs)
+            return [normalize(paper(identifier='10.1000/wrong')), normalize(paper())], {}
+        self.service.collect = collect
+        first = await self.service.metadata(query='https://doi.org/10.1000/example')
+        second = await self.service.metadata(query='10.1000/example')
+        self.assertEqual(first['papers'][0]['doi'], '10.1000/example')
+        self.assertEqual(second['papers'][0]['paper_ref'], first['papers'][0]['paper_ref'])
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0]['exact'])
 
 if __name__ == '__main__': unittest.main()

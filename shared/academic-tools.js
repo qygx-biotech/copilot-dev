@@ -12,6 +12,7 @@
       query: { type: "string", minLength: 1, maxLength: 1000 }, providers: { type: "array", minItems: 1, maxItems: PROVIDERS.length, items: { type: "string", enum: PROVIDERS } },
       limit: { type: "integer", minimum: 1, maximum: 20 }, per_source_limit: { type: "integer", minimum: 1, maximum: 100 },
       year_from: { type: "integer", minimum: 1600, maximum: 2200 }, year_to: { type: "integer", minimum: 1600, maximum: 2200 },
+      prefer_open_access: { type: "boolean", description: "Prioritize repository PDF candidates and reported open access within the fetched results, without excluding other papers. Defaults to true for an Agent save/download request. Still screen relevance." },
       cursor: { type: "string", maxLength: 100 },
     }, ["query"]),
     definition("get_academic_paper", "Read complete cached metadata by paper_ref, or look up a supplied DOI/title. Lookup can return several candidates; select the matching paper. No files are written.", {
@@ -37,6 +38,7 @@
       const rule = schema.properties[key];
       if (rule.type === "string" && (typeof value !== "string" || value.length < (rule.minLength || 1) || value.length > (rule.maxLength || 100) || (rule.pattern && !validRef(value)))) bad();
       if (rule.type === "integer" && (!Number.isInteger(value) || value < rule.minimum || value > rule.maximum)) bad();
+      if (rule.type === "boolean" && typeof value !== "boolean") bad();
       if (rule.type === "array" && (!Array.isArray(value) || value.length < rule.minItems || value.length > rule.maxItems || new Set(value).size !== value.length || value.some(item => key === "providers" ? !PROVIDERS.includes(item) : !validRef(item)))) bad();
     }
     if (input.year_from && input.year_to && input.year_from > input.year_to) bad();

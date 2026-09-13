@@ -8,6 +8,7 @@ import { LocalExecutionService } from '../services/local-execution-service.mjs';
 import { registerAcademicWorkflows, paperPdfLinks } from '../services/academic-workflows.mjs';
 import { PaperMcpClient, paperServerPath } from '../services/paper-mcp-client.mjs';
 import academic from '../../shared/academic-tools.js';
+import { paperPageLinks } from '../services/paper-acquisition.mjs';
 const ref = 'paper_' + '1'.repeat(24);
 const pdf = Buffer.from('%PDF-1.7\nfixture\n%%EOF');
 const record = { paper_ref: ref, title: 'A useful academic paper', doi:'10.1000/test', authors:['A'], providers:[{source:'arxiv',paper_id:'a'}], locations:[{url:'https://papers.example.org/article',kind:'landing_page'}] };
@@ -78,4 +79,65 @@ test('real stdio MCP search, metadata, resolution and local download round trip'
  assert.equal(downloaded.results[0].status,'downloaded');
  await mcp.close();
  await assert.rejects(mcp.call('get_academic_paper',{paper_ref:paperRef}),{code:'OPERATION_ABORTED'});
+});
+
+test('PMC landing metadata resolves to the Europe PMC PDF before a failing publisher', async t => {
+ const calls=[];
+ const mcp={call:async()=>({version:1,status:'completed',papers:[{...record,locations:[
+  {url:'https://link.springer.com/content/pdf/article.pdf',kind:'pdf_candidate'},
+  {url:'https://europepmc.org/articles/PMC9907219',kind:'landing_page'}]}]})};
+ const f=await fixture(t,async url=>{calls.push(url);assert.equal(url,'https://europepmc.org/articles/PMC9907219?pdf=render');return {bytes:pdf,contentType:'application/pdf',resolvedUrl:'https://europepmc.org/api/getPdf?pmcid=PMC9907219'};},mcp);
+ const output=await f.run('download_papers',{paper_refs:[ref]});
+ assert.equal(output.results[0].status,'downloaded');assert.equal(calls.length,1);
+});
+
+test('HTML meta refresh reaches an article and its PDF without executing scripts',async t=>{
+ const calls=[];
+ const f=await fixture(t,async url=>{
+  calls.push(url);
+  if(url.endsWith('/article')) return {bytes:Buffer.from('<META HTTP-EQUIV="REFRESH" content="2; url=\'/retrieve?article=1&amp;view=full\'"><script>throw new Error("never run")</script>'),contentType:'text/html',resolvedUrl:url};
+  if(url.includes('/retrieve?')) return {bytes:Buffer.from('<meta name="citation_doi" content="https://doi.org/10.1000/test"><meta name="citation_pdf_url" content="/paper.pdf">'),contentType:'text/html',resolvedUrl:url};
+  assert.ok(url.endsWith('/paper.pdf'));return {bytes:pdf,contentType:'application/pdf',resolvedUrl:url};
+ });
+ const output=await f.run('download_papers',{paper_refs:[ref]});
+ assert.equal(output.results[0].status,'downloaded');
+ assert.equal(calls[1],'https://papers.example.org/retrieve?article=1&view=full');
+ assert.deepEqual(output.results[0].attempts.map(x=>x.code),['HTML_REDIRECT','PDF_LINKS_FOUND']);
+});
+
+test('unsafe HTML redirects, script decoys and redirect loops never save files',async t=>{
+ for(const target of ['javascript:alert(1)','file:///etc/passwd','http://127.0.0.1/admin']) {
+  assert.equal(paperPageLinks(`<meta http-equiv="refresh" content="0;url=${target}">`,'https://example.org/article').redirect,'');
+ }
+ assert.deepEqual(paperPageLinks('<script>const x = \'<meta name="citation_pdf_url" content="/wrong.pdf">\';</script>','https://example.org/article').pdfs,[]);
+ const f=await fixture(t,async url=>({bytes:Buffer.from('<meta http-equiv="refresh" content="0;url=/article">'),contentType:'text/html',resolvedUrl:url}));
+ const output=await f.run('download_papers',{paper_refs:[ref]});
+ assert.equal(output.results[0].attempts[0].code,'HTML_REDIRECT_LOOP');
+ assert.equal(await f.filesystem.exists('literature'),false);
+});
+
+test('a PDF-suffixed HTML response is rejected and an independent candidate can succeed',async t=>{
+ const mcp={call:async()=>({version:1,status:'completed',papers:[{...record,locations:[
+  {url:'https://papers.example.org/bad.pdf',kind:'pdf_candidate'},
+  {url:'https://repository.example.org/good.pdf',kind:'pdf_candidate'}]}]})};
+ const f=await fixture(t,async url=>({bytes:url.includes('/bad.')?Buffer.from('<html>Not a PDF</html>'):pdf,contentType:'application/pdf',resolvedUrl:url}),mcp);
+ const output=await f.run('download_papers',{paper_refs:[ref]});
+ assert.equal(output.results[0].status,'downloaded');
+ assert.equal(output.results[0].attempts[0].code,'INVALID_PDF');
+ assert.equal(output.results[0].resolvedUrl,'https://repository.example.org/good.pdf');
+});
+
+test('Elsevier declared article destination survives a failing temporary preferences redirect',async t=>{
+ const start='https://linkinghub.elsevier.com/retrieve/pii/S0167779924000283';
+ const target='https://www.cell.com/trends/biotechnology/fulltext/S0167-7799(24)00028-3';
+ const mcp={call:async()=>({version:1,status:'completed',papers:[{...record,locations:[{url:start,kind:'landing_page'}]}]})};
+ const f=await fixture(t,async url=>{
+  if(url===start) return {bytes:Buffer.from(`<meta http-equiv="refresh" content="0;url=/retrieve/articleSelectPrefsTemp?Redirect=${encodeURIComponent(target)}&amp;key=fixture">`),contentType:'text/html',resolvedUrl:url};
+  if(url.includes('articleSelectPrefsTemp')) throw Object.assign(new Error('temporary redirect unavailable'),{code:'HTTP_ERROR',httpStatus:503});
+  if(url===target) return {bytes:Buffer.from('<meta name="citation_pdf_url" content="/article.pdf">'),contentType:'text/html',resolvedUrl:url};
+  assert.equal(url,'https://www.cell.com/article.pdf');return {bytes:pdf,contentType:'application/pdf',resolvedUrl:url};
+ },mcp);
+ const output=await f.run('download_papers',{paper_refs:[ref]});
+ assert.equal(output.results[0].status,'downloaded');
+ assert.equal(output.results[0].attempts[1].httpStatus,503);
 });

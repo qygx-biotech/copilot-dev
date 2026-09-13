@@ -2247,6 +2247,14 @@ async function runSideChatAgent({
         agentMessages.push({ role: "assistant", content: turn.message.content }, { role: "system", content: "The original request remains pending. Use the exposed academic search tools and, if saving was requested and permitted, download_papers with relevant returned paper_refs. Report actual results or concrete blockers. This is the one corrective continuation within the existing budget.\nOriginal request:\n" + activeRequest });
         continue;
       }
+      if (academicMode && step < MAX_AGENT_STEPS - 2 && totalToolCalls < MAX_TOTAL_TOOL_CALLS - 1) {
+        const recovery = academicAgent.recoveryMessage(academicState, downloadRequested, downloadPermitted, knowledgeBase.semanticIR?.requestedOutput?.limit);
+        if (recovery) {
+          academicState.downloadRecoveryUsed = true;
+          agentMessages.push({ role: "assistant", content: turn.message.content }, { role: "system", content: recovery + "\nOriginal request:\n" + activeRequest });
+          continue;
+        }
+      }
       if (!academicMode && downloadRequested && downloadExposed && !downloadState.attempts && (webSearchSources.length || scope === "none") &&
           !downloadState.correctionUsed && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS) {
         downloadState.correctionUsed = true;
@@ -2279,6 +2287,7 @@ async function runSideChatAgent({
         else {
           try {
             const args = academicTools.validateInput(name, parseToolArguments(toolCall));
+            if (name === "search_academic_papers" && downloadRequested && args.prefer_open_access === undefined) args.prefer_open_access = true;
             if (academicTools.isWrite(name)) {
               if (args.paper_refs.some(ref => !academicState.papers.some(paper => paper.paper_ref === ref))) throw Object.assign(new Error(), { code: "UNKNOWN_PAPER_HANDLE" });
               if (args.paper_refs.some(ref => academicState.attemptedRefs.includes(ref))) throw Object.assign(new Error(), { code: "SOURCE_ALREADY_ATTEMPTED" });

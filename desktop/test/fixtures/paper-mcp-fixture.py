@@ -9,7 +9,7 @@ from service import normalize
 from paper_search_mcp.paper import Paper
 from datetime import datetime
 
-def worker(provider, query, limit, deadline):
+def worker(provider, query, limit, deadline, **kwargs):
     record = normalize(Paper(paper_id='fixture', title='Academic fixture paper', authors=['A. Author'], abstract='Fixture abstract.',
         doi='10.1000/fixture', published_date=datetime(2024,1,1), pdf_url='https://papers.example.org/fixture.pdf',
         url='https://papers.example.org/fixture', source=provider))

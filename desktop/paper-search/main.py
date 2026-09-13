@@ -11,9 +11,10 @@ service = PaperService()
 @mcp.tool()
 async def search_academic_papers(query: str, providers: list[str] | None = None, limit: int = 10,
                                 per_source_limit: int = 20, year_from: int | None = None,
-                                year_to: int | None = None, cursor: str | None = None) -> dict:
+                                year_to: int | None = None, cursor: str | None = None,
+                                prefer_open_access: bool = False) -> dict:
     """Search anonymous academic providers; return structured records and a bounded-result cursor."""
-    return await service.search(query, providers, limit, per_source_limit, year_from, year_to, cursor)
+    return await service.search(query, providers, limit, per_source_limit, year_from, year_to, cursor, prefer_open_access)
 
 @mcp.tool()
 async def get_academic_paper(paper_ref: str | None = None, query: str | None = None) -> dict:

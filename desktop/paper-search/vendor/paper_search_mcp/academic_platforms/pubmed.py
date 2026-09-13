@@ -91,7 +91,8 @@ class PubMedSearcher(PaperSource):
                     source='pubmed',
                     categories=[],
                     keywords=[],
-                    doi=doi
+                    doi=doi,
+                    extra={'pmid': pmid, 'pmcid': article.findtext('./PubmedData/ArticleIdList/ArticleId[@IdType="pmc"]') or ''}
                 ))
             except Exception:
                 continue

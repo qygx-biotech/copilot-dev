@@ -33,6 +33,10 @@ Search and metadata work with read-only Agent permission. Saving requires explic
 
 Search accepts a focused query, optional provider selection and year range, up to 100 candidates per provider, and up to 20 results per response. DOI and conservative title/author matching merge duplicates. The cursor pages a cached, bounded candidate set; it is not exhaustive upstream pagination. Year ranges are applied after retrieval and records with unknown dates are excluded when a year filter is requested. Provider failures, empty-or-unavailable responses and coverage are explicit. The model can refine queries or choose other providers within the existing budget.
 
+For an explicit download request, the Agent defaults `prefer_open_access` to true unless the tool call specifies otherwise. This ranks known repository PDF candidates and reported open access ahead of other fetched candidates without excluding papers or establishing relevance. PMCID, PMID, access reports and alternate full-text locations survive normalization and deduplication. DOI metadata lookup uses the cache or exact identifier endpoints instead of treating a DOI as a broad topical query.
+
+After an unsuccessful or insufficient download batch, a premature final response can receive one bounded recovery reminder in addition to the existing unattempted-task correction. Signed continuation state preserves the query, filters and next cursor. The Agent can inspect later candidates and choose other relevant papers for a topic-based request; it must not silently substitute for explicitly named papers. The existing 8-step/24-call limits still apply. Reaching a requested saved count can complete the task even if earlier candidate downloads failed; those failures remain visible in the results.
+
 Handles and candidate sets expire after 30 minutes and are scoped to the local project process. Closing the project terminates that process. Reopening or an expired handle requires a new search. Saved PDFs and provenance persist.
 
 ## Anonymous provider coverage
@@ -49,6 +53,8 @@ All 19 supported anonymous modes are registered; no provider API keys, inherited
 
 Default discovery queries PubMed, Europe PMC, Semantic Scholar, Crossref and arXiv. The other providers are selectable in the tool. Full-text resolution also checks Europe PMC, OpenAlex, CORE, OpenAIRE, HAL and Crossref for matching alternatives. Optional-key providers may offer reduced anonymous coverage or rate-limit requests. Registration does not imply every result or provider will have an accessible PDF.
 
+Resolution first uses known repository locations and PMCID-based PDF endpoints. When those are absent, it checks exact Europe PMC, OpenAlex and Crossref identifiers, then searches Europe PMC, CORE, OpenAIRE, HAL and PMC by DOI and title within one 35-second resolution budget. OpenAlex's secondary repository locations are retained alongside its primary publisher location. Europe PMC's PDF endpoint is tried for a known PMCID, including papers that are free to read but not classified in the reusable open-access subset. These locations remain unverified candidates until fetched.
+
 API-key-only/institutional integrations (including IEEE/ACM and BASE) are deferred. Unpaywall's email registration is also deferred. Sci-Hub is not part of the public-source acquisition route. Publisher or repository public copies linked from any supported provider can be downloaded without adding that publisher as a separate search connector.
 
 ## Local files and provenance
@@ -56,6 +62,8 @@ API-key-only/institutional integrations (including IEEE/ACM and BASE) are deferr
 The default destination is `literature/`; the tool can select another ordinary relative folder within the open project. Existing filesystem confinement and collision handling apply. Public HTTP(S) fetches validate DNS addresses and each redirect and have byte/time limits. Academic downloads use the desktop network path only, with no FC download fallback.
 
 The downloader tries candidate PDFs and PDF links declared on public landing pages. It rejects detected DOI mismatches, requires PDF byte signatures, and never saves an HTML error/paywall page as a paper. This verifies file type and available identity metadata; it is not a full-text scientific identity review. Files exceeding the existing 20 MiB source limit fail explicitly. Search metadata and abstracts are discovery evidence, not full-text findings.
+
+Academic acquisition follows declarative HTML `meta refresh` redirects, including publisher linking pages, through the same HTTP(S), DNS and redirect validation as ordinary fetches. It never executes page scripts or submits forms. Repository candidates take priority; a paper is limited to 16 attempted URLs, five consecutive HTML redirects and a 90-second acquisition deadline. Loops and browser challenges are reported separately. `HTML_NO_PDF_LINK`, `REDIRECT_LIMIT`, `ACCESS_CHALLENGE` and `NO_ACCESSIBLE_PDF` describe retrieval outcomes and do not establish a copyright restriction. Diagnostic URLs longer than 700 characters are marked truncated to keep continuation results bounded.
 
 The existing `.biodesign/sources/<download-id>.json` sidecar includes paper metadata, original and resolved URLs, local path, timestamp and SHA-256. `.biodesign/academic/downloads.json` supports reuse when the paper handle, destination and current file hash match. No files are overwritten and no knowledge layers are generated by downloading. Existing preflight discovers and ingests new PDFs on the next request.
 

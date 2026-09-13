@@ -77,86 +77,99 @@ class OpenAlexSearcher(PaperSource):
                 if len(papers) >= max_results:
                     break
 
-                # ID usually looks like 'https://openalex.org/W2741809807'
-                paper_id = item.get("id", "").replace("https://openalex.org/", "")
-                title = item.get("title")
-                if not title:
-                    continue  # Skip items without a title
-
-                # Process Authors
-                authors = [
-                    author.get("author", {}).get("display_name", "")
-                    for author in item.get("authorships", [])
-                    if author.get("author", {}).get("display_name")
-                ]
-
-                # Abstract
-                abstract = self._reconstruct_abstract(
-                    item.get("abstract_inverted_index")
-                )
-
-                # Process DOI
-                doi = item.get("doi", "")
-                if doi:
-                    # OpenAlex DOI is returned as a full url e.g. https://doi.org/10...
-                    doi = doi.replace("https://doi.org/", "")
-
-                if not doi and abstract:
-                    doi = extract_doi(abstract)
-
-                # Process URLs (Landing page vs direct PDF)
-                url = ""
-                pdf_url = ""
-
-                primary_location = item.get("primary_location")
-                if primary_location:
-                    url = primary_location.get("landing_page_url", "")
-                    pdf_url = primary_location.get("pdf_url", "")
-
-                if not url:
-                    url = item.get("id", "")
-
-                # Check general open access availability for PDF fallback
-                open_access = item.get("open_access", {})
-                if not pdf_url and open_access.get("is_oa"):
-                    pdf_url = open_access.get("oa_url", "")
-
-                # Dates
-                pub_date_str = item.get("publication_date")
-                published_date = None
-                if pub_date_str:
-                    try:
-                        published_date = datetime.strptime(pub_date_str, "%Y-%m-%d")
-                    except ValueError:
-                        pass
-
-                # Categories / Concepts
-                concepts = [
-                    concept.get("display_name")
-                    for concept in item.get("concepts", [])
-                    if concept.get("display_name")
-                ]
-
-                papers.append(
-                    Paper(
-                        paper_id=paper_id,
-                        title=title,
-                        authors=authors,
-                        abstract=abstract,
-                        url=url,
-                        pdf_url=pdf_url or "",
-                        published_date=published_date,
-                        source="openalex",
-                        categories=concepts[:5],  # Keep top 5 concepts to reduce size
-                        doi=doi,
-                        citations=item.get("cited_by_count", 0),
-                    )
-                )
+                paper = self._parse_item(item)
+                if paper:
+                    papers.append(paper)
 
         except Exception as e:
             logger.error(f"OpenAlex search error: {e}")
 
         return papers
+
+    def _parse_item(self, item: dict) -> Optional[Paper]:
+        # ID usually looks like 'https://openalex.org/W2741809807'
+        paper_id = item.get("id", "").replace("https://openalex.org/", "")
+        title = item.get("title")
+        if not title:
+            return None  # Skip items without a title
+
+        # Process Authors
+        authors = [
+            author.get("author", {}).get("display_name", "")
+            for author in item.get("authorships", [])
+            if author.get("author", {}).get("display_name")
+        ]
+
+        # Abstract
+        abstract = self._reconstruct_abstract(
+            item.get("abstract_inverted_index")
+        )
+
+        # Process DOI
+        doi = item.get("doi", "")
+        if doi:
+            # OpenAlex DOI is returned as a full url e.g. https://doi.org/10...
+            doi = doi.replace("https://doi.org/", "")
+
+        if not doi and abstract:
+            doi = extract_doi(abstract)
+
+        # Process URLs (Landing page vs direct PDF)
+        url = ""
+        pdf_url = ""
+
+        primary_location = item.get("primary_location")
+        if primary_location:
+            url = primary_location.get("landing_page_url", "")
+            pdf_url = primary_location.get("pdf_url", "")
+
+        if not url:
+            url = item.get("id", "")
+
+        # Check general open access availability for PDF fallback
+        open_access = item.get("open_access", {})
+        if not pdf_url and open_access.get("is_oa"):
+            pdf_url = open_access.get("oa_url", "")
+
+        # Dates
+        pub_date_str = item.get("publication_date")
+        published_date = None
+        if pub_date_str:
+            try:
+                published_date = datetime.strptime(pub_date_str, "%Y-%m-%d")
+            except ValueError:
+                pass
+
+        # Categories / Concepts
+        concepts = [
+            concept.get("display_name")
+            for concept in item.get("concepts", [])
+            if concept.get("display_name")
+        ]
+
+        return Paper(
+                paper_id=paper_id,
+                title=title,
+                authors=authors,
+                abstract=abstract,
+                url=url,
+                pdf_url=pdf_url or "",
+                published_date=published_date,
+                source="openalex",
+                categories=concepts[:5],  # Keep top 5 concepts to reduce size
+                doi=doi,
+                citations=item.get("cited_by_count", 0),
+                extra={"open_access": item.get("open_access", {}),
+                       "locations": item.get("locations", []),
+                       "ids": item.get("ids", {}),
+                       "journal": (primary_location or {}).get("source", {}).get("display_name", "") if (primary_location or {}).get("source") else ""},
+            )
+
+    def get_paper_by_doi(self, doi: str) -> Optional[Paper]:
+        from urllib.parse import quote
+        response = self.session.get(f"{self.BASE_URL}/https://doi.org/{quote(doi, safe='/')}", timeout=20)
+        response.raise_for_status()
+        return self._parse_item(response.json())
 
     def download_pdf(self, paper_id: str, save_path: str) -> str:
         """
