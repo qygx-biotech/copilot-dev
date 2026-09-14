@@ -168,4 +168,49 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls), 1)
         self.assertTrue(calls[0]['exact'])
 
+    async def test_complementary_queries_share_deadline_deduplicate_and_page_without_network(self):
+        calls = []
+        def worker(provider, query, limit, deadline):
+            calls.append((provider, query, deadline))
+            own = normalize(paper(source=provider, identifier='10.1000/' + query))
+            shared = normalize(paper(source=provider, identifier='10.1000/shared'))
+            return [own, shared], {'status': 'completed', 'returned': 2, 'errors': []}
+        self.service.worker = worker
+        first = await self.service.search('design', queries=['validation'], providers=['pubmed', 'arxiv'], limit=2)
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(len({call[2] for call in calls}), 1)
+        self.assertEqual(first['total_candidates'], 3)
+        self.assertEqual(first['metrics']['raw_candidates'], 8)
+        self.assertEqual([p['doi'] for p in first['papers']], ['10.1000/design', '10.1000/validation'])
+        second = await self.service.search('design', queries=['validation'], providers=['pubmed', 'arxiv'], cursor=first['next_cursor'])
+        self.assertEqual(len(calls), 4)
+        self.assertTrue(second['metrics']['cached_page'])
+        self.assertEqual(second['metrics']['provider_jobs'], 0)
+        self.assertEqual(second['papers'][0]['doi'], '10.1000/shared')
+        with self.assertRaises(ValueError):
+            await self.service.search('design', queries=['other'], providers=['pubmed', 'arxiv'], cursor=first['next_cursor'])
+
+    async def test_handles_stay_stable_across_different_queries_and_later_doi_metadata(self):
+        first = normalize(paper(source='pubmed', identifier=''))
+        self.service.store(first)
+        later = self.service.store(normalize(paper(source='crossref')))
+        self.assertEqual(first['paper_ref'], later['paper_ref'])
+        self.assertEqual(later['doi'], '10.1000/example')
+        self.assertEqual(len(later['providers']), 2)
+        conflict = self.service.store(normalize(paper(identifier='10.1000/conflict')))
+        self.assertNotEqual(conflict['paper_ref'], later['paper_ref'])
+
+    async def test_query_batch_limits_and_partial_provider_results(self):
+        for queries in [[], ['topic'], ['one'] * 4, [None]]:
+            with self.assertRaises(ValueError): await self.service.search('topic', queries=queries)
+        with self.assertRaises(ValueError): await self.service.search('topic', queries=['other'], providers=list(PROVIDERS))
+        def worker(provider, query, limit, deadline):
+            if query == 'failed': return [], {'status': 'failed', 'returned': 0, 'errors': ['RATE_LIMITED']}
+            return [normalize(paper())], {'status': 'completed', 'returned': 1, 'errors': []}
+        self.service.worker = worker
+        result = await self.service.search('good', queries=['failed'], providers=['arxiv'])
+        self.assertEqual(result['status'], 'partial')
+        self.assertEqual(len(result['papers']), 1)
+        self.assertEqual(result['provider_status']['q2:arxiv']['errors'], ['RATE_LIMITED'])
+
 if __name__ == '__main__': unittest.main()

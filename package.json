@@ -17,6 +17,7 @@
     "eval:agent": "node evals/run.mjs",
     "eval:compare": "node evals/compare.mjs",
     "eval:test": "node --test evals/test/*.test.mjs",
+    "eval:literature": "node evals/literature/run.mjs",
     "postinstall": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
     "desktop:prepare": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
     "desktop:dev": "npm run desktop:prepare && npm run paper:build && electron-forge start",

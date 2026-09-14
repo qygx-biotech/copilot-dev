@@ -1,0 +1,1557 @@
+{
+  "version": 1,
+  "mode": "replay",
+  "generated_at": "2026-09-14T01:09:37.718Z",
+  "model": null,
+  "observations": [
+    {
+      "id": "ai-synthetic-biology",
+      "request": "Find and save 3 papers about generative AI in synthetic biology, covering biological parts, genetic circuits and genomes.",
+      "data": {
+        "reply": "3 / 3 PDFs saved. \n\nActual download results:\n\n- Saved: `literature/c.pdf` (application/pdf)\n- Saved: `literature/d.pdf` (application/pdf)\n- Source 3 (`paper_9550fc2abe6146c4b6d33a62`): failed — NO_ACCESSIBLE_PDF\n- Saved: `literature/e.pdf` (application/pdf)\n\nSelection reasons (based on titles and available abstracts):\n- Learning genetic circuit behavior: Predicts regulatory circuit behavior to guide circuit design.\n- Genome design with generative models: Models genome organization for synthetic genome design.\n- Generative promoter design: Generates promoter sequences as programmable biological parts.",
+        "academicSources": [
+          {
+            "paper_ref": "paper_2725f76e329294a7ae7b0e36",
+            "title": "AI biosecurity policy overview",
+            "doi": "10.9999/ai-synthetic-biology-a",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Discusses governance, not methods for biological design.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/ai-synthetic-biology/a.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "a"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_9550fc2abe6146c4b6d33a62",
+            "title": "Generative protein sequence design",
+            "doi": "10.9999/ai-synthetic-biology-b",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Designs biological parts using a generative model and experimental validation.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": false
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/ai-synthetic-biology/b.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "b"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_3a17aef3531f0e857a141ec4",
+            "title": "Learning genetic circuit behavior",
+            "doi": "10.9999/ai-synthetic-biology-c",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Predicts regulatory circuit behavior to guide circuit design.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/ai-synthetic-biology/c.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "c"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_b10e05f8d9b9b6035fd51f60",
+            "title": "Genome design with generative models",
+            "doi": "10.9999/ai-synthetic-biology-d",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Models genome organization for synthetic genome design.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/ai-synthetic-biology/d.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "d"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_6f6907b5fd7263d49d000eca",
+            "title": "Generative promoter design",
+            "doi": "10.9999/ai-synthetic-biology-e",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Generates promoter sequences as programmable biological parts.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/ai-synthetic-biology/e.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "e"
+              }
+            ]
+          }
+        ],
+        "academicSearchStatus": {
+          "searchCalls": 2,
+          "candidateCount": 5,
+          "failures": [],
+          "returnedCandidates": 5,
+          "pagesInspected": 1,
+          "history": [
+            {
+              "query": "generative AI synthetic biology biological parts",
+              "queries": [
+                "machine learning genetic circuit design",
+                "generative models genome design"
+              ],
+              "page": false,
+              "added": 2,
+              "returned": 2,
+              "metrics": null
+            },
+            {
+              "query": "generative AI synthetic biology biological parts",
+              "queries": [
+                "machine learning genetic circuit design",
+                "generative models genome design"
+              ],
+              "page": true,
+              "added": 3,
+              "returned": 3,
+              "metrics": null
+            }
+          ],
+          "discoveryMs": 1,
+          "model": {
+            "calls": 5,
+            "latency_ms": 0,
+            "usage_reported_calls": 0,
+            "input_tokens": null,
+            "output_tokens": null,
+            "cost_usd": null,
+            "cost_note": "Billing is unavailable; benchmark estimates require explicit model prices and complete observed token usage."
+          }
+        },
+        "academicSelection": {
+          "plan": {
+            "request_kind": "topic",
+            "subtopics": [
+              "biological parts",
+              "genetic circuits",
+              "genomes"
+            ],
+            "synonyms": [
+              "generative design",
+              "machine learning"
+            ],
+            "queries": [
+              "generative AI synthetic biology biological parts",
+              "machine learning genetic circuit design",
+              "generative models genome design"
+            ],
+            "requested_count": 3,
+            "count_source": "user_request"
+          },
+          "shortlist": [
+            {
+              "paper_ref": "paper_3a17aef3531f0e857a141ec4",
+              "relevance": 5,
+              "covers": [
+                "genetic circuits"
+              ],
+              "reason": "Predicts regulatory circuit behavior to guide circuit design.",
+              "evidence": "title_abstract"
+            },
+            {
+              "paper_ref": "paper_b10e05f8d9b9b6035fd51f60",
+              "relevance": 5,
+              "covers": [
+                "genomes"
+              ],
+              "reason": "Models genome organization for synthetic genome design.",
+              "evidence": "title_abstract"
+            },
+            {
+              "paper_ref": "paper_6f6907b5fd7263d49d000eca",
+              "relevance": 5,
+              "covers": [
+                "biological parts"
+              ],
+              "reason": "Generates promoter sequences as programmable biological parts.",
+              "evidence": "title_abstract"
+            },
+            {
+              "paper_ref": "paper_9550fc2abe6146c4b6d33a62",
+              "relevance": 5,
+              "covers": [
+                "biological parts"
+              ],
+              "reason": "Designs biological parts using a generative model and experimental validation.",
+              "evidence": "title_abstract"
+            }
+          ],
+          "remaining_gaps": [],
+          "saved": 3,
+          "requested": 3,
+          "candidates": 5,
+          "pages_inspected": 1,
+          "search_calls": 2,
+          "search_ms": 1,
+          "stop_reason": "requested_count_saved",
+          "low_yield_streak": 0,
+          "budgets": {
+            "searchCalls": 4,
+            "focusedQueries": 6,
+            "candidates": 120,
+            "discoveryMs": 140000,
+            "moveMs": 600000
+          }
+        },
+        "taskOutcome": {
+          "status": "completed",
+          "downloadRequested": true,
+          "downloadExposed": true,
+          "downloadPermitted": true,
+          "downloadAttemptCount": 4,
+          "downloadResultCount": 4,
+          "downloadSuccessCount": 3,
+          "downloadFailureCount": 1,
+          "requestedPaperCount": 3,
+          "correctiveContinuation": false,
+          "downloadRecovery": false,
+          "stopReason": "requested_count_saved"
+        },
+        "downloadResults": [
+          {
+            "paper_ref": "paper_3a17aef3531f0e857a141ec4",
+            "status": "downloaded",
+            "path": "literature/c.pdf",
+            "contentType": "application/pdf"
+          },
+          {
+            "paper_ref": "paper_b10e05f8d9b9b6035fd51f60",
+            "status": "downloaded",
+            "path": "literature/d.pdf",
+            "contentType": "application/pdf"
+          },
+          {
+            "paper_ref": "paper_9550fc2abe6146c4b6d33a62",
+            "status": "failed",
+            "error": {
+              "code": "NO_ACCESSIBLE_PDF"
+            }
+          },
+          {
+            "paper_ref": "paper_6f6907b5fd7263d49d000eca",
+            "status": "downloaded",
+            "path": "literature/e.pdf",
+            "contentType": "application/pdf"
+          }
+        ]
+      },
+      "transcript": [
+        {
+          "tool": {
+            "id": "search_academic_papers",
+            "name": "search_academic_papers",
+            "args": {
+              "query": "generative AI synthetic biology biological parts",
+              "queries": [
+                "machine learning genetic circuit design",
+                "generative models genome design"
+              ],
+              "limit": 2,
+              "prefer_open_access": false
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "completed",
+            "papers": [
+              {
+                "paper_ref": "paper_2725f76e329294a7ae7b0e36",
+                "title": "AI biosecurity policy overview",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Discusses governance, not methods for biological design.",
+                "doi": "10.9999/ai-synthetic-biology-a",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/ai-synthetic-biology/a.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "a"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              },
+              {
+                "paper_ref": "paper_9550fc2abe6146c4b6d33a62",
+                "title": "Generative protein sequence design",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Designs biological parts using a generative model and experimental validation.",
+                "doi": "10.9999/ai-synthetic-biology-b",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/ai-synthetic-biology/b.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "b"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": false
+                  }
+                ]
+              }
+            ],
+            "next_cursor": "fixture:2",
+            "total_candidates": 5
+          }
+        },
+        {
+          "tool": {
+            "id": "page",
+            "name": "search_academic_papers",
+            "args": {
+              "query": "generative AI synthetic biology biological parts",
+              "queries": [
+                "machine learning genetic circuit design",
+                "generative models genome design"
+              ],
+              "limit": 2,
+              "prefer_open_access": false,
+              "cursor": "fixture:2"
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "completed",
+            "papers": [
+              {
+                "paper_ref": "paper_3a17aef3531f0e857a141ec4",
+                "title": "Learning genetic circuit behavior",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Predicts regulatory circuit behavior to guide circuit design.",
+                "doi": "10.9999/ai-synthetic-biology-c",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/ai-synthetic-biology/c.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "c"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              },
+              {
+                "paper_ref": "paper_b10e05f8d9b9b6035fd51f60",
+                "title": "Genome design with generative models",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Models genome organization for synthetic genome design.",
+                "doi": "10.9999/ai-synthetic-biology-d",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/ai-synthetic-biology/d.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "d"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              },
+              {
+                "paper_ref": "paper_6f6907b5fd7263d49d000eca",
+                "title": "Generative promoter design",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Generates promoter sequences as programmable biological parts.",
+                "doi": "10.9999/ai-synthetic-biology-e",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/ai-synthetic-biology/e.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "e"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              }
+            ],
+            "next_cursor": null,
+            "total_candidates": 5
+          }
+        },
+        {
+          "tool": {
+            "id": "download_papers",
+            "name": "download_papers",
+            "args": {
+              "paper_refs": [
+                "paper_3a17aef3531f0e857a141ec4",
+                "paper_b10e05f8d9b9b6035fd51f60",
+                "paper_9550fc2abe6146c4b6d33a62"
+              ]
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "partial",
+            "results": [
+              {
+                "paper_ref": "paper_3a17aef3531f0e857a141ec4",
+                "status": "downloaded",
+                "path": "literature/c.pdf",
+                "contentType": "application/pdf"
+              },
+              {
+                "paper_ref": "paper_b10e05f8d9b9b6035fd51f60",
+                "status": "downloaded",
+                "path": "literature/d.pdf",
+                "contentType": "application/pdf"
+              },
+              {
+                "paper_ref": "paper_9550fc2abe6146c4b6d33a62",
+                "status": "failed",
+                "error": {
+                  "code": "NO_ACCESSIBLE_PDF"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "tool": {
+            "id": "reserve",
+            "name": "download_papers",
+            "args": {
+              "paper_refs": [
+                "paper_6f6907b5fd7263d49d000eca"
+              ]
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "partial",
+            "results": [
+              {
+                "paper_ref": "paper_6f6907b5fd7263d49d000eca",
+                "status": "downloaded",
+                "path": "literature/e.pdf",
+                "contentType": "application/pdf"
+              }
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "mode": "replay",
+        "selected": 4,
+        "saved": 3,
+        "requested": 3,
+        "relevance_precision": 1,
+        "topic_coverage": 1,
+        "selection_duplicate_rate": 0,
+        "download_success_rate": 0.75,
+        "latency_ms": 14.580125000000002,
+        "search_ms": 1,
+        "model_ms": 0,
+        "model_calls": 5,
+        "input_tokens": null,
+        "output_tokens": null,
+        "estimated_model_cost_usd": null,
+        "stop_reason": "requested_count_saved",
+        "judgments_complete": true,
+        "cost_basis": "Unmeasured: no complete model usage and price pair. Replay makes no paid calls."
+      }
+    },
+    {
+      "id": "enzyme-methods",
+      "request": "Download 2 papers comparing machine-learning-guided enzyme engineering for substrate specificity and thermostability.",
+      "data": {
+        "reply": "2 / 2 PDFs saved. \n\nActual download results:\n\n- Saved: `literature/b.pdf` (application/pdf)\n- Saved: `literature/c.pdf` (application/pdf)\n\nSelection reasons (based on titles and available abstracts):\n- Learning enzyme substrate preference: Uses experimental activity data to predict and alter substrate specificity.\n- Protein stabilization with learned representations: Tests mutations selected to improve enzyme thermostability.",
+        "academicSources": [
+          {
+            "paper_ref": "paper_4cccbb0d9a303a6e41d7c133",
+            "title": "Enzyme market outlook",
+            "doi": "10.9999/enzyme-methods-a",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "An economic survey without engineering methods.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/enzyme-methods/a.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "a"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_779b540ee789839a2bfa9e13",
+            "title": "Learning enzyme substrate preference",
+            "doi": "10.9999/enzyme-methods-b",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Uses experimental activity data to predict and alter substrate specificity.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/enzyme-methods/b.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "b"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_33b8183bc5534ddc0aa2764c",
+            "title": "Protein stabilization with learned representations",
+            "doi": "10.9999/enzyme-methods-c",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Tests mutations selected to improve enzyme thermostability.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/enzyme-methods/c.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "c"
+              }
+            ]
+          }
+        ],
+        "academicSearchStatus": {
+          "searchCalls": 2,
+          "candidateCount": 3,
+          "failures": [],
+          "returnedCandidates": 3,
+          "pagesInspected": 1,
+          "history": [
+            {
+              "query": "machine learning enzyme engineering substrate specificity",
+              "queries": [
+                "machine learning directed evolution thermostability"
+              ],
+              "page": false,
+              "added": 2,
+              "returned": 2,
+              "metrics": null
+            },
+            {
+              "query": "machine learning enzyme engineering substrate specificity",
+              "queries": [
+                "machine learning directed evolution thermostability"
+              ],
+              "page": true,
+              "added": 1,
+              "returned": 1,
+              "metrics": null
+            }
+          ],
+          "discoveryMs": 0,
+          "model": {
+            "calls": 4,
+            "latency_ms": 0,
+            "usage_reported_calls": 0,
+            "input_tokens": null,
+            "output_tokens": null,
+            "cost_usd": null,
+            "cost_note": "Billing is unavailable; benchmark estimates require explicit model prices and complete observed token usage."
+          }
+        },
+        "academicSelection": {
+          "plan": {
+            "request_kind": "topic",
+            "subtopics": [
+              "substrate specificity",
+              "thermostability"
+            ],
+            "synonyms": [
+              "directed evolution",
+              "protein engineering"
+            ],
+            "queries": [
+              "machine learning enzyme engineering substrate specificity",
+              "machine learning directed evolution thermostability"
+            ],
+            "requested_count": 2,
+            "count_source": "user_request"
+          },
+          "shortlist": [
+            {
+              "paper_ref": "paper_779b540ee789839a2bfa9e13",
+              "relevance": 5,
+              "covers": [
+                "substrate specificity"
+              ],
+              "reason": "Uses experimental activity data to predict and alter substrate specificity.",
+              "evidence": "title_abstract"
+            },
+            {
+              "paper_ref": "paper_33b8183bc5534ddc0aa2764c",
+              "relevance": 5,
+              "covers": [
+                "thermostability"
+              ],
+              "reason": "Tests mutations selected to improve enzyme thermostability.",
+              "evidence": "title_abstract"
+            }
+          ],
+          "remaining_gaps": [],
+          "saved": 2,
+          "requested": 2,
+          "candidates": 3,
+          "pages_inspected": 1,
+          "search_calls": 2,
+          "search_ms": 0,
+          "stop_reason": "requested_count_saved",
+          "low_yield_streak": 1,
+          "budgets": {
+            "searchCalls": 4,
+            "focusedQueries": 6,
+            "candidates": 120,
+            "discoveryMs": 140000,
+            "moveMs": 600000
+          }
+        },
+        "taskOutcome": {
+          "status": "completed",
+          "downloadRequested": true,
+          "downloadExposed": true,
+          "downloadPermitted": true,
+          "downloadAttemptCount": 2,
+          "downloadResultCount": 2,
+          "downloadSuccessCount": 2,
+          "downloadFailureCount": 0,
+          "requestedPaperCount": 2,
+          "correctiveContinuation": false,
+          "downloadRecovery": false,
+          "stopReason": "requested_count_saved"
+        },
+        "downloadResults": [
+          {
+            "paper_ref": "paper_779b540ee789839a2bfa9e13",
+            "status": "downloaded",
+            "path": "literature/b.pdf",
+            "contentType": "application/pdf"
+          },
+          {
+            "paper_ref": "paper_33b8183bc5534ddc0aa2764c",
+            "status": "downloaded",
+            "path": "literature/c.pdf",
+            "contentType": "application/pdf"
+          }
+        ]
+      },
+      "transcript": [
+        {
+          "tool": {
+            "id": "search_academic_papers",
+            "name": "search_academic_papers",
+            "args": {
+              "query": "machine learning enzyme engineering substrate specificity",
+              "queries": [
+                "machine learning directed evolution thermostability"
+              ],
+              "limit": 2,
+              "prefer_open_access": false
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "completed",
+            "papers": [
+              {
+                "paper_ref": "paper_4cccbb0d9a303a6e41d7c133",
+                "title": "Enzyme market outlook",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "An economic survey without engineering methods.",
+                "doi": "10.9999/enzyme-methods-a",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/enzyme-methods/a.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "a"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              },
+              {
+                "paper_ref": "paper_779b540ee789839a2bfa9e13",
+                "title": "Learning enzyme substrate preference",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Uses experimental activity data to predict and alter substrate specificity.",
+                "doi": "10.9999/enzyme-methods-b",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/enzyme-methods/b.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "b"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              }
+            ],
+            "next_cursor": "fixture:2",
+            "total_candidates": 3
+          }
+        },
+        {
+          "tool": {
+            "id": "page",
+            "name": "search_academic_papers",
+            "args": {
+              "query": "machine learning enzyme engineering substrate specificity",
+              "queries": [
+                "machine learning directed evolution thermostability"
+              ],
+              "limit": 2,
+              "prefer_open_access": false,
+              "cursor": "fixture:2"
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "completed",
+            "papers": [
+              {
+                "paper_ref": "paper_33b8183bc5534ddc0aa2764c",
+                "title": "Protein stabilization with learned representations",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Tests mutations selected to improve enzyme thermostability.",
+                "doi": "10.9999/enzyme-methods-c",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/enzyme-methods/c.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "c"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              }
+            ],
+            "next_cursor": null,
+            "total_candidates": 3
+          }
+        },
+        {
+          "tool": {
+            "id": "download_papers",
+            "name": "download_papers",
+            "args": {
+              "paper_refs": [
+                "paper_779b540ee789839a2bfa9e13",
+                "paper_33b8183bc5534ddc0aa2764c"
+              ]
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "partial",
+            "results": [
+              {
+                "paper_ref": "paper_779b540ee789839a2bfa9e13",
+                "status": "downloaded",
+                "path": "literature/b.pdf",
+                "contentType": "application/pdf"
+              },
+              {
+                "paper_ref": "paper_33b8183bc5534ddc0aa2764c",
+                "status": "downloaded",
+                "path": "literature/c.pdf",
+                "contentType": "application/pdf"
+              }
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "mode": "replay",
+        "selected": 2,
+        "saved": 2,
+        "requested": 2,
+        "relevance_precision": 1,
+        "topic_coverage": 1,
+        "selection_duplicate_rate": 0,
+        "download_success_rate": 1,
+        "latency_ms": 3.5869590000000073,
+        "search_ms": 0,
+        "model_ms": 0,
+        "model_calls": 4,
+        "input_tokens": null,
+        "output_tokens": null,
+        "estimated_model_cost_usd": null,
+        "stop_reason": "requested_count_saved",
+        "judgments_complete": true,
+        "cost_basis": "Unmeasured: no complete model usage and price pair. Replay makes no paid calls."
+      }
+    },
+    {
+      "id": "chinese-date-constrained",
+      "request": "检索并保存2023至2025年间两篇关于单细胞基础模型的论文，覆盖扰动预测和跨组织泛化。",
+      "data": {
+        "reply": "2 / 2 PDFs saved. \n\n实际下载结果：\n\n- 已保存: `literature/b.pdf` (application/pdf)\n- 已保存: `literature/c.pdf` (application/pdf)\n\n文献选择理由（基于标题和摘要）：\n- Foundation models for cellular perturbations: Evaluates prediction of cellular responses to perturbations.\n- Cross-tissue evaluation of cell models: Tests transfer and generalization across held-out tissues.",
+        "academicSources": [
+          {
+            "paper_ref": "paper_b66b84452e5174ad5e959d3d",
+            "title": "Foundation models for cellular perturbations",
+            "doi": "10.9999/chinese-date-constrained-b",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Evaluates prediction of cellular responses to perturbations.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/chinese-date-constrained/b.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "b"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_c8ad7ddb6ebc21199d11eac2",
+            "title": "Cross-tissue evaluation of cell models",
+            "doi": "10.9999/chinese-date-constrained-c",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Tests transfer and generalization across held-out tissues.",
+            "published_date": "2025-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/chinese-date-constrained/c.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "c"
+              }
+            ]
+          }
+        ],
+        "academicSearchStatus": {
+          "searchCalls": 1,
+          "candidateCount": 2,
+          "failures": [],
+          "returnedCandidates": 2,
+          "pagesInspected": 0,
+          "history": [
+            {
+              "query": "single cell foundation model perturbation prediction",
+              "queries": [
+                "single cell foundation model cross tissue generalization"
+              ],
+              "page": false,
+              "added": 2,
+              "returned": 2,
+              "metrics": null
+            }
+          ],
+          "discoveryMs": 0,
+          "model": {
+            "calls": 3,
+            "latency_ms": 0,
+            "usage_reported_calls": 0,
+            "input_tokens": null,
+            "output_tokens": null,
+            "cost_usd": null,
+            "cost_note": "Billing is unavailable; benchmark estimates require explicit model prices and complete observed token usage."
+          }
+        },
+        "academicSelection": {
+          "plan": {
+            "request_kind": "topic",
+            "subtopics": [
+              "perturbation prediction",
+              "cross-tissue generalization"
+            ],
+            "synonyms": [
+              "single-cell foundation model"
+            ],
+            "queries": [
+              "single cell foundation model perturbation prediction",
+              "single cell foundation model cross tissue generalization"
+            ],
+            "requested_count": 2,
+            "year_from": 2023,
+            "year_to": 2025,
+            "count_source": "user_request"
+          },
+          "shortlist": [
+            {
+              "paper_ref": "paper_b66b84452e5174ad5e959d3d",
+              "relevance": 5,
+              "covers": [
+                "perturbation prediction"
+              ],
+              "reason": "Evaluates prediction of cellular responses to perturbations.",
+              "evidence": "title_abstract"
+            },
+            {
+              "paper_ref": "paper_c8ad7ddb6ebc21199d11eac2",
+              "relevance": 5,
+              "covers": [
+                "cross-tissue generalization"
+              ],
+              "reason": "Tests transfer and generalization across held-out tissues.",
+              "evidence": "title_abstract"
+            }
+          ],
+          "remaining_gaps": [],
+          "saved": 2,
+          "requested": 2,
+          "candidates": 2,
+          "pages_inspected": 0,
+          "search_calls": 1,
+          "search_ms": 0,
+          "stop_reason": "requested_count_saved",
+          "low_yield_streak": 0,
+          "budgets": {
+            "searchCalls": 4,
+            "focusedQueries": 6,
+            "candidates": 120,
+            "discoveryMs": 140000,
+            "moveMs": 600000
+          }
+        },
+        "taskOutcome": {
+          "status": "completed",
+          "downloadRequested": true,
+          "downloadExposed": true,
+          "downloadPermitted": true,
+          "downloadAttemptCount": 2,
+          "downloadResultCount": 2,
+          "downloadSuccessCount": 2,
+          "downloadFailureCount": 0,
+          "requestedPaperCount": 2,
+          "correctiveContinuation": false,
+          "downloadRecovery": false,
+          "stopReason": "requested_count_saved"
+        },
+        "downloadResults": [
+          {
+            "paper_ref": "paper_b66b84452e5174ad5e959d3d",
+            "status": "downloaded",
+            "path": "literature/b.pdf",
+            "contentType": "application/pdf"
+          },
+          {
+            "paper_ref": "paper_c8ad7ddb6ebc21199d11eac2",
+            "status": "downloaded",
+            "path": "literature/c.pdf",
+            "contentType": "application/pdf"
+          }
+        ]
+      },
+      "transcript": [
+        {
+          "tool": {
+            "id": "search_academic_papers",
+            "name": "search_academic_papers",
+            "args": {
+              "query": "single cell foundation model perturbation prediction",
+              "queries": [
+                "single cell foundation model cross tissue generalization"
+              ],
+              "limit": 2,
+              "prefer_open_access": false,
+              "year_from": 2023,
+              "year_to": 2025
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "completed",
+            "papers": [
+              {
+                "paper_ref": "paper_b66b84452e5174ad5e959d3d",
+                "title": "Foundation models for cellular perturbations",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Evaluates prediction of cellular responses to perturbations.",
+                "doi": "10.9999/chinese-date-constrained-b",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/chinese-date-constrained/b.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "b"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              },
+              {
+                "paper_ref": "paper_c8ad7ddb6ebc21199d11eac2",
+                "title": "Cross-tissue evaluation of cell models",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Tests transfer and generalization across held-out tissues.",
+                "doi": "10.9999/chinese-date-constrained-c",
+                "published_date": "2025-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/chinese-date-constrained/c.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "c"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              }
+            ],
+            "next_cursor": null,
+            "total_candidates": 2
+          }
+        },
+        {
+          "tool": {
+            "id": "download_papers",
+            "name": "download_papers",
+            "args": {
+              "paper_refs": [
+                "paper_b66b84452e5174ad5e959d3d",
+                "paper_c8ad7ddb6ebc21199d11eac2"
+              ]
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "partial",
+            "results": [
+              {
+                "paper_ref": "paper_b66b84452e5174ad5e959d3d",
+                "status": "downloaded",
+                "path": "literature/b.pdf",
+                "contentType": "application/pdf"
+              },
+              {
+                "paper_ref": "paper_c8ad7ddb6ebc21199d11eac2",
+                "status": "downloaded",
+                "path": "literature/c.pdf",
+                "contentType": "application/pdf"
+              }
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "mode": "replay",
+        "selected": 2,
+        "saved": 2,
+        "requested": 2,
+        "relevance_precision": 1,
+        "topic_coverage": 1,
+        "selection_duplicate_rate": 0,
+        "download_success_rate": 1,
+        "latency_ms": 4.650125000000003,
+        "search_ms": 0,
+        "model_ms": 0,
+        "model_calls": 3,
+        "input_tokens": null,
+        "output_tokens": null,
+        "estimated_model_cost_usd": null,
+        "stop_reason": "requested_count_saved",
+        "judgments_complete": true,
+        "cost_basis": "Unmeasured: no complete model usage and price pair. Replay makes no paid calls."
+      }
+    },
+    {
+      "id": "sparse-evidence",
+      "request": "Find and save 3 papers on machine learning for ectoine hydroxylase, covering substrate selectivity and thermostability.",
+      "data": {
+        "reply": "1 / 3 PDFs saved. The requested saving operation is incomplete.\n\nActual download results:\n\n- Saved: `literature/b.pdf` (application/pdf)\n\nSelection reasons (based on titles and available abstracts):\n- Learning hydroxylase substrate selectivity: A small study predicting EctD substrate selectivity; no thermostability evaluation.\n\nRemaining gaps: No suitable thermostability study found in the inspected pool.",
+        "academicSources": [
+          {
+            "paper_ref": "paper_55a5327e1d52ff689805c131",
+            "title": "Ectoine production economics",
+            "doi": "10.9999/sparse-evidence-a",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "Discusses manufacturing costs, not machine learning or hydroxylase engineering.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/sparse-evidence/a.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "a"
+              }
+            ]
+          },
+          {
+            "paper_ref": "paper_9aef172f923a08fab476d49b",
+            "title": "Learning hydroxylase substrate selectivity",
+            "doi": "10.9999/sparse-evidence-b",
+            "authors": [
+              "Synthetic fixture author"
+            ],
+            "abstract": "A small study predicting EctD substrate selectivity; no thermostability evaluation.",
+            "published_date": "2024-01-01",
+            "access": [
+              {
+                "is_open_access": true
+              }
+            ],
+            "locations": [
+              {
+                "url": "https://example.org/sparse-evidence/b.pdf",
+                "kind": "pdf_candidate"
+              }
+            ],
+            "providers": [
+              {
+                "source": "arxiv",
+                "paper_id": "b"
+              }
+            ]
+          }
+        ],
+        "academicSearchStatus": {
+          "searchCalls": 1,
+          "candidateCount": 2,
+          "failures": [],
+          "returnedCandidates": 2,
+          "pagesInspected": 0,
+          "history": [
+            {
+              "query": "machine learning ectoine hydroxylase substrate selectivity",
+              "queries": [
+                "EctD machine learning thermostability"
+              ],
+              "page": false,
+              "added": 2,
+              "returned": 2,
+              "metrics": null
+            }
+          ],
+          "discoveryMs": 0,
+          "model": {
+            "calls": 4,
+            "latency_ms": 1,
+            "usage_reported_calls": 0,
+            "input_tokens": null,
+            "output_tokens": null,
+            "cost_usd": null,
+            "cost_note": "Billing is unavailable; benchmark estimates require explicit model prices and complete observed token usage."
+          }
+        },
+        "academicSelection": {
+          "plan": {
+            "request_kind": "topic",
+            "subtopics": [
+              "substrate selectivity",
+              "thermostability"
+            ],
+            "synonyms": [
+              "EctD",
+              "ectoine hydroxylase"
+            ],
+            "queries": [
+              "machine learning ectoine hydroxylase substrate selectivity",
+              "EctD machine learning thermostability"
+            ],
+            "requested_count": 3,
+            "count_source": "user_request"
+          },
+          "shortlist": [
+            {
+              "paper_ref": "paper_9aef172f923a08fab476d49b",
+              "relevance": 5,
+              "covers": [
+                "substrate selectivity"
+              ],
+              "reason": "A small study predicting EctD substrate selectivity; no thermostability evaluation.",
+              "evidence": "title_abstract"
+            }
+          ],
+          "remaining_gaps": [
+            "No suitable thermostability study found in the inspected pool."
+          ],
+          "saved": 1,
+          "requested": 3,
+          "candidates": 2,
+          "pages_inspected": 0,
+          "search_calls": 1,
+          "search_ms": 0,
+          "stop_reason": "sources_exhausted",
+          "low_yield_streak": 0,
+          "budgets": {
+            "searchCalls": 4,
+            "focusedQueries": 6,
+            "candidates": 120,
+            "discoveryMs": 140000,
+            "moveMs": 600000
+          }
+        },
+        "taskOutcome": {
+          "status": "incomplete",
+          "downloadRequested": true,
+          "downloadExposed": true,
+          "downloadPermitted": true,
+          "downloadAttemptCount": 1,
+          "downloadResultCount": 1,
+          "downloadSuccessCount": 1,
+          "downloadFailureCount": 0,
+          "requestedPaperCount": 3,
+          "correctiveContinuation": false,
+          "downloadRecovery": true,
+          "stopReason": "sources_exhausted"
+        },
+        "downloadResults": [
+          {
+            "paper_ref": "paper_9aef172f923a08fab476d49b",
+            "status": "downloaded",
+            "path": "literature/b.pdf",
+            "contentType": "application/pdf"
+          }
+        ]
+      },
+      "transcript": [
+        {
+          "tool": {
+            "id": "search_academic_papers",
+            "name": "search_academic_papers",
+            "args": {
+              "query": "machine learning ectoine hydroxylase substrate selectivity",
+              "queries": [
+                "EctD machine learning thermostability"
+              ],
+              "limit": 2,
+              "prefer_open_access": false
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "completed",
+            "papers": [
+              {
+                "paper_ref": "paper_55a5327e1d52ff689805c131",
+                "title": "Ectoine production economics",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "Discusses manufacturing costs, not machine learning or hydroxylase engineering.",
+                "doi": "10.9999/sparse-evidence-a",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/sparse-evidence/a.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "a"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              },
+              {
+                "paper_ref": "paper_9aef172f923a08fab476d49b",
+                "title": "Learning hydroxylase substrate selectivity",
+                "authors": [
+                  "Synthetic fixture author"
+                ],
+                "abstract": "A small study predicting EctD substrate selectivity; no thermostability evaluation.",
+                "doi": "10.9999/sparse-evidence-b",
+                "published_date": "2024-01-01",
+                "locations": [
+                  {
+                    "url": "https://example.org/sparse-evidence/b.pdf",
+                    "kind": "pdf_candidate"
+                  }
+                ],
+                "providers": [
+                  {
+                    "source": "arxiv",
+                    "paper_id": "b"
+                  }
+                ],
+                "access": [
+                  {
+                    "is_open_access": true
+                  }
+                ]
+              }
+            ],
+            "next_cursor": null,
+            "total_candidates": 2
+          }
+        },
+        {
+          "tool": {
+            "id": "download_papers",
+            "name": "download_papers",
+            "args": {
+              "paper_refs": [
+                "paper_9aef172f923a08fab476d49b"
+              ]
+            }
+          },
+          "result": {
+            "version": 1,
+            "status": "partial",
+            "results": [
+              {
+                "paper_ref": "paper_9aef172f923a08fab476d49b",
+                "status": "downloaded",
+                "path": "literature/b.pdf",
+                "contentType": "application/pdf"
+              }
+            ]
+          }
+        }
+      ],
+      "metrics": {
+        "mode": "replay",
+        "selected": 1,
+        "saved": 1,
+        "requested": 3,
+        "relevance_precision": 1,
+        "topic_coverage": 0.5,
+        "selection_duplicate_rate": 0,
+        "download_success_rate": 1,
+        "latency_ms": 2.252167,
+        "search_ms": 0,
+        "model_ms": 1,
+        "model_calls": 4,
+        "input_tokens": null,
+        "output_tokens": null,
+        "estimated_model_cost_usd": null,
+        "stop_reason": "sources_exhausted",
+        "judgments_complete": true,
+        "cost_basis": "Unmeasured: no complete model usage and price pair. Replay makes no paid calls."
+      }
+    }
+  ],
+  "limitations": [
+    "Synthetic control cases with scripted model decisions, not a measurement of live LLM semantic quality.",
+    "Fixture download outcomes are simulated. Replay latency is local test overhead, not provider latency. No model tokens or cost are fabricated."
+  ]
+}

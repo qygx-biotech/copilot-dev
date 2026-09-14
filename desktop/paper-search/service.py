@@ -200,8 +200,17 @@ class PaperService:
 
     def store(self, record):
         ref = record['paper_ref']
+        if ref not in self.records:
+            # Keep the first issued handle stable across complementary searches,
+            # including a later DOI record matching an earlier title/author record.
+            existing = next((old for old in self.records.values() if same_paper(old, record)
+                             and time.time() - old['retrieved_at'] <= 1800), None)
+            if existing:
+                ref = existing['paper_ref']
         if ref in self.records:
+            retrieved_at = record['retrieved_at']
             record = merge(self.records[ref], record)
+            record['retrieved_at'] = retrieved_at
         self.records[ref] = record
         self.records.move_to_end(ref)
         while len(self.records) > 3000:
@@ -287,8 +296,39 @@ class PaperService:
                     merged.append(record)
         return merged, statuses
 
-    async def search(self, query, providers=None, limit=10, per_source_limit=20, year_from=None, year_to=None, cursor=None, prefer_open_access=False):
-        if not isinstance(query, str) or not 1 <= len(query) <= 1000 or not 1 <= limit <= 20 or not 1 <= per_source_limit <= 100:
+    async def collect_queries(self, providers, queries, limit):
+        # Submit by provider then query so every query gets early worker slots.
+        # One pool and deadline bound the whole batch, not 35 seconds per query.
+        deadline = time.monotonic() + 35
+        jobs = [(i, provider, self.pool.submit(self.worker, provider, query, limit, deadline))
+                for provider in providers for i, query in enumerate(queries)]
+        tasks = [asyncio.wrap_future(job[2]) for job in jobs]
+        done, _ = await asyncio.wait(tasks, timeout=max(0, deadline - time.monotonic()) + 0.5)
+        batches, statuses = [], {}
+        for (i, provider, future), task in zip(jobs, tasks):
+            if task not in done:
+                future.cancel()
+                records, status = [], {'status': 'failed', 'returned': 0, 'errors': ['PROVIDER_TIMEOUT']}
+            else:
+                records, status = task.result()
+            statuses[f'q{i + 1}:{provider}'] = status
+            batches.append(records)
+        merged = []
+        for rank in range(max([len(batch) for batch in batches] or [0])):
+            for batch in batches:
+                if rank >= len(batch):
+                    continue
+                record = batch[rank]
+                existing = next((old for old in merged if same_paper(old, record)), None)
+                if existing:
+                    merge(existing, record)
+                else:
+                    merged.append(record)
+        return merged, statuses
+
+    async def search(self, query, providers=None, limit=10, per_source_limit=20, year_from=None, year_to=None, cursor=None, prefer_open_access=False, queries=None):
+        started = time.monotonic()
+        if not isinstance(query, str) or not query.strip() or not 1 <= len(query) <= 1000 or not 1 <= limit <= 20 or not 1 <= per_source_limit <= 100:
             raise ValueError('INVALID_ACADEMIC_INPUT')
         providers = providers or DEFAULT_PROVIDERS
         if not providers or any(x not in PROVIDERS for x in providers) or len(set(providers)) != len(providers):
@@ -297,7 +337,13 @@ class PaperService:
             raise ValueError('INVALID_ACADEMIC_INPUT')
         if not isinstance(prefer_open_access, bool):
             raise ValueError('INVALID_ACADEMIC_INPUT')
-        signature = json.dumps([query, providers, per_source_limit, year_from, year_to, prefer_open_access])
+        if queries is not None and (not isinstance(queries, list) or not 1 <= len(queries) <= 3
+                                   or any(not isinstance(q, str) or not q.strip() or len(q) > 1000 for q in queries)):
+            raise ValueError('INVALID_ACADEMIC_INPUT')
+        focused = [query] + (queries or [])
+        if len(set(q.strip().casefold() for q in focused)) != len(focused) or len(focused) * len(providers) > 20:
+            raise ValueError('INVALID_ACADEMIC_INPUT')
+        signature = json.dumps([focused, providers, per_source_limit, year_from, year_to, prefer_open_access])
         if cursor:
             set_id, offset_text = cursor.split(':')
             entry = self.sets.get(set_id)
@@ -307,7 +353,7 @@ class PaperService:
             if offset < 0 or offset > len(entry['papers']):
                 raise ValueError('INVALID_ACADEMIC_INPUT')
         else:
-            papers, statuses = await self.collect(providers, query, per_source_limit)
+            papers, statuses = await self.collect_queries(providers, focused, per_source_limit) if queries else await self.collect(providers, query, per_source_limit)
             unknown_dates = sum(not p['published_date'] for p in papers)
             if year_from or year_to:
                 papers = [p for p in papers if p['published_date'] and (year_from or 1600) <= int(p['published_date'][:4]) <= (year_to or 2200)]
@@ -316,9 +362,11 @@ class PaperService:
                 papers.sort(key=lambda p: (not any(location_priority(x) == 0 for x in p['locations']),
                                           not any(x.get('is_open_access') is True for x in p.get('access', [])),
                                           not any(x['kind'] == 'pdf_candidate' for x in p['locations'])))
-            papers = [self.store(p) for p in papers]
+            papers = list({p['paper_ref']: p for p in (self.store(p) for p in papers)}.values())
             set_id, offset = uuid.uuid4().hex, 0
-            entry = {'signature': signature, 'created': time.time(), 'papers': papers, 'provider_status': statuses, 'unknown_dates': unknown_dates}
+            entry = {'signature': signature, 'created': time.time(), 'papers': papers, 'provider_status': statuses, 'unknown_dates': unknown_dates,
+                     'collection_ms': round((time.monotonic() - started) * 1000),
+                     'raw_candidates': sum(s['returned'] for s in statuses.values())}
             self.sets[set_id] = entry
             while len(self.sets) > 24:
                 self.sets.popitem(last=False)
@@ -326,6 +374,7 @@ class PaperService:
         while offset < len(entry['papers']) and len(batch) < limit:
             paper = dict(entry['papers'][offset])
             paper['abstract'] = paper['abstract'][:1500]
+            paper['abstract_truncated'] = len(entry['papers'][offset]['abstract']) > 1500
             if batch and len(json.dumps(batch + [paper])) > 65000:
                 break
             batch.append(paper)
@@ -335,7 +384,10 @@ class PaperService:
                 'total_candidates': len(entry['papers']), 'provider_status': entry['provider_status'],
                 'coverage': 'bounded_candidates; cursor pages cached results, not the entire provider corpus',
                 'filters': {'year_from': year_from, 'year_to': year_to, 'method': 'post_filter', 'unknown_dates_excluded': entry['unknown_dates'] if year_from or year_to else 0},
-                'ranking': 'prefer_open_access_candidates' if prefer_open_access else 'provider_interleaving'}
+                'ranking': 'prefer_open_access_candidates' if prefer_open_access else 'query_provider_interleaving' if queries else 'provider_interleaving',
+                'queries': focused, 'metrics': {'raw_candidates': entry['raw_candidates'], 'unique_candidates': len(entry['papers']),
+                    'collection_ms': entry['collection_ms'], 'page_ms': round((time.monotonic() - started) * 1000),
+                    'cached_page': bool(cursor), 'provider_jobs': 0 if cursor else len(focused) * len(providers)}}
 
     async def metadata(self, paper_ref=None, query=None):
         if bool(paper_ref) == bool(query):

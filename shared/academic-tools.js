@@ -10,9 +10,10 @@
   const tools = Object.freeze([
     definition("search_academic_papers", "Search online academic literature through the desktop's local MCP server. Returns structured metadata and a cursor over a bounded candidate set, not original full-text evidence. Search does not download. Use focused queries, screen relevance, and inspect provider failures/coverage. Optional-key providers run anonymously; no credentials are used. bioRxiv/medRxiv topic discovery uses Europe PMC preprints.", {
       query: { type: "string", minLength: 1, maxLength: 1000 }, providers: { type: "array", minItems: 1, maxItems: PROVIDERS.length, items: { type: "string", enum: PROVIDERS } },
+      queries: { type: "array", minItems: 1, maxItems: 3, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 1000 }, description: "Complementary focused queries in addition to query. All queries share one 35-second provider budget and one deduplicated, interleaved result pool. Preserve these arguments when paging." },
       limit: { type: "integer", minimum: 1, maximum: 20 }, per_source_limit: { type: "integer", minimum: 1, maximum: 100 },
       year_from: { type: "integer", minimum: 1600, maximum: 2200 }, year_to: { type: "integer", minimum: 1600, maximum: 2200 },
-      prefer_open_access: { type: "boolean", description: "Prioritize repository PDF candidates and reported open access within the fetched results, without excluding other papers. Defaults to true for an Agent save/download request. Still screen relevance." },
+      prefer_open_access: { type: "boolean", description: "Optional availability-first browsing. Defaults to false: compare titles/abstracts for relevance and coverage before using availability as a selection tie-breaker." },
       cursor: { type: "string", maxLength: 100 },
     }, ["query"]),
     definition("get_academic_paper", "Read complete cached metadata by paper_ref, or look up a supplied DOI/title. Lookup can return several candidates; select the matching paper. No files are written.", {
@@ -39,9 +40,10 @@
       if (rule.type === "string" && (typeof value !== "string" || value.length < (rule.minLength || 1) || value.length > (rule.maxLength || 100) || (rule.pattern && !validRef(value)))) bad();
       if (rule.type === "integer" && (!Number.isInteger(value) || value < rule.minimum || value > rule.maximum)) bad();
       if (rule.type === "boolean" && typeof value !== "boolean") bad();
-      if (rule.type === "array" && (!Array.isArray(value) || value.length < rule.minItems || value.length > rule.maxItems || new Set(value).size !== value.length || value.some(item => key === "providers" ? !PROVIDERS.includes(item) : !validRef(item)))) bad();
+      if (rule.type === "array" && (!Array.isArray(value) || value.length < rule.minItems || value.length > rule.maxItems || new Set(value).size !== value.length || value.some(item => key === "providers" ? !PROVIDERS.includes(item) : key === "queries" ? typeof item !== "string" || !item.trim() || item.length > 1000 : !validRef(item)))) bad();
     }
     if (input.year_from && input.year_to && input.year_from > input.year_to) bad();
+    if (input.queries && (input.queries.includes(input.query) || (input.queries.length + 1) * (input.providers?.length || 5) > 20)) bad();
     if (name === "get_academic_paper" && Boolean(input.paper_ref) === Boolean(input.query)) bad();
     if (input.destination && (/[\\:\x00-\x1f\x7f]/.test(input.destination) || input.destination.split("/").some(part => !part || part.startsWith(".") || /[. ]$/.test(part)))) bad();
     return JSON.parse(JSON.stringify(input));

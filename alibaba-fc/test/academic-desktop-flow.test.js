@@ -26,7 +26,7 @@ test('production renderer and authenticated FC resume local academic search and 
   const body=JSON.parse(options.body);requests.push(body);
   assert.ok(body.tools.every(x=>x.type==='function'));
   assert.ok(body.tools.some(x=>x.function.name==='search_academic_papers'));
-  const message=requests.length===1?{tool_calls:[tool('search_academic_papers',{query:'EctD engineering'})]}:requests.length===2?{tool_calls:[tool('download_papers',{paper_refs:[ref]})]}:{content:JSON.stringify({reply:'Saved selected paper.',project:{summary:'',organism:'',missingInformation:[],safetyLevel:'',safetyNotes:'',draftMemo:''}})};
+  const message=requests.length===1?{tool_calls:[tool('plan_literature_search',{request_kind:'topic',subtopics:['EctD engineering'],synonyms:['ectoine hydroxylase'],queries:['EctD engineering','ectoine hydroxylase']}),tool('search_academic_papers',{query:'EctD engineering',queries:['ectoine hydroxylase']})]}:requests.length===2?{tool_calls:[tool('select_literature_papers',{shortlist:[{paper_ref:ref,relevance:5,covers:['EctD engineering'],reason:'Studies EctD engineering.',evidence:'title_abstract'}],stop_reason:'sufficient_candidates',remaining_gaps:[]}),tool('download_papers',{paper_refs:[ref]})]}:{content:JSON.stringify({reply:'Saved selected paper.',project:{summary:'',organism:'',missingInformation:[],safetyLevel:'',safetyNotes:'',draftMemo:''}})};
   return new Response(JSON.stringify({choices:[{message}]}));
  });
  const app=await readFile(path.resolve(__dirname,'../../docs/app.js'),'utf8');
