@@ -136,11 +136,11 @@ test("malformed paper is isolated; protocol/text handlers preserve language with
   assert.equal(protocol.paperCardStatus, "not_applicable"); assert.equal(result.report.updated.documents, 2);
 });
 
-test("shared context gate precedes semantic interpretation on both surfaces, default policy ignores stored profile, compact status survives FC", async () => {
+test("local requests on both surfaces retain knowledge sync, the default profile and compact FC status", async () => {
   const f = await createFixture(); addPapers(f.workspace, 1, 1);
   const interpreter = new semantic.SemanticInterpreter(); let called = 0;
   const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
-    semanticInterpreter: { async interpret(input) { called++; assert.equal(f.system.registry.list()[0].knowledgeSync.status, "SYNC_READY"); assert.equal(input.profile, "medium"); return interpreter.interpret(input); } } });
+    semanticInterpreter: { async interpret(input) { called++; assert.equal(f.workspace.scans, called - 1); assert.equal(input.requireRemote, true); assert.equal(input.profile, "medium"); return interpreter.interpret(input); } } });
   for (const [surface, retrievalProfile] of [["side_chat", "light"], ["agent_command", "high"]]) {
     const context = await service.buildContext({ surface, retrievalProfile, turnId: surface, question: "你好", selectedPaths: [], selectedPaperIds: [] });
     assert.equal(context.requestUnderstanding.inputLanguage, "zh"); assert.equal(context.requestUnderstanding.answerLanguage, "zh");

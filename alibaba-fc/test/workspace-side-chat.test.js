@@ -448,7 +448,7 @@ test("workspace open, login, and Refresh never generate Paper Cards", () => {
   assert.match(moduleSource, /async ensurePaperCards\(/);
 });
 
-test("Both surfaces share the context preflight gate before routing", () => {
+test("Side Chat delegates preparation to the context service without eager card generation in the UI", () => {
   const appSource = fs.readFileSync(
     path.join(__dirname, "../../docs/app.js"),
     "utf8"
@@ -456,13 +456,9 @@ test("Both surfaces share the context preflight gate before routing", () => {
   const chatStart = appSource.indexOf("async function askSideChat");
   const chatEnd = appSource.indexOf("function updateSideChatThinking", chatStart);
   const chatFunction = appSource.slice(chatStart, chatEnd);
-  const contextSource = fs.readFileSync(path.join(__dirname, "../../docs/project-context-service.js"), "utf8");
-  const reconcileCall = contextSource.indexOf("await this.requestPipeline.preflight(options)");
   const contextBuild = chatFunction.indexOf("projectContextService.buildContext");
 
-  assert.ok(reconcileCall >= 0);
   assert.ok(contextBuild >= 0);
-  assert.ok(contextSource.indexOf("await this.semanticInterpreter.interpret", reconcileCall) > reconcileCall);
   assert.doesNotMatch(chatFunction, /await reconcileCurrentWorkspaceCatalog\(\)/);
   assert.doesNotMatch(
     chatFunction.slice(0, contextBuild),

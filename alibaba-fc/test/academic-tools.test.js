@@ -35,7 +35,7 @@ test('Agent paper tools skip hosted search and resume search → selected downlo
  const third=await run({resume:next,requestTurn:async()=>({ok:true,message:{content:'Saved all papers.'}})});
  assert.equal(third.data.taskOutcome.status,'incomplete');
  assert.equal(third.data.taskOutcome.downloadSuccessCount,1);
- assert.match(third.data.reply,/1 \/ 2 PDFs saved/);
+ assert.equal(third.data.reply,'Saved all papers.','Preserve model prose; host outcome fields remain authoritative about execution');
  assert.equal(third.data.academicSources.length,2);
  assert.equal(third.data.webSearchStatus,undefined);
 });

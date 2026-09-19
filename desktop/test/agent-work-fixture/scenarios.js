@@ -249,6 +249,28 @@ async function checkNativeComposerEnterAndEditing() {
   window.scrollTo(0, 0);
 }
 
+async function checkAcademicFinalReply() {
+  for (const status of ["completed", "incomplete"]) {
+    addAnalysisPanelButton.click();
+    const chat = analysisPanels.at(-1);
+    const reply = `已筛选出5篇相关文献，成功下载${status === "completed" ? 5 : 3}篇。\n\n**已下载文献**\n1. [1](https://papers.example.org/study-1) (AI与合成生物学研究)\n\n${status === "completed" ? "已完成下载。" : "其余2篇未成功下载：NO_ACCESSIBLE_PDF。"}`;
+    try {
+      draft(chat, "检索并下载AI与合成生物学文献");
+      requestResult = { reply, taskOutcome: { status, downloadSuccessCount: status === "completed" ? 5 : 3, requestedPaperCount: 5 } };
+      await runAgentInstruction(chat.id);
+      const message = chat.messages.at(-1);
+      check(message.content === reply, `Academic ${status} response keeps the assistant reply in conversation history`);
+      const body = card(chat).querySelectorAll(".agent-message.assistant .side-message-body");
+      const shown = body[body.length - 1];
+      check(shown.textContent.includes("已筛选出5篇相关文献") && !shown.textContent.includes("PDFs saved"), `Academic ${status} display preserves the assistant language and wording`);
+      check(shown.querySelector("a")?.href === "https://papers.example.org/study-1", `Academic ${status} citation is rendered as an online source link`);
+      check(chat.taskStatus === (status === "completed" ? "completed" : "failed"), `Academic ${status} execution status remains separate from reply text`);
+      const saved = JSON.parse(sessionStorage.getItem(ANALYSIS_PANELS_STORAGE_KEY)).find(panel => panel.id === chat.id);
+      check(saved.messages.at(-1).content === reply, `Academic ${status} saved history retains the same final reply`);
+    } finally { requestResult = null; deleteAnalysisPanel(chat.id); }
+  }
+}
+
 async function checkResponsive(width) {
   await tick(); window.scrollTo(0, 0);
   const first = analysisPanels[1];

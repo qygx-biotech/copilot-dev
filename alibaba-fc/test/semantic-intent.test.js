@@ -164,6 +164,27 @@ test("Light is local even for open goals; Medium/High use one fused callback", a
   assert.equal(calls, 0);
 });
 
+test("required semantic model bypasses local patterns, cache and profile shortcuts on every request", async () => {
+  let calls = 0;
+  const interpreter = new SemanticInterpreter({ remoteParser: async payload => { calls++; return interpretLocal(payload); } });
+  const request = input("Summarize all papers.", { profile: "light" });
+  await interpreter.interpret(request);
+  assert.equal((await interpreter.interpret(request)).telemetry.semantic.route, "cache");
+  for (let turn = 1; turn <= 2; turn++) {
+    const result = await interpreter.interpret({ ...request, requireRemote: true });
+    assert.equal(result.telemetry.semantic.route, "remote");
+    assert.equal(result.telemetry.semanticParserCalls, 1);
+    assert.equal(calls, turn);
+  }
+});
+
+test("required semantic model cannot fall back to an unvalidated local decision", async () => {
+  for (const remoteParser of [undefined, async () => { throw new Error("Unavailable"); }, async () => ({ goal: "Invalid" })]) {
+    const interpreter = new SemanticInterpreter({ remoteParser });
+    await assert.rejects(interpreter.interpret({ ...input("Summarize all papers."), requireRemote: true }), { code: "SEMANTIC_INTERPRETATION_FAILED" });
+  }
+});
+
 test("parser failure or malformed output falls back locally without hidden retries", async () => {
   for (const bad of [() => { throw new Error("provider unavailable"); }, (payload) => ({ ...interpretLocal(payload), profile: "high" })]) {
     let calls = 0;

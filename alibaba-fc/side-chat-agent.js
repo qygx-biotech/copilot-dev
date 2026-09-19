@@ -19,6 +19,8 @@ const sourceDownload = (() => { try { return require("./shared/source-download.j
 const MAX_AGENT_STEPS = 8;
 const academicTools = require("./shared/academic-tools.js");
 const academicPlanning = require("./academic-planning.js");
+const academicRecovery = require("./academic-recovery.js");
+const academicContext = require("./academic-context.js");
 const academicAgent = require("./academic-agent.js");
 const semanticIntent = (() => {
   try { return require("./shared/semantic-intent.js"); }
@@ -1034,13 +1036,14 @@ function buildSourceCitationRegistry(knowledgeBase) {
   return sourceCitations.createRegistry(entries, knowledgeBase.projectContext.get("workspace_name")?.content || "");
 }
 
-function resolveSideChatAnswerCitations(parsed, knowledgeBase, surface) {
+function resolveSideChatAnswerCitations(parsed, knowledgeBase, surface, academicState = null) {
   if (!["side_chat", "agent_command"].includes(surface) || typeof parsed?.reply !== "string") return parsed;
   const { citations: modelCitations, ...answer } = parsed;
   const strictLiterature = literatureOnly(knowledgeBase) || knowledgeBase.items.some((item) => item.evidenceType === "corpus-workflow");
   let suppressed = 0;
   const resolved = sourceCitations.resolveAnswer(answer.reply, buildSourceCitationRegistry(knowledgeBase), [], {
     suppressUnresolved: strictLiterature, onUnresolved: () => { suppressed += 1; },
+    ...(academicState ? { externalCitations: academicContext.replyCitations(academicState) } : {}),
   });
   if (strictLiterature) console.info("literature_citation_resolution", {
     resolved: resolved.citations.filter((item) => item.status === "resolved").length,
@@ -1895,17 +1898,47 @@ function cloneAgentMessage(message) {
 function compactSideChatAgentMessages(
   messages,
   activeRequest,
-  characterLimit = AGENT_CONTEXT_CHARACTER_LIMIT
+  characterLimit = AGENT_CONTEXT_CHARACTER_LIMIT,
+  academicState = null
 ) {
   let compacted = (Array.isArray(messages) ? messages : []).map(cloneAgentMessage);
+  const toolNames = new Map(compacted.flatMap(message => (message.tool_calls || []).map(call => [call.id, call.function?.name])));
+  const protectedResults = new Set();
+  const academicResults = new Map();
+  for (const message of compacted) {
+    if (message.role !== "tool") continue;
+    const name = message.name || toolNames.get(message.tool_call_id);
+    if (!academicPlanning.isTool(name) && !academicTools.isTool(name)) continue;
+    let value; try { value = JSON.parse(message.content); } catch { /* Old continuations can contain sliced JSON. */ }
+    if (name === "plan_literature_search") {
+      // This is a historical acceptance receipt. Current recovery instructions
+      // belong in the fresh workflow state, never in the original plan result.
+      message.content = JSON.stringify(academicState?.plan && value?.status !== "failed"
+        ? { ...academicPlanning.planReceipt(academicState), compacted: true, recovered_from: "host_state" }
+        : value || { version: 1, status: "failed", error: { code: "LITERATURE_PLAN_RESULT_UNAVAILABLE" },
+          next: "Recover accepted planning details from the current host workflow state; do not repeat an already-recorded plan." });
+      protectedResults.add(message.tool_call_id);
+    } else if (value?.status === "failed" && value.error) {
+      // Field-level corrections must survive both ordinary and reactive
+      // compaction. Keep their structured JSON, not a substring of it.
+      protectedResults.add(message.tool_call_id);
+    } else {
+      academicResults.set(message.tool_call_id, { name, value });
+      if (!value) message.content = JSON.stringify(academicContext.compactResult(name, value, academicState, message.tool_call_id));
+    }
+  }
   const toolIndexes = compacted
     .map((message, index) => (message.role === "tool" ? index : -1))
     .filter((index) => index >= 0);
 
   for (const index of toolIndexes.slice(0, -KEEP_RECENT_TOOL_RESULTS)) {
+    if (protectedResults.has(compacted[index].tool_call_id)) continue;
     const content = String(compacted[index].content || "");
     if (content.length <= 1200) continue;
-    compacted[index].content = `${content.slice(0, 700)}\n[Earlier tool result compacted. Call the same bounded tool again to recover detail.]`;
+    const academic = academicResults.get(compacted[index].tool_call_id);
+    compacted[index].content = academic
+      ? JSON.stringify(academicContext.compactResult(academic.name, academic.value, academicState, compacted[index].tool_call_id))
+      : `${content.slice(0, 700)}\n[Earlier tool result compacted. Call the same bounded tool again to recover detail.]`;
   }
 
   if (estimateMessageCharacters(compacted) <= characterLimit) return compacted;
@@ -1963,7 +1996,10 @@ function compactSideChatAgentMessages(
   if (estimateMessageCharacters(compacted) > characterLimit) {
     compacted = compacted.map((message) => {
       if (message.role !== "tool") return message;
+      if (protectedResults.has(message.tool_call_id)) return message;
       const content = String(message.content || "");
+      const academic = academicResults.get(message.tool_call_id);
+      if (academic) return { ...message, content: JSON.stringify(academicContext.compactResult(academic.name, academic.value, academicState, message.tool_call_id, true)) };
       return content.length > 700
         ? {
             ...message,
@@ -2064,6 +2100,7 @@ async function runSideChatAgent({
   const downloadState = resume?.downloadState || { correctionUsed: false, attempts: 0, results: [] };
   const academicMode = academicAgent.enabled({ surface, desktopAcademic, ir: knowledgeBase.semanticIR });
   const academicState = academicMode ? resume?.academicState || academicAgent.initial() : null;
+  if (academicState) academicRecovery.retirePaginationRequirement(academicState);
   const capabilitiesUsed = new Set(resume?.capabilitiesUsed || []);
   let answerModelCalls = resume?.answerModelCalls || 0;
   const searchStageApi = require("./requesty-search-stage.js");
@@ -2088,7 +2125,7 @@ async function runSideChatAgent({
   const sourceData = () => ({ ...(webSearchSources.length ? { webSearchSources } : {}), ...(webSearchMetadata.length ? { webSearchMetadata } : {}),
     ...(searchStage ? { webSearchStatus: { status: searchStage.status, sourceCount: webSearchSources.length, limitation: searchStageApi.limitation(searchStage, knowledgeBase.semanticIR?.answerLanguage) } } : {}) });
   const finalData = parsed => {
-    const data = resolveSideChatAnswerCitations(parsed, knowledgeBase, surface);
+    const data = resolveSideChatAnswerCitations(parsed, knowledgeBase, surface, academicState);
     // JSON answer fields are model prose, never provider citations or host
     // control messages. Only this harness may attach the reserved fields.
     for (const key of ["webSearchSources", "webSearchMetadata", "webSearchStatus", "desktopToolCalls", "desktopContinuation", "desktopToolResults", "agentContinuation", "taskOutcome", "downloadResults", "academicSources", "academicSearchStatus", "academicSelection"]) delete data[key];
@@ -2101,19 +2138,18 @@ async function runSideChatAgent({
       data.academicSelection.download_selections = Object.values(academicState.downloadSelections || {});
       data.taskOutcome = academicAgent.outcome(academicState, downloadRequested, knowledgeBase.semanticIR?.requestedOutput?.limit, downloadPermitted);
       data.downloadResults = academicState.downloads;
-      if (downloadRequested) {
+      // Keep the final assistant reply as the conversation message. Execution
+      // counts, paths, reasons and gaps are already attached in host-owned fields;
+      // they must not replace or append prose after the model has answered.
+      const hasReply = typeof data.reply === "string" && Boolean(data.reply.trim());
+      if (!hasReply && downloadRequested && !academicRecovery.blocker(academicState)) {
         const items = academicState.downloads.map(item => ({ ...item, url: item.url || item.paper_ref }));
         const summary = items.length ? sourceDownload.resultSummary(items, knowledgeBase.semanticIR?.answerLanguage) : "No PDFs were saved. " + (!downloadPermitted ? "Workspace write permission is required." : "No paper download was completed.");
         const count = `${data.taskOutcome.downloadSuccessCount}${data.taskOutcome.requestedPaperCount ? ` / ${data.taskOutcome.requestedPaperCount}` : ""} PDFs saved. ${data.taskOutcome.status === "completed" ? "" : "The requested saving operation is incomplete."}`;
-        data.reply = knowledgeBase.semanticIR.operations.every(operation => ["search", "store"].includes(operation))
-          ? `${count}\n\n${summary}` : `${data.reply || ""}\n\n${count}\n\n${summary}`;
+        data.reply = `${count}\n\n${summary}`;
       }
-      if (academicState.shortlist) {
-        const zh = knowledgeBase.semanticIR?.answerLanguage === "zh";
-        const reasons = (downloadRequested ? Object.values(academicState.downloadSelections || {}) : academicState.shortlist)
-          .filter(item => !downloadRequested || academicState.downloads.some(result => result.paper_ref === item.paper_ref && result.status === "downloaded"));
-        if (reasons.length) data.reply += `\n\n${zh ? "文献选择理由（基于标题和摘要）：" : "Selection reasons (based on titles and available abstracts):"}\n` + reasons.map(item => `- ${academicState.papers.find(p => p.paper_ref === item.paper_ref)?.title}: ${item.reason}`).join("\n");
-        if (academicState.remainingGaps?.length) data.reply += `\n\n${zh ? "尚存缺口：" : "Remaining gaps:"} ${academicState.remainingGaps.join("; ")}`;
+      if (!hasReply && academicRecovery.blocker(academicState)) {
+        data.reply = academicRecovery.summary(academicState, data.taskOutcome.requestedPaperCount, knowledgeBase.semanticIR?.answerLanguage);
       }
     }
     if (downloadRequested && !academicMode) {
@@ -2198,7 +2234,7 @@ async function runSideChatAgent({
     agentMessages = [...agentMessages.filter(message => message.role === "system"), ...resume.agentMessages.slice(traceStart)];
   }
   const compactMessages = (messages, limit) => {
-    const compacted = compactSideChatAgentMessages(messages, activeRequest, limit);
+    const compacted = compactSideChatAgentMessages(messages, activeRequest, limit, academicState);
     if (searchStage) {
       const evidence = searchStageApi.evidenceMessage(searchStage, webSearchSources);
       if (!compacted.some(message => message.role === "user" && message.content === evidence.content)) compacted.push(evidence);
@@ -2206,6 +2242,36 @@ async function runSideChatAgent({
     return compacted;
   };
   let totalToolCalls = resume?.totalToolCalls || 0;
+  const literatureDownloadRecovery = () => academicMode && downloadRequested && downloadPermitted && academicState.downloadRecoveryUsed;
+  const emptyTurn = turn => turn.error === "EmptyLlmResponse" || (turn.ok && !require("./requesty-response.js").hasAssistantOutput(turn.message));
+  // New continuations retain the parsed reply independently of trace compaction.
+  // Older signed continuations can still recover it from their assistant trace.
+  const recoveryReply = () => {
+    if (academicState.lastUsableReply?.reply?.trim()) return academicState.lastUsableReply;
+    const requestIndex = agentMessages.findLastIndex(message => message.role === "user" && message.content === activeRequest);
+    const downloadIndex = agentMessages.findIndex((message, index) => index > requestIndex &&
+      message.role === "assistant" && message.tool_calls?.some(call => call.function?.name === "download_papers"));
+    for (const message of (downloadIndex < 0 ? [] : agentMessages.slice(downloadIndex + 1)).reverse()) {
+      if (message.role !== "assistant" || message.tool_calls?.length) continue;
+      try { const parsed = parseFinalAnswer(message.content); if (parsed?.reply?.trim()) return parsed; } catch {}
+    }
+    return { reply: "" };
+  };
+  const emptyRecoveryResult = (turn, stoppingLimit) => {
+    const diagnostics = require("./requesty-response.js").diagnostics(turn);
+    academicState.emptyResponseRecovery = { ...academicState.emptyResponseRecovery, status: "incomplete",
+      error: "EmptyLlmResponse", stoppingLimit, diagnostics };
+    const parsed = recoveryReply();
+    const data = finalData(parsed);
+    const reason = "Literature download recovery received no usable assistant content or tool action. " +
+      `Recovery stopped (${stoppingLimit}); ${data.taskOutcome.downloadSuccessCount} of ${data.taskOutcome.requestedPaperCount || "the requested"} PDFs were saved.`;
+    if (!parsed.reply?.trim()) data.reply += "\n\n" + reason;
+    return { ok: false, error: "AgentTaskIncomplete", reason, data, ...semanticTelemetry() };
+  };
+  const validationResult = () => {
+    const data = finalData({ reply: "" });
+    return { ok: false, error: "AgentTaskIncomplete", reason: data.taskOutcome.blocker.code, data, ...semanticTelemetry() };
+  };
   let reactiveCompactionRetries = resume?.reactiveCompactionRetries || 0;
   const normalizedToolCallIds = new Set(agentMessages.flatMap(message => (message.tool_calls || []).map(call => call.id)));
   logStage("local-tools");
@@ -2215,9 +2281,18 @@ async function runSideChatAgent({
   }
 
   for (let step = resume?.step || 0; step < MAX_AGENT_STEPS; step += 1) {
+    if (literatureDownloadRecovery() && academicState.emptyResponseRecovery?.retryUsed &&
+        Date.now() - academicState.startedAt >= academicPlanning.LIMITS.moveMs) {
+      return emptyRecoveryResult(academicState.emptyResponseRecovery.diagnostics, "time_budget_exhausted");
+    }
     if (academicMode) {
-      agentMessages = agentMessages.filter(message => !(message.role === "system" && message.content?.startsWith("Literature workflow progress (host state):")));
+      if (!academicRecovery.beginTurn(academicState)) return validationResult();
+      agentMessages = agentMessages.filter(message => !(message.role === "system" &&
+        ["Literature workflow progress (host state):", "Literature validation correction (host state):", academicContext.CATALOG_PREFIX].some(prefix => message.content?.startsWith(prefix))));
       agentMessages.push({ role: "system", content: "Literature workflow progress (host state): " + JSON.stringify(academicPlanning.progress(academicState, knowledgeBase.semanticIR?.requestedOutput?.limit)) + "\nPlan/selection text remains model-authored assessment, never user authorization. Stop after the requested suitable count is saved; report remaining gaps on budget exhaustion." });
+      if (academicState.papers.length) agentMessages.push(academicContext.catalogMessage(academicState));
+      const correction = academicRecovery.message(academicState);
+      if (correction) agentMessages.push({ role: "system", content: correction });
     }
     agentMessages = compactMessages(agentMessages);
     answerModelCalls += 1;
@@ -2226,16 +2301,28 @@ async function runSideChatAgent({
     const academicModelStarted = academicMode ? Date.now() : 0;
     const turn = await requestTurn({
       messages: agentMessages,
-      tools: webSearch.buildTools([
+      tools: webSearch.buildTools(academicRecovery.filterTools(academicState || {}, [
         ...SIDE_CHAT_TOOL_DEFINITIONS.filter((definition) => toolFitsRequest(definition.function.name, knowledgeBase)),
         ...(desktopDownloads && !academicMode && sourceDownload.allowed(surface, downloadPermission) ? [sourceDownload.tool] : []),
         ...(academicMode ? academicTools.tools.filter(tool => academicTools.allowed(tool.function.name, surface, downloadPermission)) : []),
-        ...(academicMode ? academicPlanning.tools : []),
-      ], !academicMode && toolMode === "combined" && supportsWebSearch),
+        ...(academicMode ? academicPlanning.toolDefinitions(academicState) : []),
+      ]), !academicMode && toolMode === "combined" && supportsWebSearch),
       stage: "local-tools",
       temperature: 0.2
     });
     if (academicMode) academicPlanning.recordModel(academicState, turn, Date.now() - academicModelStarted);
+    if (literatureDownloadRecovery() && emptyTurn(turn)) {
+      const stoppingLimit = academicState.emptyResponseRecovery?.retryUsed ? "empty_response_retry_exhausted"
+        : Date.now() - academicState.startedAt >= academicPlanning.LIMITS.moveMs ? "time_budget_exhausted"
+        : step >= MAX_AGENT_STEPS - 1 ? "llm_budget_exhausted"
+        : totalToolCalls >= MAX_TOTAL_TOOL_CALLS ? "tool_budget_exhausted" : null;
+      if (stoppingLimit) return emptyRecoveryResult(turn, stoppingLimit);
+      academicState.emptyResponseRecovery = { retryUsed: true, status: "retrying",
+        diagnostics: require("./requesty-response.js").diagnostics(turn) };
+      agentMessages.push({ role: "system", content:
+        "The last literature download recovery response contained no usable assistant content or tool calls. Its finish reason does not establish task completion. This is the single corrective retry within the existing budgets. Return either the next authorized tool action or a concrete partial-result explanation with actual saved files and the remaining blocker. First compare relevant unattempted candidates already in the host catalog; use accepted reserves, or validate an updated shortlist with select_literature_papers before download_papers. Preserve relevance, evidence and coverage validation; never assign unrelated coverage or replace explicitly named papers. Search further only if the collected evidence is insufficient and discovery budgets permit it. Internal recovery needs no user confirmation. The fresh host progress and candidate catalog contain the accepted plan, attempted handles, evidence and remaining budgets." });
+      continue;
+    }
     if (!turn.ok) {
       if (
         reactiveCompactionRetries < 1 &&
@@ -2246,12 +2333,21 @@ async function runSideChatAgent({
         step -= 1;
         continue;
       }
+      if (academicMode && academicRecovery.blocker(academicState)) {
+        academicRecovery.exhaust(academicState, "model_provider_failure");
+        academicState.validationRecovery.recovery_failure = String(turn.error || "MODEL_RECOVERY_FAILED").slice(0, 100);
+        return validationResult();
+      }
       return { ...turn, data: sourceData(), ...semanticTelemetry() };
     }
 
     const currentSearchSources = collectSearch(turn);
     const toolCalls = normalizeToolCalls(turn.message, normalizedToolCallIds);
     if (!toolCalls.length) {
+      if (academicMode && academicRecovery.blocker(academicState)) {
+        agentMessages.push({ role: "assistant", content: turn.message?.content || "" });
+        continue; // The next bounded turn receives the actual validation error.
+      }
       const parsed = parseFinalAnswer(turn.message?.content);
       if (!parsed) {
         return {
@@ -2260,10 +2356,21 @@ async function runSideChatAgent({
           reason: "Model returned no usable Side Chat answer.", data: sourceData(), ...semanticTelemetry()
         };
       }
+      if (academicMode && typeof parsed.reply === "string" && parsed.reply.trim()) {
+        academicState.lastUsableReply = { reply: parsed.reply, ...(parsed.project ? { project: parsed.project } : {}) };
+      }
+      if (literatureDownloadRecovery() && academicState.emptyResponseRecovery?.retryUsed) academicState.emptyResponseRecovery.status = "responded";
+      if (academicMode && downloadRequested && downloadPermitted && academicState.shortlist?.length && !academicState.attemptedRefs.length &&
+          !academicState.downloadContinuationUsed && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS) {
+        academicState.downloadContinuationUsed = true;
+        agentMessages.push({ role: "assistant", content: turn.message.content }, { role: "system", content:
+          "The host accepted the literature shortlist. The original request already authorizes saving and workspace write permission is available. Continue with download_papers for the accepted ranked handles; do not request user confirmation for the internal selection step. Preserve the requested destination and report actual saved files or concrete access failures.\n" + JSON.stringify(academicPlanning.progress(academicState, knowledgeBase.semanticIR?.requestedOutput?.limit)) });
+        continue;
+      }
       if (academicMode && !academicState.correctionUsed && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS &&
-          (!academicState.searchCalls || (!academicState.shortlist && academicState.papers.length) || (downloadRequested && downloadPermitted && academicState.shortlist?.length && !academicState.attemptedRefs.length))) {
+          (!academicState.searchCalls || (!academicState.shortlist && academicState.papers.length))) {
         academicState.correctionUsed = true;
-        agentMessages.push({ role: "assistant", content: turn.message.content }, { role: "system", content: "The original request remains pending. Record plan_literature_search if missing, search complementary queries and inspect another cached page when available, then select_literature_papers with relevance/coverage reasons. If saving was requested and permitted, download_papers with shortlisted handles. Report actual results or concrete blockers. This is the one corrective continuation within the existing budget.\nOriginal request:\n" + activeRequest });
+        agentMessages.push({ role: "assistant", content: turn.message.content }, { role: "system", content: "The original request remains pending. Record plan_literature_search if missing, collect complementary queries as a bounded candidate pool, then select_literature_papers with relevance/coverage reasons. Search further only for insufficient relevance, evidence, count or coverage; a cursor alone never requires pagination. If saving was requested and permitted, download_papers with shortlisted handles. Report actual results or concrete blockers. This is the one corrective continuation within the existing budget.\nOriginal request:\n" + activeRequest });
         continue;
       }
       if (academicMode && step < MAX_AGENT_STEPS - 2 && totalToolCalls < MAX_TOTAL_TOOL_CALLS - 1) {
@@ -2293,20 +2400,25 @@ async function runSideChatAgent({
     const recoveryRequests = [];
     const desktopToolCalls = [];
     for (const toolCall of toolCalls) {
-      totalToolCalls += 1;
+      const duplicate = academicMode && (academicPlanning.isTool(toolCall.function.name) || academicTools.isTool(toolCall.function.name))
+        ? academicRecovery.duplicate(academicState, toolCall.function.name, parseToolArguments(toolCall)) : null;
+      const exhausted = academicMode && academicState.validationRecovery?.exhausted;
+      if (!duplicate && !exhausted) totalToolCalls += 1;
       await onProgress({ stage: "tool-running", capability: toolCall.function.name, step: answerModelCalls });
       if (totalToolCalls <= MAX_TOTAL_TOOL_CALLS && authorizeTool(surface, toolCall.function.name, downloadPermission).allowed) {
         capabilitiesUsed.add(toolCall.function.name);
       }
       let output;
-      if (academicPlanning.isTool(toolCall.function.name)) {
+      if (duplicate) output = JSON.stringify(duplicate);
+      else if (exhausted) output = JSON.stringify({ ...academicTools.failure("VALIDATION_RECOVERY_EXHAUSTED"), blocker: academicRecovery.blocker(academicState) });
+      else if (academicPlanning.isTool(toolCall.function.name)) {
         if (!academicMode) output = JSON.stringify(academicTools.failure("PERMISSION_DENIED"));
         else if (totalToolCalls > MAX_TOTAL_TOOL_CALLS) output = JSON.stringify(academicTools.failure("TOOL_BUDGET_EXCEEDED"));
         else {
           try {
             output = JSON.stringify(academicPlanning.execute(academicState, toolCall.function.name, parseToolArguments(toolCall), knowledgeBase.semanticIR?.requestedOutput?.limit));
             capabilitiesUsed.add(toolCall.function.name);
-          } catch (error) { output = JSON.stringify(academicTools.failure(error.code || "INVALID_LITERATURE_PLAN")); }
+          } catch (error) { output = JSON.stringify(academicRecovery.failure(academicState, toolCall.function.name, parseToolArguments(toolCall), error)); }
         }
       } else if (academicTools.isTool(toolCall.function.name)) {
         const name = toolCall.function.name;
@@ -2322,9 +2434,10 @@ async function runSideChatAgent({
               if (desktopToolCalls.filter(call => call.name === "download_papers").reduce((n, call) => n + call.args.paper_refs.length, 0) + args.paper_refs.length > 5) throw Object.assign(new Error(), { code: "DOWNLOAD_BATCH_LIMIT" });
               academicState.attemptedRefs.push(...args.paper_refs);
             }
+            academicRecovery.acceptedSearch(academicState, name);
             desktopToolCalls.push({ id: toolCall.id, name, args });
             output = JSON.stringify({ pendingDesktopTool: toolCall.id });
-          } catch (error) { output = JSON.stringify(academicTools.failure(error.code || "INVALID_ACADEMIC_INPUT")); }
+          } catch (error) { output = JSON.stringify(academicRecovery.failure(academicState, name, parseToolArguments(toolCall), error)); }
         }
       } else if (toolCall.function.name === "download_sources") {
         if (academicMode) output = JSON.stringify({ error: "USE_DOWNLOAD_PAPERS", message: "Use the exposed paper download tool with returned paper_refs." });
@@ -2379,6 +2492,7 @@ async function runSideChatAgent({
         capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending: desktopToolCalls, deferredRecovery: recoveryRequests,
       }, ...semanticTelemetry() };
     }
+    if (academicMode && academicState.validationRecovery?.exhausted) return validationResult();
     if (recoveryRequests.length) {
       await onProgress({ stage: "evidence-recovery", step: answerModelCalls });
       return { ok: true, data: { evidenceRecovery: { version: 1, cycle: 0, requests: recoveryRequests }, ...sourceData() },
@@ -2388,7 +2502,17 @@ async function runSideChatAgent({
     }
   }
 
-  if (academicMode) academicState.selectionStop = "call_budget_exhausted";
+  if (academicMode) {
+    academicState.selectionStop = "call_budget_exhausted";
+    if (academicRecovery.blocker(academicState)) {
+      academicRecovery.exhaust(academicState, "workflow_call_budget");
+      return validationResult();
+    }
+  }
+  if (literatureDownloadRecovery() && academicState.emptyResponseRecovery?.retryUsed &&
+      Date.now() - academicState.startedAt >= academicPlanning.LIMITS.moveMs) {
+    return emptyRecoveryResult(academicState.emptyResponseRecovery.diagnostics, "time_budget_exhausted");
+  }
   const finalMessages = compactMessages(
     [
       {
@@ -2408,10 +2532,12 @@ async function runSideChatAgent({
     temperature: 0.2
   });
   if (academicMode) academicPlanning.recordModel(academicState, finalTurn, Date.now() - academicFinalStarted);
+  if (literatureDownloadRecovery() && emptyTurn(finalTurn)) return emptyRecoveryResult(finalTurn, "llm_budget_exhausted");
   if (!finalTurn.ok) return { ...finalTurn, data: sourceData(), ...semanticTelemetry() };
   collectSearch(finalTurn);
   const parsed = parseFinalAnswer(finalTurn.message?.content);
   if (parsed) {
+    if (literatureDownloadRecovery() && academicState.emptyResponseRecovery?.retryUsed) academicState.emptyResponseRecovery.status = "responded";
     const data = finalData(parsed);
     return { ok: data.taskOutcome?.status !== "incomplete", ...(data.taskOutcome?.status === "incomplete" ? { error: "AgentTaskIncomplete", reason: "A requested action remains incomplete." } : {}), data, ...semanticTelemetry() };
   }

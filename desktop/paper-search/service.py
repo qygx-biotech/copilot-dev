@@ -370,8 +370,13 @@ class PaperService:
             self.sets[set_id] = entry
             while len(self.sets) > 24:
                 self.sets.popitem(last=False)
+        # Initial discovery returns a comparison pool from the already collected,
+        # deduplicated cache, including subsequent small slices when necessary.
+        # No additional provider work/deadline is introduced. Explicit cursors
+        # retain their original page size and offset, including older clients.
+        pool_limit = limit if cursor else 20
         batch = []
-        while offset < len(entry['papers']) and len(batch) < limit:
+        while offset < len(entry['papers']) and len(batch) < pool_limit:
             paper = dict(entry['papers'][offset])
             paper['abstract'] = paper['abstract'][:1500]
             paper['abstract_truncated'] = len(entry['papers'][offset]['abstract']) > 1500
@@ -387,7 +392,8 @@ class PaperService:
                 'ranking': 'prefer_open_access_candidates' if prefer_open_access else 'query_provider_interleaving' if queries else 'provider_interleaving',
                 'queries': focused, 'metrics': {'raw_candidates': entry['raw_candidates'], 'unique_candidates': len(entry['papers']),
                     'collection_ms': entry['collection_ms'], 'page_ms': round((time.monotonic() - started) * 1000),
-                    'cached_page': bool(cursor), 'provider_jobs': 0 if cursor else len(focused) * len(providers)}}
+                    'cached_page': bool(cursor), 'candidate_pool_limit': pool_limit,
+                    'provider_jobs': 0 if cursor else len(focused) * len(providers)}}
 
     async def metadata(self, paper_ref=None, query=None):
         if bool(paper_ref) == bool(query):

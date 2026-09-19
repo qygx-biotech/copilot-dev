@@ -3,6 +3,7 @@ const { webcrypto } = require("node:crypto");
 const sourceApi = require("../../../docs/source-system.js");
 const { LiteratureModule } = require("../../../docs/literature-module.js");
 const { AgentRequestPipeline } = require("../../../docs/request-pipeline.js");
+const semantic = require("../../../shared/semantic-intent.js");
 const clone = (x) => JSON.parse(JSON.stringify(x));
 class SyncWorkspace {
   constructor() {
@@ -74,7 +75,8 @@ async function createFixture(options = {}) {
       } finally { calls.activeCards--; }
     },
   });
-  const literature = new LiteratureModule({ workspace, sourceSystem: system, api: {}, knowledgeService });
+  const literature = new LiteratureModule({ workspace, sourceSystem: system,
+    api: { interpretSemantics: async input => semantic.interpretLocal(input) }, knowledgeService });
   // The real module normally creates its source system internally; inject this
   // fixture's extraction/provider adapters while keeping its actual catalog logic.
   literature.sourceSystem = system; literature.sourceRegistry = system.registry; literature.preparation = system.preparation;

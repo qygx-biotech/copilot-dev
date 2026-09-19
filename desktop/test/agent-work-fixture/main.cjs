@@ -42,7 +42,7 @@ const retrievalProfile = "medium", getSelectedPaperIds = () => [], getProjectCon
 const flattenWorkspaceTree = tree => tree.children || [];
 const applyLiteratureScan = documents => { literatureModule.documents = documents; referenceDocuments = documents; };
 const applyPreparedContextToDocuments = () => {}, renderWorkspaceExplorer = () => {}, renderAllDocumentLists = () => {};
-let workspaceAbortController = null, requestGate = null, requestFailure = null, requests = [], exports = [], copies = [];
+let workspaceAbortController = null, requestGate = null, requestFailure = null, requestResult = null, requests = [], exports = [], copies = [];
 const makeId = () => crypto.randomUUID();
 const formatTimestamp = value => new Date(value).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
 const normalizeSemanticTelemetry = value => value, normalizeRetrievalMetadata = value => value;
@@ -61,6 +61,7 @@ const sendWorkbenchRequest = async request => {
   request.onStream({ type: "delta", text: "Streaming task response" });
   if (requestGate) await requestGate;
   if (requestFailure) throw requestFailure;
+  if (requestResult) return requestResult;
   return { reply: "### Evidence review\\n\\nReviewed the task evidence.\\n\\n- Compare candidates\\n- Inspect the missing results\\n\\n1. Check the data\\n2. Review the summary\\n\\n\u0060\u0060\u0060js\\nconst result = 'ready';\\n\u0060\u0060\u0060\\n\\nFile: \u0060output/summary.md\u0060" };
 };
 const ok = (condition, message) => { if (!condition) throw new Error(message); };
@@ -86,6 +87,7 @@ const check = (condition, name) => { ok(condition, name); passed.push(name); };
     for (const file of ["shared/source-citations.js", "shared/web-search.js", "docs/agent-work-area.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
     await win.webContents.executeJavaScript(`${translations}\n${setup}\n${functions}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("runAgentScenarios()");
+    await win.webContents.executeJavaScript("checkAcademicFinalReply()");
     await win.webContents.executeJavaScript("runAgentScopeIsolationChecks()");
     // Native input reproduces blur/change before a real pointer click; .click()
     // alone would miss the replaced-button regression.

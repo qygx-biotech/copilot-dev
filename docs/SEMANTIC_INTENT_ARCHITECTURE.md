@@ -1,6 +1,6 @@
 # Semantic interpretation above the existing knowledge layers
 
-The current [shared request pipeline](PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md) completes source reconciliation and knowledge synchronization before this semantic layer. It retains the original query, uses the semantic goal as an English working query when a remote interpretation is required, and derives an advisory evidence-needs plan for the existing main-agent loop.
+The [shared request pipeline](PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md) requires a fresh semantic LLM response before knowledge synchronization on both Agent Command and Side Chat. Recognized patterns and cached results cannot skip that call; unavailable or invalid responses stop preparation. The validated retrieval scope lets `web`/`none` bypass preparation, while `workspace`/`both` retain synchronization and reuse the interpretation. The semantic layer retains the original query, uses the semantic goal as an English working query, and derives an advisory evidence-needs plan for the existing main-agent loop. Standalone interpreter consumers retain their existing optional local/cache policy unless the host sets `requireRemote`.
 
 BioDesign Copilot interprets requests before selecting context for the existing workspace agent. This layer canonicalizes request metadata and experiment schemas. Original documents, workbook cells, evidence handles, and source authority remain unchanged. Read [QMD_KNOWLEDGE_ARCHITECTURE.md](QMD_KNOWLEDGE_ARCHITECTURE.md) for the underlying L0–L4 architecture.
 
@@ -56,7 +56,7 @@ The fast path maps multilingual aliases into a shared sparse concept representat
 
 The calibrated defaults are a known-match threshold of 0.86, uncertain threshold of 0.64, and winner margin of 0.08. A pattern also has to cover the requested objects and operations. Similarity scores are matching scores, not calibrated probabilities. An incompatible composition remains open even if it shares vocabulary with a common pattern. The benchmark fixtures and report exercise both paraphrase acceptance and open-set false positives.
 
-Known-pattern caching includes the normalized query with protected-ID case retained, compact conversation and active scope, profile, semantic schema version, pattern library version, and project registry version/content. It is a bounded in-memory optimization, not a second lifecycle database. Context-dependent results are never keyed only by query text. Invalid/failed remote interpretations fall back locally and are not cached as successful remote interpretations.
+For standalone consumers without `requireRemote`, known-pattern caching includes the normalized query with protected-ID case retained, compact conversation and active scope, profile, semantic schema version, pattern library version, and project registry version/content. It is a bounded in-memory optimization. Context-dependent results are never keyed only by query text. These optional consumers may fall back locally after invalid/failed remote interpretations. The shared desktop request gate requires the model, bypasses this cache, and stops on failure.
 
 ## Profiles and FC boundary
 
@@ -70,7 +70,7 @@ The new request pipeline resolves all saved profiles to Medium for one current d
 
 `POST /api/semantic/interpret` accepts only the bounded compact contract. It combines goal interpretation, language handling, entity extraction, and slot extraction in one call. The parser sees at most four short conversation entries, bounded source IDs, a compact topic/objective, a primary metric, and limited ontology labels/aliases. It receives no Paper Cards, full memory, experiment tables, or source documents.
 
-The endpoint uses the existing authenticated FC boundary and `REQUESTY_SEMANTIC_PARSER_MODEL` with the existing model fallback. Structured output requires `json_schema`; semantic parsing has no JSON-object downgrade, translation subcall, or repair subcall. Existing provider transport retries are distinct from this single logical semantic request. The renderer does not retry the semantic endpoint. A failure preserves the local IR.
+The endpoint uses the existing authenticated FC boundary and `REQUESTY_SEMANTIC_PARSER_MODEL` with the existing model fallback. Structured output requires `json_schema`; semantic parsing has no JSON-object downgrade, translation subcall, or repair subcall. Existing provider transport retries are distinct from this single logical semantic request. The renderer does not retry the semantic endpoint. With the mandatory desktop policy, a failure stops the request before preparation; local IR is not used to authorize work.
 
 Production context routing consumes semantic objects and host-resolved scope, without a second context-router call. The older context-router helper remains available for compatibility. Search planning/reranking remain separate retrieval operations. No whole document is translated to normalize a request.
 

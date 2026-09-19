@@ -1414,22 +1414,94 @@
       }
     }
 
-    async buildContextInternal(options) {
-      const preflight = this.requestPipeline ? await this.requestPipeline.preflight(options) : null;
-      if (preflight) {
-        options = { ...options, workspaceTree: preflight.tree, turnReconciliation: preflight.reconciliation };
-        options.onCatalogUpdated?.(preflight.tree, this.literature.documents);
+    buildSemanticRequest(options) {
+      // Routing uses catalog metadata only; it must not prepare PDF evidence.
+      const selectedPaths = [...new Set((Array.isArray(options.selectedPaths) ? options.selectedPaths : []).map(normalizePath).filter(Boolean))];
+      const selectedPaperIds = this.getSelectedPaperIds(selectedPaths, options.selectedPaperIds);
+      const paperIdentity = this.resolveExplicitPaperIdentity(String(options.question || ""), { paperIds: selectedPaperIds });
+      const conversationContext = this.buildConversationContext(options.conversation, { selectedPaperIds, namedPaperIds: paperIdentity.paperIds });
+      const activeScope = {
+        projectId: String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || ""),
+        paperIds: selectedPaperIds,
+        experimentSourceIds: selectedPaths
+          .map((path) => this.sourceRegistry?.getByPath(path))
+          .filter((source) => source?.sourceKind === "experiment")
+          .map((source) => source.sourceId),
+        currentTopic: String(this.workspace.state?.agent?.sideChat?.currentTopic || "").slice(0, 500),
+        projectObjective: String(options.projectGoal || this.workspace.state?.project?.goal || "").slice(0, 1000),
+        primaryMetric: this.workspace.state?.project?.primaryMetric || null,
+        knownMetrics: this.workspace.state?.project?.knownMetrics || [],
+      };
+      const semanticInput = {
+        requireRemote: Boolean(this.requestPipeline),
+        query: String(options.question || ""),
+        profile: options.retrievalProfile,
+        activeScope,
+        conversationContext: conversationContext.interpretationMessages,
+        paperCandidates: conversationContext.paperCandidates,
+        projectSemanticRegistry: this.workspace.state?.semanticRegistry || {},
+        remoteParser: typeof this.literature?.api?.interpretSemantics === "function"
+          ? (payload) => this.literature.api.interpretSemantics({
+              ...payload,
+              callContext: { ...options.callContext, turnId: options.turnId, profile: options.retrievalProfile },
+            }, options.signal)
+          : null,
+      };
+      return { semanticInput, activeScope, conversationContext };
+    }
+
+    async interpretContextRequest(semanticInput, options) {
+      if (options.signal?.aborted) throw Object.assign(new Error("Interpretation was stopped."), { code: "OPERATION_ABORTED" });
+      options.onProgress?.({ stage: "interpreting-request" });
+      const interpretationWorkspace = this.workspace.workspace;
+      const interpretationWorkspaceId = semanticInput.activeScope.projectId;
+      const interpretation = await this.semanticInterpreter.interpret(semanticInput);
+      if (options.signal?.aborted || this.workspace.workspace !== interpretationWorkspace || String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || "") !== interpretationWorkspaceId) throw Object.assign(new Error("Interpretation was stopped or the workspace changed."), { code: "OPERATION_ABORTED" });
+      if (semanticInput.requireRemote && interpretation.telemetry?.semantic?.route !== "remote") {
+        throw Object.assign(new Error("A semantic model decision is required before source preparation. Please retry."), { code: "SEMANTIC_INTERPRETATION_FAILED" });
       }
+      return interpretation;
+    }
+
+    async buildContextInternal(options) {
       // The stored/UI profile remains compatible; all requests use one current policy.
       const retrievalProfile = this.requestPipeline ? "medium" : normalizeRetrievalProfile(options?.retrievalProfile);
+      const surface = options.surface === "agent_command" ? "agent_command" : "side_chat";
       options = {
         ...options,
+        surface,
         retrievalProfile,
         qualityMode: qualityModeForProfile(retrievalProfile),
         // This authenticated router is a High-only policy. Callers and remote
         // tool output cannot enable it independently of the persisted setting.
         enableContextRouter: retrievalProfile === "high",
       };
+      // Every request is understood before any preparation, on both surfaces.
+      // A local pattern/cache hit cannot substitute for the model's decision.
+      const initialRequest = this.buildSemanticRequest(options);
+      const interpretation = await this.interpretContextRequest(initialRequest.semanticInput, options);
+      const semanticIR = interpretation.ir;
+      const retrieval = semanticApi.retrievalPolicy(semanticIR);
+      const { workspaceRetrievalAllowed } = retrieval;
+      const deferKnowledgePreparation = !workspaceRetrievalAllowed;
+      root.BioDesignRuntimeLog?.record("retrieval.decision", {
+        turnId: options.turnId, surface, retrievalScope: retrieval.retrievalScope,
+        webSearchExpected: retrieval.webSearchExpected, downloadRequested: retrieval.downloadRequested,
+        route: interpretation.telemetry?.semantic?.route, fallbackReason: interpretation.telemetry?.semantic?.fallback,
+        semanticParserCalls: interpretation.telemetry?.semanticParserCalls, matchedPattern: semanticIR.matchedPattern,
+      });
+      const preflight = this.requestPipeline && !deferKnowledgePreparation ? await this.requestPipeline.preflight(options) : null;
+      if (preflight) {
+        options = { ...options, workspaceTree: preflight.tree, turnReconciliation: preflight.reconciliation };
+        options.onCatalogUpdated?.(preflight.tree, this.literature.documents);
+      } else if (deferKnowledgePreparation) {
+        // Do not join/cache a sync or mark dirty sources ready. A later request
+        // needing local evidence must still reconcile and prepare those sources.
+        root.BioDesignRuntimeLog?.record("knowledge-sync.deferred", {
+          turnId: options.turnId, surface, reason: "workspace-evidence-not-requested",
+          retrievalScope: interpretation.ir.retrievalScope,
+        });
+      }
       const selectedPaths = [...new Set(
         (Array.isArray(options.selectedPaths) ? options.selectedPaths : [])
           .map(normalizePath)
@@ -1462,8 +1534,6 @@
       const namedOutsideSelection = selectedPaperIds.length && this.resolveExplicitPaperIdentity(question).paperIds.some(id => !selectedPaperIds.includes(id));
       const selectionUnavailable = Array.isArray(options.selectedPaperIds) && options.selectedPaperIds.length > 0 && !selectedPaperIds.length;
       let scopedPaperIds = selectedPaperIds.length ? selectedPaperIds : paperIdentity.relatedDiscovery ? [] : paperIdentity.paperIds;
-      const surface = options.surface === "agent_command" ? "agent_command" : "side_chat";
-      options = { ...options, surface };
       const internalStateUpdates = [];
       let managedWorkerRecovery = null;
       if (this.managedWorker && MANAGED_WORKER_RECOVERY_PATTERN.test(question)) {
@@ -1482,49 +1552,15 @@
       const eligiblePaperIds = (this.literature?.documents || [])
         .filter((document) => document.isLiteraturePaper)
         .map((document) => document.id);
-      const selectedExperimentIds = selectedPaths
-        .map((path) => this.sourceRegistry?.getByPath(path))
-        .filter((source) => source?.sourceKind === "experiment")
-        .map((source) => source.sourceId);
-
-      const conversationContext = this.buildConversationContext(options.conversation, { selectedPaperIds, namedPaperIds: paperIdentity.paperIds });
-      const activeScope = {
-        projectId: String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || ""),
-        paperIds: selectedPaperIds,
-        experimentSourceIds: selectedExperimentIds,
-        currentTopic: String(this.workspace.state?.agent?.sideChat?.currentTopic || "").slice(0, 500),
-        projectObjective: String(options.projectGoal || this.workspace.state?.project?.goal || "").slice(0, 1000),
-        primaryMetric: this.workspace.state?.project?.primaryMetric || null,
-        knownMetrics: this.workspace.state?.project?.knownMetrics || [],
-      };
-      options.onProgress?.({ stage: "interpreting-request" });
-      const interpretationWorkspace = this.workspace.workspace;
-      const interpretationWorkspaceId = activeScope.projectId;
-      const semanticInput = {
-        query: question,
-        profile: retrievalProfile,
-        activeScope,
-        conversationContext: conversationContext.interpretationMessages,
-        paperCandidates: conversationContext.paperCandidates,
-        projectSemanticRegistry: this.workspace.state?.semanticRegistry || {},
-        remoteParser: typeof this.literature?.api?.interpretSemantics === "function"
-          ? (payload) => this.literature.api.interpretSemantics({
-              ...payload,
-              callContext: { ...options.callContext, turnId: options.turnId, profile: retrievalProfile },
-            }, options.signal)
-          : null,
-      };
-      const interpretation = await this.semanticInterpreter.interpret(semanticInput);
-      if (options.signal?.aborted || this.workspace.workspace !== interpretationWorkspace || String(this.workspace.workspace?.workspaceId || this.workspace.workspace?.id || "") !== interpretationWorkspaceId) throw Object.assign(new Error("Interpretation was stopped or the workspace changed."), { code: "OPERATION_ABORTED" });
-      const semanticIR = interpretation.ir;
-      const retrieval = semanticApi.retrievalPolicy(semanticIR);
-      const { workspaceRetrievalAllowed } = retrieval;
-      root.BioDesignRuntimeLog?.record("retrieval.decision", {
-        turnId: options.turnId, surface, retrievalScope: retrieval.retrievalScope,
-        webSearchExpected: retrieval.webSearchExpected, downloadRequested: retrieval.downloadRequested,
-        route: interpretation.telemetry?.semantic?.route, fallbackReason: interpretation.telemetry?.semantic?.fallback,
-        semanticParserCalls: interpretation.telemetry?.semanticParserCalls, matchedPattern: semanticIR.matchedPattern,
-      });
+      // Rebuild host scope after any synchronization; reuse the interpretation.
+      const { semanticInput, activeScope, conversationContext } = this.buildSemanticRequest(options);
+      const selectedExperimentIds = activeScope.experimentSourceIds;
+      // A selected PDF may receive its source ID during preflight, after early
+      // interpretation. Bind that host selection without widening explicit IDs
+      // or overriding an unresolved conversational reference.
+      if (preflight && workspaceRetrievalAllowed && selectedPaperIds.length && semanticIR.objects.includes("literature") && !Array.isArray(semanticIR.scope.papers)) {
+        semanticIR.scope.papers = [...selectedPaperIds];
+      }
       const referenceResolution = !workspaceRetrievalAllowed
         ? { status: "no-literature-needed", paperIds: [], reason: `retrieval-scope-${retrieval.retrievalScope}` }
         : semanticApi.resolveLiteratureReference(semanticApi.compactSemanticInput(semanticInput), semanticIR, {

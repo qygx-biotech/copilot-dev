@@ -7,6 +7,7 @@ const streamError = message => Object.assign(new Error(message), { code: "STREAM
 async function readRequestyStream(response, { signal, onText = () => {}, onSources = () => {} } = {}) {
   let content = "", finishReason = "", usage = null, done = false, toolBytes = 0;
   const calls = new Map();
+  let responseDiagnostics = {};
   let context = {}, contentParts = null, completedMessage = null;
   let webSearchSources = [], webSearchMetadata = [];
   const metadataPaths = new Set(), containerPaths = new Set();
@@ -15,6 +16,7 @@ async function readRequestyStream(response, { signal, onText = () => {}, onSourc
     if (event.data === "[DONE]") { done = true; return false; }
     if (done) throw streamError("Unexpected data after the provider finished.");
     const chunk = JSON.parse(event.data);
+    responseDiagnostics = require("./requesty-response.js").diagnostics({ ...chunk, responseDiagnostics });
     if (chunk.error) throw streamError("The provider interrupted its response.");
     if (chunk.usage && typeof chunk.usage === "object") usage = chunk.usage;
     const normalized = webSearch.normalizeResponse(chunk);
@@ -62,12 +64,13 @@ async function readRequestyStream(response, { signal, onText = () => {}, onSourc
     }
     checkContextSize({ context, contentParts, calls: [...calls.values()] });
   }, { signal });
-  if (!done || !["stop", "tool_calls", "function_call"].includes(finishReason)) throw streamError("The provider response did not finish successfully.");
   const providerMessage = completedMessage || { ...context, role: "assistant", content: contentParts || content,
     ...(calls.size ? { tool_calls: [...calls].sort(([a], [b]) => typeof a === "number" && typeof b === "number" ? a - b : 0).map(([, call]) => call) } : {}) };
+  if (!done || (require("./requesty-response.js").hasAssistantOutput(providerMessage) &&
+      !["stop", "tool_calls", "function_call"].includes(finishReason))) throw streamError("The provider response did not finish successfully.");
   checkContextSize(providerMessage);
   const localCalls = (providerMessage.tool_calls || []).filter(call => !webSearch.isHostedTool(call));
-  return { webSearchSources, webSearchMetadata, webSearchDiagnostics: { chunkCount, metadataEnvelopeCount, metadataPaths: [...metadataPaths], containerPaths: [...containerPaths] },
+  return { responseDiagnostics, webSearchSources, webSearchMetadata, webSearchDiagnostics: { chunkCount, metadataEnvelopeCount, metadataPaths: [...metadataPaths], containerPaths: [...containerPaths] },
     providerMessage, choices: [{ message: { ...providerMessage,
     content: webSearch.textContent(providerMessage.content), tool_calls: localCalls.length ? localCalls : undefined }, finish_reason: finishReason }], usage };
 }

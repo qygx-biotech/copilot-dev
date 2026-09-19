@@ -23,18 +23,20 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.service.pool.shutdown(wait=False, cancel_futures=True)
 
     async def test_pagination_filters_and_provider_failures_are_explicit(self):
-        records = [normalize(paper(identifier=f'10.1000/{i}')) for i in range(5)]
+        records = [normalize(paper(identifier=f'10.1000/{i}')) for i in range(23)]
         records[0]['published_date'] = None
         async def collect(*args, **kwargs):
-            return records, {'arxiv': {'status': 'completed', 'returned': 5, 'errors': []}, 'core': {'status': 'failed', 'returned': 0, 'errors': ['RATE_LIMITED']}}
+            return records, {'arxiv': {'status': 'completed', 'returned': 23, 'errors': []}, 'core': {'status': 'failed', 'returned': 0, 'errors': ['RATE_LIMITED']}}
         self.service.collect = collect
         first = await self.service.search('topic', limit=2, year_from=2023)
         second = await self.service.search('topic', limit=2, year_from=2023, cursor=first['next_cursor'])
         self.assertEqual(first['status'], 'partial')
         self.assertEqual(first['filters']['unknown_dates_excluded'], 1)
-        self.assertEqual(first['total_candidates'], 4)
+        self.assertEqual(first['total_candidates'], 22)
+        self.assertEqual(len(first['papers']), 20)
+        self.assertEqual(len(second['papers']), 2)
         self.assertIsNone(second['next_cursor'])
-        self.assertEqual(len({x['paper_ref'] for x in first['papers'] + second['papers']}), 4)
+        self.assertEqual(len({x['paper_ref'] for x in first['papers'] + second['papers']}), 22)
         with self.assertRaises(ValueError):
             await self.service.search('different', cursor=first['next_cursor'])
 
@@ -151,9 +153,12 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.service.collect = collect
         first = await self.service.search('topic', limit=1, prefer_open_access=True)
         self.assertEqual(first['papers'][0]['doi'], '10.1000/available')
-        second = await self.service.search('topic', cursor=first['next_cursor'], prefer_open_access=True)
+        self.assertEqual(first['papers'][1]['doi'], closed['doi'])
+        # An older issued cursor with a one-record slice still resumes unchanged.
+        cursor = first['result_set_id'] + ':1'
+        second = await self.service.search('topic', limit=1, cursor=cursor, prefer_open_access=True)
         self.assertEqual(second['papers'][0]['doi'], closed['doi'])
-        with self.assertRaises(ValueError): await self.service.search('topic', cursor=first['next_cursor'], prefer_open_access=False)
+        with self.assertRaises(ValueError): await self.service.search('topic', limit=1, cursor=cursor, prefer_open_access=False)
 
     async def test_doi_lookup_reuses_cache_and_never_accepts_nearby_search_results(self):
         calls = []
@@ -181,14 +186,16 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len({call[2] for call in calls}), 1)
         self.assertEqual(first['total_candidates'], 3)
         self.assertEqual(first['metrics']['raw_candidates'], 8)
-        self.assertEqual([p['doi'] for p in first['papers']], ['10.1000/design', '10.1000/validation'])
-        second = await self.service.search('design', queries=['validation'], providers=['pubmed', 'arxiv'], cursor=first['next_cursor'])
+        self.assertEqual([p['doi'] for p in first['papers']], ['10.1000/design', '10.1000/validation', '10.1000/shared'])
+        self.assertIsNone(first['next_cursor'])
+        cursor = first['result_set_id'] + ':2'  # Cursor issued by the former two-record initial slice.
+        second = await self.service.search('design', limit=2, queries=['validation'], providers=['pubmed', 'arxiv'], cursor=cursor)
         self.assertEqual(len(calls), 4)
         self.assertTrue(second['metrics']['cached_page'])
         self.assertEqual(second['metrics']['provider_jobs'], 0)
         self.assertEqual(second['papers'][0]['doi'], '10.1000/shared')
         with self.assertRaises(ValueError):
-            await self.service.search('design', queries=['other'], providers=['pubmed', 'arxiv'], cursor=first['next_cursor'])
+            await self.service.search('design', queries=['other'], providers=['pubmed', 'arxiv'], cursor=cursor)
 
     async def test_handles_stay_stable_across_different_queries_and_later_doi_metadata(self):
         first = normalize(paper(source='pubmed', identifier=''))

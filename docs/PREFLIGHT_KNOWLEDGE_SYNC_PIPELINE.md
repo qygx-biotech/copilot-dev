@@ -1,12 +1,20 @@
 # Pre-request knowledge synchronization
 
-Side Chat and Agent Command share `ProjectContextService.buildContext()`. Its first operation is `AgentRequestPipeline.preflight()`. This replaces Side Chat's separate catalog refresh and adds the same gate to Agent Command. The existing FC main-agent tool loop and corpus workflow follow the gate.
+Side Chat and Agent Command share `ProjectContextService.buildContext()`. Both first call the semantic LLM using catalog metadata, before `AgentRequestPipeline.preflight()` or any PDF preparation. The host requires a fresh, validated model response for every request; a recognized local pattern or cached interpretation cannot skip this call. If the model is unavailable, fails, or returns invalid output, the request stops before source preparation. The existing FC main-agent tool loop and corpus workflow are unchanged.
+
+The model's `retrievalScope` decides whether preparation runs. `web` and `none` bypass preflight, so new literature searches/downloads and general questions do not generate cards for existing PDFs. `workspace` and `both` retain synchronization before retrieving local evidence.
+
+The bypass neither starts nor joins knowledge synchronization. It performs no PDF parsing, hashing, card generation, topic/wiki maintenance or QMD indexing, and does not cache a successful preflight or mark pending sources ready. A later local-evidence request still prepares added, changed or incomplete files. The early interpretation is reused after full preflight when needed; host selection and reference IDs are checked against the refreshed catalog.
 
 ```mermaid
 flowchart TD
-    S[Side Chat / Agent Command] --> P[One turn-scoped metadata reconciliation]
+    S[Side Chat / Agent Command] --> I[Fresh semantic LLM call from catalog metadata]
+    I -->|Failure or invalid output| Z[Stop before source preparation]
+    I -->|Validated response| V{Workspace evidence requested?}
+    V -->|No: web / none| E
+    V -->|Yes: workspace / both| P[One turn-scoped metadata reconciliation]
     P --> D{New, removed, dirty or incomplete sources?}
-    D -->|No| M[Main agent request understanding]
+    D -->|No| M[Reuse validated semantic interpretation]
     D -->|Stat changed| H[Lazy stable content hash]
     H -->|Same hash| R[Reuse derived artifacts; update stat metadata]
     R --> M
@@ -101,7 +109,7 @@ Deletion indexes are updated deterministically. If a QMD update fails, the affec
 
 ## Concurrency and turn scope
 
-Both surfaces share one pipeline instance per source system. Concurrent requests join its in-flight reconciliation/synchronization promise and await the same job. The existing job manager records `knowledge-sync`; existing per-source preparation locks deduplicate individual stages. A two-source pool bounds preparation/card work. Topic mutations are serialized, registry writes are queued, and the existing QMD project queue owns SQLite updates.
+Both surfaces share one pipeline instance per source system. Requests requiring preflight share or serialize its in-flight reconciliation/synchronization according to their model and wiki scope. Requests without workspace evidence do not wait for another request's running Paper Card job. The existing job manager records `knowledge-sync`; existing per-source preparation locks deduplicate individual stages. A two-source pool bounds preparation/card work. Topic mutations are serialized, registry writes are queued, and the existing QMD project queue owns SQLite updates.
 
 Turn IDs reuse a reconciliation promise, including subsequent card/catalog projections. No internal card call rescans the raw directory during that turn. Agent Command uses a new request ID each invocation. An explicit host filesystem mutation can invalidate the turn through `invalidateTurn()`; maintenance artifact writes do not require another scan.
 
@@ -111,7 +119,7 @@ Individual request cancellation stops that consumer from answering without cance
 
 The current input establishes `inputLanguage`. Explicit answer-language instructions take precedence; otherwise answers follow the input language. The handoff keeps `originalQuery`, `canonicalQueryEn`, `inputLanguage` and `answerLanguage`. App UI language no longer inserts a contradictory answer-language instruction.
 
-The existing shared semantic interpreter runs **after** synchronization. When local interpretation is insufficient, one bounded authenticated FC semantic call combines goal interpretation, English working-query formulation, entities, operations and constraints. The semantic `goal` is the canonical English query in that response. Local interpretation retains exact identifiers and derives canonical concepts; failure retains the original query and explicitly incomplete local semantics. Raw evidence is never translated. Existing explicit persistent answer-language preferences still apply.
+The shared semantic interpreter runs before synchronization on both surfaces with the host-only `requireRemote` flag. One bounded authenticated FC semantic call combines goal interpretation, English working-query formulation, entities, operations and constraints. The semantic `goal` is the canonical English query in that response. Local interpretation supplies normalization and language metadata; it cannot authorize preparation instead of the model. Failure raises `SEMANTIC_INTERPRETATION_FAILED`, leaving pending sources unchanged. Raw evidence is never translated. Existing explicit persistent answer-language preferences still apply.
 
 `planEvidenceNeeds()` composes registered semantic objects/operations into advisory evidence needs. FC reconstructs this plan rather than trusting client-supplied tool permissions. The same main conversational LLM is instructed to assess/refine it, select tools, reason and answer; no second conversation/planner agent is created.
 
@@ -126,7 +134,7 @@ The existing shared semantic interpreter runs **after** synchronization. When lo
 | Figure/layout question | Native PDF if required |
 | General non-project question | No project evidence |
 
-Light/Medium/High storage and UI compatibility remain. The shared request pipeline currently resolves all three to the existing **Medium** local-first policy: one semantic call when needed, lexical retrieval first, evidence-driven escalation. Han characters no longer force Deep in Light or Medium. Language interpretation and retrieval depth are separate. This is one default policy, not a redesign of cost tiers.
+Light/Medium/High storage and UI compatibility remain. The shared request pipeline resolves all three to the existing **Medium** retrieval policy, with one mandatory semantic-model call before preparation, lexical retrieval first, and evidence-driven escalation. Han characters do not force Deep in Light or Medium. Language interpretation and retrieval depth are separate.
 
 The corpus `SNAPSHOT → PREPARE → MAP → GROUP → REDUCE → VERIFY → ANSWER` implementation remains intact. Preflight precedes it. Valid cards/maps retain their reuse priority, and uncovered paper workers still share one corpus planner per question/workflow. Sync workers and question-specific corpus mappers remain separate.
 
@@ -138,6 +146,8 @@ Existing activity components show checking files, source changes, evidence, card
 
 `request_preflight` records reconciliation duration, changed count, sync duration, L1 count/time, L2 logical model request count/time and generation count, L3 model count/time (zero for deterministic assignment), topic update time, experiment count/time, schema-mapper count where available, hash count and main-agent gate start. Existing provider diagnostics retain transport retries separately. No raw scientific content or private prompts are added to this telemetry.
 
+`retrieval.decision` is emitted immediately after semantic understanding, before any synchronization. Bypassed requests emit `knowledge-sync.deferred` with reason `workspace-evidence-not-requested` and retrieval scope. They carry no `knowledgeSync` completion report.
+
 The **Debug Console** button is available on the login, workspace selection, and workbench screens, including packaged Mac builds. It opens a non-modal live log with **Copy logs**, **Clear**, and **Close** controls. The latest 1,000 events remain in memory for the current app session and are mirrored to the renderer console with a `[BioDesign]` prefix. Logs are not written to the project or sent to FC.
 
 The console records shared preflight reconciliation; `sync-agent.started`, `.skipped`, `.completed`, or `.partial`; each source's L1 evidence, L2 Paper Card, and L3 topic stages; cache reuse; job and corpus mapper activity; semantic interpretation and retrieval; and main-agent requests. Backend calls include endpoint, role, paper/turn identifiers, HTTP status, retry attempts, and elapsed milliseconds. Pending operations report `.waiting` every 15 seconds. `paper-card.configuration` identifies the advertised text/PDF routes and structured-output mode, so an old backend gate is visible immediately. Failures include their code and failing source/layer.
@@ -147,6 +157,8 @@ Remote main-agent capabilities are logged as `backend.capability-reported` when 
 ## Validation and benchmark
 
 `alibaba-fc/test/preflight-knowledge-sync.test.js` exercises scenarios A–D, timestamp-only reuse, changed hashes, worker/context isolation, both surfaces, partial L1/L2/L3 failures, concurrent cancellation/retry, deletion during preparation, QMD failure suppression, structured Chinese XLSX ranking and language handoff to the main loop. Provider outputs are controlled test fixtures; these tests do not claim live provider behavior.
+
+`alibaba-fc/test/academic-preflight.test.js` covers web discovery and direct downloads with pending PDFs, failed/changed-card deferral and later repair, local/mixed evidence preparation, Side Chat concurrency, cancellation and workspace switching. It also verifies fresh semantic calls before cards for recognized and cached queries on both surfaces, and no preparation after missing/failed/malformed/cooldown semantic responses. `academic-desktop-flow.test.js` exercises the real semantic API client and authenticated FC handler, asserts the first provider request is semantic understanding, and verifies a PDF is saved with zero existing-PDF preparation calls.
 
 Run:
 

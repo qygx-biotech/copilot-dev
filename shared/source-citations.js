@@ -113,6 +113,10 @@
     let nextId = 1;
     const citation = (reference) => {
       if (byReference.has(reference)) return byReference.get(reference);
+      // Callers may supply already-validated external links from host records.
+      // Reuse this parser so citation markers inside code/URLs stay untouched.
+      const external = options.externalCitations?.get(reference);
+      if (external) { byReference.set(reference, external); return external; }
       if (citations.length >= 200) return "[Source unavailable (citation limit)]";
       const resolved = registry.resolve(reference);
       if (options.suppressUnresolved === true && resolved.status !== "resolved") {

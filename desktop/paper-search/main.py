@@ -13,7 +13,7 @@ async def search_academic_papers(query: str, providers: list[str] | None = None,
                                 per_source_limit: int = 20, year_from: int | None = None,
                                 year_to: int | None = None, cursor: str | None = None,
                                 prefer_open_access: bool = False, queries: list[str] | None = None) -> dict:
-    """Search anonymous academic providers; return structured records and a bounded-result cursor."""
+    """Collect up to 20 deduplicated candidates within the response budget. A cursor is optional further browsing; limit controls explicit cursor slices."""
     return await service.search(query, providers, limit, per_source_limit, year_from, year_to, cursor, prefer_open_access, queries)
 
 @mcp.tool()

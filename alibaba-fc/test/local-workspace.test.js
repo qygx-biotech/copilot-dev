@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const semantic = require("../../shared/semantic-intent.js");
 
 const {
   WorkspaceError,
@@ -41,6 +42,7 @@ const TEST_OVERSIZED_PAPER_CARD_CONTRACT = Object.freeze({
 function forceOversizedPaperCardApi(api = {}) {
   return {
     getPaperCardConfiguration: async () => TEST_OVERSIZED_PAPER_CARD_CONTRACT,
+    interpretSemantics: async input => semantic.interpretLocal(input),
     ...api,
   };
 }
@@ -909,11 +911,12 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   );
 });
 
-test("unrelated requests still synchronize changed sources and report isolated parse failures", async () => {
+test("a semantic decision requiring no workspace evidence leaves changed sources unprepared", async () => {
   const { manager } = await makeInitializedWorkspace();
   await manager.writeFile("literature/deferred.pdf", new Blob(["%PDF-deferred"]));
   let parserCalls = 0;
   let llmCalls = 0;
+  let semanticCalls = 0;
   const literature = new LiteratureModule({
     workspace: manager,
     pdfjsLib: {
@@ -923,6 +926,10 @@ test("unrelated requests still synchronize changed sources and report isolated p
       },
     },
     api: forceOversizedPaperCardApi({
+      async interpretSemantics(input) {
+        semanticCalls++;
+        return { ...semantic.interpretLocal(input), retrievalScope: "none", matchedPattern: null, objects: [], operations: ["explain"], capabilityHints: [], unresolvedSlots: [] };
+      },
       async summarizeChunk() {
         llmCalls += 1;
         throw new Error("Paper Cards must remain deferred.");
@@ -948,8 +955,9 @@ test("unrelated requests still synchronize changed sources and report isolated p
     workspaceTree,
   });
 
-  assert.equal(literature.preparation.metrics.fullHashCalls, 2);
-  assert.equal(parserCalls, 2);
+  assert.equal(semanticCalls, 2);
+  assert.equal(literature.preparation.metrics.fullHashCalls, 0);
+  assert.equal(parserCalls, 0);
   assert.equal(llmCalls, 0);
 });
 
@@ -983,7 +991,10 @@ test("combined literature and experiment questions keep separate labeled evidenc
         };
       },
     },
-    api: {},
+    api: { interpretSemantics: async input => ({ ...semantic.interpretLocal(input),
+      objects: ["literature", "experiments"], operations: ["search", "read", "compare"],
+      capabilityHints: ["read_paper_evidence", "query_experiment_results"], matchedPattern: null, unresolvedSlots: [],
+    }) },
   });
   await literature.scan();
   const workspaceTree = await manager.scanDirectoryTree();
@@ -1138,7 +1149,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     enableContextRouter: true,
     retrievalProfile: "high",
   });
-  assert.equal(genericConcept.routing.mode, "local");
+  assert.equal(genericConcept.routing.mode, "semantic");
   assert.equal(genericConcept.routing.useLiterature, false);
   assert.deepEqual(genericConcept.files, []);
   assert.equal(genericConcept.project.projectSummary, "");
@@ -1175,7 +1186,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     workspaceTree,
     retrievalProfile: "high",
   });
-  assert.equal(highFallback.routing.mode, "local");
+  assert.equal(highFallback.routing.mode, "semantic");
   assert.equal(highFallback.routing.useProjectMemory, true);
   assert.equal(highFallback.project.projectSummary, "Saved EctD project memory.");
 
@@ -1193,7 +1204,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     retrievalProfile: "light",
   });
   assert.equal(lightRouterCalls, 0);
-  assert.equal(lightRoute.routing.mode, "local");
+  assert.equal(lightRoute.routing.mode, "semantic");
   delete literature.api.routeContext;
 
   const idle = await service.buildContext({
@@ -1304,7 +1315,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     enableContextRouter: true,
     retrievalProfile: "high",
   });
-  assert.equal(semanticRoute.routing.mode, "local");
+  assert.equal(semanticRoute.routing.mode, "semantic");
   assert.deepEqual(semanticRoute.literature.relevantPaperIds, [ids["paper-b.pdf"]]);
   assert.match(semanticRoute.files[0].evidenceType, /original.*evidence/);
   assert.deepEqual(detailReads, []);

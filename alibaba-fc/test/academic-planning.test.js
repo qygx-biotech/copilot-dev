@@ -30,12 +30,13 @@ test('selection compares relevance first, then coverage, then availability', () 
   state.shortlist = result.shortlist;
   assert.throws(() => planning.beforeTool(state, 'download_papers', { paper_refs: [ref(1), ref(2), ref(3)] }, 'd', 2), { code: 'REQUESTED_DOWNLOAD_COUNT_EXCEEDED' });
 });
-test('a cached next page must be inspected before selecting topic papers', () => {
+test('a cached next page never prevents an otherwise valid topic shortlist', () => {
   const state = prepared(); state.searches[0].next_cursor = 'pool:20';
   const args = { shortlist: [selection(1, 5, ['design'])], stop_reason: 'sufficient_candidates', remaining_gaps: [] };
-  assert.throws(() => planning.execute(state, 'select_literature_papers', args, 2), { code: 'INSPECT_NEXT_PAGE_BEFORE_SELECTION' });
-  state.pagesInspected = 1;
+  assert.equal(planning.nextSteps(state, 2).required_tool, 'select_literature_papers');
   assert.equal(planning.execute(state, 'select_literature_papers', args, 2).status, 'completed');
+  assert.equal(state.pagesInspected || 0, 0);
+  assert.equal(planning.execute(state, 'select_literature_papers', { ...args, stop_reason: 'sources_exhausted' }, 2).status, 'completed');
 });
 test('shortlisting rejects invented handles, duplicate DOIs, invented abstracts and dates outside the request', () => {
   const state = prepared();
@@ -54,7 +55,8 @@ test('selection rejects same-title same-author versions with different DOIs', ()
 });
 test('search budgets persist, dates propagate, and completed counts stop acquisition', () => {
   const state = prepared();
-  const args = planning.beforeTool(state, 'search_academic_papers', { query: 'enzyme design', cursor: 'pool:20' }, 's2', 2);
+  state.searches[0].next_cursor = 'pool:20';
+  const args = planning.beforeTool(state, 'search_academic_papers', { ...state.searches[0].args, cursor: 'pool:20' }, 's2', 2);
   assert.equal(args.year_from, 2023); assert.equal(args.year_to, 2025); assert.equal(args.prefer_open_access, false);
   assert.throws(() => planning.beforeTool(state, 'search_academic_papers', { query: 'enzyme design', year_from: 2020 }, 'bad', 2), { code: 'SEARCH_DATE_CONSTRAINT_MISMATCH' });
   state.discoveryCalls = planning.LIMITS.searchCalls;
@@ -66,7 +68,11 @@ test('search budgets persist, dates propagate, and completed counts stop acquisi
 test('two low-yield pages stop new searches but preserve relevant shortlist reserves', () => {
   const state = prepared();
   planning.execute(state, 'select_literature_papers', { shortlist: [selection(1, 5, ['design'])], stop_reason: 'continue', remaining_gaps: ['validation'] }, 2);
-  for (let i = 0; i < 2; i++) academic.recordResult(state, { name: 'search_academic_papers', args: { query: 'enzyme design', cursor: `pool:${i}` } }, { version: 1, status: 'completed', papers: [paper(1)], next_cursor: 'pool:later' });
+  state.searches[0].next_cursor = 'pool:0';
+  for (let i = 0; i < 2; i++) {
+    const args = planning.beforeTool(state, 'search_academic_papers', { ...state.searches[0].args, cursor: `pool:${i}` }, `page-${i}`, 2);
+    academic.recordResult(state, { id: `page-${i}`, name: 'search_academic_papers', args }, { version: 1, status: 'completed', papers: [paper(1)], next_cursor: `pool:${i + 1}` });
+  }
   assert.equal(state.lowYieldStreak, 2);
   assert.throws(() => planning.beforeTool(state, 'search_academic_papers', { query: 'again' }, 's', 2), { code: 'LITERATURE_SEARCH_DIMINISHING_RETURNS' });
   assert.doesNotThrow(() => planning.beforeTool(state, 'download_papers', { paper_refs: [ref(1)] }, 'd', 2));

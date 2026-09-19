@@ -165,7 +165,7 @@ test("preflight and semantic interpretation retain the initiating model; the nex
   f.workspace.set("literature/b.pdf", "New EctD evidence");
   await service.buildContext({ surface: "agent_command", turnId: "agent-gemini", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: geminiFlex } });
   await service.buildContext({ surface: "agent_command", turnId: "agent", question: "Hello", selectedPaths: [], selectedPaperIds: [] });
-  assert.deepEqual(observed, [["paper", nemotron], ["semantic", nemotron], ["paper", geminiFlex], ["semantic", geminiFlex], ["semantic", undefined]]);
+  assert.deepEqual(observed, [["semantic", nemotron], ["paper", nemotron], ["semantic", geminiFlex], ["paper", geminiFlex], ["semantic", undefined]]);
 });
 
 test("concurrent maintenance with different selections is serialized and retries use the waiting request's model", async () => {

@@ -1,6 +1,6 @@
 # QMD Knowledge Layers
 
-The current shared Side Chat/Agent Command request lifecycle is documented in [PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md](PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md): metadata reconciliation and changed-source synchronization precede semantic interpretation and evidence planning.
+The shared Side Chat/Agent Command request lifecycle is documented in [PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md](PREFLIGHT_KNOWLEDGE_SYNC_PIPELINE.md). Both surfaces require a fresh semantic LLM response first, then defer knowledge synchronization when no workspace evidence is requested. Local and mixed requests still synchronize before evidence retrieval. Semantic-model failures stop the request before any source preparation.
 
 BioDesign Copilot keeps scientific authority in the selected project folder while using QMD as a replaceable retrieval engine. QMD never owns source identity, source hashes, corpus membership, experiment values, or recommendation state.
 

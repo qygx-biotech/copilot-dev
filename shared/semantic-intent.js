@@ -538,17 +538,20 @@
     constructor(options = {}) { this.remoteParser = options.remoteParser; this.thresholds = { ...DEFAULT_THRESHOLDS, ...options.thresholds }; this.cache = new Map(); this.maxCacheEntries = 100; }
     interpretLocal(input) { return interpretLocal(input, { thresholds: this.thresholds }); }
     async interpret(rawInput = {}) {
+      // A host request gate can require a fresh model decision before allowing
+      // source preparation. This flag is not part of model-controlled input.
+      const requireRemote = rawInput.requireRemote === true;
       const input = compactSemanticInput(rawInput);
       // Exact case stays in the identity because EctD and ectD are distinct.
       const key = stable({ ...input, query: input.query.normalize("NFKC").replace(/\s+/g, " ").trim(), schema: SEMANTIC_SCHEMA_VERSION, patterns: PATTERN_LIBRARY_VERSION });
       const cached = this.cache.get(key);
-      if (cached) return { ir: validateSemanticIR(cached, { ...input, thresholds: this.thresholds }), telemetry: this.telemetry(input, cached, cached, false, "cache", null) };
+      if (cached && !requireRemote) return { ir: validateSemanticIR(cached, { ...input, thresholds: this.thresholds }), telemetry: this.telemetry(input, cached, cached, false, "cache", null) };
       const local = this.interpretLocal(input);
       const complex = local.objects.filter((object) => ["literature", "experiments", "memory", "recommendation"].includes(object)).length > 1 || local.constraints.length > 0 || local.operations.filter((op) => !["snapshot", "prepare", "map", "group", "reduce", "verify"].includes(op)).length >= 4;
       // Literature category confidence cannot resolve workspace vs external
       // discovery. Ask the same semantic model once for search/comparison scope.
       const discoveryScopeUnresolved = local.objects.includes("literature") && local.operations.some(op => ["search", "compare"].includes(op));
-      const needsRemote = input.profile !== "light" && (discoveryScopeUnresolved || !local.matchedPattern || local.unresolvedSlots.length > 0 || complex || (input.profile === "high" && local.operations.length >= 3));
+      const needsRemote = requireRemote || (input.profile !== "light" && (discoveryScopeUnresolved || !local.matchedPattern || local.unresolvedSlots.length > 0 || complex || (input.profile === "high" && local.operations.length >= 3)));
       const remoteParser = rawInput.remoteParser || this.remoteParser;
       let ir = local, used = false, route = "local", fallback = null;
       if (needsRemote && typeof remoteParser === "function") {
@@ -564,12 +567,16 @@
           route = "remote";
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") throw error;
+          if (requireRemote) throw Object.assign(new Error("Semantic understanding failed. Please retry; no source preparation was started.", { cause: error }), { code: "SEMANTIC_INTERPRETATION_FAILED" });
           if (error?.semanticParserAttempted === false) used = false;
           route = "local-fallback";
           fallback = error?.fallbackReason || (error?.capabilityUnavailable ? "semantic-parser-capability-unavailable" : "semantic-parser-unavailable-or-invalid");
         }
-      } else if (needsRemote) { route = "local-fallback"; fallback = "semantic-parser-unavailable"; }
-      if (ir.matchedPattern && !ir.unresolvedSlots.length && route !== "local-fallback") {
+      } else if (needsRemote) {
+        if (requireRemote) throw Object.assign(new Error("Semantic understanding is unavailable. No source preparation was started."), { code: "SEMANTIC_INTERPRETATION_FAILED" });
+        route = "local-fallback"; fallback = "semantic-parser-unavailable";
+      }
+      if (!requireRemote && ir.matchedPattern && !ir.unresolvedSlots.length && route !== "local-fallback") {
         this.cache.set(key, ir);
         if (this.cache.size > this.maxCacheEntries) this.cache.delete(this.cache.keys().next().value);
       }

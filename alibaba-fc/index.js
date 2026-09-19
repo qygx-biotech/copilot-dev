@@ -2155,12 +2155,13 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
         const content = webSearch.textContent(message?.content);
         const hasText = Boolean(content.trim());
         const hasToolCalls =
-          Array.isArray(message?.tool_calls) && message.tool_calls.length > 0;
+          require("./requesty-response.js").hasAssistantOutput({ tool_calls: message?.tool_calls });
         if (!hasText && !hasToolCalls && !(requestOptions.stage === "web-search" && normalizedSearch.webSearchSources.length)) {
           return {
             ok: false,
             error: "EmptyLlmResponse",
             message: "Requesty did not return assistant content.",
+            ...require("./requesty-response.js").diagnostics(responseJson, response.headers, apiKey),
             attempts: attempt + 1
           };
         }
@@ -2172,6 +2173,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
           },
           providerMessage: responseJson.providerMessage || message,
           ...normalizedSearch,
+          responseDiagnostics: require("./requesty-response.js").diagnostics(responseJson, response.headers, apiKey),
           attempts: attempt + 1,
           finishReason: String(responseJson?.choices?.[0]?.finish_reason || "").slice(0, 120),
           usage:
@@ -2269,7 +2271,8 @@ async function requestRequestyCompletion(requestBody, apiKey) {
       ok: false,
       error: "EmptyLlmResponse",
       message: "Requesty did not return assistant content.",
-      attempts: result.attempts
+      attempts: result.attempts,
+      ...require("./requesty-response.js").diagnostics(result)
     };
   }
   return {
@@ -7500,6 +7503,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
 };
 
 exports._test = {
+  requestRequestyMessage,
   coreSystemPrompt, systemPrompt, sideChatSystemPrompt,
   SCHEMA_MAPPING_SCHEMA,
   validateSemanticInput,

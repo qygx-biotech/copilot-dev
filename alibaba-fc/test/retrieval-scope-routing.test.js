@@ -14,6 +14,7 @@ const url = "https://papers.example.org/new-paper.pdf";
 
 function modelIR(input, scope, download = false) {
   const local = semantic.interpretLocal(input);
+  if (scope === "workspace" && local.matchedPattern === "literature.corpus_synthesis") return { ...local, retrievalScope: scope };
   return { ...local, retrievalScope: scope, matchedPattern: null, patternConfidence: 0.95,
     // Deliberately retain the old ambiguous literature hint: scope must win.
     objects: scope === "none" ? [] : ["literature"],
