@@ -591,8 +591,8 @@ async function runScenarios() {
     equal(imageCalls.length, 0); equal(requests.length, 0);
     sideChatInput.value = "Explain the screenshot";
     await submitSideChat();
-    equal(imageCalls[0].images.map(image => image.name), ["Screenshot.png"]);
-    ok(contextCalls[0].includes("25 U/mL"), "Pasted image observations did not reach the normal pipeline");
+    equal(imageCalls.length, 0); equal(requests[0].images.map(image => image.name), ["Screenshot.png"]);
+    equal(contextCalls[0], "Explain the screenshot");
   });
   await scenario("Plain text and mixed clipboard text retain native paste behavior; busy and image limits apply", async () => {
     ok(!pasteImages(sideChatInput, [], "Keep this text").defaultPrevented, "Plain text paste was swallowed");
@@ -629,7 +629,7 @@ async function runScenarios() {
     ok(save().disabled, "Save enabled during image preparation");
     await imagesReady(sideChatMessageEdit.composer);
     input().value = "Compare both images"; save().click(); await idle();
-    equal(imageCalls.length, 1); equal(imageCalls[0].images.map(image => image.name), ["original.png", "added.png"]);
+    equal(imageCalls.length, 0); equal(requests[0].images.map(image => image.name), ["original.png", "added.png"]);
     equal(sideChatMessages.at(-2).images.length, 2); equal(sideChatMessages.at(-2).images[0].attachmentId, original.attachmentId);
     equal(sideChatImageComposer.images.map(image => image.name), ["next-question.png"]);
     ok(!JSON.stringify(saves).includes('"dataUrl"'), "Full image bytes leaked into saved history");
@@ -640,8 +640,8 @@ async function runScenarios() {
     pasteImages(input(), [await chartImageFile("replacement.png")]);
     await imagesReady(sideChatMessageEdit.composer);
     input().value = ""; save().click(); await idle();
-    equal(imageCalls.length, 1); equal(imageCalls[0].question, "imageOnlyQuestion");
-    equal(imageCalls[0].images.map(image => image.name), ["replacement.png"]);
+    equal(imageCalls.length, 0); equal(requests[0].originalRequest, "imageOnlyQuestion");
+    equal(requests[0].images.map(image => image.name), ["replacement.png"]);
     ok(sideChatMessages.at(-2).images[0].attachmentId !== original.attachmentId, "Old attachment survived replacement");
   });
   await scenario("An edited text-only message accepts an image drop; Cancel leaves the saved message intact", async () => {
@@ -673,58 +673,56 @@ async function runScenarios() {
     equal(sideChatMessageEdit.composer.images.map(image => image.name), ["retry.png"]);
     equal(imageCalls.length, 0); equal(requests.length, 0);
     saveFailAt = 0; save().click(); await idle();
-    equal(imageCalls.length, 1); equal(imageCalls[0].images.map(image => image.name), ["retry.png"]);
+    equal(imageCalls.length, 0); equal(requests[0].images.map(image => image.name), ["retry.png"]);
   });
   await scenario("Clearing or switching workspace during image preparation discards the late preview", async () => {
     const pending = sideChatImageComposer.addFiles([await chartImageFile()]);
     sideChatImageComposer.clear(); await pending;
     equal(sideChatImageComposer.images.length, 0); equal(sideChatImageComposer.preparing, false);
   });
-  await scenario("Vision finishes before context preparation and the final answer receives image observations plus the typed question", async () => {
+  await scenario("Original images and question reach the main selected model without extraction or semantic planning", async () => {
     await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Compare this activity with the papers";
-    let release; imageGate = new Promise(resolve => { release = resolve; });
+    let release; pendingRequest = new Promise(resolve => { release = resolve; });
     const model = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
     sideChatModel = model;
     const pending = submitSideChat();
-    for (let i = 0; i < 100 && !imageCalls.length; i++) await tick();
-    equal(imageCalls.length, 1); equal(contextCalls.length, 0); equal(requests.length, 0);
+    for (let i = 0; i < 100 && !requests.length; i++) await tick();
+    equal(imageCalls.length, 0); equal(contextCalls.length, 1); equal(requests.length, 1);
     ok(sideChatHistory.querySelector(".chat-image-previews img"), "Sent message lost its image preview");
-    equal(imageModels, [model]);
     sideChatModel = "default";
     release(); await pending;
-    equal(contextModels, [model]);
-    equal(requests[0].model, model);
-    equal(contextCalls.length, 1); ok(contextCalls[0].includes("Compare this activity") && contextCalls[0].includes("25 U/mL"), "Context omitted text or image evidence");
-    ok(requests[0].messages.at(-1).content.includes("25 U/mL"), "Main answer did not receive image understanding");
-    ok(!JSON.stringify(requests).includes("data:image"), "Raw image bytes leaked into the normal answer pipeline");
-    equal(sideChatMessages.at(-2).content, "Compare this activity with the papers");
-    equal(sideChatImageComposer.images.length, 0);
+    equal(contextModels, [model]); equal(requests[0].model, model);
+    equal(contextCalls[0], "Compare this activity with the papers");
+    equal(requests[0].originalRequest, "Compare this activity with the papers");
+    ok(requests[0].images[0].dataUrl.startsWith("data:image"), "Main answer omitted original image bytes");
+    equal(sideChatMessages.at(-2).content, "Compare this activity with the papers"); equal(sideChatImageComposer.images.length, 0);
   });
-  await scenario("Image-only submissions work and editing the latest question reuses the stored image for fresh vision analysis", async () => {
+  await scenario("Image-only submissions and edited questions reuse stored original images in the main answer", async () => {
     await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "";
-    await submitSideChat(); equal(imageCalls[0].question, "imageOnlyQuestion");
+    await submitSideChat(); equal(requests[0].originalRequest, "imageOnlyQuestion");
     const user = sideChatMessages.at(-2), id = user.images[0].attachmentId;
     await reviseLatestSideChatMessage(user.id, "Read the axis units instead");
-    equal(imageCalls.length, 2); equal(imageCalls[1].question, "Read the axis units instead");
+    equal(imageCalls.length, 0); equal(requests[1].originalRequest, "Read the axis units instead");
+    equal(requests[1].images[0].dataUrl, requests[0].images[0].dataUrl);
     equal(sideChatMessages.at(-2).images[0].attachmentId, id);
     renderSideChatConversation(); ok(sideChatHistory.querySelector(".chat-image-previews img"), "Reloaded conversation lost previews");
   });
-  await scenario("A vision failure keeps the image available for retry and never starts knowledge or answer calls", async () => {
-    imageResponseStatus = 502;
+  await scenario("A main-model failure retains the image attachment for retry", async () => {
+    requestFailure = true;
     await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Explain this figure";
     await submitSideChat();
-    equal(contextCalls.length, 0); equal(requests.length, 0); equal(sideChatMessages.at(-1).role, "user");
-    ok(toasts.includes("chatImageFailed"), "Image failure was not visible");
-    imageResponseStatus = 200; await reviseLatestSideChatMessage(sideChatMessages.at(-1).id, "Explain this figure");
-    equal(imageCalls.length, 2); equal(requests.length, 1);
+    equal(contextCalls.length, 1); equal(requests.length, 1);
+    const user = sideChatMessages.findLast(message => message.role === "user"); ok(user.images.length, "Failure lost the attachment");
+    requestFailure = false; await reviseLatestSideChatMessage(user.id, "Explain this figure");
+    equal(imageCalls.length, 0); equal(requests.length, 2); equal(requests[1].images[0].dataUrl, requests[0].images[0].dataUrl);
   });
-  await scenario("Changing workspace while vision is pending does not start the old answer pipeline", async () => {
+  await scenario("Changing workspace while the main image answer is pending discards the old result", async () => {
     await sideChatImageComposer.addFiles([await chartImageFile()]); sideChatInput.value = "Explain";
-    let release; imageGate = new Promise(resolve => { release = resolve; }); const pending = submitSideChat();
-    for (let i = 0; i < 100 && !imageCalls.length; i++) await tick();
+    let release; pendingRequest = new Promise(resolve => { release = resolve; }); const pending = submitSideChat();
+    for (let i = 0; i < 100 && !requests.length; i++) await tick();
     workspaceManager.workspace.workspaceId = "w-2"; sideChatMessages = []; sideChatConversation = { id: "new", messages: [] };
     release(); await pending;
-    equal(contextCalls.length, 0); equal(requests.length, 0); equal(sideChatMessages.length, 0);
+    equal(imageCalls.length, 0); equal(contextCalls.length, 1); equal(requests.length, 1); equal(sideChatMessages.length, 0);
   });
   return { passed, failed };
 }

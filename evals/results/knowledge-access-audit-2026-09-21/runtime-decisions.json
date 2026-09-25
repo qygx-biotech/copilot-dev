@@ -1,0 +1,575 @@
+{
+  "verification": "scripted-provider-runtime-fixture",
+  "branch": "nanobot/sidechat",
+  "rows": [
+    {
+      "id": "A",
+      "query": "What is Bayesian optimization?",
+      "route": "direct",
+      "tools": [],
+      "scopes": [],
+      "granularity": [],
+      "coverageMode": [],
+      "derivedUsed": false,
+      "originalEscalation": false,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "not-applicable"
+    },
+    {
+      "id": "A2",
+      "query": "Why is methane relevant to ectoine production?",
+      "route": "direct",
+      "tools": [],
+      "scopes": [],
+      "granularity": [],
+      "coverageMode": [],
+      "derivedUsed": false,
+      "originalEscalation": false,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "not-applicable"
+    },
+    {
+      "id": "B",
+      "query": "What are the major themes in this project?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge"
+      ],
+      "scopes": [
+        {
+          "type": "project",
+          "sourceIds": [
+            "sync-2",
+            "sync-3",
+            "sync-4",
+            "sync-5"
+          ]
+        }
+      ],
+      "granularity": [
+        "overview"
+      ],
+      "coverageMode": [
+        "broad"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": false,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-current-paper-link"
+    },
+    {
+      "id": "C",
+      "query": "What is the Methane paper about?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-2"
+          ]
+        }
+      ],
+      "granularity": [
+        "overview"
+      ],
+      "coverageMode": [
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": false,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-current-paper-link"
+    },
+    {
+      "id": "D",
+      "query": "Why is methane relevant to ectoine production according to this paper?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge",
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-2"
+          ]
+        },
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-2"
+          ]
+        }
+      ],
+      "granularity": [
+        "concept",
+        "claim_support"
+      ],
+      "coverageMode": [
+        "relevant",
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "D2",
+      "query": "How does bio-milking differ from conventional extraction in the Milking paper?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge",
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-3"
+          ]
+        },
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-3"
+          ]
+        }
+      ],
+      "granularity": [
+        "concept",
+        "claim_support"
+      ],
+      "coverageMode": [
+        "relevant",
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "D3",
+      "query": "Why might salinity affect ectoine production according to these studies?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge",
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "selected_sources",
+          "sourceIds": [
+            "sync-2",
+            "sync-3"
+          ]
+        },
+        {
+          "type": "selected_sources",
+          "sourceIds": [
+            "sync-2",
+            "sync-3"
+          ]
+        }
+      ],
+      "granularity": [
+        "concept",
+        "claim_support"
+      ],
+      "coverageMode": [
+        "relevant",
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "E",
+      "query": "How do the papers' reactor strategies relate to methane production?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge",
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "selected_sources",
+          "sourceIds": [
+            "sync-2",
+            "sync-4"
+          ]
+        },
+        {
+          "type": "selected_sources",
+          "sourceIds": [
+            "sync-2",
+            "sync-4"
+          ]
+        }
+      ],
+      "granularity": [
+        "concept",
+        "claim_support"
+      ],
+      "coverageMode": [
+        "relevant",
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "F",
+      "query": "What exact pH did the Reactor paper use?",
+      "route": "tools",
+      "tools": [
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-4"
+          ]
+        }
+      ],
+      "granularity": [
+        "passage"
+      ],
+      "coverageMode": [
+        "targeted"
+      ],
+      "derivedUsed": false,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "G",
+      "query": "Which passage supports the claim that bio-milking retains viable biomass?",
+      "route": "tools",
+      "tools": [
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-3"
+          ]
+        }
+      ],
+      "granularity": [
+        "claim_support"
+      ],
+      "coverageMode": [
+        "targeted"
+      ],
+      "derivedUsed": false,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "H",
+      "query": "Does the Software paper provide code, data or a repository?",
+      "route": "tools",
+      "tools": [
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-5"
+          ]
+        }
+      ],
+      "granularity": [
+        "passage"
+      ],
+      "coverageMode": [
+        "targeted"
+      ],
+      "derivedUsed": false,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "I",
+      "query": "Compare the themes of these two selected papers.",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge"
+      ],
+      "scopes": [
+        {
+          "type": "selected_sources",
+          "sourceIds": [
+            "sync-2",
+            "sync-3"
+          ]
+        }
+      ],
+      "granularity": [
+        "overview"
+      ],
+      "coverageMode": [
+        "relevant"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": false,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-current-paper-link"
+    },
+    {
+      "id": "J",
+      "query": "Synthesize relevant project findings about methane.",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge",
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "project",
+          "sourceIds": [
+            "sync-2",
+            "sync-3",
+            "sync-4",
+            "sync-5"
+          ]
+        },
+        {
+          "type": "selected_sources",
+          "sourceIds": [
+            "sync-2",
+            "sync-4"
+          ]
+        }
+      ],
+      "granularity": [
+        "overview",
+        "claim_support"
+      ],
+      "coverageMode": [
+        "relevant",
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "K",
+      "query": "帮我整理一下所有文献，写个综述。",
+      "route": "tools",
+      "tools": [
+        "run_corpus_workflow"
+      ],
+      "scopes": [
+        {
+          "type": "corpus",
+          "sourceIds": [
+            "sync-2",
+            "sync-3",
+            "sync-4",
+            "sync-5"
+          ]
+        }
+      ],
+      "granularity": [
+        "overview"
+      ],
+      "coverageMode": [
+        "exhaustive"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": false,
+      "corpusWorkflow": true,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-current-paper-link",
+      "measuredCoverage": {
+        "includedPaperIds": [
+          "sync-2",
+          "sync-3",
+          "sync-4",
+          "sync-5"
+        ],
+        "analyzedPaperIds": [
+          "sync-2",
+          "sync-3",
+          "sync-4",
+          "sync-5"
+        ],
+        "includedCount": 4,
+        "analyzedCount": 4,
+        "complete": true
+      }
+    },
+    {
+      "id": "L",
+      "query": "Which page reported that value?",
+      "route": "tools",
+      "tools": [
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-4"
+          ]
+        }
+      ],
+      "granularity": [
+        "page"
+      ],
+      "coverageMode": [
+        "targeted"
+      ],
+      "derivedUsed": false,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "M",
+      "query": "What pH did the paper with the failed Paper Card use?",
+      "route": "tools",
+      "tools": [
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-4"
+          ]
+        }
+      ],
+      "granularity": [
+        "claim_support"
+      ],
+      "coverageMode": [
+        "targeted"
+      ],
+      "derivedUsed": false,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "N",
+      "query": "What do current project findings say about methane?",
+      "route": "tools",
+      "tools": [
+        "search_project_knowledge",
+        "retrieve_project_evidence"
+      ],
+      "scopes": [
+        {
+          "type": "project",
+          "sourceIds": [
+            "sync-2",
+            "sync-3",
+            "sync-4",
+            "sync-5"
+          ]
+        },
+        {
+          "type": "single_source",
+          "sourceIds": [
+            "sync-2"
+          ]
+        }
+      ],
+      "granularity": [
+        "overview",
+        "claim_support"
+      ],
+      "coverageMode": [
+        "relevant",
+        "targeted"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": false,
+      "subagentSpawned": false,
+      "finalProvenance": "valid-original-page"
+    },
+    {
+      "id": "O",
+      "query": "Explain across the complete corpus how methane supply, osmotic stress and reactor configuration interact.",
+      "route": "tools",
+      "tools": [
+        "run_corpus_workflow"
+      ],
+      "scopes": [
+        {
+          "type": "corpus",
+          "sourceIds": [
+            "sync-2",
+            "sync-3",
+            "sync-4",
+            "sync-5"
+          ]
+        }
+      ],
+      "granularity": [
+        "concept"
+      ],
+      "coverageMode": [
+        "exhaustive"
+      ],
+      "derivedUsed": true,
+      "originalEscalation": true,
+      "corpusWorkflow": true,
+      "subagentSpawned": true,
+      "finalProvenance": "valid-original-page",
+      "measuredCoverage": {
+        "includedPaperIds": [
+          "sync-2",
+          "sync-3",
+          "sync-4",
+          "sync-5"
+        ],
+        "analyzedPaperIds": [
+          "sync-2",
+          "sync-3",
+          "sync-4",
+          "sync-5"
+        ],
+        "includedCount": 4,
+        "analyzedCount": 4,
+        "complete": true
+      }
+    }
+  ]
+}

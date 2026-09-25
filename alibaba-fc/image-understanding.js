@@ -49,4 +49,4 @@ async function understandImages(body, { env, request, metadata = {}, signal } = 
     return error(controller.signal.aborted ? 504 : 502, controller.signal.aborted ? "IMAGE_TIMEOUT" : "IMAGE_PROVIDER_FAILED");
   } finally { clearTimeout(timer); signal?.removeEventListener("abort", abort); }
 }
-module.exports = { understandImages };
+module.exports = { understandImages, validImageBytes };

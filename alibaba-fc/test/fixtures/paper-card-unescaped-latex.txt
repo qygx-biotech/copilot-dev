@@ -1,0 +1,133 @@
+{
+  "source_identity": {
+    "paper_id": "bd701027-cf8b-47ea-8e17-2088f991a4bf",
+    "content_hash": "sha256:46d9bc1b2a9f12ff457e80550ff3beb39f911ed14a058d91646805e63cfeb567"
+  },
+  "title": "Valorization of CH4 emissions into high-added-value products: Assessing the production of ectoine coupled with CH4 abatement",
+  "authors": [
+    "Sara Cantera",
+    "Raquel Lebrero",
+    "Lidia Sadornil",
+    "Pedro A. García-Encina",
+    "Raúl Muñoz"
+  ],
+  "year": 2016,
+  "abstract_summary": "This study assessed an innovative strategy for the valorization of dilute methane emissions based on the bio-conversion of CH4 into ectoine by the methanotrophic ectoine-producing strain Methylomicrobium alcaliphilum 20 Z. The influence of CH4, Cu2+, NaCl concentration, and temperature on ectoine synthesis and specific CH4 biodegradation rate was evaluated.",
+  "research_question": "The present study aimed at systematically elucidating the influence of CH4, copper (Cu 2 + ) and NaCl concentrations, as well as temperature, on the extra and intra-cellular ectoine production using the strain Methylomicrobium alcaliphilum 20Z.",
+  "major_findings": [
+    {
+      "claim": "A CH4 concentration of 20% supported maximum specific yields of 31.0 ± 1.7 mg ectoine g biomass -1 by the end of the cultivation.",
+      "citations": [
+        {
+          "page": 3,
+          "quote": "A CH4 concentration of 20% supported maximum speci fi c yields of 31.0 ± 1.7 mg ectoine g biomass -1 by the end of the cultivation"
+        }
+      ]
+    },
+    {
+      "claim": "A NaCl concentration of 6% was identified as the optimum value for the accumulation of intra-cellular ectoine, reaching a maximum concentration of 66.9 ± 4.2 mg ectoine g biomass -1.",
+      "citations": [
+        {
+          "page": 3,
+          "quote": "A NaCl concentration of 6% was identi fi ed as the optimum value for the accumulation of intra-cellular ectoine, which reached a maximum concentration of 66.9 ± 4.2 mg ectoine g biomass -1."
+        }
+      ]
+    },
+    {
+      "claim": "High Cu2+ concentrations (50 $\mu$M) promoted the excretion of ectoine to the extra-cellular medium, with maximum concentrations of 1.2 ± 0.01 mg L -1 recorded.",
+      "citations": [
+        {
+          "page": 3,
+          "quote": "The maximum concentrations recorded were 0.7 ± 0.05 and 1.2 ± 0.01 mg extra-cellular ectoine L -1 (0.5 and 1.1% (g g - 1 )) at 25 and 50 m M of Cu 2 + , respectively."
+        }
+      ]
+    },
+    {
+      "claim": "A CH4 headspace concentration of 20% supported a significantly higher specific CH4 degradation rate (SDR) of 1.50 ± 0.08 g CH4 h -1 g biomass -1 compared to 4% and 2% CH4.",
+      "citations": [
+        {
+          "page": 4,
+          "quote": "the results showed that a CH4 headspace concentration of 20% supported a signi fi cantly (p < 0.05) higher SDR (1.50 ± 0.08 g CH4 h -1 g biomass -1 ) compared to the SDRs recorded at 4 and 2% of CH4 (0.33 ± 0.05 and 0.29 ± 0.03 g CH4 h -1 g biomass -1 , respectively)"
+        }
+      ]
+    }
+  ],
+  "methods": [
+    "Batch cultivation tests (13-day duration)",
+    "Modified Brunner mineral salt medium (MSM) at pH 9.1",
+    "Gas chromatography (GC-TCD) for monitoring O2, CO2, and CH4 headspace concentrations",
+    "Biomass estimation via culture absorbance (OD650) and total suspended solids (TSS)",
+    "Intra-cellular ectoine extraction using 80% ethanol and zirconia/silica bead-beating",
+    "Ectoine quantification via HPLC-UV at 220 nm",
+    "Cell viability assay using LIVE/DEAD BacLight Bacterial Viability Kit"
+  ],
+  "methods_summary": "The study utilized batch cultivation of Methylomicrobium alcaliphilum 20Z in a modified Brunner medium. Five test series (TS1-TS5) were conducted to evaluate the effects of CH4 (2-20%), Cu2+ (0.05-50 $\mu$M), NaCl (0-9%), and temperature (25-35 °C). Gas concentrations were monitored by GC-TCD, biomass by OD650/TSS, and ectoine concentrations were measured using HPLC-UV after cell disruption.",
+  "organisms": [
+    "Methylomicrobium alcaliphilum 20Z"
+  ],
+  "genes": [
+    "ectabc operon"
+  ],
+  "proteins": [],
+  "pathways": [
+    "ectoine biosynthesis"
+  ],
+  "metabolites": [
+    "ectoine",
+    "methane",
+    "carbon dioxide"
+  ],
+  "experimental_conditions": [
+    "CH4 concentrations: 2%, 4%, 20%",
+    "Cu2+ concentrations: 0.05, 25, 50 $\mu$M",
+    "NaCl concentrations: 0%, 3%, 6%, 9%",
+    "Temperatures: 25, 30, 35 °C",
+    "pH: 9.1",
+    "Agitation: 600 rpm"
+  ],
+  "measurements": [
+    "Intra-cellular ectoine concentration (mg g biomass -1)",
+    "Extra-cellular ectoine concentration (mg L -1)",
+    "Specific CH4 degradation rate (SDR) (g CH4 h -1 g biomass -1)",
+    "Biomass concentration (g L -1)",
+    "Headspace gas concentrations (CH4, O2, CO2)"
+  ],
+  "important_results": [
+    {
+      "claim": "Under combined optimum conditions (20% CH4, 6% NaCl, 30 °C, 50 $\mu$M Cu2+), extra-cellular ectoine reached 4.7 mg L -1 and intra-cellular ectoine reached 40.7 ± 0.02 mg ectoine g biomass -1.",
+      "citations": [
+        {
+          "page": 4,
+          "quote": "These cultivation conditions promoted the excretion of ectoine to the extra-cellular medium (4.7 mg L -1 , which would correspond to 33.3 mg ectoine g biomass -1 ) and resulted in a high production of intra-cellular ectoine (40.7 ± 0.02 mg ectoine g biomass -1 )."
+        }
+      ]
+    },
+    {
+      "claim": "High salt concentrations negatively affected methane biodegradation, with the SDR at 9% NaCl being 7.7 times lower than that obtained at 3% NaCl.",
+      "citations": [
+        {
+          "page": 5,
+          "quote": "the SDR obtained at 9% NaCl being 7.7 times lower than that obtained at 3% NaCl."
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "The study was a preliminary batch cultivation study",
+    "The need to implement the CH4 biorefinery in a continuous system to further validate the results"
+  ],
+  "keywords": [
+    "Ectoine",
+    "Greenhouse gas",
+    "Methane treatment",
+    "Methane biorefinery"
+  ],
+  "topics": [
+    "Methane valorization",
+    "Bio-conversion",
+    "Methanotrophs",
+    "GHG mitigation"
+  ],
+  "short_summary": "This research evaluated the production of ectoine by the methanotroph Methylomicrobium alcaliphilum 20Z as a means to valorize dilute methane emissions. The study found that 20% CH4 and 6% NaCl optimize intra-cellular ectoine production, while high Cu2+ concentrations induce the excretion of ectoine. The results demonstrate the feasibility of using extremophilic methanotrophs in a biorefinery approach to mitigate greenhouse gases while producing high-value metabolites.",
+  "main_conclusion": "A proper selection of the environmental parameters (temperature, Cu 2 + , NaCl and CH4 concentration) during Methylomicrobium alcaliphilum 20Z cultivation is crucial to simultaneously, maximize both the intra-cellular production and excretion of ectoine and CH4 abatement."
+}

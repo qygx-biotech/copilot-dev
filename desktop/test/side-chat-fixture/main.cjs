@@ -87,6 +87,7 @@ const expandedWorkspacePaths = new Set([""]), selectedWorkspacePaths = new Set()
 const literatureModule = { documents: [], sourceRegistry: { list: () => sources, get: id => sources.find(s => s.sourceId === id) } };
 const projectContextService = { buildConversationContext: conversation => structuredClone(conversation.messages), buildContext: async options => { contextCalls.push(options.question); contextModels.push(options.callContext?.model); return { literature: {}, files: [] }; } };
 const workspaceChatStore = { saveConversation: async conversation => { saves.push(structuredClone(conversation)); if (saves.length === saveFailAt) throw new Error("disk unavailable"); savedConversations.set(conversation.id, structuredClone(conversation)); return structuredClone(conversation); },
+  saveTranscriptTurn: async (id, turn) => { const conversation = savedConversations.get(id); if (!conversation) return null; conversation.transcript = window.BioDesignConversationTranscript.upsert(conversation.transcript, turn); return conversation.transcript; },
   listConversations: async () => [...savedConversations.values()].map(({ messages, ...record }) => ({ ...record, messageCount: messages.length })),
   activateConversation: async id => { if (historyGate) await historyGate; if (!savedConversations.has(id)) throw new Error("Missing chat"); return structuredClone(savedConversations.get(id)); },
   startNewConversation: async () => { if (historyGate) await historyGate; const conversation = { id: crypto.randomUUID(), title: "Side Chat", messages: [] }; savedConversations.set(conversation.id, conversation); return conversation; },
@@ -109,7 +110,7 @@ const showToast = text => toasts.push(text);
 class AuthRequiredError extends Error {}
 const getSelectedPaperIds = () => [];
 const sendWorkbenchRequestOnce = async request => {
-  const { onStream, signal, isCurrentRequest, ...payload } = request;
+  const { onStream, onTranscript, signal, isCurrentRequest, ...payload } = request;
   requests.push(structuredClone(payload)); lastStreamCallback = onStream;
   for (const event of streamEvents) onStream?.(event);
   if (pendingRequest) await pendingRequest;
@@ -131,7 +132,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     fs.writeFileSync(fixturePath, fixtureHtml);
     await win.loadFile(fixturePath);
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/source-citations.js"), "utf8"));
-    for (const script of ["shared/retrieval-contract.js", "shared/semantic-intent.js", "docs/project-context-service.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
+    for (const script of ["shared/conversation-transcript.js", "shared/side-chat-tools.js", "shared/retrieval-contract.js", "shared/semantic-intent.js", "docs/project-context-service.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/chat-images.js"), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/chat-image-composer.js"), "utf8"));
     await win.webContents.executeJavaScript(`document.body.insertAdjacentHTML("beforeend", ${JSON.stringify('<button data-debug-open data-debug-label="open">Debug Console</button>' + debugMarkup)})`);

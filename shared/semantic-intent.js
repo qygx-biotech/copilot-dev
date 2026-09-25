@@ -23,6 +23,7 @@
   // Actual tools stay authoritative. Host-only entries describe existing local
   // preparation, never invent an FC tool or grant execution permission.
   const CAPABILITY_REGISTRY = Object.freeze([
+    entry("read_context_archive", ["memory", "workspace"], ["read", "recall"]),
     entry("list_workspace_items", ["workspace", "project"], ["list"]),
     entry("search_workspace_items", ["workspace", "memory"], ["search", "recall"]),
     entry("read_workspace_item", ["workspace"], ["read"]),
@@ -333,6 +334,7 @@
     }
     return null;
   }
+  function requestAnswerLanguage(query, input = {}) { return answerLanguage(String(query || ""), { projectSemanticRegistry: input.projectSemanticRegistry || {}, conversationContext: input.conversationContext || [] }); }
   function answerLanguage(query, input) { return answerLanguagePreference(query, input) || detectLanguage(query); }
   function detectLanguage(query) {
     if (/[\u3040-\u30ff]/u.test(query)) return "ja";
@@ -556,8 +558,10 @@
       let ir = local, used = false, route = "local", fallback = null;
       if (needsRemote && typeof remoteParser === "function") {
         used = true;
+        let remoteReturned = false;
         try {
           const response = await remoteParser(input);
+          remoteReturned = true;
           ir = normalizeModelSemanticIR(response?.ir || response?.semanticIR || response, { ...input, thresholds: this.thresholds });
           // The current request/preference owns output language, not model whim.
           const explicitLanguage = answerLanguagePreference(input.query, input);
@@ -567,13 +571,17 @@
           route = "remote";
         } catch (error) {
           if (error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") throw error;
-          if (requireRemote) throw Object.assign(new Error("Semantic understanding failed. Please retry; no source preparation was started.", { cause: error }), { code: "SEMANTIC_INTERPRETATION_FAILED" });
+          const validationDetail = error.validationField && error.validationReason ? ` Input field ${error.validationField}: ${error.validationReason}.` : "";
+          if (requireRemote) throw Object.assign(new Error(`Semantic understanding failed (${error.fallbackReason || error.code || "invalid_interpretation"}).${validationDetail} Answer generation did not start; knowledge maintenance may already have run.`, { cause: error }), {
+            code: "SEMANTIC_INTERPRETATION_FAILED", fallbackReason: error.fallbackReason, attempts: error.attempts,
+            failureStage: error.failureStage || (remoteReturned ? "local_output_validation" : "semantic_request_unavailable"), validationField: error.validationField, validationReason: error.validationReason,
+          });
           if (error?.semanticParserAttempted === false) used = false;
           route = "local-fallback";
           fallback = error?.fallbackReason || (error?.capabilityUnavailable ? "semantic-parser-capability-unavailable" : "semantic-parser-unavailable-or-invalid");
         }
       } else if (needsRemote) {
-        if (requireRemote) throw Object.assign(new Error("Semantic understanding is unavailable. No source preparation was started."), { code: "SEMANTIC_INTERPRETATION_FAILED" });
+        if (requireRemote) throw Object.assign(new Error("Semantic understanding is unavailable. Answer generation did not start; knowledge maintenance may already have run."), { code: "SEMANTIC_INTERPRETATION_FAILED", failureStage: "capability_resolution", attempts: 0 });
         route = "local-fallback"; fallback = "semantic-parser-unavailable";
       }
       if (!requireRemote && ir.matchedPattern && !ir.unresolvedSlots.length && route !== "local-fallback") {
@@ -586,5 +594,5 @@
       return { profile: input.profile, semantic: { localPattern: local.matchedPattern, localConfidence: local.patternConfidence, matchState: local.matchedPattern ? "known" : local.patternConfidence >= this.thresholds.uncertain ? "uncertain" : "novel", remoteSemanticParserUsed: used, finalPattern: ir.matchedPattern, route, fallback, inputLanguage: ir.inputLanguage, canonicalEnglishAvailable: Boolean(requestUnderstanding(ir, input.query).canonicalQueryEn) }, operations: [...ir.operations], capabilitiesUsed: [], capabilityHints: [...ir.capabilityHints], semanticParserCalls: used ? 1 : 0, cost: { semanticParserCalls: used ? 1 : 0 } };
     }
   }
-  return Object.freeze({ SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, RETRIEVAL_SCOPES, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, normalizeModelSemanticIR, compactSemanticInput, resolveLiteratureReference, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, retrievalPolicy, requestUnderstanding, literatureQueryForms });
+  return Object.freeze({ requestAnswerLanguage, SEMANTIC_SCHEMA_VERSION, PATTERN_LIBRARY_VERSION, RETRIEVAL_SCOPES, DEFAULT_THRESHOLDS, EFFECTS, OPERATIONS, SEMANTIC_PATTERNS, PATTERN_LIBRARY: SEMANTIC_PATTERNS, CAPABILITY_REGISTRY, SCIENTIFIC_ENTITIES, FIELD_ALIASES, SEMANTIC_IR_SCHEMA, SemanticInterpreter, interpretLocal, validateSemanticIR, normalizeModelSemanticIR, compactSemanticInput, resolveLiteratureReference, extractProtectedIdentifiers, protectedIdentifiers: extractProtectedIdentifiers, authorizeCapability, planCapabilities, planEvidenceNeeds, retrievalPolicy, requestUnderstanding, literatureQueryForms });
 });

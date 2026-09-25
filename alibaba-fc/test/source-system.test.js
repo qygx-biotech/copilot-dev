@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 
 const test = require("node:test");
@@ -1607,7 +1608,7 @@ test("TEST A: 32 discovered papers produce exactly 32 successful mapper calls", 
   const progress = [];
 
   assert.equal(system.registry.counts().papersSearchable, 0);
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "Summarize all papers",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1642,7 +1643,7 @@ test("TEST A: 32 discovered papers produce exactly 32 successful mapper calls", 
   assert.doesNotMatch(context.files[0].content, /cannot summarize|cannot analyze/i);
 
   for (const retrievalProfile of ["medium", "high"]) {
-    const repeated = await service.buildContext({
+    const repeated = await service.buildPlannedContext({
       question: "Summarize all papers",
       selectedPaths: [],
       selectedPaperIds: [],
@@ -1709,7 +1710,7 @@ test("restart follow-ups retain all nested literature metadata despite stale cha
   const literature = makeLiteratureHarness(system);
   const service = new ProjectContextService({ workspace, literature });
 
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "Restart the analysis processing workflow.",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1768,7 +1769,7 @@ test("TEST C: a generic concept question does not prepare the 32-paper corpus", 
   const service = new ProjectContextService({ workspace, literature });
 
   for (const retrievalProfile of ["light", "medium", "high"]) {
-    const context = await service.buildContext({
+    const context = await service.buildPlannedContext({
       question: "What is kcat?",
       selectedPaths: [],
       selectedPaperIds: [],
@@ -1793,7 +1794,7 @@ test("TEST D: summarizing one selected paper prepares only that paper", async ()
   const selected = literature.documents[0];
   const service = new ProjectContextService({ workspace, literature });
 
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "Summarize this paper.",
     selectedPaths: [selected.relativePath],
     selectedPaperIds: [selected.id],
@@ -1818,7 +1819,7 @@ test("TEST E: reviewing selected papers snapshots only the three selected source
   const selected = literature.documents.slice(0, 3);
   const service = new ProjectContextService({ workspace, literature });
 
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "Write a review of these papers.",
     selectedPaths: selected.map((document) => document.relativePath),
     selectedPaperIds: selected.map((document) => document.id),
@@ -3314,7 +3315,7 @@ test("incremental Side Chat update deterministically reuses 32 maps and maps onl
   };
   const service = new ProjectContextService({ workspace, literature });
   const progress = [];
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "我先加了几篇文献，帮我纳入考量，更新一下综述。",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -3559,7 +3560,7 @@ test("CASE 1: map failures remain prepared and expose their actual structured-ou
   const statusContext = await new ProjectContextService({
     workspace,
     literature: makeLiteratureHarness(system),
-  }).buildContext({
+  }).buildPlannedContext({
     question: "Why did two papers fail?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -3644,7 +3645,7 @@ test("CASES 2-3: include failed papers retries only two maps and incrementally u
     corpusWorkflows: system.corpusWorkflows,
   });
   const service = new ProjectContextService({ workspace, literature });
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question:
       "There are two papers that needed to reprocess. Can you help me include them in summary?",
     selectedPaths: [],
@@ -3859,14 +3860,14 @@ test("whole-paper Side Chat can select native PDF while an exact-text question s
   const service = new ProjectContextService({ workspace, literature });
   const selectedPaths = [paper.path];
 
-  const wholePaper = await service.buildContext({
+  const wholePaper = await service.buildPlannedContext({
     question: "Give me an overview of the figures and layout of this selected study.",
     selectedPaths,
     selectedPaperIds: [paper.sourceId],
     workspaceTree: treeFor(workspace),
     surface: "side_chat",
   });
-  const exactText = await service.buildContext({
+  const exactText = await service.buildPlannedContext({
     question: "What exact concentration does this paper report?",
     selectedPaths,
     selectedPaperIds: [paper.sourceId],
@@ -3973,7 +3974,7 @@ test("explicit Side Chat memory and automatic metadata updates preserve the curr
   });
   const service = new ProjectContextService({ workspace, literature });
 
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "Remember that our primary assay metric is hydroxyectoine titer.",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -4052,7 +4053,7 @@ test("managed worker recovery is allowlisted, preserves journals, and resumes in
   const contextResult = await new ProjectContextService({
     workspace: contextWorkspace,
     literature,
-  }).buildContext({
+  }).buildPlannedContext({
     question: "Please recover the stuck analysis worker and resume the workflow.",
     selectedPaths: [],
     selectedPaperIds: [],

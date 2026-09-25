@@ -438,11 +438,13 @@ test("workspace open, login, and Refresh never generate Paper Cards", () => {
   assert.doesNotMatch(loginHandler, eagerPattern);
   assert.match(openWorkspace, /literatureModule\.scan\(\{ tree: workspaceTree \}\)/);
   assert.doesNotMatch(openWorkspace, eagerPattern);
-  assert.match(refreshLiterature, /literatureModule\.scan\(\)/);
+  assert.match(refreshLiterature, /const literature = literatureModule/);
+  assert.match(refreshLiterature, /literature\.scan\(\)/);
+  assert.match(refreshLiterature, /if \(literature !== literatureModule\) return/);
   assert.doesNotMatch(refreshLiterature, eagerPattern);
   assert.match(refreshWorkspace, /reconcileCurrentWorkspaceCatalog\(\)/);
   assert.doesNotMatch(refreshWorkspace, eagerPattern);
-  assert.match(reconcileWorkspace, /literatureModule\.scan\(\{ tree: nextTree \}\)/);
+  assert.match(reconcileWorkspace, /literature\.scan\(\{ tree: nextTree \}\)/);
   assert.doesNotMatch(reconcileWorkspace, eagerPattern);
   assert.match(moduleSource, /async addFiles\([\s\S]*?const documents = await this\.scan\(\)/);
   assert.match(moduleSource, /async ensurePaperCards\(/);
@@ -464,7 +466,7 @@ test("Side Chat delegates preparation to the context service without eager card 
     chatFunction.slice(0, contextBuild),
     /ensurePaperCards|\.summarize\(|ensureSourceReady/
   );
-  assert.match(appSource, /scanDirectoryTree\(\)[\s\S]*literatureModule\.scan\(\{ tree: nextTree \}\)/);
+  assert.match(appSource, /scanDirectoryTree\(\)[\s\S]*literature\.scan\(\{ tree: nextTree \}\)/);
 });
 
 test("Workspace rows preserve full names while clamping long files to two lines", () => {

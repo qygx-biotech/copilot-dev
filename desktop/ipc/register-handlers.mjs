@@ -92,6 +92,15 @@ export function registerIpcHandlers(options) {
     assertOnlyKeys(payload, []);
     return runtimeInfo();
   });
+  handle(channels.clipboardWriteText, async (event, payload) => {
+    assertTrustedIpcSender(event, getWindow);
+    assertOnlyKeys(payload, ["text"]);
+    if (typeof payload.text !== "string" || payload.text.length > 16 * 1024 * 1024) {
+      throw new ValidationError("INVALID_TEXT", "Clipboard text is invalid or too large.");
+    }
+    await options.writeClipboardText(payload.text);
+    return { copied: true };
+  });
   handle(channels.sourceOpen, async (event, payload) => {
     assertTrustedIpcSender(event, getWindow);
     assertOnlyKeys(payload, ["url"]);
@@ -122,6 +131,28 @@ export function registerIpcHandlers(options) {
       throw error;
     }
     return sessionManager.open(result.filePaths[0]);
+  });
+
+  handle(channels.projectList, async (event, payload) => {
+    assertTrustedIpcSender(event, getWindow);
+    assertOnlyKeys(payload, ['account']);
+    return options.projectCatalog.list(boundedString(payload.account, 'account', 200));
+  });
+
+  handle(channels.projectChoose, async (event, payload) => {
+    assertTrustedIpcSender(event, getWindow);
+    assertOnlyKeys(payload, ['account']);
+    const account = boundedString(payload.account, 'account', 200);
+    const result = await dialog.showOpenDialog(getWindow(), { title: 'Choose a project', buttonLabel: 'Use Folder', properties: ['openDirectory', 'createDirectory'] });
+    if (result.canceled || result.filePaths.length !== 1) return null;
+    return options.projectCatalog.remember(account, result.filePaths[0]);
+  });
+
+  handle(channels.projectActivate, async (event, payload) => {
+    assertTrustedIpcSender(event, getWindow);
+    assertOnlyKeys(payload, ['account', 'catalogId']);
+    const entry = await options.projectCatalog.get(boundedString(payload.account, 'account', 200), boundedString(payload.catalogId, 'catalogId', 100));
+    return { ...await sessionManager.open(entry.path), catalogId: entry.id, managed: entry.managed, name: entry.managed ? 'Chats' : entry.name };
   });
 
   handle(channels.projectClose, async (_event, rawPayload) => {

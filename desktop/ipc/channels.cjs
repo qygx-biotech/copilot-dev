@@ -2,12 +2,16 @@
 
 module.exports = Object.freeze({
   runtimeInfo: "biodesign:runtime:info",
+  clipboardWriteText: "biodesign:clipboard:write-text",
   sourceOpen: "biodesign:source:open",
   updateCheck: "biodesign:updates:check",
   updateStatus: "biodesign:updates:status",
   projectOpen: "biodesign:project:open",
   projectClose: "biodesign:project:close",
   projectStatus: "biodesign:project:status",
+  projectList: "biodesign:project:list",
+  projectChoose: "biodesign:project:choose",
+  projectActivate: "biodesign:project:activate",
   filesList: "biodesign:files:list",
   filesStat: "biodesign:files:stat",
   filesExists: "biodesign:files:exists",

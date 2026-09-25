@@ -1,0 +1,7 @@
+{
+  "question": "这张图片里的公式是什么意思？",
+  "understanding": {
+    "text": "Image 1 包含两个数学公式：\n\n1.  第一个公式为：$\\varphi_{ij} = \\psi^{(\\alpha)} \\left( \\mathbf{e}_{ij}, \\mathbf{h}_i^{\\alpha 0}, \\mathbf{h}_j^{\\alpha 0} \\right)$\n    *   左侧为 $\\varphi_{ij}$。\n    *   右侧是一个函数 $\\psi^{(\\alpha)}$，其参数包括 $\\mathbf{e}_{ij}$、$\\mathbf{h}_i^{\\alpha 0}$ 和 $\\mathbf{h}_j^{\\alpha 0}$。\n\n2.  第二个公式为一个更新表达式：$\\mathbf{h}_i^\\alpha \\leftarrow \\mathbf{h}_i^\\alpha \\oplus \\text{BN}^{(\\alpha)} \\left( \\frac{1}{N_i} \\sum_{j \\in N_i} (Y(\\hat{\\mathbf{r}}_{ij}) \\otimes_{\\varphi_{ij}} \\mathbf{h}_j^\\alpha) \\right)$\n    *   $\\mathbf{h}_i^\\alpha$ 通过左箭头 $\\leftarrow$ 表示被更新。\n    *   更新操作包含一个 $\\oplus$ 符号。\n    *   包含一个批归一化函数 $\\text{BN}^{(\\alpha)}$。\n    *   $\\text{BN}^{(\\alpha)}$ 函数内部包含一个平均值计算 $\\frac{1}{N_i} \\sum_{j \\in N_i} (\\dots)$，其中 $j$ 遍历集合 $N_i$。\n    *   求和项内部为 $(Y(\\hat{\\mathbf{r}}_{ij}) \\otimes_{\\varphi_{ij}} \\mathbf{h}_j^\\alpha)$，其中包含函数 $Y(\\hat{\\mathbf{r}}_{ij})$ 和一个由 $\\varphi_{ij}$ 索引的算子 $\\otimes_{\\varphi_{ij}}$ 作用于 $\\mathbf{h}_j^\\alpha$。",
+    "model": "google/gemma-4-31b-it"
+  }
+}

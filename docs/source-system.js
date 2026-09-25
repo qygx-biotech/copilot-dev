@@ -17,6 +17,7 @@
     (typeof require === "function" ? require("../shared/experiment-semantics.js") : null);
   const semanticIntent = root?.BioDesignSemanticIntent ||
     (typeof require === "function" ? require("../shared/semantic-intent.js") : null);
+  const knowledgeAccess = root?.BioDesignSideChatTools || (typeof require === "function" ? require("../shared/side-chat-tools.js") : null);
   const wikiApi = root?.LiteratureWikiService ? root : (typeof require === "function" ? require("./literature-wiki.js") : {});
   const wikiContract = root?.BioDesignLiteratureWiki || (typeof require === "function" ? require("../shared/literature-wiki.js") : {});
   const isValidRetrievalProfile = retrievalProfiles.isValidRetrievalProfile ||
@@ -57,6 +58,7 @@
   const CORPUS_MAP_SCHEMA_VERSION = 3;
   const CORPUS_MAP_PROMPT_VERSION = "query-specific-map-v2";
   const PAPER_CARD_CORPUS_MAP_VERSION = "canonical-paper-projection-v2";
+  const LOCAL_CORPUS_EVIDENCE_VERSION = "local-corpus-evidence-v1";
   const CORPUS_RETRIEVAL_INTENT = "corpus scientific evidence extraction";
   const NATIVE_PDF_PROMPT_VERSION = "requesty-native-pdf-v1";
   const PAPER_CARD_CACHE_KEY_VERSION = 4;
@@ -671,8 +673,8 @@
       "# Current Topic Synthesis",
       "",
       ...(topic.wikiPage ? [
-        topic.summaryStatus === "ready" ? "Derived literature wiki. Check original evidence for precise or disputed claims." : "STALE: last valid wiki revision retained for inspection only. Retrieve current original evidence; these are not current conclusions.",
-        wikiContract.renderPage(topic.wikiPage),
+        topic.wikiDraftPage ? "Unverified saved wiki draft. Not published current knowledge. Citation resolution does not verify scientific claims." : topic.summaryStatus === "ready" ? "Derived literature wiki. Citation resolution does not verify scientific claims; check original evidence for precise or disputed claims." : "STALE: last valid wiki revision retained for inspection only. Retrieve current original evidence; these are not current conclusions.",
+        wikiContract.renderPage(topic.wikiPage, topic.wikiIntegrity),
       ] : [topic.summaryStatus === "ready" && topic.summary ? topic.summary : "Topic summary is stale or not generated; retrieve current source evidence."]),
     ].join("\n").trim()}\n`;
   }
@@ -752,10 +754,10 @@
         ? this.topics.filter((topic) => topicIds.includes(topic.topicId))
         : this.topics;
       for (const topic of selected) {
-        const revision = await this.wiki?.read(topic);
+        const revision = await this.wiki?.readForUse(topic);
         await this.workspace.writeFile(
           `${KNOWLEDGE_PATHS.topics}/${topic.topicId}.md`,
-          renderTopicMarkdown(revision ? { ...topic, wikiPage: revision.page,
+          renderTopicMarkdown(revision ? { ...topic, wikiPage: revision.page, wikiIntegrity: revision.integrity,
             paperIds: revision.dependencies.map(item => item.sourceId),
             sourceVersions: Object.fromEntries(revision.dependencies.map(item => [item.sourceId, item.contentHash])) } : topic)
         );
@@ -776,7 +778,7 @@
       const candidates = new Set(topicIds);
       const removed = this.topics.filter((topic) =>
         candidates.has(topic.topicId) &&
-        !topic.wiki &&
+        !topic.wiki && !topic.wikiDraft && !topic.wikiEvidence && !topic.wikiAdmission && !topic.wikiMaintenance &&
         !retainedParentIds.has(topic.topicId) &&
         !(topic.paperIds || []).length
       );
@@ -5397,7 +5399,7 @@
       const requestedSet = requestedIds.length ? new Set(requestedIds) : null;
       const sources = requestedSet
         ? requestedIds
-            .map((sourceId) => this.registry.get(sourceId))
+            .map((sourceId) => this.registry.get(sourceId, { includeMissing: true }))
             .filter((source) => source?.sourceKind === "paper")
         : discoveredSources;
       const sourceIds = sources.map((source) => source.sourceId);
@@ -5559,7 +5561,12 @@
           updatedAt: nowIso(this.now),
         };
       }
+      if ([journal.knowledgeConfiguration, options.seedJournal?.knowledgeConfiguration].some(config => config?.evidenceCollection === LOCAL_CORPUS_EVIDENCE_VERSION)) {
+        options = { ...options, localEvidenceOnly: true };
+      }
       journal.status = "running";
+      const previousKnowledgeConfiguration = journal.knowledgeConfiguration;
+      journal.knowledgeConfiguration = { version: 1, selectedModel: options.callContext?.model || "", mapPromptVersion: CORPUS_MAP_PROMPT_VERSION, requireQueryEvidence: options.requireQueryEvidence === true, evidenceCollection: options.localEvidenceOnly ? LOCAL_CORPUS_EVIDENCE_VERSION : "legacy-mapping" };
       journal.completedAt = null;
       journal.normalizedQuestion = normalizedQuestion;
       journal.normalizedSynthesisSignature ||= normalizedQuestion;
@@ -5784,7 +5791,7 @@
         Boolean(this.registry.get(sourceId)?.artifacts?.paperCard?.path)
       );
       if (
-        readySourceIds.length &&
+        !options.localEvidenceOnly && readySourceIds.length &&
         (typeof this.preparation.generatePaperCard === "function" ||
           canonicalArtifactsAvailable)
       ) {
@@ -6008,7 +6015,18 @@
         });
       }
       const reusablePaperCards = new Map();
+      // The public knowledge contract can require query-specific support beyond
+      // a generic card. Keep cards intact; invalidate only insufficient projections.
+      for (const sourceId of readySourceIds) {
+        const mapped = journal.maps[sourceId];
+        if (options.localEvidenceOnly && mapped && mapped.generationMode !== LOCAL_CORPUS_EVIDENCE_VERSION) { delete journal.maps[sourceId]; continue; }
+        const incompatibleWorker = !options.localEvidenceOnly && options.requireQueryEvidence !== undefined && mapped && mapped.generationMode !== "paper-card-cache" &&
+          (previousKnowledgeConfiguration?.selectedModel !== journal.knowledgeConfiguration.selectedModel ||
+            previousKnowledgeConfiguration?.mapPromptVersion !== CORPUS_MAP_PROMPT_VERSION);
+        if ((options.requireQueryEvidence && mapped?.generationMode === "paper-card-cache") || incompatibleWorker) delete journal.maps[sourceId];
+      }
       await Promise.all(readySourceIds.map(async (sourceId) => {
+        if (options.requireQueryEvidence || options.localEvidenceOnly) return;
         const mapped = journal.maps[sourceId];
         if (mapped && mapped.generationMode !== "paper-card-cache") return;
         const source = this.registry.get(sourceId);
@@ -6023,7 +6041,7 @@
         normalizedQuestion,
         CORPUS_MAP_SCHEMA_VERSION,
         CORPUS_MAP_PROMPT_VERSION,
-        options.callContext?.model || options.mapModelVersion || "default-model",
+        options.localEvidenceOnly ? LOCAL_CORPUS_EVIDENCE_VERSION : options.callContext?.model || options.mapModelVersion || "default-model",
       ].join("|"));
       await Promise.all(readySourceIds.map(async (sourceId) => {
         const source = this.registry.get(sourceId);
@@ -6048,6 +6066,7 @@
             Number(cachedMap.mapSchemaVersion) === CORPUS_MAP_SCHEMA_VERSION &&
             cachedMap.mapPromptVersion === CORPUS_MAP_PROMPT_VERSION &&
             (!options.mapModelVersion || cachedMap.mapModelVersion === options.mapModelVersion) &&
+            (!options.localEvidenceOnly || cachedMap.result?.generationMode === LOCAL_CORPUS_EVIDENCE_VERSION) &&
             !corpusMapValidationErrors(cachedMap.result).length
           ) {
             journal.maps[sourceId] = {
@@ -6074,7 +6093,7 @@
       const retrievalSourceIds = mapSourceIds.filter(
         (sourceId) => !reusablePaperCards.has(sourceId)
       );
-      const retrievalProfile = normalizeRetrievalProfile(options.retrievalProfile);
+      const retrievalProfile = options.localEvidenceOnly ? "light" : normalizeRetrievalProfile(options.retrievalProfile);
       const corpusRetrievalDecision = retrievalProfile === "medium"
         ? selectRetrievalProfile(retrievalProfile, {
             query: journal.question,
@@ -6156,7 +6175,7 @@
                 readySource,
                 paperCardContract
               );
-            if (reusableCard) {
+            if (reusableCard && !options.requireQueryEvidence && !options.localEvidenceOnly) {
               const paperCardMapCacheSignature = stableStringHash([
                 normalizedQuestion,
                 CORPUS_MAP_SCHEMA_VERSION,
@@ -6260,7 +6279,9 @@
             );
             journal.retrievalDiagnostics[sourceId] = search?.diagnostics || null;
             let evidence = search?.resultHandle ? await this.results.read(search.resultHandle) : search;
+            let fallbackEvidenceUsed = false;
             if (!Array.isArray(evidence) || !evidence.length) {
+              fallbackEvidenceUsed = true;
               const fallbackEvidence = await this.literatureTools.readPaperEvidence(
                 readySource.sourceId,
                 { limit: 8, signal: options.signal }
@@ -6275,7 +6296,27 @@
               }));
             }
             const paperArtifact = await this.preparation.readPaperArtifact(sourceId);
-            const paperCard = await this.readOptionalPaperCard(readySource);
+            const currentCard = options.localEvidenceOnly ? await this.readValidPaperCardForCorpusMap(readySource, paperCardContract) : null;
+            const paperCard = options.localEvidenceOnly ? currentCard?.card || null : await this.readOptionalPaperCard(readySource);
+            if (options.localEvidenceOnly) {
+              if (paperArtifact.contentHash !== readySource.contentHash) throw new SourceSystemError("SOURCE_VERSION_CHANGED", "Original evidence changed during collection.");
+              // Resolve retrieval hits to authoritative chunks, then combine with
+              // deterministic lexical matches. QMD snippets never become evidence.
+              const terms = knowledgeAccess.evidenceTerms(literatureQueries(journal.question, options).join(" "));
+              const retrieved = new Set((evidence || []).filter(item => !fallbackEvidenceUsed && item.chunkId).map(item => `${item.page}:${item.chunkId}`));
+              const ranked = paperArtifact.chunks.map((chunk, index) => ({ chunk, index,
+                score: knowledgeAccess.evidenceScore(chunk.text, terms) + (retrieved.has(`${chunk.page}:${chunk.chunkId}`) ? 1 : 0) }))
+                .sort((a, b) => b.score - a.score || a.index - b.index);
+              const matches = ranked.filter(item => item.score > 0);
+              fallbackEvidenceUsed = !matches.length;
+              // On a broad/no-match request, sample across the paper rather than
+              // pretending that the first chunks are query matches.
+              const selected = matches.length ? matches.slice(0, 6) : Array.from({ length: Math.min(6, ranked.length) }, (_, index) => {
+                const chunkIndex = Math.floor(index * paperArtifact.chunks.length / Math.min(6, ranked.length));
+                return { chunk: paperArtifact.chunks[chunkIndex] };
+              });
+              evidence = selected.map(({ chunk }) => ({ snippet: chunk.text, page: chunk.page, chunkId: chunk.chunkId }));
+            }
             const workerInput = {
               paperId: readySource.sourceId,
               contentHash: readySource.contentHash,
@@ -6290,10 +6331,12 @@
             // Each mapper receives only this bounded object: no parent conversation or
             // accumulated tool history enters the worker context.
             let mappedExecution = null;
-            if (this.mapWorker) {
+            if (this.mapWorker && !options.localEvidenceOnly) {
               logRuntime("corpus_mapper", {
                 workflowId,
                 callRole: "corpus_mapper",
+                boundedReasoningWorker: true,
+                reason: options.requireQueryEvidence ? "query-specific-evidence-needed" : "compatible-card-unavailable",
                 paperId: sourceId,
                 profile: retrievalProfile,
                 state: "started",
@@ -6347,8 +6390,13 @@
             journal.maps[sourceId] = {
               ...normalizedMap,
               statSignature: readySource.statSignature,
-              generationMode: mappedExecution?.generationMode || "host-default",
+              generationMode: options.localEvidenceOnly ? LOCAL_CORPUS_EVIDENCE_VERSION : mappedExecution?.generationMode || "host-default",
+              ...(options.localEvidenceOnly ? { evidenceCollection: { derived: false, bounded: true, fallbackEvidence: fallbackEvidenceUsed, selectedPassages: workerInput.evidence.length, limitation: "Local retrieval excerpts, not per-paper LLM analysis or proof of claim entailment." } } : {}),
             };
+            if (options.localEvidenceOnly) {
+              journal.processingAccounting.localQuestionProjections += 1;
+              await Promise.resolve(options.onProgress?.({ workflowId, phase: "map", stage: "corpus-local-evidence", paperId: sourceId, providerRequest: false, message: "Collecting current paper evidence locally" }));
+            }
             journal.mapAttemptDiagnostics[sourceId] =
               mappedExecution?.diagnostics || [];
             await this.workspace.writeJson(providerMapCachePath, {
@@ -7157,6 +7205,7 @@
     const literatureWiki = new wikiApi.LiteratureWikiService({
       ...options, workspace: options.workspace, registry, preparation, jobs, topics: topicService, corpusWorkflows,
       hashValue: value => hashBytes(new TextEncoder().encode(stableJson(value)), options.cryptoProvider || root.crypto),
+      hashSourceBytes: bytes => hashBytes(bytes, options.cryptoProvider || root.crypto),
     });
     topicService.wiki = literatureWiki;
     knowledgeLifecycle.corpusWorkflows = corpusWorkflows;

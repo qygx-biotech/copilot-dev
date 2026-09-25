@@ -16,7 +16,11 @@ process.env.OSS_INTERNAL_ENDPOINT =
 process.env.OSS_PUBLIC_ENDPOINT = "https://oss-cn-beijing.aliyuncs.com";
 process.env.REQUESTY_API_KEY = "requesty-test-key";
 process.env.REQUESTY_MODEL = "requesty-test-model";
+process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ "requesty-test-model": { supportsTools: true, supportsImages: false, supportsWebSearch: false } });
 process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "true";
+// The synthetic provider explicitly supports object mode; unknown real models
+// must not inherit support just because strict schemas are unavailable.
+process.env.REQUESTY_MODEL_SUPPORTS_JSON_OBJECT = "true";
 
 const objectStore = new Map();
 let deleteCalls = 0;
@@ -197,6 +201,14 @@ global.fetch = async (_url, options = {}) => {
     }
   }
 
+  // Canonical excerpt/reduce providers now return their full structured schema.
+  // The legacy OSS review fixture retains its original six-field response.
+  if (systemMessage.includes("canonical Paper Card") && systemMessage.includes("one excerpt of an academic paper")) {
+    content = JSON.stringify(_test.normalizeLocalLiteratureEvidence(JSON.parse(content)));
+  } else if (systemMessage.includes("canonical Paper Card") && systemMessage.includes("combine evidence summaries")) {
+    content = JSON.stringify(_test.normalizeLocalLiteratureSummary(JSON.parse(content)));
+  }
+
   return new Response(
     JSON.stringify({ choices: [{ message: messageOverride || { content } }] }),
     { status: 200, headers: { "Content-Type": "application/json" } }
@@ -340,7 +352,7 @@ test("frontend upload does not automatically invoke PDF review", () => {
   assert.doesNotMatch(frontendSource, /await syncStoredPdfDocuments\(\)/);
   assert.match(frontendSource, /addSideChatThinking/);
   assert.doesNotMatch(frontendSource, /SIDE_CHAT_HISTORY_STORAGE_KEY/);
-  assert.match(contextSource, /\.biodesign\/chat\/conversations/);
+  assert.match(contextSource, /this\.conversationsDirectory = `\$\{directory\}\/conversations`/);
   assert.match(frontendSource, /persistSideChatConversation/);
 });
 
@@ -927,14 +939,71 @@ test("combined extracted text creates the canonical Paper Card in one strict Req
   assert.equal(JSON.stringify(requests[0]).includes("/private/workspace"), false);
 });
 
+test("supplied raw-LaTeX Paper Card succeeds in native schema and text object modes without a provider repair", async () => {
+  const raw = fs.readFileSync(path.join(__dirname, "fixtures/paper-card-unescaped-latex.txt"), "utf8");
+  const expected = JSON.parse(raw.replaceAll(String.raw`\mu`, String.raw`\\mu`));
+  const { paper_id: paperId, content_hash: contentHash } = expected.source_identity;
+  const pdfSettings = { REQUESTY_PDF_MODEL: "openai/gpt-4.1", REQUESTY_PDF_ENABLED: "true", REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: "true", REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: "true" };
+  const previous = Object.fromEntries(Object.keys(pdfSettings).map(key => [key, process.env[key]]));
+  Object.assign(process.env, pdfSettings);
+  try {
+    for (const endpoint of ["create-paper-card-from-text", "analyze-pdf-native"]) {
+      process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = endpoint === "analyze-pdf-native" ? "true" : "false";
+      const start = capturedLlmRequests.length;
+      queuedChatCompletionTexts.push(raw);
+      const response = await handler(apiEvent("POST", `/api/literature/${endpoint}`, {
+        paperId, contentHash, filename: "paper.pdf", responseSchema: "canonical_paper_card",
+        purpose: "canonical-paper-card", task: "Create a comprehensive Paper Card.",
+        text: "# Page 3\n" + expected.major_findings.map(item => item.citations.map(c => c.quote).join("\n")).join("\n"),
+        pageCount: 10, chunkCount: 1,
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nfixture").toString("base64")}`,
+      }), context);
+      const body = parseResponse(response);
+      assert.equal(response.statusCode, 200, JSON.stringify(body));
+      assert.equal(capturedLlmRequests.length - start, 1);
+      assert.equal(capturedLlmRequests.at(-1).response_format.type, endpoint === "analyze-pdf-native" ? "json_schema" : "json_object");
+      assert.equal(capturedLlmRequests.at(-1).model, endpoint === "analyze-pdf-native" ? "openai-responses/gpt-4.1" : "requesty-test-model");
+      assert.equal(body.analysis.sourceIdentity.paperId, paperId);
+      assert.deepEqual(body.analysis.majorFindings, expected.major_findings);
+      assert.equal(body.analysis.methodsSummary, expected.methods_summary);
+      assert.deepEqual(body.analysis.experimentalConditions, expected.experimental_conditions);
+      assert.deepEqual(JSON.parse(JSON.stringify(body.analysis)), body.analysis);
+    }
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test("LaTeX corpus findings retain stable evidence references with no provider repair", async () => {
+  const ref = "paper-a:p8:paper-a-P8-C2";
+  const map = validCorpusMapJson(ref);
+  map.major_findings[0].claim = String.raw`The assay used $50\mu M$; $\frac{a}{b}$ describes the ratio.`;
+  queuedCorpusMapCompletionTexts.push(JSON.stringify(map).replaceAll("\\\\", "\\"));
+  const start = capturedLlmRequests.length;
+  const response = await handler(apiEvent("POST", "/api/corpus/map-paper", {
+    paperId: "paper-a", contentHash: "sha256:abc123", question: "Summarize the reported assay.",
+    evidence: [{ evidenceRef: ref, text: map.major_findings[0].claim }], language: "en",
+  }), context);
+  const body = parseResponse(response);
+  assert.equal(response.statusCode, 200, JSON.stringify(body));
+  assert.equal(capturedLlmRequests.length - start, 1);
+  assert.equal(body.mapResult.findings[0].claim, map.major_findings[0].claim);
+  assert.deepEqual(body.mapResult.findings[0].evidenceRefs, [ref]);
+  assert.equal(body.mapperDiagnostics.repairAttempted, false);
+});
+
 test("combined Paper Card rejects invalid provenance without a repair call", async () => {
   const requestStart = capturedLlmRequests.length;
   queuedChatCompletionTexts.push(JSON.stringify(validNativePaperCard({
+    methods_summary: String.raw`The assay used $50\mu M$.`,
     source_identity: {
       paper_id: "stale-paper",
       content_hash: "sha256:paper-card-native"
     }
-  })));
+  })).replaceAll("\\\\", "\\"));
   const response = await handler(
     apiEvent("POST", "/api/literature/create-paper-card-from-text", {
       paperId: "paper-card-native",
@@ -960,7 +1029,7 @@ test("combined Paper Card rejects invalid provenance without a repair call", asy
   assert.equal(capturedLlmRequests.slice(requestStart).length, 1);
 });
 
-test("Paper Cards use one validated json_object call when strict schema support is false or unset", async () => {
+test("Paper Cards use validated json_object when object support is declared and strict schema support is false or unset", async () => {
   const previous = process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
   try {
     for (const value of ["false", undefined]) {
@@ -1006,6 +1075,7 @@ test("JSON object card output still rejects wrong source identity and malformed 
     ]) {
       const start = capturedLlmRequests.length;
       queuedChatCompletionTexts.push(JSON.stringify(invalid));
+      if (invalid.methods === "wrong type") queuedChatCompletionTexts.push(JSON.stringify(invalid));
       const response = await handler(apiEvent("POST", "/api/literature/create-paper-card-from-text", {
         paperId: "paper-card-native", contentHash: "sha256:paper-card-native", filename: "paper.pdf",
         text: "# Page 4\nThe tested variant improved EctD activity.",
@@ -1013,7 +1083,7 @@ test("JSON object card output still rejects wrong source identity and malformed 
       }), context);
       assert.equal(response.statusCode, 502);
       assert.equal(parseResponse(response).fallbackReason, "combined-text-schema-or-provenance-invalid");
-      assert.equal(capturedLlmRequests.length - start, 1);
+      assert.equal(capturedLlmRequests.length - start, invalid.methods === "wrong type" ? 2 : 1);
     }
   } finally {
     if (previous === undefined) delete process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA;
@@ -1098,8 +1168,10 @@ test("two added long papers recover from a real FC input-token quota response an
       return new Response(JSON.stringify({ error: { message: "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_3_input_token_count, limit: 16000, model: gemma-4-31b\nPlease retry in 22.454788929s." } }), { status: 429, headers: { "Retry-After": "23" } });
     }
     if (request.messages?.[0]?.content?.includes("one excerpt of an academic paper")) {
-      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: "Evidence summary. ".repeat(210),
-        mainFindings: ["The tested variant improved EctD activity."] }) } }] }));
+      assert.equal(request.response_format.type, "json_schema");
+      assert.equal(request.response_format.json_schema.name, "canonical_paper_card_excerpt");
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(_test.normalizeLocalLiteratureEvidence({ summary: "Evidence summary. ".repeat(210),
+        mainFindings: ["The tested variant improved EctD activity."] })) } }] }));
     }
     active++; peak = Math.max(peak, active);
     try { return await savedFetch(url, options); } finally { active--; }
@@ -1806,7 +1878,7 @@ test("Side Chat accepts plain-text follow-ups and preserves multi-round history"
   );
 
   const request = capturedLlmRequests.at(-1);
-  assert.equal(Object.hasOwn(request, "max_tokens"), false);
+  assert.equal(request.max_tokens, 8192);
   assert.deepEqual(
     request.messages
       .filter((message) => message.role !== "system")
@@ -1941,6 +2013,7 @@ test("Side Chat executes provider tool calls through the effect-authorized loop"
   assert.deepEqual(
     capturedLlmRequests[0].tools.map((tool) => tool.function.name),
     [
+      "read_context_archive",
       "list_workspace_items",
       "search_workspace_items",
       "read_workspace_item",
@@ -1955,7 +2028,6 @@ test("Side Chat executes provider tool calls through the effect-authorized loop"
       "update_project_memory",
       "get_local_worker_status",
       "restart_local_worker",
-      "update_recommendation"
     ]
   );
   const toolResult = capturedLlmRequests[1].messages.find(
@@ -1965,7 +2037,7 @@ test("Side Chat executes provider tool calls through the effect-authorized loop"
   assert.match(toolResult.content, /A163V variant showed improved/);
 });
 
-test("Side Chat preserves a long provider reply without imposing an output cap", async () => {
+test("Side Chat preserves a long provider reply while reserving the configured output budget", async () => {
   const longReply = `## Detailed answer\n\n${Array.from(
     { length: 700 },
     () => "Evidence-backed explanation."
@@ -1985,8 +2057,8 @@ test("Side Chat preserves a long provider reply without imposing an output cap",
   assert.equal(body.fallback, false);
   assert.equal(body.reply, longReply);
   assert.equal(
-    Object.hasOwn(capturedLlmRequests.at(-1), "max_tokens"),
-    false
+    capturedLlmRequests.at(-1).max_tokens,
+    8192
   );
 });
 
@@ -2171,4 +2243,60 @@ test("collection chat uses cached summaries for twenty papers without loading PD
   assert.equal(body.storedPdfSummariesUsed.length, 20);
   assert.equal(body.storedPdfsUsed.length, 0);
   assert.equal(pdfGetCalls, 0);
+});
+
+for (const native of [false, true]) test(`${native ? "native PDF" : "combined text"} normalizes descriptive omissions but never source identity or citation fields`, async () => {
+  const keys = ["REQUESTY_PDF_MODEL", "REQUESTY_PDF_ENABLED", "REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA", "REQUESTY_PDF_SUPPORTS_JSON_SCHEMA"];
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  Object.assign(process.env, { REQUESTY_PDF_MODEL: "openai/gpt-4.1", REQUESTY_PDF_ENABLED: "true",
+    REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA: "true", REQUESTY_PDF_SUPPORTS_JSON_SCHEMA: "true" });
+  const invoke = async value => {
+    const start = capturedLlmRequests.length;
+    queuedChatCompletionTexts.push(JSON.stringify(value));
+    if (value.title === 42) queuedChatCompletionTexts.push(JSON.stringify(value));
+    const response = await handler(apiEvent("POST", native ? "/api/literature/analyze-pdf-native" : "/api/literature/create-paper-card-from-text", {
+      paperId: "paper-card-native", contentHash: "sha256:paper-card-native", filename: "paper.pdf",
+      ...(native ? { purpose: "canonical-paper-card", responseSchema: "canonical_paper_card", task: "Create a Paper Card.",
+        fileData: `data:application/pdf;base64,${Buffer.from("%PDF-1.4\nfixture").toString("base64")}` }
+        : { text: "# Page 4\nThe tested variant improved EctD activity.", pageCount: 4, chunkCount: 1 }),
+    }), context);
+    assert.equal(capturedLlmRequests.length - start, value.title === 42 ? 2 : 1, "only descriptive schema errors permit one repair");
+    return { status: response.statusCode, body: parseResponse(response) };
+  };
+  try {
+    const partial = validNativePaperCard(); delete partial.title; delete partial.authors; delete partial.year;
+    partial.short_summary = String.raw`中文公式：$\psi=\left(\frac{α}{β}\right)$，α ± β。`;
+    const accepted = await invoke(partial);
+    assert.equal(accepted.status, 200, JSON.stringify(accepted.body));
+    assert.equal(accepted.body.analysis.title, null);
+    assert.equal(accepted.body.analysis.year, null);
+    assert.deepEqual(accepted.body.analysis.authors, []);
+    assert.equal(accepted.body.analysis.shortSummary, partial.short_summary);
+    assert.deepEqual(accepted.body.diagnostics.normalizedFields.sort(), ["authors", "title", "year"]);
+    assert.deepEqual(accepted.body.analysis.sourceIdentity, { paperId: partial.source_identity.paper_id, contentHash: partial.source_identity.content_hash });
+    assert.deepEqual((await invoke(validNativePaperCard())).body.diagnostics.normalizedFields, []);
+    const missingIdentity = validNativePaperCard(); delete missingIdentity.source_identity;
+    const missingVersion = validNativePaperCard(); delete missingVersion.source_identity.content_hash;
+    const noCitations = validNativePaperCard(); delete noCitations.major_findings[0].citations;
+    const empty = { source_identity: validNativePaperCard().source_identity, short_summary: "", title: "Metadata", authors: ["Author"], year: 2025 };
+    for (const [value, reason, field] of [
+      [missingIdentity, "schema_mismatch", "paperCard.source_identity"],
+      [missingVersion, "schema_mismatch", "paperCard.source_identity"],
+      [noCitations, "schema_mismatch", "paperCard.major_findings"],
+      [validNativePaperCard({ title: 42 }), "schema_mismatch", "paperCard.title"],
+      [validNativePaperCard({ source_identity: { paper_id: "wrong-paper", content_hash: "wrong-hash" } }), "schema_mismatch", "paperCard.source_identity"],
+      [validNativePaperCard({ major_findings: [{ claim: "Claim", citations: [{ page: 1, quote: "q".repeat(501) }] }] }), "schema_mismatch", "paperCard.major_findings"],
+      [empty, "insufficient_substantive_content", "paperCard"],
+    ]) {
+      const failed = await invoke(value);
+      assert.equal(failed.status, 502, JSON.stringify(failed.body));
+      assert.equal(failed.body.failureStage, "provider_content_validation");
+      assert.equal(failed.body.validationReason, reason);
+      assert.equal(failed.body.validationField, field);
+    }
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
 });

@@ -1,4 +1,5 @@
 "use strict";
+const { parseModelJsonValue } = require("./model-json.js");
 const semantic = require("./shared/semantic-intent.js");
 
 // A wire contract, not a replacement for SEMANTIC_IR_SCHEMA/validateSemanticIR.
@@ -101,7 +102,7 @@ async function runSemanticIntentPlanner({ profile, payload, system, callContext,
       return { ...result, attempts, structuredOutputMode: mode, fallbackOccurred };
     }
     try {
-      const raw = JSON.parse(result.text);
+      const raw = parseModelJsonValue(result.text);
       const parsed = validate(raw, result.text);
       record("success", { status: 200, attempts, retrievalScope: parsed.retrievalScope,
         patternShortcutCleared: raw.matchedPattern !== null && parsed.matchedPattern === null,

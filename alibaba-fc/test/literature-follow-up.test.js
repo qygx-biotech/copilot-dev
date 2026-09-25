@@ -170,7 +170,7 @@ test("clarification status survives sanitation and prevents active-agent paper g
     conversationMessages: f.conversation.messages.map(({ role, content }) => ({ role, content })),
     originalRequest: "What license does it use?", systemPrompt: "Answer the question", parseFinalAnswer: reply => ({ reply }),
     requestTurn: async ({ messages, tools }) => {
-      calls++; assert.ok(!tools.some(tool => tool.function.name === "read_paper_evidence"));
+      calls++; assert.ok(tools.some(tool => tool.function.name === "read_paper_evidence"));
       assert.match(messages.map(m => m.content).join("\n"), /clarify which paper/i);
       return { ok: true, message: { content: "Which paper do you mean, AlphaDock or BetaDock?" } };
     } });

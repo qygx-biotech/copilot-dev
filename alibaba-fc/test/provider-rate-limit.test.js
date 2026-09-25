@@ -77,7 +77,7 @@ test("the two-slot pool bounds native, combined, excerpt and synthesis requests 
   assert.equal(api.paperCardQueue.length, 0);
 });
 
-test("simultaneous throttled calls reacquire one slot for retries and honor the longest reset", async () => {
+test("simultaneous failed Card calls preserve cooldown and one slot for subsequent requests without transport replay", async () => {
   let now = 0, active = 0, peakAfterThrottle = 0;
   const requests = [], release = [], waits = [];
   const api = new LiteratureApiClient({ baseUrl: "https://fc.test", now: () => now, wait: async ms => { waits.push(ms); now += ms; },
@@ -93,10 +93,13 @@ test("simultaneous throttled calls reacquire one slot for retries and honor the 
       return new Response(JSON.stringify({ ok: true }));
     },
   });
-  const done = Promise.all([api.request("/api/literature/summarize-chunk", { paperId: "p1" }), api.request("/api/literature/summarize-chunk", { paperId: "p2" })]);
+  const done = Promise.allSettled([api.request("/api/literature/summarize-chunk", { paperId: "p1" }), api.request("/api/literature/summarize-chunk", { paperId: "p2" })]);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(requests.length, 2);
-  release.forEach(resolve => resolve()); await done;
+  release.forEach(resolve => resolve());
+  assert.ok((await done).every(result => result.status === "rejected"));
+  assert.equal(requests.length, 2, "FC owns bounded provider retries; desktop cannot multiply them");
+  await Promise.all([api.request("/api/literature/summarize-chunk", { paperId: "p1" }), api.request("/api/literature/summarize-chunk", { paperId: "p2" })]);
   assert.equal(requests.length, 4);
   assert.ok(requests.slice(2).every(request => request.at >= 31000));
   assert.deepEqual(waits, [31000]);
@@ -104,13 +107,15 @@ test("simultaneous throttled calls reacquire one slot for retries and honor the 
   assert.equal(api.activePaperCardRequests, 0);
 });
 
-test("ordinary rate limits retry only after reset; hard quotas do not retry or create input-size fallbacks", async () => {
+test("ordinary rate limits preserve reset for subsequent requests; hard quotas do not retry or create input-size fallbacks", async () => {
   let now = 0, attempts = 0;
   const times = [];
   const api = new LiteratureApiClient({ baseUrl: "https://fc.test", now: () => now, wait: async ms => { now += ms; },
     fetch: async () => { times.push(now); return new Response(JSON.stringify(++attempts === 1 ? { ok: false, message: "Throttled" } : { ok: true }),
       { status: attempts === 1 ? 429 : 200, headers: { "retry-after": "22" } }); },
   });
+  await assert.rejects(api.request("/api/literature/summarize-chunk", {}), { code: "ProviderRateLimited" });
+  assert.equal(attempts, 1);
   await api.request("/api/literature/summarize-chunk", {});
   assert.deepEqual(times, [0, 23000]);
   attempts = 0;
@@ -297,4 +302,32 @@ test("queued cancellation never starts a request; an aborted in-flight success c
   assert.ok(f.requests.every(request => request.body.paperId !== "cancel-queued"));
   assert.equal(f.api.activePaperCardRequests, 0);
   assert.equal(f.api.paperCardQueue.length, 0);
+});
+
+test("Gemma input quota with generic plan/billing advice remains retryable with the exact reset delay", () => {
+  const message = "You exceeded your current quota, please check your plan and billing details. " +
+    "For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.\n" +
+    quotaMessage.replace("22.454788929s", "5.326s");
+  const parsed = parseRateLimit(429, { error: { code: 429, status: "RESOURCE_EXHAUSTED", message,
+    details: [{ "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "5.326s" }] } });
+  assert.equal(parsed.inputTokenLimit, 16000); assert.equal(parsed.retryAfterMs, 5326);
+  assert.equal(parsed.verifiedInputTokenRateLimit, true); assert.equal(parsed.rateLimitRetryable, true);
+  assert.equal(parsed.quotaClassificationReason, "verified_input_token_quota");
+  assert.equal(parseRateLimit(429, { error: { message: message + "\nFor information about daily quotas and billing limits see https://example.invalid/daily-quota-exceeded." } }).rateLimitRetryable, true);
+});
+
+for (const [reason, fields] of [
+  ["explicit_hard_quota_code", { error: { code: "insufficient_quota" } }],
+  ["explicit_hard_quota_code", { error: { type: "billing_hard_limit_reached" } }],
+  ["hard_quota_metric", { error: { message: quotaMessage.replace("input_token_count", "input_token_per_day") } }],
+  ["hard_quota_metric", { error: { details: [{ "@type": "type.googleapis.com/google.rpc.QuotaFailure", violations: [{ quotaId: "GenerateContentInputTokensPerModelPerDay" }] }] } }],
+  ["zero_quota_limit", { error: { message: quotaMessage.replace("limit: 16000", "limit: 0") } }],
+  ["explicit_hard_quota_message", { error: { message: "Your daily token quota has been exceeded.\n" + quotaMessage } }],
+  ["explicit_hard_quota_message", { error: { message: "Billing limit exhausted.\n" + quotaMessage } }],
+  ["explicit_hard_quota_message", { error: { message: "Insufficient credits.\n" + quotaMessage } }],
+  ["provider_non_retryable", { rateLimitRetryable: false, error: {} }],
+]) test(`explicit non-retryable evidence survives an input metric and retry hint: ${reason} ${JSON.stringify(fields)}`, () => {
+  const parsed = parseRateLimit(429, { ...fields, error: { message: quotaMessage, ...fields.error } });
+  assert.equal(parsed.rateLimitRetryable, false); assert.equal(parsed.quotaClassificationReason, reason);
+  if (reason !== "provider_non_retryable") assert.equal(parsed.verifiedInputTokenRateLimit, false);
 });

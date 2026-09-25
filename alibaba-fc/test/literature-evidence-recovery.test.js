@@ -45,6 +45,30 @@ test("a missing passage in otherwise readable evidence requests targeted recover
   assert.equal(calls, 1);
   assert.equal(result.data.evidenceRecovery.requests[0].reason, "EVIDENCE_NOT_LOCATED");
 });
+
+test("project-bound local recovery retains the original model-round budget", async () => {
+  const f = fixture(); f.local.project.workspaceId = "bounded-side-chat";
+  let calls = 0; const steps = [];
+  const first = await run(f.local, async () => {
+    calls++;
+    return { ok: true, message: { tool_calls: calls === 7 ? [call()] : [{ id: `list-${calls}`, type: "function",
+      function: { name: "list_papers", arguments: "{}" } }] } };
+  }, { onProgress: async event => { if (event.stage === "model-request") steps.push(event.step); } });
+  assert.equal(calls, 7); assert.equal(first.continuationState.step, 7);
+  assert.equal(first.continuationState.totalToolCalls, 7);
+  f.local.evidenceRecovery = { version: 1, cycle: 1, outcomes: [] };
+  const resumed = await run(f.local, async request => {
+    calls++;
+    if (request.tools.length) return { ok: true, message: { tool_calls: [call("P2", "license", "last-read")] } };
+    return { ok: true, message: { content: "The evidence budget is exhausted; the license could not be verified." } };
+  }, { resume: first.continuationState, onProgress: async event => { if (event.stage === "model-request") steps.push(event.step); } });
+  assert.equal(resumed.ok, true);
+  assert.equal(calls, 9, "Eight model rounds plus one no-tools finalization across both HTTP exchanges");
+  assert.deepEqual(steps, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.equal(resumed.semanticTelemetry.cloudCalls.answer, 9);
+  assert.equal(resumed.semanticTelemetry.cloudCallsCumulative, true);
+  assert.equal(resumed.data.evidenceRecovery, undefined);
+});
 module.exports = { fixture, call, run };
 
 test("inventory-only paper recovers targeted original L1 and produces a cited answer with one host cycle", async t => {

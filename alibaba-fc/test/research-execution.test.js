@@ -106,7 +106,7 @@ test("exact reported task corrects premature review once, resumes real local dow
 
 for (const [name, extra, expectedCalls, outcome] of [
   ["repeated review", {}, 3, "incomplete"],
-  ["Side Chat restriction", { surface: "side_chat" }, 2, "blocked"],
+  ["Side Chat restriction", { surface: "side_chat" }, 1, "blocked"],
   ["read-only move", { downloadPermission: "read_only" }, 2, "blocked"],
   ["no returned sources", { noSources: true }, 2, "blocked"],
   ["irrelevant candidates", { irrelevant: true }, 3, "incomplete"],

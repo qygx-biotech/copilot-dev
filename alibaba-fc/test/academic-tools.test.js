@@ -49,11 +49,11 @@ test('read-only Agent search is allowed; downloads are unavailable; Side Chat re
  assert.equal(result.data.desktopToolCalls.length,1);
  let n=0;
  await run({surface:'side_chat',requestTurn:async request=>{
-  if(!n++) assert.deepEqual(request.tools,[{type:'web_search'}]);
+  if(!n++) assert.ok(request.tools.some(tool=>tool.function?.name==='search_web'));
   else assert.ok(!request.tools.some(x=>contract.isTool(x.function?.name)));
   return {ok:true,message:{content:'Result'}};
  }});
- assert.equal(n,2);
+ assert.equal(n,1);
 });
 
 test('search-only requests cannot execute downloads even when model invents a call',async()=>{

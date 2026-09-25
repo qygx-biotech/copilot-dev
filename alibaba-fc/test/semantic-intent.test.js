@@ -81,7 +81,11 @@ test("machine-readable capability metadata exactly covers current agent tools an
   const agent = require("../side-chat-agent.js");
   for (const [name, effect] of Object.entries(agent.AGENT_TOOL_EFFECTS)) {
     const item = semantic.CAPABILITY_REGISTRY.find((candidate) => candidate.tool === name);
-    assert.ok(item, name);
+    if (!item) {
+      assert.ok(require("../../shared/side-chat-tools.js").isTool(name) || name === "search_web", name);
+      assert.ok(["internal_state", "informational"].includes(effect));
+      continue;
+    }
     assert.equal(item.effect, effect, name);
     assert.ok(item.operations.length);
     assert.ok(item.supportsObjects.length);

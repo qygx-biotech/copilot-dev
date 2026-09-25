@@ -201,6 +201,7 @@ function makeParallelPaperContext() {
 test("the backend loop exposes internal-state tools with centralized effects", () => {
   const names = SIDE_CHAT_TOOL_DEFINITIONS.map((tool) => tool.function.name);
   assert.deepEqual(names, [
+    "read_context_archive",
     "list_workspace_items",
     "search_workspace_items",
     "read_workspace_item",
@@ -254,7 +255,7 @@ test("durable project context becomes system guidance without duplicating the go
 test("catalog is progressive and file content loads only through an exact item id", () => {
   const knowledgeBase = createSideChatKnowledgeBase(makeWorkspaceContext());
   const catalog = buildSideChatCatalog(knowledgeBase);
-  assert.match(catalog, /local:1 \| reference \| literature\/paper-a\.pdf/);
+  assert.match(catalog, /item_id=local:1 \| sourceId=paper-a \| paper_id=paper-a \| reference \| literature\/paper-a\.pdf/);
   assert.match(catalog, /local:2 \| experiment/);
   assert.doesNotMatch(catalog, /A163V increased catalytic activity/);
 
@@ -891,7 +892,8 @@ test("the agent loop keeps inspection private and returns only the final answer"
     }
   });
 
-  assert.deepEqual(result, {
+  assert.equal(result.semanticTelemetry.cloudCalls.answer, 2);
+  assert.deepEqual({ ok: result.ok, data: result.data }, {
     ok: true,
     data: {
       reply: "Paper A reports that A163V increased catalytic activity."
@@ -1106,7 +1108,7 @@ test("context compaction keeps the active request and complete tool pairs", () =
   assert.ok(compacted.at(-1).content.length < messages.at(-1).content.length);
 });
 
-test("a provider context rejection gets one compacted retry", async () => {
+test("a provider context rejection summarizes accepted history before retry", async () => {
   const requests = [];
   const activeRequest = "What does the selected reference conclude?";
   const result = await runSideChatAgent({
@@ -1127,7 +1129,7 @@ test("a provider context rejection gets one compacted retry", async () => {
         return {
           ok: false,
           error: "LlmHttpError",
-          reason: "context_length_exceeded"
+          reason: "context_length_exceeded", verifiedContextLengthError: true
         };
       }
       return {
@@ -1137,13 +1139,15 @@ test("a provider context rejection gets one compacted retry", async () => {
     }
   });
 
-  assert.equal(requests.length, 2);
-  assert.deepEqual(result, {
+  assert.equal(requests.filter(request => request.stage !== "context-summary").length, 2);
+  assert.ok(requests.some(request => request.stage === "context-summary"));
+  assert.equal(result.semanticTelemetry.cloudCalls.answer, requests.length);
+  assert.deepEqual({ ok: result.ok, data: result.data }, {
     ok: true,
     data: { reply: "The compacted retry succeeded." }
   });
   assert.equal(
-    requests[1].messages.some(
+    requests.at(-1).messages.some(
       (message) =>
         message.role === "user" && message.content === activeRequest
     ),

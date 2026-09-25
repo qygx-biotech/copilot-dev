@@ -5,6 +5,14 @@ const { createRuntimeLogger } = require("../../docs/runtime-log.js");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const { LiteratureApiClient } = require("../../docs/literature-module.js");
 
+test("semantic validation diagnostics preserve schema indices and exclude input and filesystem paths", () => {
+  const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
+  const details = { failureStage: "backend_input_validation", validationField: "conversationContext[0].content", validationReason: "filesystem_path", providerAttempts: 0 };
+  assert.deepEqual(log.record("semantic.validation", { ...details, input: "SECRET_SENTINEL" }).details, details);
+  assert.deepEqual(log.record("semantic.validation", { validationField: "/Users/private/project" }).details, {});
+  assert.doesNotMatch(log.exportText(), /SECRET_SENTINEL|Users|private/);
+});
+
 test("debug logs retain bounded operational metadata and cannot expose request contents or interrupt work", () => {
   const log = createRuntimeLogger({ limit: 2, sink: { info() { throw new Error("broken console"); } }, heartbeatMs: 0 });
   log.subscribe(() => { throw new Error("broken viewer"); });
@@ -86,7 +94,7 @@ test("real preflight logs one shared sync worker, L1/L2 failure, cache reuse on 
   assert.doesNotMatch(log.exportText(), /Private paper/);
 });
 
-test("FC transport logs HTTP failures, retry and completion without request or response bodies", async () => {
+test("FC transport logs Card failures and subsequent cooldown/completion without automatic resend or private bodies", async () => {
   const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
   let calls = 0;
   let now = 0;
@@ -96,10 +104,12 @@ test("FC transport logs HTTP failures, retry and completion without request or r
       ? { error: "RATE_LIMITED", message: "private provider error" }
       : { ok: true, attempts: 2, analysis: { text: "private response" } } };
   } });
+  await assert.rejects(api.request("/api/literature/create-paper-card-from-text", { paperId: "paper-1", text: "private request", callContext: { turnId: "turn-1" } }), { code: "ProviderRateLimited" });
+  assert.equal(calls, 1);
   await api.request("/api/literature/create-paper-card-from-text", { paperId: "paper-1", text: "private request", callContext: { turnId: "turn-1" } });
   assert.equal(calls, 2);
   const transport = log.entries().filter(entry => entry.event.startsWith("backend-request."));
-  assert.deepEqual(transport.map((entry) => entry.event), ["backend-request.started", "backend-request.failed", "backend-request.retry", "backend-request.cooldown", "backend-request.started", "backend-request.completed"]);
+  assert.deepEqual(transport.map((entry) => entry.event), ["backend-request.started", "backend-request.failed", "backend-request.cooldown", "backend-request.started", "backend-request.completed"]);
   assert.equal(transport[1].details.status, 429);
   assert.equal(log.entries().at(-1).details.providerAttempts, 2);
   assert.equal(transport[0].details.role, "combined_text_paper_card");
@@ -126,4 +136,19 @@ test("the console identifies two overlapping PaperCardAgent workers and their co
   assert.equal(workers.filter(entry => entry.details.status === "completed").length, 2);
   assert.equal(workers.at(-1).details.activeWorkers, 0);
   assert.doesNotMatch(log.exportText(), /private paper/);
+});
+
+test("Paper Card normalization diagnostics allow only descriptive field names and distinguish provider failures", async () => {
+  const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
+  log.record("paper-card.normalized", { normalizedFields: ["title", "abstract_summary", "PRIVATE_CONTENT", "source_identity", "/private/paper.pdf"],
+    validationField: "paperCard.source_identity", validationReason: "schema_mismatch", failureStage: "provider_content_validation" });
+  assert.deepEqual(log.entries()[0].details.normalizedFields, ["title", "abstract_summary"]);
+  assert.equal(log.entries()[0].details.validationField, "paperCard.source_identity");
+  assert.doesNotMatch(log.exportText(), /PRIVATE_CONTENT|private\/paper/);
+  for (const [failureStage, validationReason] of [["provider_content_validation", "insufficient_substantive_content"], ["provider_rejection", undefined], ["provider_transport", undefined]]) {
+    const api = new LiteratureApiClient({ log, baseUrl: "https://fixture.test", fetch: async () => new Response(JSON.stringify({ ok: false,
+      error: failureStage === "provider_content_validation" ? "InvalidLlmResponse" : "LlmHttpError", message: "Fixture failure", attempts: 1,
+      failureStage, validationReason, validationField: validationReason ? "paperCard" : undefined }), { status: 502 }) });
+    await assert.rejects(api.synthesize({ chunkSummaries: [{}] }), error => error.failureStage === failureStage && error.validationReason === validationReason);
+  }
 });

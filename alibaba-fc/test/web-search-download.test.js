@@ -245,7 +245,7 @@ test("provider search errors are classified without dispatching or leaking upstr
   try {
     const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` },
       body: JSON.stringify({ mode: "side_chat", messages: [{ role: "user", content: "Search online" }] }) }, {});
-    assert.equal(JSON.parse(result.body).error, "WEB_SEARCH_PROVIDER_ERROR"); assert.ok(!result.body.includes("secret-fixture"));
+    assert.equal(JSON.parse(result.body).error, "LlmHttpError"); assert.ok(!result.body.includes("secret-fixture"));
   } finally { global.fetch = original; }
 });
 

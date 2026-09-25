@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -41,7 +42,7 @@ function fixture(options = {}) {
       return { ir, telemetry: { profile: input.profile, semantic: { route: "local" } } };
     } } } : {}),
   });
-  const build = (question, extra = {}) => service.buildContext({ question, retrievalProfile: "light", ...extra });
+  const build = (question, extra = {}) => service.buildPlannedContext({ question, retrievalProfile: "light", ...extra });
   return { service, build, literature, sources, artifacts, reads, searches, experimentCalls, literatureTools };
 }
 

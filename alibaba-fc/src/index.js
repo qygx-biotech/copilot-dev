@@ -22,10 +22,11 @@ async function handler(req, res) {
   const disconnected = () => { if (!res.writableEnded) controller.abort(); };
   res.once("close", disconnected);
   let heartbeat = null, started = false;
+  const deadlineAt = Date.now() + 300000;
   const timer = setTimeout(() => controller.abort(), 300000);
   timer.unref();
   const transport = {
-    signal: controller.signal,
+    signal: controller.signal, deadlineAt,
     async start(headers) {
       if (controller.signal.aborted) throw new Error("Connection closed.");
       res.writeHead(200, { ...headers, "Content-Type": "text/event-stream; charset=utf-8",

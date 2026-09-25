@@ -1,5 +1,7 @@
 # Semantic intent through Requesty
 
+Ordinary Side Chat now uses the [direct model/tool loop](sidechat-direct-agent-loop.md) without calling this planner. This endpoint, intent representation and validation remain for explicit callers and existing Agent Work behavior; they do not control Side Chat tool availability.
+
 `POST /api/semantic/interpret` uses one planner and one canonical
 `SemanticIntentIR`, with Requesty Chat Completions accessed through the current
 Alibaba FC backend. Search, downloading, retrieval depth, permissions, tool
@@ -91,8 +93,18 @@ transport attempts are distinct; the returned `attempts` sums transport attempts
 
 `requesty-models.js` extends the existing capability registry with planner
 profiles. With no profile setting, the existing role/default model selection is
-preserved. Explicit non-default UI selections retain precedence over a profile.
-Selecting **Default** allows the configured planner profile to apply.
+preserved. Any captured UI selection, including **Default**, retains precedence
+over a planner-only profile. A request with no selection header can use the
+configured profile. Profiles do not confer structured-output capabilities on
+arbitrary model IDs: declare those capabilities per model when needed.
+
+The exact model `google/gemma-4-31b-it` has a confirmed `jsonObject: true`,
+`jsonSchema: false` default based on successful Paper Card generation. The
+planner and Paper Card endpoints now share that resolution. Unknown models
+remain unsupported unless explicitly configured; per-model configuration can
+override the known defaults. The existing Gemma object-mode Paper Card signature
+is unchanged, so this compatibility correction does not invalidate those cards.
+See [wiki/planner verification](sidechat-wiki-compatibility-verification.md).
 
 For Gemini testing:
 
@@ -110,7 +122,7 @@ REQUESTY_SEMANTIC_OPENAI_MODEL=<approved Requesty OpenAI model ID>
 ```
 
 The OpenAI profile has no default model and makes no provider call until
-configured. Profiles supply strict-schema and JSON-object capabilities; explicit
+configured. Profiles use exact-model capability resolution; explicit
 per-model `REQUESTY_MODEL_CAPABILITIES_JSON` entries (`jsonSchema`, `jsonObject`)
 override them. For existing role selection without a profile, known Gemini
 capabilities or existing configuration apply. Other role models can explicitly

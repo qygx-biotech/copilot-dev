@@ -6,6 +6,17 @@
   "use strict";
   const rateLimitApi = root.BioDesignProviderRateLimit ||
     (typeof require === "function" ? require("../shared/provider-rate-limit.js") : {});
+  function safeCardRecovery(data = {}) {
+    if (!data || typeof data !== "object") return {};
+    const result = {};
+    for (const [key, values] of Object.entries({ generationStage: ["excerpt", "synthesis", "combined_text", "native_pdf"],
+      repairOutcome: ["not_attempted", "validated", "failed"],
+      stoppingReason: ["validated", "repair_exhausted", "integrity_failure", "insufficient_evidence", "validation_failure", "provider_failure"],
+      initialValidationReason: ["invalid_json", "schema_mismatch"] })) if (values.includes(data[key])) result[key] = data[key];
+    if (typeof data.repairAttempted === "boolean") result.repairAttempted = data.repairAttempted;
+    if (Number.isInteger(data.logicalGenerationAttempts) && data.logicalGenerationAttempts >= 1 && data.logicalGenerationAttempts <= 2) result.logicalGenerationAttempts = data.logicalGenerationAttempts;
+    return result;
+  }
   const PAPER_CARD_ENDPOINTS = new Set(["/api/literature/create-paper-card-from-text", "/api/literature/analyze-pdf-native", "/api/literature/summarize-chunk", "/api/literature/synthesize"]);
   function abortableDelay(milliseconds, signal) {
     assertNotAborted(signal);
@@ -200,17 +211,21 @@
 
   async function runWithConcurrency(items, concurrency, mapper) {
     const results = new Array(items.length);
-    let nextIndex = 0;
+    let nextIndex = 0, failure;
     const worker = async () => {
-      while (nextIndex < items.length) {
+      while (!failure && nextIndex < items.length) {
         const index = nextIndex;
         nextIndex += 1;
-        results[index] = await mapper(items[index], index);
+        try { results[index] = await mapper(items[index], index); }
+        catch (error) { failure ||= error; }
       }
     };
     await Promise.all(
       Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, worker)
     );
+    // A rejected Promise.all used to release preflight while another worker
+    // kept taking excerpts. Drain started work before reporting a terminal error.
+    if (failure) throw failure;
     return results;
   }
 
@@ -637,12 +652,14 @@
       this.modelConfigurationSignatures = new Map();
       this.paperCardConfigurations = new WeakMap();
       this.turnCallCounts = new Map();
+      this.turnAccounting = new Map();
       this.semanticCapability = null;
       this.semanticCapabilityProbe = null;
       this.endpointAccounting = {
         logicalEndpointCalls: {},
         transportAttempts: {},
         providerAttempts: {},
+        unknownProviderResponses: {},
         cacheHits: {},
       };
     }
@@ -798,7 +815,7 @@
       this.recordTurnCall(options.callContext?.turnId || options.turnId, "wiki_update");
       return this.request("/api/knowledge/update-wiki", {
         input, callContext: boundedCallContext(options.callContext, "wiki_update"),
-      }, options.signal);
+      }, options.signal, "POST", undefined, undefined, { onRequestQueued: options.onRequestQueued, onRequestStarted: options.onRequestStarted });
     }
 
     async mapCorpusPaper(payload, signal) {
@@ -926,8 +943,9 @@
       }
       const state = this.semanticCapability;
       if (state?.signature === signature && state.retryAt > this.now()) {
-        throw Object.assign(new LiteratureError("SemanticParserUnavailable", "Using the local semantic interpretation during the capability cooldown."), {
+        throw Object.assign(new LiteratureError("SemanticParserUnavailable", `Semantic interpretation is unavailable during the capability cooldown (${state.reason}).`), {
           semanticParserAttempted: false, capabilityUnavailable: state.unavailable,
+          attempts: 0,
           fallbackReason: state.reason, retryAfterMs: state.retryAt - this.now(),
         });
       }
@@ -942,7 +960,7 @@
         this.semanticCapability = null;
         return data.ir;
       } catch (error) {
-        error.semanticParserAttempted = true;
+        error.semanticParserAttempted = error.failureStage !== "backend_input_validation";
         const endpointMissing = [404, 405, 501].includes(error.status);
         const unavailable = error.capabilityUnavailable === true || endpointMissing;
         // Older deployments return opaque 502s, including transient errors.
@@ -987,6 +1005,10 @@
 
     getEndpointAccounting() {
       return structuredClone(this.endpointAccounting);
+    }
+
+    getTurnAccounting(turnId) {
+      return structuredClone(this.turnAccounting.get(turnId) || {});
     }
 
     async routeContext(payload, signal) {
@@ -1057,8 +1079,8 @@
       );
     }
 
-    async request(path, body, signal, method = "POST", callContext, headers) {
-      return this.requestInternal(path, body, signal, method, callContext, headers);
+    async request(path, body, signal, method = "POST", callContext, headers, lifecycle) {
+      return this.requestInternal(path, body, signal, method, callContext, headers, lifecycle);
     }
 
     acquirePaperCardSlot(signal, details) {
@@ -1122,8 +1144,9 @@
       }
     }
 
-    async requestInternal(path, body, signal, method = "POST", callContext = body?.callContext, headers) {
+    async requestInternal(path, body, signal, method = "POST", callContext = body?.callContext, headers, lifecycle) {
       assertNotAborted(signal);
+      if (path === "/api/knowledge/update-wiki") lifecycle?.onRequestQueued?.();
       // Keep routing outside strict task schemas and provider trace metadata.
       const model = callContext?.model;
       if (body?.callContext && Object.hasOwn(body.callContext, "model")) {
@@ -1135,8 +1158,20 @@
       this.recordTurnCall(body?.callContext?.turnId, roles[path]);
       this.endpointAccounting.logicalEndpointCalls[path] =
         (this.endpointAccounting.logicalEndpointCalls[path] || 0) + 1;
-      // Semantic parsing is one logical FC call. A failure returns to the local IR.
-      const maximumAttempts = path.startsWith("/api/semantic/") ? 1 : 2;
+      const turnId = callContext?.turnId;
+      let accounting = this.turnAccounting.get(turnId);
+      if (!accounting) {
+        accounting = { logicalEndpointCalls: {}, configurationRequests: 0, transportAttempts: {}, providerAttempts: {}, unknownProviderResponses: 0 };
+        if (turnId) this.turnAccounting.set(turnId, accounting);
+        if (this.turnAccounting.size > 100) this.turnAccounting.delete(this.turnAccounting.keys().next().value);
+      }
+      accounting.logicalEndpointCalls[path] = (accounting.logicalEndpointCalls[path] || 0) + 1;
+      if (method === "GET") accounting.configurationRequests++;
+      // Semantic, Wiki and Paper Card provider retries belong to FC. Do not multiply them
+      // with another desktop transport retry; Wiki timeouts resume on later runs.
+      const cardRecovery = PAPER_CARD_ENDPOINTS.has(path) &&
+        (path !== "/api/literature/analyze-pdf-native" || body?.responseSchema === "canonical_paper_card");
+      const maximumAttempts = (path.startsWith("/api/semantic/") || path === "/api/knowledge/update-wiki" || cardRecovery) ? 1 : 2;
       let lastError;
       for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
         assertNotAborted(signal);
@@ -1151,10 +1186,13 @@
           if (method !== "GET") await this.waitForProviderCooldown(signal, details);
           this.endpointAccounting.transportAttempts[path] =
             (this.endpointAccounting.transportAttempts[path] || 0) + 1;
+          accounting.transportAttempts[path] = (accounting.transportAttempts[path] || 0) + 1;
           finish = this.log?.begin("backend-request", { ...details, method,
             workflowId: body?.callContext?.workflowId, role: roles[path] || body?.callContext?.callRole,
             attempt: attempt + 1, ...(release ? { activeRequests: this.activePaperCardRequests, concurrency: this.paperCardConcurrency } : {}) });
           throttleGeneration = this.providerCooldownUntil <= this.now() ? this.paperCardThrottleGeneration : null;
+          if (path === "/api/knowledge/update-wiki") await lifecycle?.onRequestStarted?.();
+          assertNotAborted(signal);
           const response = await this.fetch(`${this.baseUrl}${path}`, {
             method,
             headers: {
@@ -1172,9 +1210,13 @@
           }
           const data = await response.json().catch(() => ({}));
           assertNotAborted(signal);
-          this.endpointAccounting.providerAttempts[path] =
-            (this.endpointAccounting.providerAttempts[path] || 0) +
-            Math.max(0, Number(data.attempts) || 0);
+          if (Number.isInteger(data.attempts) && data.attempts >= 0) accounting.providerAttempts[path] = (accounting.providerAttempts[path] || 0) + data.attempts;
+          else if (method !== "GET") accounting.unknownProviderResponses++;
+          const reportedAttempts = method === "GET" ? 0 : Number.isInteger(data.attempts) && data.attempts >= 0 ? data.attempts : null;
+          if (reportedAttempts !== null) this.endpointAccounting.providerAttempts[path] =
+            (this.endpointAccounting.providerAttempts[path] || 0) + reportedAttempts;
+          else if (method !== "GET") this.endpointAccounting.unknownProviderResponses[path] =
+            (this.endpointAccounting.unknownProviderResponses[path] || 0) + 1;
           if (data.cached === true) {
             this.endpointAccounting.cacheHits[path] =
               (this.endpointAccounting.cacheHits[path] || 0) + 1;
@@ -1191,8 +1233,9 @@
                 this.drainPaperCardQueue();
               }
             }
-            finish?.("completed", { status: response.status, providerAttempts: Math.max(0, Number(data.attempts) || 0), cached: data.cached === true,
-              structuredOutputMode: data.diagnostics?.structuredOutputMode });
+            finish?.("completed", { status: response.status, providerAttempts: reportedAttempts, processingKind: method === "GET" ? "configuration" : "generation", cached: data.cached === true,
+              structuredOutputMode: data.diagnostics?.structuredOutputMode,
+              normalizedFields: data.diagnostics?.normalizedFields, ...safeCardRecovery(data.diagnostics) });
             return data;
           }
           if (release) this.paperCardRecoverySuccesses = 0;
@@ -1200,15 +1243,32 @@
             data.error || "LLM_REQUEST_FAILED",
             data.message || `Function Compute returned HTTP ${response.status}.`
           );
+          if (PAPER_CARD_ENDPOINTS.has(path)) Object.assign(error, safeCardRecovery(data));
           error.status = response.status;
-          error.attempts = Math.max(0, Number(data.attempts) || 0);
+          error.attempts = reportedAttempts;
+          error.validationProblems = (Array.isArray(data.validationProblems) ? data.validationProblems : [])
+            .filter(item => typeof item === "string").slice(0, 8).map(item => item.slice(0, 300));
           error.fallbackReason = String(data.fallbackReason || "").slice(0, 120);
+          if (["/api/literature/summarize-chunk", "/api/literature/synthesize", "/api/literature/create-paper-card-from-text", "/api/literature/analyze-pdf-native"].includes(path) &&
+              ["provider_content_validation", "provider_rejection", "provider_transport"].includes(data.failureStage)) {
+            error.failureStage = data.failureStage;
+            error.validationReason = ["invalid_json", "schema_mismatch", "empty_evidence", "insufficient_substantive_content"].includes(data.validationReason) ? data.validationReason : undefined;
+            error.validationField = /^paperCard(?:\.[A-Za-z_]+(?:\[\d{1,5}\])?)?$/.test(data.validationField || "") ? data.validationField : undefined;
+          }
           if (path === "/api/semantic/interpret") {
             const reasons = ["structured_output_unsupported", "missing_model_configuration", "provider_schema_incompatible",
-              "provider_configuration_rejected", "invalid_structured_output", "semantic_parser_unavailable"];
+              "provider_configuration_rejected", "invalid_structured_output", "semantic_parser_unavailable", "invalid_semantic_input"];
             error.fallbackReason = reasons.includes(data.fallbackReason) ? data.fallbackReason : "";
             error.capabilityUnavailable = data.capabilityUnavailable === true &&
               reasons.slice(0, 4).includes(error.fallbackReason);
+            error.failureStage = ["backend_input_validation", "returned_content_validation", "capability_resolution", "provider_rejection", "provider_transport"].includes(data.failureStage) ? data.failureStage : undefined;
+            // Paths here describe the request schema, never filesystem/input values.
+            error.validationField = /^(?:body|query|profile|callContext(?:\.profile)?|activeScope(?:\.(?:projectId|primaryMetric|topic|paperIds|experimentSourceIds)(?:\[\d{1,3}\])?)?|paperCandidates(?:\[\d\](?:\.(?:sourceId|title|currentness))?)?|conversationContext(?:\[\d\](?:\.(?:role|content|paperIds)(?:\[\d\])?)?)?|projectSemanticRegistry(?:\.(?:version|primaryMetric|answerLanguage|metrics|entities)(?:\[\d{1,2}\](?:\.(?:canonicalField|canonicalId|aliases)(?:\[\d{1,2}\])?)?)?)?)$/.test(data.validationField || "") ? data.validationField : undefined;
+            error.validationReason = ["invalid_object_fields", "invalid_type", "too_long", "empty", "filesystem_path", "authorization_header", "credential", "private_pdf_data", "too_many_items", "duplicate_items", "invalid_value", "outside_scope", "unknown_reference", "profile_mismatch"].includes(data.validationReason) ? data.validationReason : undefined;
+            if (error.failureStage === "backend_input_validation") {
+              error.attempts = 0;
+              error.message = `Semantic input validation failed${error.validationField ? ` at ${error.validationField}` : ""}${error.validationReason ? ` (${error.validationReason})` : ""}. No provider request was made.`;
+            }
           }
           error.verifiedContextLengthError =
             data.verifiedContextLengthError === true;
@@ -1240,7 +1300,8 @@
             ? rateLimit.rateLimitRetryable && rateLimit.retryAfterMs <= 120000 &&
               !(path === "/api/literature/create-paper-card-from-text" && rateLimit.verifiedInputTokenRateLimit)
             : [408, 425, 504].includes(response.status);
-          finish?.("failed", { status: response.status, code: error.code, retryable: retryable && attempt + 1 < maximumAttempts, providerAttempts: error.attempts, ...rateLimit });
+          finish?.("failed", { status: response.status, code: error.code, retryable: retryable && attempt + 1 < maximumAttempts, providerAttempts: error.attempts,
+            failureStage: error.failureStage, validationField: error.validationField, validationReason: error.validationReason, ...safeCardRecovery(error), ...rateLimit });
           if (!retryable || attempt + 1 >= maximumAttempts) throw error;
           lastError = error;
         } catch (error) {
@@ -2088,18 +2149,10 @@
           chunkResult.chunks,
           this.config.chunkConcurrency,
           async (text, index) => {
-            const result = await this.api.summarizeChunk(
-              {
-                filename: source.displayName,
-                chunkIndex: index,
-                totalChunks: chunkResult.chunks.length,
-                text,
-                language,
-                callContext,
-              },
-              signal
-            );
+            assertNotAborted(signal);
             mapReduceChunkCalls += 1;
+            const result = await this.api.summarizeChunk({ filename: source.displayName,
+              chunkIndex: index, totalChunks: chunkResult.chunks.length, text, language, callContext }, signal);
             completed += 1;
             onProgress?.({
               stage: "summarizing",
@@ -2126,7 +2179,9 @@
         // quota, reduce bounded groups before the final synthesis instead of
         // truncating evidence or resubmitting an oversized summary payload.
         let synthesisInputs = chunkSummaries;
-        const synthesisBudget = this.api.inputQuotaCharacterBudget?.(callContext) || quotaCharacterBudget;
+        // FC also enforces a 60k local summary bound even when no provider
+        // quota has been observed. Leave space for normalization/metadata.
+        const synthesisBudget = Math.min(56000, this.api.inputQuotaCharacterBudget?.(callContext) || quotaCharacterBudget || Infinity);
         for (let round = 0; synthesisBudget && JSON.stringify(synthesisInputs).length > synthesisBudget; round++) {
           if (round >= 3 || synthesisInputs.length < 2) throw new LiteratureError("PAPER_CARD_QUOTA_TOO_SMALL", "The provider input-token quota is too small for the bounded synthesis.");
           const groups = [];

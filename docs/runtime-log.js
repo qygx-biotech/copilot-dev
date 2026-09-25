@@ -15,6 +15,20 @@
     "sourceCount", "queueDepth", "papersCompleted", "papersTotal", "chunksCompleted", "chunksTotal",
     "workerId", "activeWorkers", "activeRequests", "concurrency",
     "imageCount",
+    "tool", "localKnowledgeUsed", "scopeType", "sourceIds", "granularity", "sufficiency", "originalEvidenceEscalation", "corpusWorkflowRequired",
+    "scopeOrigin", "authoritativeSourceCount", "legacyArgumentsNormalized", "legacyRequestedCount", "resolvedSourceCount",
+    "requested", "included", "analyzed", "failed", "coverageComplete", "subagentSpawned", "boundedWorkerCount", "boundedReasoningWorker", "reason",
+    "outcome", "elapsedMs", "nextEligibleAt", "timeoutCount", "providerRequestStarted", "providerCompletion", "transportStarted", "automaticRetry",
+    "projectPaperCount", "automaticPageCeiling", "existingReservedPageCount", "remainingHeadroom", "admittedCandidateCount", "deferredCandidateCount",
+    "wikiGenerationRequests", "generationCalls", "wikiMaintenanceMs", "wikiLocalMaintenanceMs", "wikiSkippedGenerationCount", "skippedGenerationCount", "cachedPaperCards",
+    "failureStage", "validationField", "validationReason", "normalizedFields",
+    "generationStage", "logicalGenerationAttempts", "repairAttempted", "repairOutcome", "stoppingReason", "initialValidationReason",
+    "sessionId", "estimatedTokens", "reportedTokens", "effectiveLimit", "outputReserve", "inputBudget", "limitScope",
+    "beforeTokens", "afterTokens", "chunkCount", "summaryCalls", "summaryTokens", "checkpointBoundary", "continuationStateReset", "degraded",
+    "compactionUsed", "compactionCount", "sequence", "toolResultCount", "recoveryStopReason", "providerAttemptsBeforeRetry", "beforeCharacters", "afterCharacters", "affectedResultCount", "trigger", "retryCount", "freshEvidencePreserved", "freshResultCount", "freshResultsShortened",
+    "activeCharacterLimit", "continuationByteLimit", "desktopResultCharacterLimit", "httpBodyByteLimit", "compacted",
+    "category", "requestId", "inputCharacters", "modelCalls", "providerCalls", "toolExecutions",
+    "turns", "toolCalls", "toolResults", "invalidatedTurns", "compactedTurns", "compactedToolResults", "chunkIndex",
     "syncAgentSpawned", "l1UpdateCount", "l2LlmCallCount", "l2LlmMs", "l3UpdateMs", "hashCalls",
     "combinedTextSupported", "nativePdfSupported", "structuredOutputMode", "promptVersion", "model",
     "state", "phase", "callRole", "profile", "mode", "sourceKind", "finishReason", "outputLength",
@@ -22,15 +36,28 @@
     "hashPerformed", "hashBytes", "hashDurationMs", "parseDurationMs", "indexDurationMs", "paperCardDurationMs", "contentChanged",
     "reconciliationMs", "knowledgeSyncMs", "changedSourceCount", "l1UpdateMs", "l3LlmCallCount", "l3LlmMs",
     "experimentNormalizationCount", "experimentNormalizationMs", "paperCardGenerationCount", "schemaMapperCalls", "mainAgentStartMs",
-    "providerStatus", "retryAfterMs", "quotaMetric", "inputTokenLimit", "verifiedInputTokenRateLimit", "rateLimitRetryable", "mapReduceReason", "fallbackReason",
+    "providerStatus", "retryAfterMs", "quotaMetric", "quotaClassificationReason", "inputTokenLimit", "verifiedInputTokenRateLimit", "rateLimitRetryable", "mapReduceReason", "fallbackReason",
     "retrievalScope", "webSearchExpected", "downloadRequested", "workspaceRetrievalTriggered", "matchedPattern", "semanticParserCalls", "semanticContextPresent",
     "originalRequestPreserved", "downloadExposed", "downloadPermitted", "downloadAttemptCount", "downloadResultCount", "downloadSuccessCount", "downloadFailureCount", "correctiveContinuation", "taskStatus",
   ]);
   const token = (value) => String(value || "").replace(/[^A-Za-z0-9._:/-]/g, "_").slice(0, 160);
+  const paperCardFields = new Set(("summary authors year abstractSummary researchQuestion mainFindings methods keyResults organisms genes proteins pathways metabolites experimentalConditions measurements importantResults limitations mainConclusion keywords topics title methodsSummary shortSummary abstract_summary research_question major_findings methods_summary experimental_conditions important_results main_conclusion").split(" "));
   function sanitize(details) {
     const result = {};
     for (const [key, value] of Object.entries(details || {})) {
       if (!fields.has(key)) continue;
+      if (key === "normalizedFields") {
+        if (Array.isArray(value)) result[key] = value.filter(field => paperCardFields.has(field)).slice(0, paperCardFields.size);
+        continue;
+      }
+      if (key === "sourceIds") {
+        if (Array.isArray(value)) result[key] = value.filter(id => typeof id === "string" && /^[\w.:-]{1,200}$/.test(id)).slice(0, 100);
+        continue;
+      }
+      if (key === "validationField") {
+        if (typeof value === "string" && /^(?:body|query|profile|callContext|activeScope|paperCandidates|conversationContext|projectSemanticRegistry|paperCard)(?:\.[A-Za-z_]+|\[\d{1,5}\])*$/.test(value)) result[key] = value.slice(0, 200);
+        continue;
+      }
       if (typeof value === "boolean") result[key] = value;
       else if (typeof value === "number" && Number.isFinite(value)) result[key] = Math.round(value * 100) / 100;
       else if (typeof value === "string" && value) result[key] = token(value);

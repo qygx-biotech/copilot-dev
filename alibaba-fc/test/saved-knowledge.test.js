@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -71,7 +72,7 @@ test("retrieved L3/L4 hits become readable active-agent items with useful saved 
 test("a previous-review question retrieves saved artifacts without invoking corpus generation", async () => {
   const f = await fixture();
   const cardsBefore = f.calls.cards;
-  const context = await f.service.buildContext(f.options);
+  const context = await f.service.buildPlannedContext(f.options);
   assert.equal(f.counts.generations, 0, "Historical read must not start a corpus workflow");
   assert.equal(f.counts.synthesisSearches, 1);
   assert.ok(context.knowledge.hits.some(hit => hit.kind === "synthesis"));
@@ -82,7 +83,7 @@ test("saved/prior review wording reads history, while explicit new writing still
   for (const question of ["What did the saved review conclude?", "What did the prior literature review conclude?", "Write a new review based on the previous review."]) {
     const f = await fixture();
     const createNew = question.startsWith("Write");
-    const context = await f.service.buildContext({ ...f.options, question });
+    const context = await f.service.buildPlannedContext({ ...f.options, question });
     assert.equal(f.counts.generations, createNew ? 1 : 0, question);
     assert.equal(f.counts.synthesisSearches, createNew ? 0 : 1, question);
     assert.equal(context.knowledge.hits.some(hit => hit.kind === "synthesis"), !createNew);
@@ -91,7 +92,7 @@ test("saved/prior review wording reads history, while explicit new writing still
 
 test("active loop reads both layers and resolves only original-paper citations", async () => {
   const f = await fixture();
-  const context = sanitizeLocalWorkspaceContext(await f.service.buildContext(f.options), f.options.question);
+  const context = sanitizeLocalWorkspaceContext(await f.service.buildPlannedContext(f.options), f.options.question);
   const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: context });
   const items = kb.items.filter(item => item.evidenceType.startsWith("saved-"));
   let calls = 0;
@@ -129,7 +130,7 @@ test("historical artifacts preserve coverage, snapshot, versions and verificatio
   const f = await fixture();
   f.journal.status = "stale"; f.journal.staleReason = "source_version_changed_or_removed";
   f.journal.staleSourceIds = [f.source.sourceId]; f.save();
-  const context = sanitizeLocalWorkspaceContext(await f.service.buildContext(f.options), f.options.question);
+  const context = sanitizeLocalWorkspaceContext(await f.service.buildPlannedContext(f.options), f.options.question);
   const artifact = context.knowledge.hits.find(hit => hit.kind === "synthesis").artifact;
   assert.equal(artifact.status, "stale"); assert.equal(artifact.stale, true);
   assert.equal(artifact.verificationStatus, "partially_verified");
@@ -171,7 +172,7 @@ test("source changes and deletion flag both layers and cannot validate historic 
 test("real source deletion through preflight preserves only historical synthesis evidence", async () => {
   const f = await fixture(); const originalVersions = { [f.source.sourceId]: f.source.contentHash };
   f.workspace.files.delete(f.source.path);
-  const context = await f.service.buildContext(f.options);
+  const context = await f.service.buildPlannedContext(f.options);
   const local = sanitizeLocalWorkspaceContext(context, f.options.question);
   const synthesis = local.knowledge.hits.find(hit => hit.kind === "synthesis");
   assert.ok(synthesis); assert.equal(synthesis.artifact.stale, true);
@@ -184,7 +185,7 @@ test("real source deletion through preflight preserves only historical synthesis
 
 test("current topic answers receive stale labels and guidance to use current original evidence", async () => {
   const f = await fixture(); f.topic.sourceVersions[f.source.sourceId] = "old-hash"; f.save();
-  const context = await f.service.buildContext({ ...f.options, question: "Compare enzyme engineering strategies across studies." });
+  const context = await f.service.buildPlannedContext({ ...f.options, question: "Compare enzyme engineering strategies across studies." });
   const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: sanitizeLocalWorkspaceContext(context) });
   const topic = kb.items.find(item => item.evidenceType === "saved-topic");
   assert.ok(topic); assert.equal(topic.status, "historical-stale");
@@ -210,7 +211,7 @@ test("selected-paper scope excludes mixed artifacts at preparation, sanitization
 
 test("matching selected-paper artifacts remain readable", async () => {
   const f = await fixture();
-  const context = await f.service.buildContext({ ...f.options, selectedPaths: [f.source.path], selectedPaperIds: [f.source.sourceId] });
+  const context = await f.service.buildPlannedContext({ ...f.options, selectedPaths: [f.source.path], selectedPaperIds: [f.source.sourceId] });
   assert.equal(context.knowledge.hits.length, 2);
   const kb = agent.createSideChatKnowledgeBase({ localWorkspaceContext: sanitizeLocalWorkspaceContext(context) });
   assert.equal(kb.items.filter(item => item.evidenceType.startsWith("saved-")).length, 2);
@@ -242,7 +243,7 @@ test("empty or offline retrieval never regenerates an earlier review", async () 
     f.system.knowledgeService.available = !offline;
     f.system.knowledgeService.searchPreviousSyntheses = async () => ({ results: [] });
     f.system.knowledgeService.searchTopics = async () => ({ results: [] });
-    const context = await f.service.buildContext(f.options);
+    const context = await f.service.buildPlannedContext(f.options);
     assert.equal(context.knowledge.hits.length, 0);
     assert.equal(f.counts.generations, 0);
     assert.match(context.notices.join("\n"), /no in-scope saved review/);
@@ -319,7 +320,7 @@ test("explicit update and corpus synthesis retain existing workflow result deliv
     const workflow = { preview: { marker: "Existing corpus result delivery", evidenceRefs: [f.ref] } };
     f.system.corpusWorkflows.run = async (_question, options) => { forwarded = options; f.counts.generations++; return workflow; };
     f.system.corpusWorkflows.updateCorpusSynthesis = async (_id, options) => { forwarded = options; f.counts.updates++; return { workflow, status: await f.system.corpusWorkflows.getWorkflowStatus(), reusedExistingSynthesis: false }; };
-    const context = await f.service.buildContext({ ...f.options, question: update ? "Update the previous review with new papers." : "Summarize all papers." });
+    const context = await f.service.buildPlannedContext({ ...f.options, question: update ? "Update the previous review with new papers." : "Summarize all papers." });
     assert.equal(f.counts.updates, update ? 1 : 0); assert.equal(f.counts.generations, update ? 0 : 1);
     assert.equal(f.counts.synthesisSearches, 0);
     assert.equal(forwarded.callContext.model, f.options.callContext.model);

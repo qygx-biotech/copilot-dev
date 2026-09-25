@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const semantic = require("../../shared/semantic-intent.js");
@@ -848,7 +849,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   const tree = await manager.scanDirectoryTree();
   const service = new ProjectContextService({ workspace: manager, literature });
 
-  const metadataOnly = await service.buildContext({
+  const metadataOnly = await service.buildPlannedContext({
     question: "What files are selected?",
     selectedPaths: ["literature/activity.pdf"],
     workspaceTree: tree,
@@ -861,7 +862,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   assert.equal(extractionCalls, 1);
   assert.equal(metadataOnly.knowledgeSync.status, "partial");
 
-  const first = await service.buildContext({
+  const first = await service.buildPlannedContext({
     question: "Summarize this paper.",
     selectedPaths: ["literature/activity.pdf"],
     workspaceTree: tree,
@@ -875,7 +876,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   assert.equal(synthesisCalls, 1);
 
   const callsAfterFirstTurn = chunkCalls;
-  const second = await service.buildContext({
+  const second = await service.buildPlannedContext({
     question: "What are its limitations?",
     selectedPaths: ["literature/activity.pdf"],
     workspaceTree: tree,
@@ -885,7 +886,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   assert.equal(chunkCalls, callsAfterFirstTurn);
   assert.equal(synthesisCalls, 1);
 
-  const detailed = await service.buildContext({
+  const detailed = await service.buildPlannedContext({
     question: "What exact concentration did the third experiment use?",
     selectedPaths: ["literature/activity.pdf"],
     workspaceTree: tree,
@@ -896,7 +897,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   assert.equal(extractionCalls, 1);
   assert.equal(synthesisCalls, 1);
 
-  const invalidWorkbook = await service.buildContext({
+  const invalidWorkbook = await service.buildPlannedContext({
     question: "What does this spreadsheet show?",
     selectedPaths: ["experiments/run.xlsx"],
     workspaceTree: tree,
@@ -911,7 +912,7 @@ test("Side Chat context processes selected PDFs on demand and reuses their cache
   );
 });
 
-test("a semantic decision requiring no workspace evidence leaves changed sources unprepared", async () => {
+test("Side Chat checks knowledge first and reports parse failures even when no workspace evidence is requested", async () => {
   const { manager } = await makeInitializedWorkspace();
   await manager.writeFile("literature/deferred.pdf", new Blob(["%PDF-deferred"]));
   let parserCalls = 0;
@@ -922,7 +923,7 @@ test("a semantic decision requiring no workspace evidence leaves changed sources
     pdfjsLib: {
       getDocument() {
         parserCalls += 1;
-        throw new Error("PDF parsing must remain deferred.");
+        throw new Error("Malformed PDF fixture.");
       },
     },
     api: forceOversizedPaperCardApi({
@@ -944,20 +945,25 @@ test("a semantic decision requiring no workspace evidence leaves changed sources
   const workspaceTree = await manager.scanDirectoryTree();
   const service = new ProjectContextService({ workspace: manager, literature });
 
-  await service.buildContext({
+  const first = await service.buildPlannedContext({
     question: "Change the interface language to Chinese.",
     selectedPaths: [],
     workspaceTree,
   });
-  await service.buildContext({
+  const second = await service.buildPlannedContext({
     question: "What is the current project goal?",
     selectedPaths: [],
     workspaceTree,
   });
 
   assert.equal(semanticCalls, 2);
-  assert.equal(literature.preparation.metrics.fullHashCalls, 0);
-  assert.equal(parserCalls, 0);
+  for (const context of [first, second]) {
+    assert.equal(context.knowledgeSync.status, "partial");
+    assert.equal(context.knowledgeSync.failures[0].stage, "L1");
+    assert.deepEqual(context.files, []);
+  }
+  assert.equal(literature.preparation.metrics.fullHashCalls, 2);
+  assert.equal(parserCalls, 2);
   assert.equal(llmCalls, 0);
 });
 
@@ -1000,7 +1006,7 @@ test("combined literature and experiment questions keep separate labeled evidenc
   const workspaceTree = await manager.scanDirectoryTree();
   const paper = literature.documents.find((item) => item.isLiteraturePaper);
   const service = new ProjectContextService({ workspace: manager, literature });
-  const context = await service.buildContext({
+  const context = await service.buildPlannedContext({
     question: "Do published EctD A163V activity findings agree with our experiment results?",
     selectedPaths: [
       "literature/ectd.pdf",
@@ -1141,7 +1147,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
       reason: "This is a general concept question.",
     };
   };
-  const genericConcept = await service.buildContext({
+  const genericConcept = await service.buildPlannedContext({
     question: "What does kcat mean?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1163,7 +1169,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     memoryIds: ["project_summary"],
     reason: "The user asks about saved project state.",
   });
-  const memoryRouted = await service.buildContext({
+  const memoryRouted = await service.buildPlannedContext({
     question: "What was our saved project summary?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1179,7 +1185,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   literature.api.routeContext = async () => {
     throw new Error("simulated provider outage");
   };
-  const highFallback = await service.buildContext({
+  const highFallback = await service.buildPlannedContext({
     question: "What was our saved project summary?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1195,7 +1201,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     lightRouterCalls += 1;
     return { useLiterature: false, useProjectMemory: false };
   };
-  const lightRoute = await service.buildContext({
+  const lightRoute = await service.buildPlannedContext({
     question: "What was our saved project summary?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1207,7 +1213,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(lightRoute.routing.mode, "semantic");
   delete literature.api.routeContext;
 
-  const idle = await service.buildContext({
+  const idle = await service.buildPlannedContext({
     question: "Change the interface language to Chinese.",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1219,7 +1225,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.ok(
     literature.documents.every((document) => document.paperCardStatus === "ready")
   );
-  const camelCaseUiQuestion = await service.buildContext({
+  const camelCaseUiQuestion = await service.buildPlannedContext({
     question: "How does sideChat work?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1229,7 +1235,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(synthesisCalls.length, 3);
 
   operationOrder.length = 0;
-  const selectedA = await service.buildContext({
+  const selectedA = await service.buildPlannedContext({
     question: "Summarize the selected paper.",
     selectedPaths: ["literature/paper-a.pdf"],
     selectedPaperIds: [ids["paper-a.pdf"]],
@@ -1243,7 +1249,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.equal(operationOrder.some((item) => item.startsWith("paper-card:")), false);
 
   operationOrder.length = 0;
-  const selectedAWithCard = await service.buildContext({
+  const selectedAWithCard = await service.buildPlannedContext({
     question: "Summarize the selected paper again.",
     retrievalProfile: "high",
     selectedPaths: ["literature/paper-a.pdf"],
@@ -1260,7 +1266,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
     false
   );
 
-  const selectedButUnrelated = await service.buildContext({
+  const selectedButUnrelated = await service.buildPlannedContext({
     question: "Change the interface language to Chinese.",
     selectedPaths: ["literature/paper-a.pdf"],
     selectedPaperIds: [ids["paper-a.pdf"]],
@@ -1279,7 +1285,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   await literature.createPaperCard(ids["paper-b.pdf"]);
   await literature.createPaperCard(ids["paper-c.pdf"]);
 
-  const automatic = await service.buildContext({
+  const automatic = await service.buildPlannedContext({
     question: "What exact kcat was reported for the A163V EctD variant?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1307,7 +1313,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
       reason: "The compact index semantically matches the catalyst study.",
     };
   };
-  const semanticRoute = await service.buildContext({
+  const semanticRoute = await service.buildPlannedContext({
     question: "Which study describes the EctD catalyst optimization strategy?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1326,7 +1332,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   delete literature.api.routeContext;
   detailReads.length = 0;
 
-  const filenameReference = await service.buildContext({
+  const filenameReference = await service.buildPlannedContext({
     question: "Summarize paper-c.pdf.",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1339,7 +1345,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(detailReads, []);
   detailReads.length = 0;
 
-  const comparison = await service.buildContext({
+  const comparison = await service.buildPlannedContext({
     question: "Compare these papers and their experimental designs.",
     selectedPaths: [
       "literature/paper-a.pdf",
@@ -1360,7 +1366,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(detailReads, []);
   detailReads.length = 0;
 
-  const followUp = await service.buildContext({
+  const followUp = await service.buildPlannedContext({
     question: "What about its limitations?",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1382,7 +1388,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(detailReads, []);
   detailReads.length = 0;
 
-  const unrelated = await service.buildContext({
+  const unrelated = await service.buildPlannedContext({
     question: "Change the interface language to Chinese.",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1393,7 +1399,7 @@ test("Side Chat uses selected paper IDs, preserves comparison coverage, and auto
   assert.deepEqual(unrelated.files, []);
   assert.deepEqual(detailReads, []);
 
-  const noMatch = await service.buildContext({
+  const noMatch = await service.buildPlannedContext({
     question: "Find a paper about CRISPR-Cas9 genome editing.",
     selectedPaths: [],
     selectedPaperIds: [],
@@ -1482,7 +1488,7 @@ test("Paper Card failure preserves source state, isolates other papers, and supp
   const failedContext = await new ProjectContextService({
     workspace: manager,
     literature: module,
-  }).buildContext({
+  }).buildPlannedContext({
     question: "Compare the failed paper with the literature library.",
     selectedPaths: [failed.relativePath],
     selectedPaperIds: [failed.id],

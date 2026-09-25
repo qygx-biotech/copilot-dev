@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict"), { webcrypto } = require("node:crypto");
 const semantic = require("../../shared/semantic-intent.js");
@@ -93,7 +94,7 @@ const cases = [
 for (const [question, scope, download] of cases) test(`scope routing: ${scope} — ${question}`, async t => {
   const f = await fixture(t, scope, download);
   const before = { ...f.calls };
-  const context = await f.service.buildContext({ question, surface: "agent_command", retrievalProfile: "medium", turnId: "scope-turn", callContext: { model, turnId: "scope-turn", profile: "medium" } });
+  const context = await f.service.buildPlannedContext({ question, surface: "agent_command", retrievalProfile: "medium", turnId: "scope-turn", callContext: { model, turnId: "scope-turn", profile: "medium" } });
   assert.equal(context.semantic.ir.retrievalScope, scope);
   assert.equal(context.semantic.ir.answerLanguage, [cases[0][0], cases[6][0], cases[7][0]].includes(question) ? "zh" : "en");
   assert.equal(context.routing.webSearchExpected, ["web", "both"].includes(scope));
@@ -149,7 +150,7 @@ test("reported Gemini IR enters hosted search instead of lexical planning, QMD, 
   const { createRuntimeLogger } = require("../../docs/runtime-log.js");
   const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
   globalThis.BioDesignRuntimeLog = log;
-  const context = await f.service.buildContext({ question: reported.query, surface: "agent_command", retrievalProfile: "medium", turnId: "reported-turn", callContext: { model, profile: "medium" } });
+  const context = await f.service.buildPlannedContext({ question: reported.query, surface: "agent_command", retrievalProfile: "medium", turnId: "reported-turn", callContext: { model, profile: "medium" } });
   assert.deepEqual(f.events, ["semantic"]);
   assert.equal(context.semantic.ir.retrievalScope, "web");
   assert.equal(context.semantic.ir.matchedPattern, null);
@@ -196,7 +197,7 @@ test("scope is authoritative over literature.search for the real Deep lexical pl
       result.matchedPattern = "literature.search";
       return result;
     };
-    const context = await f.service.buildContext({ question: query, surface: "agent_command", retrievalProfile: "high" });
+    const context = await f.service.buildPlannedContext({ question: query, surface: "agent_command", retrievalProfile: "high" });
     assert.equal(context.semantic.ir.matchedPattern, "literature.search");
     assert.equal(f.semanticRequests.length, 1, "A confident literature category still needs semantic retrieval-scope interpretation");
     for (const event of ["matchPapers", "lexical-planner", "qmd", "candidate-reranker"]) {
@@ -257,7 +258,7 @@ test("explicit combined mode keeps surface permissions and leaves provider combi
       supportsWebSearch: true, desktopDownloads: true, downloadPermission: permission, parseFinalAnswer: text => ({ reply: text }),
       requestTurn: async request => {
         calls++;
-        assert.ok(request.tools.some(tool => tool.type === "web_search"));
+        assert.ok(request.tools.some(tool => surface === "side_chat" ? tool.function?.name === "search_web" : tool.type === "web_search"));
         assert.equal(request.tools.some(tool => tool.function?.name === "download_sources"), downloadAllowed);
         assert.equal(request.tool_config, undefined);
         return { ok: false, error: "WEB_SEARCH_PROVIDER_ERROR", status: 400, message: "include_server_side_tool_invocation / tool context circulation" };

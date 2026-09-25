@@ -102,7 +102,13 @@ for (const mode of ["history", "reactive", "legacy"]) test(`production plan comp
     if (mode === "reactive" && modelCalls === 1) return { ok: false, error: "CONTEXT_LENGTH_EXCEEDED", reason: "maximum context length exceeded" };
     return actions(call("select_literature_papers", selection), call("download_papers", { paper_refs: [ref(1), ref(2)] }));
   } });
-  assert.equal(modelCalls, mode === "reactive" ? 2 : 1);
+  if (mode === "reactive") {
+    assert.equal(modelCalls, 1, "mandatory system context cannot be removed or retried unchanged");
+    assert.equal(pending.error, "ContextRecoveryIncomplete");
+    assert.deepEqual(resume.academicState.plan, accepted);
+    return;
+  }
+  assert.equal(modelCalls, 1);
   assert.equal(pending.data.desktopToolCalls[0].name, "download_papers");
   // Also check a very small compaction target and accepted legacy ID spellings.
   const state = structuredClone(resume.academicState);

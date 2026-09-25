@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), os = require("node:os"), path = require("node:path"), jwt = require("jsonwebtoken");
@@ -145,7 +146,7 @@ test("planner instructions preserve the full multi-step goal while assigning onl
   replies.push(ir(query, { goal: query, retrievalScope: "both", operations, capabilityHints: [] }));
   const result = await invoke(input(query));
   assert.equal(result.status, 200);
-  assert.equal(result.body.promptVersion, 7);
+  assert.equal(result.body.promptVersion, 8);
   assert.equal(result.body.ir.goal, query);
   assert.deepEqual(result.body.ir.operations, operations);
   const request = requests[0], system = request.messages[0].content;
@@ -260,11 +261,150 @@ test("an explicitly configured JSON-object-only profile still requires valid can
   assert.equal(result.body.structuredOutputMode, "json_object"); assert.equal(result.body.structuredOutputFallback, false);
 });
 
+test("selected Gemma plans the complete Chinese all-paper review in object mode and validates every returned IR", async t => {
+  const query = "帮我总结所有文献，写个综述。", model = "google/gemma-4-31b-it";
+  const previous = process.env.REQUESTY_MODEL;
+  process.env.REQUESTY_MODEL = model;
+  t.after(() => { process.env.REQUESTY_MODEL = previous; });
+  const payload = input(query, { activeScope: { projectId: "fixture-project", paperIds: ["alpha", "beta"], experimentSourceIds: [] },
+    paperCandidates: [{ sourceId: "alpha", title: "English Alpha paper", currentness: "current" }, { sourceId: "beta", title: "English Beta paper", currentness: "current" }] });
+  const review = { ...semantic.interpretLocal(payload), goal: "Summarize every selected paper and write a literature review.",
+    inputLanguage: "zh", answerLanguage: "zh", retrievalScope: "workspace", scope: { papers: ["alpha", "beta"], experiments: null } };
+  replies.push(review);
+  const result = await invoke(payload, { "X-BioDesign-Chat-Model": model });
+  assert.equal(result.status, 200, JSON.stringify(result.body));
+  assert.equal(result.body.attempts, 1); assert.equal(requests.length, 1);
+  assert.equal(requests[0].model, model); assert.deepEqual(requests[0].response_format, { type: "json_object" });
+  assert.match(requests[0].messages[0].content, /include|exactly one JSON object/);
+  assert.ok(requests[0].messages[0].content.includes(JSON.stringify(planner.SEMANTIC_INTENT_LLM_SCHEMA)));
+  assert.equal(JSON.parse(requests[0].messages[1].content).query, query);
+  assert.deepEqual(result.body.ir.scope.papers, ["alpha", "beta"]);
+  assert.equal(result.body.ir.answerLanguage, "zh");
+  assert.match(result.body.ir.goal, /Summarize every.*write a literature review/);
+  assert.ok(result.body.ir.capabilityHints.includes("corpus_workflow"));
+  for (const invalid of [{ ...review, unauthorized: "field" }, { ...review, scope: { papers: ["excluded"], experiments: null } }, "not JSON"]) {
+    replies.push(invalid);
+    const failure = await invoke(payload, { "X-BioDesign-Chat-Model": model });
+    assert.equal(failure.status, 502); assert.equal(failure.body.fallbackReason, "invalid_structured_output");
+    assert.equal(failure.body.attempts, 1);
+  }
+});
+
+test("Gemma capabilities are consistent with Paper Cards and preserve their existing object-mode signatures; unknown models fail closed", async t => {
+  const model = "google/gemma-4-31b-it", previous = process.env.REQUESTY_MODEL;
+  process.env.REQUESTY_MODEL = model; t.after(() => { process.env.REQUESTY_MODEL = previous; });
+  const config = async () => JSON.parse((await backend.handler({ httpMethod: "GET", path: "/api/literature/config",
+    headers: { Authorization: `Bearer ${token}`, "X-BioDesign-Chat-Model": "default" } }, {})).body);
+  const implicit = await config();
+  assert.equal(implicit.combinedTextSupported, true); assert.equal(implicit.combinedTextOutputMode, "json_object");
+  process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ [model]: { jsonSchema: false, jsonObject: true } });
+  const configured = await config();
+  assert.equal(configured.modelSignature, implicit.modelSignature);
+  assert.equal(configured.combinedTextModelSignature, implicit.combinedTextModelSignature);
+  const unknown = require("../requesty-models.js").capabilityDefaults("unconfirmed/model");
+  assert.deepEqual(unknown, {});
+  process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ [model]: { jsonSchema: false, jsonObject: false } });
+  assert.equal((await config()).combinedTextSupported, false);
+  const result = await invoke(input(), { "X-BioDesign-Chat-Model": "default" });
+  assert.equal(result.body.fallbackReason, "structured_output_unsupported");
+  assert.equal(result.body.attempts, 0); assert.equal(requests.length, 0, "Configuration requests never count as provider requests");
+});
+
+test("Chinese review reaches corpus and final answer after wiki validation failures, preserving cached cards and write protections", async t => {
+  const query = "帮我总结所有文献，写个综述。", model = "google/gemma-4-31b-it";
+  const previous = process.env.REQUESTY_MODEL; process.env.REQUESTY_MODEL = model;
+  t.after(() => { process.env.REQUESTY_MODEL = previous; });
+  const f = await require("./helpers/preflight-fixture.js").createFixture();
+  const wiki = require("../../shared/literature-wiki.js");
+  const configuration = wiki.configuration(require("node:crypto").createHash("sha256").update(model).digest("hex"));
+  const { LiteratureApiClient } = require("../../docs/literature-module.js");
+  const provider = { wiki: 0, semantic: 0, answer: 0 };
+  let recoverWiki = false;
+  t.mock.method(global, "fetch", async (_url, options) => {
+    const request = JSON.parse(options.body);
+    assert.equal(request.model, model);
+    let content;
+    if (request.messages[0].content.startsWith("Write a literature wiki")) {
+      provider.wiki++; assert.equal(request.response_format, undefined);
+      const input = JSON.parse(request.messages[1].content);
+      content = recoverWiki ? `# 文献比较\n\n${input.papers.map(paper => `${paper.evidence[0].text} [[cite:${paper.evidence[0].reference}]]`).join("\n\n")}`
+        : "Unresolvable model reference [[cite:fabricated:p2:chunk]]";
+    } else {
+      provider.semantic++; assert.deepEqual(request.response_format, { type: "json_object" });
+      const payload = JSON.parse(request.messages[1].content);
+      assert.equal(payload.query, query);
+      assert.equal(f.calls.cards, 3, "Reconciliation and Paper Cards precede interpretation");
+      content = JSON.stringify({ ...semantic.interpretLocal(payload), retrievalScope: "workspace",
+        goal: "Summarize all papers in this project and write a literature review.", inputLanguage: "zh", answerLanguage: "zh" });
+    }
+    return new Response(JSON.stringify({ choices: [{ message: { content } }] }));
+  });
+  const api = new LiteratureApiClient({ baseUrl: "https://fixture.invalid", getHeaders: () => ({ Authorization: `Bearer ${token}` }),
+    fetch: async (url, options) => {
+      const response = await backend.handler({ httpMethod: options.method, path: new URL(url).pathname, headers: options.headers, body: options.body }, {});
+      return new Response(response.body, { status: response.statusCode });
+    } });
+  f.literature.api = api;
+  f.system.literatureWiki.getPaperCardConfiguration = async () => ({ schemaVersion: 2, promptVersion: "fixture-v1", modelSignature: "fixture-model", wikiConfiguration: configuration });
+  f.system.literatureWiki.generateWikiPage = (input, options) => api.updateWikiPage(input, options);
+  for (const [id, temperature] of [["a", 30], ["b", 40], ["c", 50]]) {
+    f.workspace.set(`literature/${id}.pdf`, `EctD enzyme engineering examined thermostability at ${temperature} C. A163V improved stability.`);
+  }
+  const originalFiles = new Map(await Promise.all([...f.workspace.files].filter(([path]) => path.startsWith("literature/")).map(async ([path, file]) => [path, await file.text()])));
+  const service = new (require("../../docs/project-context-service.js").ProjectContextService)({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
+  const context = await service.buildPlannedContext({ question: query, surface: "side_chat", turnId: "reported-review", callContext: { model } });
+  assert.equal(context.requestUnderstanding.originalQuery, query);
+  assert.equal(context.requestUnderstanding.answerLanguage, "zh");
+  assert.equal(context.knowledgeSync.status, "partial");
+  assert.ok(provider.wiki > 0);
+  assert.equal(provider.semantic, 1);
+  assert.ok(context.knowledgeSync.failures.every(failure => failure.stage === "L3" && failure.code === "INVALID_WIKI_PAGE"));
+  assert.ok(context.knowledgeSync.failures.every(failure => failure.validationProblems[0].includes("not supplied")));
+  assert.equal(context.preflightTelemetry.l3LlmCallCount, provider.wiki);
+  assert.ok(context.literature.corpusWorkflowId, "The real corpus workflow starts despite failed wiki enrichment");
+  const workflow = await f.system.corpusWorkflows.readWorkflow(context.literature.corpusWorkflowId);
+  assert.equal(Object.keys(workflow.maps).length, 3);
+  assert.equal(f.calls.cards, 3, "Corpus mapping reused all three compatible Paper Cards");
+  const reference = Object.values(workflow.maps)[0].findings[0].evidenceRefs[0];
+  const localWorkspaceContext = backend._test.sanitizeLocalWorkspaceContext(context, query);
+  const answer = await require("../side-chat-agent.js").runSideChatAgent({
+    surface: "side_chat", workspaceContext: { localWorkspaceContext }, conversationMessages: [{ role: "user", content: query }],
+    systemPrompt: "Answer with the current corpus evidence", parseFinalAnswer: reply => ({ reply }),
+    requestTurn: async ({ messages }) => {
+      provider.answer++;
+      const prompt = messages.map(message => message.content || "").join("\n");
+      assert.match(prompt, /Answer language for this request: zh/);
+      assert.ok(prompt.includes(query));
+      return { ok: true, message: { content: `三篇文献都提及 A163V 提高稳定性，实验温度不同。\n\n综述：证据涉及 EctD 热稳定性，仍需比较具体实验条件。 [[cite:${reference}]]` } };
+    },
+  });
+  assert.equal(answer.ok, true); assert.match(answer.data.reply, /综述/);
+  assert.equal(answer.data.citations[0]?.status, "resolved", JSON.stringify({ reference, citations: context.citationEvidence, reply: answer.data.reply }));
+  assert.equal(provider.answer, 1);
+  assert.ok(f.workspace.writes.every(path => path.startsWith(".biodesign/")));
+  assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: "R1" });
+  for (const [path, text] of originalFiles) assert.equal(await (await f.workspace.readFile(path)).text(), text);
+  const before = provider.wiki;
+  await f.pipeline.preflight({ question: query, turnId: "unchanged-review", surface: "side_chat", callContext: { model } });
+  assert.equal(f.calls.cards, 3); assert.equal(provider.wiki, before);
+  recoverWiki = true;
+  f.system.literatureWiki.now = () => Date.now() + 60001;
+  const recovered = await service.buildPlannedContext({ question: query, surface: "side_chat", turnId: "recovered-review", callContext: { model } });
+  assert.equal(recovered.knowledgeSync.status, "partial", "Wiki failure stays pending without blocking the optional planner or corpus");
+  assert.equal(provider.wiki, before, "An unchanged review does not retry a failed evidence version"); assert.equal(provider.semantic, 2);
+  assert.equal(recovered.requestUnderstanding.originalQuery, query);
+  assert.equal(recovered.requestUnderstanding.answerLanguage, "zh");
+  assert.equal(Object.keys((await f.system.corpusWorkflows.readWorkflow(recovered.literature.corpusWorkflowId)).maps).length, 3);
+  assert.equal(f.calls.cards, 3, "Request-driven wiki recovery must not rebuild the successful Paper Cards");
+  t.diagnostic(`Fixture provider calls: wiki=${provider.wiki}, semantic=${provider.semantic}, final=${provider.answer}; Paper Cards=3 fixture generations. No live Requesty call.`);
+});
+
 test("OpenAI and Gemini profiles use the same prompt, payload, schema, validator, and Chat Completions adapter", async () => {
   process.env.REQUESTY_SEMANTIC_PLANNER_PROFILE = "gemini";
   replies.push(ir()); const google = await invoke();
   process.env.REQUESTY_SEMANTIC_PLANNER_PROFILE = "openai";
   process.env.REQUESTY_SEMANTIC_OPENAI_MODEL = "openai/mock-semantic-model";
+  process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ "openai/mock-semantic-model": { jsonSchema: true, jsonObject: true } });
   replies.push(ir()); const openai = await invoke();
   assert.equal(google.status, 200); assert.equal(openai.status, 200);
   assert.deepEqual(google.body.ir, openai.body.ir);
@@ -275,7 +415,7 @@ test("OpenAI and Gemini profiles use the same prompt, payload, schema, validator
   replies.push(ir()); const explicit = await invoke(input(), { "X-BioDesign-Chat-Model": gemini });
   assert.equal(explicit.status, 200); assert.equal(requests.at(-1).model, gemini);
   replies.push(ir()); const defaultSelection = await invoke(input(), { "X-BioDesign-Chat-Model": "default" });
-  assert.equal(defaultSelection.status, 200); assert.equal(requests.at(-1).model, "openai/mock-semantic-model");
+  assert.equal(defaultSelection.status, 200); assert.equal(requests.at(-1).model, gemini);
   assert.equal(process.env.REQUESTY_SEMANTIC_PARSER_MODEL, gemini);
 });
 

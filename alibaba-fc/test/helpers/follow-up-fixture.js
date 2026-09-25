@@ -1,3 +1,4 @@
+// Legacy semantic-reference fixture; direct transcript replay is tested separately.
 "use strict";
 const { ProjectContextService } = require("../../../docs/project-context-service.js");
 const semantic = require("../../../shared/semantic-intent.js");
@@ -32,7 +33,7 @@ function followUpFixture(options = {}) {
     { role: "user", content: "Compare the first two docking papers.", context: { relevantPaperIds: ["P3", "P1", "P2"] } }, answer(["P1", "P2"]),
     { role: "user", content: "Explain BetaDock.", context: { relevantPaperIds: ["P3", "P1", "P2"] } }, answer(["P2"]),
   ] };
-  const build = (question, extra = {}) => service.buildContext({ question, retrievalProfile: "medium", conversation, callContext: { turnId: "follow-up-turn", model: "google/gemma-4-31b-it" }, ...extra });
+  const build = (question, extra = {}) => service.buildPlannedContext({ question, retrievalProfile: "medium", conversation, callContext: { turnId: "follow-up-turn", model: "google/gemma-4-31b-it" }, ...extra });
   return { service, sources, registry, literature, workspace, reads, searches, interpretations, citation, answer, conversation, build };
 }
 module.exports = { followUpFixture };

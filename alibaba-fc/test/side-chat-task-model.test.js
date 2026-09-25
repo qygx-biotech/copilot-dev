@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -161,11 +162,11 @@ test("preflight and semantic interpretation retain the initiating model; the nex
   f.system.preparation.generatePaperCard = payload => { observed.push(["paper", payload.callContext.model]); return generate(payload); };
   f.literature.api.interpretSemantics = async payload => { observed.push(["semantic", payload.callContext.model]); return semantic.interpretLocal(payload); };
   const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
-  await service.buildContext({ surface: "side_chat", turnId: "chat", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: nemotron } });
+  await service.buildPlannedContext({ surface: "side_chat", turnId: "chat", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: nemotron } });
   f.workspace.set("literature/b.pdf", "New EctD evidence");
-  await service.buildContext({ surface: "agent_command", turnId: "agent-gemini", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: geminiFlex } });
-  await service.buildContext({ surface: "agent_command", turnId: "agent", question: "Hello", selectedPaths: [], selectedPaperIds: [] });
-  assert.deepEqual(observed, [["semantic", nemotron], ["paper", nemotron], ["semantic", geminiFlex], ["paper", geminiFlex], ["semantic", undefined]]);
+  await service.buildPlannedContext({ surface: "agent_command", turnId: "agent-gemini", question: "Hello", selectedPaths: [], selectedPaperIds: [], callContext: { model: geminiFlex } });
+  await service.buildPlannedContext({ surface: "agent_command", turnId: "agent", question: "Hello", selectedPaths: [], selectedPaperIds: [] });
+  assert.deepEqual(observed, [["paper", nemotron], ["semantic", nemotron], ["semantic", geminiFlex], ["paper", geminiFlex], ["semantic", undefined]]);
 });
 
 test("concurrent maintenance with different selections is serialized and retries use the waiting request's model", async () => {

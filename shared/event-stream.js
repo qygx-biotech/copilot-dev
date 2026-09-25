@@ -91,7 +91,7 @@
       if (result) throw failure("STREAM_INVALID", "The server sent data after the final response.");
       if (event.event === "complete" || event.event === "evidence-recovery") { result = data; return false; }
       else if (event.event === "error") throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");
-      else if (["delta", "reset", "status", "sources"].includes(event.event)) await onEvent({ ...data, type: event.event });
+      else if (["delta", "reset", "status", "sources", "transcript"].includes(event.event)) await onEvent({ ...data, type: event.event });
     }, { signal }); } catch (error) {
       if (signal?.aborted || error?.code === "OPERATION_ABORTED") throw failure("OPERATION_ABORTED", "The request was cancelled.");
       if (String(error?.code || "").startsWith("STREAM_")) throw error;

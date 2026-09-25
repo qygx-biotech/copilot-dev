@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -31,7 +32,7 @@ test("A/B/C: 150 ready papers take metadata-only fast path; three additions and 
     assert.equal(source.artifacts.topicMembership.contentHash, source.contentHash);
     assert.ok(f.events.indexOf(`${id}:L1`) < f.events.indexOf(`${id}:L2`));
   }
-  const afterAddition = await new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline }).buildContext({
+  const afterAddition = await new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline }).buildPlannedContext({
     turnId: "B", surface: "agent_command", question: "Hello", selectedPaths: [], selectedPaperIds: [],
   });
   assert.equal(afterAddition.knowledgeSync.updated.paperCards, 3);
@@ -94,7 +95,7 @@ test("D: Chinese XLSX columns normalize to exact structured records, descriptor,
   const ir = semantic.interpretLocal({ query: "Which EctD mutant has the highest hydroxyectoine titer in our experiments?" });
   const ranked = await f.system.experimentTools.executeSemanticQuery(ir);
   assert.equal(ranked.records[0].values.hydroxyectoine_titer, 12);
-  const mainContext = await new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline }).buildContext({
+  const mainContext = await new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline }).buildPlannedContext({
     turnId: "D", surface: "side_chat", question: "Which EctD mutant has the highest hydroxyectoine titer in our experiments?", selectedPaths: [], selectedPaperIds: [],
   });
   assert.equal(mainContext.semanticExperimentResult.records[0].values.hydroxyectoine_titer, 12);
@@ -140,9 +141,9 @@ test("local requests on both surfaces retain knowledge sync, the default profile
   const f = await createFixture(); addPapers(f.workspace, 1, 1);
   const interpreter = new semantic.SemanticInterpreter(); let called = 0;
   const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
-    semanticInterpreter: { async interpret(input) { called++; assert.equal(f.workspace.scans, called - 1); assert.equal(input.requireRemote, true); assert.equal(input.profile, "medium"); return interpreter.interpret(input); } } });
+    semanticInterpreter: { async interpret(input) { called++; assert.equal(f.workspace.scans, 1); assert.equal(input.requireRemote, true); assert.equal(input.profile, "medium"); return interpreter.interpret(input); } } });
   for (const [surface, retrievalProfile] of [["side_chat", "light"], ["agent_command", "high"]]) {
-    const context = await service.buildContext({ surface, retrievalProfile, turnId: surface, question: "你好", selectedPaths: [], selectedPaperIds: [] });
+    const context = await service.buildPlannedContext({ surface, retrievalProfile, turnId: surface, question: "你好", selectedPaths: [], selectedPaperIds: [] });
     assert.equal(context.requestUnderstanding.inputLanguage, "zh"); assert.equal(context.requestUnderstanding.answerLanguage, "zh");
     assert.equal(context.literature.retrievalProfile, "medium"); assert.ok(context.knowledgeSync);
     const sanitized = fc.sanitizeLocalWorkspaceContext(context, "你好");
@@ -150,6 +151,57 @@ test("local requests on both surfaces retain knowledge sync, the default profile
   }
   assert.equal(called, 2); assert.equal(f.workspace.scans, 2); assert.equal(f.calls.cards, 1);
   assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: "R1" });
+});
+
+test("Side Chat refreshes changed knowledge before interpretation even when the answer needs no project evidence", async () => {
+  const f = await createFixture(); addPapers(f.workspace, 1, 2);
+  await f.pipeline.preflight({ turnId: "seed" });
+  const changed = f.system.registry.getByPath("literature/P1.pdf");
+  const removed = f.system.registry.getByPath("literature/P2.pdf");
+  const oldHash = changed.contentHash;
+  const newText = "English paper: EctD A163V retained activity at 45 degrees C.";
+  f.workspace.set(changed.path, newText);
+  f.workspace.files.delete(removed.path);
+  f.workspace.set("literature/P3.pdf", "English paper: EctD WT control at 30 degrees C.");
+  const before = { ...f.calls }, scans = f.workspace.scans;
+  let interpretations = 0, catalogUpdates = 0;
+  f.literature.api.interpretSemantics = async (input) => {
+    interpretations++;
+    assert.equal(catalogUpdates, interpretations, "Fresh host catalog is published before model context is built");
+    assert.equal(f.system.registry.get(removed.sourceId), null);
+    assert.notEqual(changed.contentHash, oldHash);
+    assert.equal(changed.knowledgeSync.status, "SYNC_READY");
+    assert.equal(f.system.registry.getByPath("literature/P3.pdf").knowledgeSync.status, "SYNC_READY");
+    return { ...semantic.interpretLocal(input), retrievalScope: "none", objects: [],
+      operations: ["explain"], capabilityHints: [], matchedPattern: null, unresolvedSlots: [] };
+  };
+  const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
+  for (const turnId of ["changed", "unchanged"]) {
+    const context = await service.buildPlannedContext({ turnId, surface: "side_chat", question: "你好", onCatalogUpdated: () => { catalogUpdates++; } });
+    assert.equal(context.knowledgeSync.status, "completed");
+    assert.equal(context.requestUnderstanding.answerLanguage, "zh");
+    assert.equal(context.semantic.ir.retrievalScope, "none");
+    assert.deepEqual(context.files, [], "Maintenance does not inject unrelated evidence into the answer");
+    assert.equal(context.preflightTelemetry.syncAgentSpawned, turnId === "changed");
+  }
+  assert.equal(interpretations, 2);
+  assert.equal(f.workspace.scans - scans, 2, "One reconciliation per user turn");
+  assert.equal(f.calls.cards - before.cards, 2, "Only the added and modified papers regenerate cards");
+  assert.equal(f.calls.parses - before.parses, 2);
+  assert.equal(await (await f.workspace.readFile(changed.path)).text(), newText);
+  assert.ok(f.workspace.writes.every(path => path.startsWith(".biodesign/")), "Side Chat writes only managed project state");
+  assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: "R1" });
+});
+
+test("Side Chat knowledge failure or cancellation stops the turn before any semantic model call", async () => {
+  for (const code of ["KNOWLEDGE_SYNC_FAILED", "OPERATION_ABORTED"]) {
+    const f = await createFixture(); let interpretations = 0;
+    const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system,
+      requestPipeline: { async preflight() { throw Object.assign(new Error(code), { code }); } },
+      semanticInterpreter: { async interpret() { interpretations++; throw new Error("Must not reach model"); } } });
+    await assert.rejects(service.buildPlannedContext({ turnId: code, surface: "side_chat", question: "总结所有文献" }), { code });
+    assert.equal(interpretations, 0);
+  }
 });
 
 test("language overrides, exact fact planning, broad and cross-source composition; sync tools cannot mutate recommendations", () => {
@@ -175,7 +227,7 @@ test("one FC semantic interpretation supplies English working query and the exis
     const ir = semantic.interpretLocal(payload);
     return { ...ir, goal: "Which papers study methods to improve EctD thermostability?", operations: ["search"], unresolvedSlots: [] };
   };
-  const context = await new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline }).buildContext({ turnId: "chinese", question: query, surface: "side_chat", retrievalProfile: "light" });
+  const context = await new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline }).buildPlannedContext({ turnId: "chinese", question: query, surface: "side_chat", retrievalProfile: "light" });
   assert.equal(semanticCalls, 1); assert.equal(context.requestUnderstanding.originalQuery, query);
   assert.equal(context.preflightTelemetry.syncAgentSpawned, false); assert.equal(context.preflightTelemetry.hashCalls, 0);
   assert.equal(context.requestUnderstanding.canonicalQueryEn, "Which papers study methods to improve EctD thermostability?");
@@ -186,7 +238,7 @@ test("one FC semantic interpretation supplies English working query and the exis
     workspaceContext: { localWorkspaceContext: sanitized }, parseFinalAnswer: (content) => ({ reply: content }),
     requestTurn: async ({ messages }) => {
       const prompt = messages.map((message) => message.content || "").join("\n");
-      assert.match(prompt, /<knowledge_sync>/); assert.match(prompt, /"answerLanguage":"zh"/); assert.match(prompt, /<evidence_plan>/);
+      assert.match(prompt, /<knowledge_sync>/); assert.match(prompt, /Answer language for this request: zh/); assert.doesNotMatch(prompt, /<evidence_plan>/);
       assert.doesNotMatch(prompt, /PRIVATE_MAINTENANCE_TRANSCRIPT/);
       return { ok: true, message: { content: "根据当前证据，A163V 与 EctD 稳定性有关。" } };
     },

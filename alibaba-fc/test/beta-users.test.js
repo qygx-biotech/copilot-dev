@@ -324,14 +324,14 @@ test("client-supplied identity and key fields cannot override authentication, in
   for (const [path, body] of [["/chat", chat], ["/api/literature/summarize-chunk", providerRoutes[4][1]]]) {
     await invoke("POST", path, { ...body, ...forged }, betaToken(), headers);
   }
-  assert.equal(providerRequests.length, 2);
+  assert.equal(providerRequests.length, 3);
   for (const request of providerRequests) {
     assert.equal(request.key, `Bearer ${baseEnv.REQUESTY_KEY_BETA01}`);
     assert.doesNotMatch(JSON.stringify(request.body), /client-forged-key|requestyKeyEnv|admin-account|scientist-2/);
   }
   const invalidContext = await invoke("POST", "/chat", { ...chat, callContext: { ...forged, turnId: "caller-turn" } }, betaToken());
   assert.equal(invalidContext.status, 400);
-  assert.equal(providerRequests.length, 2);
+  assert.equal(providerRequests.length, 3);
 });
 
 function fixturePdf() {

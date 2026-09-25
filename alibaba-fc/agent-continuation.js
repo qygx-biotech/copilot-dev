@@ -7,7 +7,8 @@ const academic = require("./shared/academic-tools.js");
 function seal(state, binding, secret) {
   if (!secret) throw invalid();
   const data = Buffer.from(JSON.stringify({ state, binding: digest(binding), expires: Date.now() + 15 * 60000 }));
-  if (data.length > 700000) throw invalid();
+  if (data.length > 700000) throw Object.assign(new Error("Local signed-continuation payload limit exceeded."),
+    { code: "LOCAL_CONTEXT_TRANSPORT_LIMIT", byteLimit: 700000, inputBytes: data.length });
   const payload = zlib.deflateSync(data).toString("base64url");
   return `${payload}.${crypto.createHmac("sha256", secret).update(`source-tools-v1:${payload}`).digest("base64url")}`;
 }
@@ -25,9 +26,16 @@ function open(token, binding, secret) {
   } catch { throw invalid(); }
 }
 function withResults(state, results) {
-  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState ? 180000 : 60000)) throw invalid();
+  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState || state.projectToolState ? 180000 : 60000)) throw invalid();
   for (const call of state.pending) {
     const matches = results.filter(item => item?.id === call.id);
+    if (require("./shared/side-chat-tools.js").isTool(call.name)) {
+      if (!state.projectToolState || matches.length !== 1 || !matches[0].result || typeof matches[0].result.ok !== "boolean") throw invalid();
+      const message = state.agentMessages.find(item => item.role === "tool" && item.tool_call_id === call.id);
+      if (!message) throw invalid();
+      message.content = JSON.stringify(matches[0].result);
+      continue;
+    }
     if (academic.isTool(call.name)) {
       if (!state.academicState || matches.length !== 1) throw invalid();
       try {

@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   session,
@@ -13,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { registerIpcHandlers } from "../ipc/register-handlers.mjs";
 import channels from "../ipc/channels.cjs";
 import { ProjectSessionManager } from "../services/project-session.mjs";
+import { ProjectCatalog } from "../services/project-catalog.mjs";
 import {
   BIO_DESIGN_APP_USER_MODEL_ID,
   getWindowsUpdateEligibility,
@@ -101,7 +103,7 @@ function createWindow() {
       console.error("renderer_console", details.level, details.message);
     });
   }
-  void mainWindow.loadFile(path.join(applicationRoot, "docs", "index.html"));
+  void mainWindow.loadFile(path.join(applicationRoot, "docs", "desktop.html"));
   mainWindow.on("closed", () => { mainWindow = null; });
   return mainWindow;
 }
@@ -149,7 +151,7 @@ async function runSmoke(window) {
   })`);
   const headerLayout = await window.webContents.executeJavaScript(`(() => {
     const shell = document.getElementById("appShell");
-    const header = document.querySelector(".workbench-header");
+    const header = document.querySelector(".copilot-topbar");
     const wasHidden = shell.hidden;
     const hadHiddenClass = shell.classList.contains("is-hidden");
     shell.hidden = false;
@@ -166,6 +168,8 @@ async function runSmoke(window) {
   })()`);
   const sideChatLayout = await window.webContents.executeJavaScript(`(${inspectSideChatScrollLayout.toString()})()`);
   const renderer = await window.webContents.executeJavaScript(`({
+    reactRenderer: document.documentElement.dataset.renderer === "biodesign-react",
+    paneCount: document.querySelectorAll(".copilot-pane").length,
     bridge: Boolean(window.biodesignDesktop),
     bridgeKeys: Object.keys(window.biodesignDesktop || {}),
     nodeRequireType: typeof window.require,
@@ -192,7 +196,7 @@ async function runSmoke(window) {
     "BioDesign Workbench | 生物设计工作台",
   ]);
   const result = {
-    rendererLoaded: renderer.bridge &&
+    rendererLoaded: renderer.bridge && renderer.reactRenderer && renderer.paneCount === 2 &&
       acceptedSmokeTitles.has(renderer.title) &&
       renderer.aboutButtonCount === 3 &&
       renderer.updateButtonPresent &&
@@ -301,6 +305,8 @@ app.whenReady().then(async () => {
     });
   }
   unregisterHandlers = registerIpcHandlers({
+    writeClipboardText: (text) => clipboard.writeText(text),
+    projectCatalog: new ProjectCatalog(path.join(app.getPath('userData'), 'projects')),
     openExternal: url => shell.openExternal(url),
     ipcMain,
     dialog,

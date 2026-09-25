@@ -5,12 +5,16 @@ const { contextBridge, ipcRenderer } = require("electron");
 // capability allowlist self-contained and parity-test it against channels.cjs.
 const channels = Object.freeze({
   runtimeInfo: "biodesign:runtime:info",
+  clipboardWriteText: "biodesign:clipboard:write-text",
   sourceOpen: "biodesign:source:open",
   updateCheck: "biodesign:updates:check",
   updateStatus: "biodesign:updates:status",
   projectOpen: "biodesign:project:open",
   projectClose: "biodesign:project:close",
   projectStatus: "biodesign:project:status",
+  projectList: "biodesign:project:list",
+  projectChoose: "biodesign:project:choose",
+  projectActivate: "biodesign:project:activate",
   filesList: "biodesign:files:list",
   filesStat: "biodesign:files:stat",
   filesExists: "biodesign:files:exists",
@@ -54,6 +58,11 @@ function projectPayload(payload = {}) {
     error.code = "NO_ACTIVE_PROJECT";
     throw error;
   }
+  if (payload.projectId !== undefined && payload.projectId !== activeProjectId) {
+    const error = new Error("The request belongs to a previous project.");
+    error.code = "PROJECT_MISMATCH";
+    throw error;
+  }
   return { ...payload, projectId: activeProjectId };
 }
 
@@ -64,6 +73,9 @@ function deepFreeze(value) {
 }
 
 const api = {
+  clipboard: {
+    writeText: (text) => invoke(channels.clipboardWriteText, { text }),
+  },
   runtime: {
     info: () => invoke(channels.runtimeInfo),
     openSource: (payload) => invoke(channels.sourceOpen, payload),
@@ -78,6 +90,13 @@ const api = {
     },
   },
   project: {
+    list: (payload) => invoke(channels.projectList, payload),
+    choose: (payload) => invoke(channels.projectChoose, payload),
+    async activate(payload) {
+      const result = await invoke(channels.projectActivate, payload);
+      activeProjectId = result.projectId;
+      return result;
+    },
     async open() {
       const result = await invoke(channels.projectOpen);
       activeProjectId = result.projectId;
@@ -104,7 +123,7 @@ const api = {
   },
   knowledge: {
     initialize: (payload) => invoke(channels.knowledgeInitialize, projectPayload(payload)),
-    status: () => invoke(channels.knowledgeStatus, projectPayload()),
+    status: (payload = {}) => invoke(channels.knowledgeStatus, projectPayload(payload)),
     update: (payload) => invoke(channels.knowledgeUpdate, projectPayload(payload)),
     embed: (payload) => invoke(channels.knowledgeEmbed, projectPayload(payload)),
     search: (payload) => invoke(channels.knowledgeSearch, projectPayload(payload)),

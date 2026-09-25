@@ -142,7 +142,9 @@ test("provider transport exceptions cannot echo secrets in retry logs or final e
   assertClean(result); assertClean(logs);
 });
 
-test("redacted provider errors preserve Retry-After, learned quotas, hard quotas and verified context-size flags", async () => {
+test("redacted provider errors preserve Retry-After, learned quotas, hard quotas and verified context-size flags", async t => {
+  const waits = [];
+  t.mock.method(require("node:timers/promises"), "setTimeout", async ms => { waits.push(ms); });
   let calls = 0;
   global.fetch = async () => { calls++; return new Response(JSON.stringify({ error: {
     message: `Quota exceeded for metric: generativelanguage.googleapis.com/input_token_count, limit: 16000. Please retry in 22s. ${privateText}`
@@ -150,8 +152,9 @@ test("redacted provider errors preserve Retry-After, learned quotas, hard quotas
   const limited = await invoke("/api/literature/summarize-chunk", chunk);
   assert.equal(limited.status, 429); assert.equal(limited.body.retryAfterMs, 31000);
   assert.equal(limited.body.inputTokenLimit, 16000); assert.equal(limited.body.verifiedInputTokenRateLimit, true);
-  assert.equal(limited.body.rateLimitRetryable, true); assert.equal(limited.body.attempts, 1);
-  assert.equal(calls, 1); assertClean(limited); assertClean(logs);
+  assert.equal(limited.body.rateLimitRetryable, true); assert.equal(limited.body.attempts, 2);
+  assert.deepEqual(waits, [31000]);
+  assert.equal(calls, 2); assertClean(limited); assertClean(logs);
   global.fetch = async () => new Response(JSON.stringify({ error: { type: "insufficient_quota", message: privateText } }), { status: 429 });
   const hard = await invoke("/api/literature/summarize-chunk", chunk);
   assert.equal(hard.body.rateLimitRetryable, false); assert.equal(hard.body.verifiedInputTokenRateLimit, false);
@@ -174,14 +177,19 @@ test("schema capability fallback keeps its classification without exposing provi
   assert.equal(calls, 1); assertClean(result); assertClean(logs);
 });
 
-test("context compaction still retries once and successful answers retain the requested scientific text", async () => {
+test("unreducible context fails without leaking content; successful answers retain scientific text", async () => {
   let calls = 0;
   global.fetch = async () => ++calls === 1
     ? new Response(JSON.stringify({ error: { message: `context_length_exceeded ${privateText}` } }), { status: 400 })
     : completion({ reply: privateText });
   const result = await invoke("/chat", chat);
-  assert.equal(calls, 2); assert.equal(result.body.fallback, false);
-  assert.equal(result.body.reply, privateText, "Error redaction must not alter scientific answer content");
+  assert.equal(calls, 1); assert.equal(result.body.fallback, true);
+  assert.equal(result.body.error, "ContextRecoveryIncomplete");
+  global.fetch = async () => completion({ reply: privateText });
+  process.env.REQUESTY_MODEL = "fixture/answer-model";
+  const success = await invoke("/chat", chat);
+  process.env.REQUESTY_MODEL = env.REQUESTY_MODEL;
+  assert.equal(success.body.reply, privateText, "Error redaction must not alter scientific answer content");
   assertClean(logs);
 });
 

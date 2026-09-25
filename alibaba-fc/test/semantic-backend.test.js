@@ -166,9 +166,9 @@ test("schema mapper rejects invented IDs, duplicate IDs, extra keys and out-of-o
   assert.equal(requests.length, 4);
 });
 
-test("normal chat rejects invalid semantic context before the answer provider is invoked", async () => {
+test("Agent Work still rejects invalid optional semantic context before the provider", async () => {
   const result = await invoke("/chat", {
-    mode: "side_chat", messages: [{ role: "user", content: "Compare EctD experiments with literature" }],
+    mode: "agent_instruction", messages: [{ role: "user", content: "Compare EctD experiments with literature" }],
     localWorkspaceContext: { semantic: { ir: { ...ir(), permissions: ["all"] } } }
   });
   assert.equal(result.status, 400);
@@ -187,7 +187,7 @@ test("semantic advisory capabilities use unchanged closed effects and the existi
     systemPrompt: "Answer safely", parseFinalAnswer: (content) => ({ reply: content }),
     requestTurn: async ({ messages }) => {
       turns += 1;
-      assert.match(messages.map((message) => message.content).join("\n"), /<semantic_ir>/);
+      assert.doesNotMatch(messages.map((message) => message.content).join("\n"), /<semantic_ir>/);
       if (turns === 1) return { ok: true, message: { tool_calls: [{ id: "denied-1", type: "function", function: { name: "update_recommendation", arguments: JSON.stringify({ proposed_change: "update" }) } }] } };
       denied = JSON.parse(messages.find((message) => message.role === "tool").content);
       return { ok: true, message: { content: "Recommendation remains unchanged." } };
@@ -327,7 +327,7 @@ test("the existing answer loop can read evidence then execute a grounded tempera
   let turns = 0;
   let eligibility;
   const result = await agent.runSideChatAgent({
-    surface: "side_chat", conversationMessages: [{ role: "user", content: "Compare EctD experiments with literature" }],
+    surface: "agent_command", conversationMessages: [{ role: "user", content: "Compare EctD experiments with literature" }],
     workspaceContext: { localWorkspaceContext: context }, systemPrompt: "Answer from cited evidence", parseFinalAnswer: (content) => ({ reply: content }),
     requestTurn: async ({ messages }) => {
       turns += 1;
@@ -530,7 +530,7 @@ test("cited follow-up context survives the host, shared compaction, renderer cli
     originalRequest: "And redistribution?", systemPrompt: "Use original evidence", parseFinalAnswer: reply => ({ reply }),
     requestTurn: async ({ messages }) => {
       assert.ok(messages.some(message => message.role === "system" && message.content.includes("Original user request:\nAnd redistribution?")));
-      assert.ok(messages.some(message => message.role === "system" && message.content.includes("<semantic_ir>")));
+      assert.ok(messages.some(message => message.role === "system" && message.content.includes("No semantic plan is required")));
       if (++turns === 1) return { ok: true, message: { tool_calls: [{ id: "read-follow-up", type: "function", function: { name: "read_paper_evidence", arguments: '{"paper_id":"P2","query":"license"}' } }] } };
       const evidence = JSON.parse(messages.find(m => m.role === "tool").content);
       assert.equal(evidence.paper_id, "P2"); assert.equal(evidence.content_available, true);

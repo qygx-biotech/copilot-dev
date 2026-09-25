@@ -8,6 +8,7 @@ process.env.JWT_SECRET = "streaming-fixture-secret";
 process.env.ADMIN_ACCOUNT = "streaming-fixture";
 process.env.REQUESTY_API_KEY = "streaming-fixture-key";
 process.env.REQUESTY_MODEL = "streaming-fixture-model";
+process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ "streaming-fixture-model": { supportsTools: true, supportsImages: false, supportsWebSearch: false } });
 const adapter = require("../src/index.js");
 const token = jwt.sign({ account: process.env.ADMIN_ACCOUNT, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "1h" });
 const frame = (delta, finish_reason = null) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason }] })}\n\n`;

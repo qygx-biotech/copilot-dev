@@ -1,3 +1,4 @@
+// Planned-context cases below exercise the retained optional helper, not the direct Side Chat entry point.
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -198,7 +199,7 @@ test("end-to-end EN/ZH corpus paraphrases use the same existing workflow and pre
   const run = h.system.corpusWorkflows.run.bind(h.system.corpusWorkflows);
   h.system.corpusWorkflows.run = (question, options) => { runs.push({ question, options }); return run(question, options); };
   for (const [question, language] of [["Write a review using all papers.", "en"], ["把所有论文综合成一个综述。", "zh"]]) {
-    const context = await h.service.buildContext({ question, workspaceTree: h.workspaceTree, retrievalProfile: "light" });
+    const context = await h.service.buildPlannedContext({ question, workspaceTree: h.workspaceTree, retrievalProfile: "light" });
     assert.equal(context.semantic.ir.matchedPattern, "literature.corpus_synthesis");
     assert.equal(context.semantic.ir.answerLanguage, language);
     assert.equal(context.literature.discoveryMode, "corpus");
@@ -215,7 +216,7 @@ test("novel cross-source composition prepares both domains and computes rank det
   // Model an already searchable mixed-language library; generic new filenames
   // remain inventory until the existing readiness workflow prepares evidence.
   await h.system.preparation.ensureSourceReady(h.system.registry.list({ sourceKind: "paper" }).map((source) => source.sourceId), "search");
-  const context = await h.service.buildContext({
+  const context = await h.service.buildPlannedContext({
     question: "Find the top five experimental EctD variants, look for contradictory literature, ignore comparisons where temperature differs by more than 5°C, and explain what remains.",
     retrievalProfile: "light", workspaceTree: h.workspaceTree,
   });
@@ -252,8 +253,8 @@ test("novel cross-source composition prepares both domains and computes rank det
 test("both surfaces share semantics and Side Chat cannot authorize recommendation mutation", async () => {
   const h = await mixedProject();
   const input = { question: "Update our current recommendation based on these experiments.", workspaceTree: h.workspaceTree };
-  const chat = await h.service.buildContext({ ...input, surface: "side_chat" });
-  const command = await h.service.buildContext({ ...input, surface: "agent_command" });
+  const chat = await h.service.buildPlannedContext({ ...input, surface: "side_chat" });
+  const command = await h.service.buildPlannedContext({ ...input, surface: "agent_command" });
   assert.deepEqual(chat.semantic.ir, command.semantic.ir);
   assert.ok(chat.semantic.plan.blocked.includes("update_recommendation"));
   assert.ok(!command.semantic.plan.blocked.includes("update_recommendation"));
@@ -270,7 +271,7 @@ test("Medium and High integrate one bounded parser call without the old context-
       return semantic.interpretLocal(payload);
     };
     h.literature.api.routeContext = () => { throw new Error("redundant context router must not be called"); };
-    const context = await h.service.buildContext({ question: "Rank EctD variants and compare with contradictory literature at similar temperature.", workspaceTree: h.workspaceTree, retrievalProfile: profile });
+    const context = await h.service.buildPlannedContext({ question: "Rank EctD variants and compare with contradictory literature at similar temperature.", workspaceTree: h.workspaceTree, retrievalProfile: profile });
     assert.equal(calls, 1);
     assert.equal(context.semantic.telemetry.semantic.remoteSemanticParserUsed, true);
     assert.equal(context.routing.mode, "semantic");
@@ -293,7 +294,7 @@ test("semantic FC client uses authenticated bounded transport without request re
 
 test("open corpus-plus-experiment compositions retain full corpus coverage", async () => {
   const h = await mixedProject();
-  const context = await h.service.buildContext({ question: "Summarize all papers and rank the experiment variants.", workspaceTree: h.workspaceTree, retrievalProfile: "light" });
+  const context = await h.service.buildPlannedContext({ question: "Summarize all papers and rank the experiment variants.", workspaceTree: h.workspaceTree, retrievalProfile: "light" });
   assert.equal(context.semantic.ir.matchedPattern, null);
   assert.ok(context.semantic.ir.capabilityHints.includes("corpus_workflow"));
   assert.equal(context.literature.discoveryMode, "corpus");

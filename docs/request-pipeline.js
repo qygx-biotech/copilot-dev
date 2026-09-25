@@ -237,17 +237,19 @@
       telemetry.reconciliationMs = clock() - started;
       const diff = reconciliation.diff;
       const changes = { added: [], removed: [], modified: [] };
+      const rawEvidenceChanges = new Set();
       const verificationFailures = [];
       const context = { surface: options.surface || "side_chat", signal: this.workspaceSignal, turnId: syncTurnId, callContext: { ...options.callContext, turnId: syncTurnId, configurationTurnId: options.callContext?.configurationTurnId || options.turnId || options.callContext?.turnId || syncTurnId, profile: "medium" }, retrievalProfile: "medium", profile: "medium", strictKnowledgeSync: true, deferTopicUpdate: true,
         onProgress: (event) => this.emit(event) };
       for (const source of registry.list({ includeMissing: true })) {
-        if (source.syncPending === "removed") changes.removed.push(source.sourceId);
+        if (source.syncPending === "removed") { changes.removed.push(source.sourceId); rawEvidenceChanges.add(source.sourceId); }
         else if (source.catalogStatus === "missing") continue;
-        else if (source.syncPending === "added" || !source.contentHash) changes.added.push(source.sourceId);
+        else if (source.syncPending === "added" || !source.contentHash) { changes.added.push(source.sourceId); rawEvidenceChanges.add(source.sourceId); }
         else if (source.hashStatus === "dirty" || source.syncPending === "possiblyModified") {
           const oldHash = source.contentHash;
           try {
             await preparation.ensureSourceReady([source.sourceId], "stable_snapshot", context);
+            if (source.contentHash !== oldHash) rawEvidenceChanges.add(source.sourceId);
             if (reconciliation.changes.renamed.some((rename) => rename.sourceId === source.sourceId)) source.pathMetadataDirty = true;
             if (source.contentHash !== oldHash || !synchronized(source) || source.pathMetadataDirty) changes.modified.push(source.sourceId);
             else { source.syncPending = null; await registry.persist(); }
@@ -357,27 +359,61 @@
       }
       report.failures.push(...verificationFailures);
       let wikiMaintenance = null;
-      if (this.system.literatureWiki?.generateWikiPage) {
+      if (this.system.literatureWiki) {
         const command = wikiContract.command(options.question);
         const paperIds = options.selectedPaperIds?.length ? options.selectedPaperIds : (options.selectedPaths || [])
           .map(path => registry.getByPath(path)).filter(source => source?.sourceKind === "paper").map(source => source.sourceId);
-        const wikiSignal = options.signal && this.workspaceSignal && root.AbortSignal?.any
+        const wikiSignal = !this.system.literatureWiki.generateWikiPage ? this.workspaceSignal : options.signal && this.workspaceSignal && root.AbortSignal?.any
           ? root.AbortSignal.any([options.signal, this.workspaceSignal]) : options.signal || this.workspaceSignal;
         const start = clock();
         try {
           wikiMaintenance = await this.system.literatureWiki.maintain({ ...context, ...command, signal: wikiSignal, paperIds,
-            // Source synchronization may compile new knowledge. An unchanged
-            // ordinary question only checks compatibility; it never rewrites pages.
-            changedPaperIds: unique([...changes.added, ...changes.modified, ...changes.removed]),
+            hardSelection: Boolean(options.selectedPaperIds?.length || options.selectedPaths?.length),
+            // Only actual raw-evidence changes grant automatic generation. Local
+            // repair, renaming, configuration and prior failures do not.
+            changedPaperIds: [...rawEvidenceChanges],
+            reconciledSources: new Map(registry.list().filter(source => source.hashStatus === "ready").map(source => [source.sourceId, { contentHash: source.contentHash, statSignature: source.statSignature }])),
           });
-          telemetry.l3LlmCallCount = wikiMaintenance.generationCalls || 0;
-          telemetry.l3LlmMs = clock() - start;
+          telemetry.wikiGenerationRequests = wikiMaintenance.generationCalls || 0;
+          telemetry.l3LlmCallCount = wikiMaintenance.providerAttempts ?? null;
+          telemetry.wikiUnknownProviderAttempts = wikiMaintenance.unknownProviderAttempts || 0;
+          telemetry.wikiSkippedGenerationCount = wikiMaintenance.skippedGenerationCount || 0;
+          telemetry.wikiMaintenanceMs = clock() - start;
+          telemetry.l3LlmMs = wikiMaintenance.generationMs || 0;
+          telemetry.wikiLocalMaintenanceMs = Math.max(0, telemetry.wikiMaintenanceMs - telemetry.l3LlmMs);
+          if (wikiMaintenance.admission) {
+            const { deferredReasons, ...counts } = wikiMaintenance.admission;
+            this.log?.record("wiki.admission", { runId: syncTurnId, ...counts });
+            for (const [reason, count] of Object.entries(deferredReasons))
+              this.log?.record("wiki.admission-deferred", { runId: syncTurnId, reason, deferredCandidateCount: count });
+          }
+          for (const page of wikiMaintenance.pages || []) if (page.outcome) this.log?.record("wiki.attempt-outcome", {
+            runId: syncTurnId, outcome: page.outcome, reason: page.reason, attempts: page.attempts,
+            elapsedMs: page.elapsedMs, nextEligibleAt: page.nextEligibleAt, timeoutCount: page.timeoutCount,
+            providerRequestStarted: page.providerRequestStarted, providerCompletion: page.providerCompletion,
+            transportStarted: page.transportStarted, automaticRetry: page.automaticRetry,
+          });
+          this.log?.record(wikiMaintenance.generationCalls ? "wiki.generation" : "wiki.generation-skipped", {
+            runId: syncTurnId, generationCalls: wikiMaintenance.generationCalls || 0,
+            providerAttempts: wikiMaintenance.providerAttempts ?? null, status: wikiMaintenance.status,
+            skippedGenerationCount: telemetry.wikiSkippedGenerationCount });
         } catch (error) {
           if (error.code === "OPERATION_ABORTED") throw error;
           wikiMaintenance = { status: "unavailable", pages: [], generationCalls: 0, code: safeCode(error) };
         }
       }
+      if (wikiMaintenance && ["partial", "unavailable"].includes(wikiMaintenance.status)) {
+        const failedPages = (wikiMaintenance.pages || []).filter(page => page.status === "stale");
+        for (const page of failedPages.length ? failedPages : [wikiMaintenance]) report.failures.push({
+          sourceId: null, pageId: page.pageId || null, stage: "L3", code: page.code || "WIKI_UNAVAILABLE", retryable: page.automaticRetry === true,
+          validationProblems: page.validationProblems || [],
+          pending: page.pending === true, reason: page.reason || null, nextRetryAt: page.nextRetryAt || null,
+          generationSkipped: page.generationSkipped === true, draftSaved: page.draftSaved === true,
+        });
+      }
       if (report.failures.length) report.status = "partial";
+      if (wikiMaintenance) report.wiki = { admission: wikiMaintenance.admission, status: wikiMaintenance.status, generationRequests: wikiMaintenance.generationCalls || 0,
+        skippedGenerationCount: wikiMaintenance.skippedGenerationCount || 0, pendingPages: (wikiMaintenance.pages || []).filter(page => page.pending).length };
       this.assertWorkspace();
       // Projection only: reuse the turn reconciliation, never scan/hash again.
       reconciliation.sources = registry.list();
@@ -386,13 +422,17 @@
         this.literature.documents.length !== reconciliation.sources.filter((source) => source.extension === ".pdf").length;
       if (catalogChanged) await this.literature.scan({ tree, reconciliation, deferKnowledgeMaintenance: true });
       telemetry.l1UpdateCount = report.updated.l1Evidence;
-      telemetry.l2LlmCallCount = preparation.metrics.paperCardCalls - before.paperCardCalls;
+      telemetry.paperCardGenerationCount = preparation.metrics.paperCardCalls - before.paperCardCalls;
+      telemetry.cachedPaperCards = registry.list({ sourceKind: "paper" }).filter(source => source.paperCardStatus === "ready" && source.artifacts?.paperCard?.contentHash === source.contentHash).length;
+      telemetry.l2LlmCallCount = telemetry.paperCardGenerationCount ? null : 0;
       telemetry.l2LlmMs = preparation.metrics.paperCardDurationMs - before.paperCardDurationMs;
-      const providerCalls = this.literature.api?.getTurnCallCounts?.(syncTurnId);
-      if (providerCalls) {
-        telemetry.l2LlmCallCount = ["native_pdf", "combined_text_paper_card", "paper_card_chunk", "paper_card_synthesis"].reduce((total, role) => total + (Number(providerCalls[role]) || 0), 0);
-        telemetry.paperCardGenerationCount = preparation.metrics.paperCardCalls - before.paperCardCalls;
-        telemetry.schemaMapperCalls = Number(providerCalls.schema_mapper) || 0;
+      const accounting = this.literature.api?.getTurnAccounting?.(syncTurnId);
+      if (accounting?.providerAttempts) {
+        telemetry.providerAccounting = accounting;
+        telemetry.l2LlmCallCount = accounting.unknownProviderResponses ? null : ["analyze-pdf-native", "create-paper-card-from-text", "summarize-chunk", "synthesize"]
+          .reduce((total, endpoint) => total + (Number(accounting.providerAttempts[`/api/literature/${endpoint}`]) || 0), 0);
+        telemetry.l3LlmCallCount = accounting.unknownProviderResponses ? null : Number(accounting.providerAttempts["/api/knowledge/update-wiki"] || 0);
+        telemetry.schemaMapperCalls = Number(accounting.providerAttempts["/api/semantic/map-schema"] || 0);
       }
       telemetry.experimentNormalizationCount = preparation.metrics.experimentParseCalls - before.experimentParseCalls;
       telemetry.experimentNormalizationMs = preparation.metrics.experimentParseDurationMs - before.experimentParseDurationMs;

@@ -178,6 +178,9 @@
         article.append(edit);
       }
       if (message === latestResult) article.append(resultActions(chat));
+      const copy = action(chat, "copy-message", t("copyMessage"), "message-copy-button");
+      copy.dataset.messageId = message.id;
+      article.append(copy);
       return article;
     }
 

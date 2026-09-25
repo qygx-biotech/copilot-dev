@@ -35,6 +35,7 @@ const excludedTopLevel = new Set([
   "coverage",
   "evals",
   "learn-claude-code",
+  "nanobot",
   "paper-search-mcp",
   "out",
   "worker",
@@ -81,7 +82,7 @@ module.exports = {
         /^[/\\]local-backend[/\\]package-lock\.json$/.test(filePath) ||
         /^[/\\]local-backend[/\\]src[/\\](knowledge-cli|server)\.js$/.test(filePath) ||
         /^[/\\]docs[/\\].*\.md$/.test(filePath) ||
-        /^[/\\]desktop[/\\](scripts|test|paper-search)([/\\]|$)/.test(filePath)
+        /^[/\\]desktop[/\\](scripts|test|paper-search|renderer)([/\\]|$)/.test(filePath)
       );
     },
   },

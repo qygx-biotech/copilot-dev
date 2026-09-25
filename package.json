@@ -18,8 +18,8 @@
     "eval:compare": "node evals/compare.mjs",
     "eval:test": "node --test evals/test/*.test.mjs",
     "eval:literature": "node evals/literature/run.mjs",
-    "postinstall": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
-    "desktop:prepare": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs",
+    "postinstall": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs && npm run renderer:build",
+    "desktop:prepare": "node desktop/scripts/patch-electron-native-assets.mjs && node desktop/scripts/sync-renderer-assets.mjs && npm run renderer:build",
     "desktop:dev": "npm run desktop:prepare && npm run paper:build && electron-forge start",
     "desktop:package": "npm run desktop:prepare && electron-forge package",
     "desktop:build": "npm run desktop:prepare && electron-forge make",
@@ -36,7 +36,9 @@
     "test": "npm run desktop:test && npm --prefix alibaba-fc test && npm --prefix local-backend test",
     "check": "node --check desktop/main/main.mjs && node --check desktop/main/application.mjs && node --check desktop/main/windows-updater.mjs && node --check desktop/preload/index.cjs && node --check desktop/ipc/register-handlers.mjs && node --check desktop/services/project-filesystem.mjs && node --check desktop/workers/qmd-worker.mjs && node --check desktop/scripts/validate-stable-release.mjs",
     "paper:build": "node desktop/scripts/build-paper-mcp.mjs",
-    "paper:smoke": "node desktop/scripts/smoke-paper-mcp.mjs"
+    "paper:smoke": "node desktop/scripts/smoke-paper-mcp.mjs",
+    "renderer:build": "node desktop/scripts/build-renderer.mjs",
+    "renderer:watch": "node desktop/scripts/build-renderer.mjs --watch"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.27.1",
@@ -44,6 +46,8 @@
     "electron-squirrel-startup": "1.0.1",
     "katex": "0.18.1",
     "pdfjs-dist": "6.3.289",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
@@ -56,7 +60,8 @@
     "@electron/fuses": "1.8.0",
     "@electron/packager": "18.4.4",
     "electron": "44.0.0",
-    "electron-winstaller": "5.4.4"
+    "electron-winstaller": "5.4.4",
+    "esbuild": "0.25.12"
   },
   "allowScripts": {
     "node-llama-cpp@3.20.0": true,

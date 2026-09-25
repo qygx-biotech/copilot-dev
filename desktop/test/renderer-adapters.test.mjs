@@ -40,6 +40,19 @@ test("Electron workspace adapter initializes the unchanged workspace schema thro
   assert.equal((await manager.scanDirectoryTree()).name, "Desktop Project");
 });
 
+test('panel-owned chat paths retain the original index and conversation schema validation', async () => {
+  const { bridge, files } = workspaceBridge();
+  const manager = new workspaceApi.ElectronWorkspaceManager({ desktop: bridge });
+  await manager.selectWorkspace();
+  for (const prefix of ['.biodesign/chat', '.biodesign/chat/agents/agent-a']) {
+    await assert.rejects(manager.writeJson(`${prefix}/index.json`, { schemaVersion: 1 }), { code: 'INVALID_CHAT_INDEX' });
+    await assert.rejects(manager.writeJson(`${prefix}/conversations/chat-a.json`, { schemaVersion: 1 }), { code: 'INVALID_CHAT_CONVERSATION' });
+    assert.equal(files.has(`${prefix}/index.json`), false);
+    files.set(`${prefix}/index.json`, new TextEncoder().encode('{"schemaVersion":1}'));
+    await assert.rejects(manager.readJson(`${prefix}/index.json`), { code: 'INVALID_CHAT_INDEX' });
+  }
+});
+
 test("Electron knowledge adapter uses IPC and preserves bounded search response semantics", async () => {
   const calls = [];
   const desktop = {
@@ -59,4 +72,22 @@ test("Electron knowledge adapter uses IPC and preserves bounded search response 
   assert.equal(result.results[0].paperId, "p1");
   assert.deepEqual(calls[1][1].paperIds, ["p1"]);
   assert.equal(calls[1][1].mode, "fast");
+});
+
+test("workspace and knowledge I/O retain the original desktop project session ID", async () => {
+  const calls = [];
+  let current = "project-1";
+  const bridge = {
+    project: { open: async () => ({ projectId: current, name: current }), close: async () => ({ closed: true }) },
+    files: { exists: async payload => { calls.push(payload); if (payload.projectId !== current) throw Object.assign(new Error("stale"), { code: "PROJECT_MISMATCH" }); return true; } },
+    knowledge: { search: async payload => { calls.push(payload); return {}; } },
+  };
+  const old = new workspaceApi.ElectronWorkspaceManager({ desktop: bridge });
+  await old.selectWorkspace();
+  const boundKnowledge = old.desktop.knowledge;
+  await old.fileExists("literature/a.pdf");
+  current = "project-2";
+  await assert.rejects(old.fileExists("literature/b.pdf"), { code: "PROJECT_MISMATCH" });
+  await boundKnowledge.search({ query: "enzyme" });
+  assert.ok(calls.every(call => call.projectId === "project-1"));
 });

@@ -86,6 +86,7 @@
     listen(form, "drop", event => { if (!containsFiles(event)) return; event.preventDefault(); event.stopPropagation(); dragDepth = 0; form.classList.remove("image-drop-active"); void addFiles(event.dataTransfer.files); });
     render();
     return { addFiles, render, get images() { return images.slice(); }, get preparing() { return busy; },
+      restore(preparedImages) { generation++; busy = false; images = preparedImages.map(entry => ({ ...entry })); status.textContent = ""; input.value = ""; render(); },
       destroy() { destroyed = true; generation++; busy = false; images = []; listeners.abort(); },
       clear() { generation++; busy = false; images = []; status.textContent = ""; input.value = ""; form.classList.remove("image-drop-active"); render(); } };
   }

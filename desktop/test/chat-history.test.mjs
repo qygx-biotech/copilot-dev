@@ -5,11 +5,53 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import contextApi from "../../docs/project-context-service.js";
+import transcriptApi from "../../shared/conversation-transcript.js";
 
 const { WorkspaceChatStore, ProjectContextService } = contextApi;
 const directory = ".biodesign/chat/conversations";
 const indexPath = ".biodesign/chat/index.json";
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lzY4WQAAAABJRU5ErkJggg==";
+
+test("tool transcript checkpoints survive restart and stale visible saves, without changing visible messages or another active chat", async t => {
+  const { workspace, store } = await fixture(t);
+  const chat = await turn(store, await store.startNewConversation(), "SurfDock有代码么？");
+  const user = chat.messages[0];
+  const checkpoint = { turnId: user.id, workspaceId: workspace.workspace.workspaceId, model: "google/gemma-4-31b-it", sequence: 2, status: "running",
+    bindings: [{ handle: "turn_one:local:paper", identity: "source:paper", sourceId: "paper", version: "sha256-v1", current: true }],
+    messages: [{ role: "user", content: user.content }, { role: "assistant", content: null,
+      tool_calls: [{ id: "read-1", type: "function", function: { name: "read_paper_evidence", arguments: '{"paper_id":"paper"}' } }] },
+      { role: "tool", tool_call_id: "read-1", content: "[paper:p17:chunk-1] English source code evidence" }] };
+  await store.saveTranscriptTurn(chat.id, checkpoint);
+  await store.saveConversation(chat); // An autosave captured before the stream checkpoint.
+  let reopened = await new WorkspaceChatStore({ workspace }).loadActiveConversation();
+  assert.deepEqual(reopened.messages, chat.messages);
+  assert.equal(reopened.transcript.turns[0].messages[1].tool_calls[0].id, "read-1");
+  assert.equal(reopened.transcript.turns[0].messages[2].tool_call_id, "read-1");
+  const other = await store.startNewConversation();
+  await store.saveTranscriptTurn(chat.id, { ...checkpoint, sequence: 3, status: "interrupted" });
+  assert.equal((await store.loadActiveConversation()).id, other.id, "background checkpoint does not navigate back");
+  await store.saveTranscriptTurn(chat.id, { ...checkpoint, sequence: 1 });
+  reopened = await store.activateConversation(chat.id);
+  assert.equal(reopened.transcript.turns[0].status, "interrupted", "older duplicate checkpoints cannot replace newer state");
+  const forked = await store.forkConversation(chat.id);
+  assert.deepEqual(forked.transcript, reopened.transcript);
+});
+
+test("editing a user turn removes its transcript permanently, including late checkpoints and old autosaves", async t => {
+  const { store } = await fixture(t);
+  const chat = await turn(store, await store.startNewConversation(), "Old question");
+  chat.transcript = transcriptApi.forConversation(chat);
+  await store.saveConversation(chat);
+  const oldId = chat.messages[0].id;
+  const revised = await store.saveConversation({ ...chat,
+    transcript: transcriptApi.beforeRevision(chat.transcript, [oldId]),
+    messages: [{ ...chat.messages[0], id: "new-user", content: "Corrected question" }] });
+  await store.saveTranscriptTurn(chat.id, { ...chat.transcript.turns[0], sequence: 100 });
+  assert.ok(!(await store.loadActiveConversation()).transcript.turns.some(turn => turn.turnId === oldId));
+  const merged = transcriptApi.merge(revised.transcript, chat.transcript);
+  assert.ok(!merged.turns.some(turn => turn.turnId === oldId));
+  assert.ok(merged.discardedTurnIds.includes(oldId));
+});
 
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), "biodesign-chat-history-"));
@@ -70,6 +112,13 @@ test("history resumes messages and image understanding after reopening, and cont
   } : {}));
   const selected = await store.activateConversation(chats[0].id);
   assert.deepEqual(selected.messages, chats[0].messages);
+  const orderBeforeNavigation = await store.listConversations();
+  const unchanged = await store.saveConversation(selected);
+  assert.equal(unchanged.updatedAt, selected.updatedAt);
+  await store.activateConversation(chats[2].id);
+  await store.saveConversation(chats[2]);
+  await store.activateConversation(selected.id);
+  assert.deepEqual(await store.listConversations(), orderBeforeNavigation);
   const reopened = await new WorkspaceChatStore({ workspace }).loadActiveConversation();
   assert.equal(reopened.id, chats[0].id);
   assert.equal((await store.loadImageAttachments(reopened.messages[0].images))[0].dataUrl, png);
@@ -81,6 +130,7 @@ test("history resumes messages and image understanding after reopening, and cont
   assert.deepEqual(new ProjectContextService({ workspace }).buildConversationContext(reopened).recentlyDiscussedPaperIds, []);
   assert.match(context.recentMessages[0].content, /Activity is 25 U\/mL/);
   await turn(store, selected, "Follow-up on Question 0");
+  assert.equal((await store.listConversations())[0].id, selected.id);
   const fresh = await store.startNewConversation();
   assert.equal((await files()).length, 5);
   assert.equal(await workspace.fileExists(`${directory}/${chats[1].id}.json`), false);
@@ -167,4 +217,106 @@ test("Side Chat preserves provider web sources and raw citation locations across
   const loaded = await store.activateConversation(saved.id);
   assert.deepEqual(loaded.messages[0].webSearchSources, sources.slice(0, 1));
   assert.deepEqual(loaded.messages[0].webSearchMetadata, metadata);
+});
+
+test('each Agent Work panel retains five Side Chats and evicts only its own files and attachments', async t => {
+  const { workspace } = await fixture(t);
+  const a = new WorkspaceChatStore({ workspace, agentPanelId: 'agent-a' });
+  const b = new WorkspaceChatStore({ workspace, agentPanelId: 'agent-b' });
+  const imageA = await a.saveImageAttachments([{ name: 'a.png', dataUrl: png, thumbnail: png }]);
+  const imageB = await b.saveImageAttachments([{ name: 'b.png', dataUrl: png, thumbnail: png }]);
+  const aFirst = await turn(a, await a.loadActiveConversation(), 'A first', { images: imageA });
+  const bFirst = await turn(b, await b.loadActiveConversation(), 'B first', { images: imageB });
+  await Promise.all([a, b].map(async store => {
+    for (let i = 0; i < 4; i++) await turn(store, await store.startNewConversation(), `${store.agentPanelId} ${i}`);
+  }));
+  await a.startNewConversation();
+  assert.equal((await a.listConversations()).length, 5);
+  assert.equal((await b.listConversations()).length, 5);
+  assert.equal((await workspace.listFiles(a.conversationsDirectory)).length, 5);
+  assert.equal((await workspace.listFiles(b.conversationsDirectory)).length, 5);
+  assert.equal(await workspace.fileExists(a.conversationPath(aFirst.id)), false);
+  assert.equal(await workspace.fileExists(`${a.attachmentsDirectory}/${imageA[0].attachmentId}.json`), false);
+  await assert.rejects(a.activateConversation(bFirst.id), /no longer available/);
+  await assert.rejects(b.loadImageAttachments(imageA), { code: 'IMAGE_MISSING' });
+  const selected = await b.activateConversation(bFirst.id);
+  assert.equal((await b.loadImageAttachments(selected.messages[0].images))[0].dataUrl, png);
+  assert.equal((await new WorkspaceChatStore({ workspace, agentPanelId: 'agent-b' }).loadActiveConversation()).id, bFirst.id);
+  assert.throws(() => new WorkspaceChatStore({ workspace, agentPanelId: '../other' }), /Invalid/);
+});
+
+test('scoped Side Chats leave legacy project history in place and readable', async t => {
+  const { workspace, store } = await fixture(t);
+  const legacy = await turn(store, await store.loadActiveConversation(), 'Existing project discussion');
+  const before = await workspace.readJson(indexPath);
+  const scoped = new WorkspaceChatStore({ workspace, agentPanelId: 'new-agent' });
+  await turn(scoped, await scoped.loadActiveConversation(), 'New panel discussion');
+  assert.deepEqual(await workspace.readJson(indexPath), before);
+  assert.equal((await new WorkspaceChatStore({ workspace }).loadActiveConversation()).id, legacy.id);
+  await assert.rejects(scoped.activateConversation(legacy.id), /no longer available/);
+});
+
+test('forking Side Chat retains images through eviction and preserves independent histories', async t => {
+  const { workspace } = await fixture(t);
+  const store = new WorkspaceChatStore({ workspace, agentPanelId: 'owner' });
+  const images = await store.saveImageAttachments([{ name: 'chart.png', dataUrl: png, thumbnail: png }]);
+  const original = await turn(store, await store.loadActiveConversation(), 'Original discussion', { images, imageUnderstanding: { text: 'An enzyme chart', model: 'vision' } });
+  const firstFork = await store.forkConversation(original.id);
+  assert.notEqual(firstFork.id, original.id);
+  assert.deepEqual(firstFork.messages, original.messages);
+  firstFork.messages[0].content = 'Fork-only edit';
+  await store.saveConversation(firstFork);
+  assert.equal((await store.activateConversation(original.id)).messages[0].content, 'Original discussion');
+  for (let i = 0; i < 3; i++) await turn(store, await store.startNewConversation(), `Other ${i}`);
+  const secondFork = await store.forkConversation(original.id);
+  assert.equal((await store.listConversations()).length, 5);
+  assert.equal(await workspace.fileExists(store.conversationPath(original.id)), false);
+  assert.equal((await store.loadImageAttachments(secondFork.messages[0].images))[0].dataUrl, png);
+  assert.equal(secondFork.messages[0].imageUnderstanding.text, 'An enzyme chart');
+  const other = new WorkspaceChatStore({ workspace, agentPanelId: 'other' });
+  await assert.rejects(other.forkConversation(secondFork.id), /no longer available/);
+});
+
+test('failed fork index writes preserve the source chat and remove the unfinished fork', async t => {
+  const { workspace, store, files } = await fixture(t);
+  const source = await turn(store, await store.loadActiveConversation(), 'Keep original');
+  const before = await workspace.readJson(store.indexPath), write = workspace.writeJson;
+  workspace.writeJson = async (relative, value) => { if (relative === store.indexPath) throw new Error('disk full'); return write(relative, value); };
+  await assert.rejects(store.forkConversation(source.id), /disk full/);
+  assert.deepEqual(await workspace.readJson(store.indexPath), before);
+  assert.deepEqual(await files(), [`${source.id}.json`]);
+});
+
+test('deleting chats preserves shared attachments, selection and order; deleting the last creates an empty chat', async t => {
+  const { workspace } = await fixture(t);
+  const store = new WorkspaceChatStore({ workspace, agentPanelId: 'delete-owner' });
+  const other = new WorkspaceChatStore({ workspace, agentPanelId: 'other-owner' });
+  const foreign = await turn(other, await other.startNewConversation(), 'Unrelated history');
+  const image = (await store.saveImageAttachments([{ name: 'image.png', dataUrl: png, thumbnail: png }]))[0];
+  const original = await turn(store, await store.startNewConversation(), 'Original', { images: [image] });
+  const fork = await store.forkConversation(original.id);
+  const active = await turn(store, await store.startNewConversation(), 'Keep selected');
+  const order = (await store.listConversations()).map(chat => chat.id).filter(id => id !== original.id);
+  assert.equal((await store.deleteConversation(original.id)).id, active.id);
+  assert.deepEqual((await store.listConversations()).map(chat => chat.id), order);
+  assert.ok(await store.loadImageAttachments([image]));
+  await assert.rejects(store.deleteConversation(foreign.id), /no longer available/);
+  assert.equal((await other.loadActiveConversation()).id, foreign.id);
+  await store.deleteConversation(fork.id);
+  assert.equal(await workspace.fileExists(`${store.attachmentsDirectory}/${image.attachmentId}.json`), false);
+  const replacement = await store.deleteConversation(active.id);
+  assert.notEqual(replacement.id, active.id);
+  assert.equal(replacement.messages.length, 0);
+  assert.equal((await store.listConversations()).length, 1);
+});
+
+test('a failed deletion index write leaves history intact', async t => {
+  const { workspace, store } = await fixture(t);
+  const original = await turn(store, await store.startNewConversation(), 'Keep on disk');
+  const write = workspace.writeJson;
+  workspace.writeJson = async (relative, value) => { if (relative === store.indexPath) throw new Error('disk full'); return write(relative, value); };
+  await assert.rejects(store.deleteConversation(original.id), /disk full/);
+  workspace.writeJson = write;
+  assert.equal((await store.loadActiveConversation()).id, original.id);
+  assert.ok(await workspace.fileExists(store.conversationPath(original.id)));
 });

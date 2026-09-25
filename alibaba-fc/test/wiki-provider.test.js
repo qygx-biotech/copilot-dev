@@ -22,8 +22,7 @@ function input() {
       evidence: [{ reference: `${paperId}:p1:chunk`, text: `${paperId} reported different stability at the stated temperature.` }] })) };
 }
 function page(input) {
-  const findings = input.papers.map(paper => ({ kind: "reported", text: paper.evidence[0].text, conditions: "", evidence: [{ reference: paper.evidence[0].reference, quote: paper.evidence[0].text }] }));
-  return { schemaVersion: 1, pageId: input.pageId, explanation: findings[0], findings, disagreements: [], openQuestions: [], relatedPageIds: [] };
+  return wiki.markdownPage(`# Stability\n\n${input.papers.map(paper => `${paper.evidence[0].text} [[cite:${paper.evidence[0].reference}]]`).join("\n\n")}\n\n### Open question\n\nCould temperature account for the difference?`);
 }
 const token = user => jwt.sign(user < 0 ? { account: env.ADMIN_ACCOUNT, role: "admin" } : { ...users[user], sub: users[user].id, role: "beta" }, env.JWT_SECRET, { algorithm: "HS256", expiresIn: "1h" });
 async function invoke(body, user = 0, selectedModel = model, transport) {
@@ -34,7 +33,7 @@ async function invoke(body, user = 0, selectedModel = model, transport) {
 }
 test("wiki endpoint authenticates before calls, isolates beta keys, and uses only server-authorized models", async () => {
   const calls = [];
-  global.fetch = async (_url, options) => { calls.push(options); return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(page(input())) } }] })); };
+  global.fetch = async (_url, options) => { calls.push(options); return new Response(JSON.stringify({ choices: [{ message: { content: page(input()).markdown } }] })); };
   assert.equal((await invoke({ input: input() }, null)).status, 401);
   assert.equal((await invoke({ input: input() }, 0, "forged/model")).status, 400);
   assert.equal(calls.length, 0);
@@ -44,19 +43,26 @@ test("wiki endpoint authenticates before calls, isolates beta keys, and uses onl
     const request = calls.at(-1);
     assert.equal(request.headers.Authorization, `Bearer ${user < 0 ? env.REQUESTY_API_KEY : env[users[user].requestyKeyEnv]}`);
     assert.equal(JSON.parse(request.body).model, model);
+    assert.equal(JSON.parse(request.body).response_format, undefined);
+    assert.equal(result.body.page.schemaVersion, 2);
     assert.equal(result.body.configuration.modelSignature, signature);
     assert.equal(JSON.stringify(result).includes("synthetic-key"), false);
   }
 });
-test("invalid configuration and unsupported references are rejected without returning model text", async () => {
+test("invalid configuration is rejected; usable Markdown with unresolved citations is returned as an unverified draft", async () => {
   let count = 0;
-  global.fetch = async () => { count++; const invalid = page(input()); invalid.findings[0].evidence[0].quote = "SYNTHETIC_SENSITIVE_PROVIDER_TEXT";
-    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(invalid) } }] })); };
+  global.fetch = async () => { count++;
+    return new Response(JSON.stringify({ choices: [{ message: { content: "SYNTHETIC_SENSITIVE_PROVIDER_TEXT [[cite:invented:p1:chunk]]" } }] })); };
   const forged = input(); forged.configuration.modelSignature = "another/model";
   assert.equal((await invoke({ input: forged })).status, 409); assert.equal(count, 0);
   const result = await invoke({ input: input() });
-  assert.equal(result.status, 502); assert.equal(result.body.error, "INVALID_WIKI_PAGE");
-  assert.doesNotMatch(JSON.stringify(result), /SYNTHETIC_SENSITIVE_PROVIDER_TEXT/);
+  assert.equal(result.status, 200); assert.equal(result.body.acceptance, "unverified_draft");
+  assert.match(result.body.validationProblems[0], /not supplied/);
+  assert.equal(result.body.attempts, 1);
+  assert.match(result.body.page.markdown, /SYNTHETIC_SENSITIVE_PROVIDER_TEXT/);
+  assert.equal(result.body.integrity.verifiedClaimCount, 0);
+  assert.equal(result.body.integrity.references.length, 0);
+  assert.doesNotMatch(wiki.renderPage(result.body.page, result.body.integrity), /\[\[cite:|biodesign-citation:/);
 });
 test("client uses authenticated scoped transport and tracks wiki calls", async () => {
   let request;
@@ -67,4 +73,21 @@ test("client uses authenticated scoped transport and tracks wiki calls", async (
   assert.equal(request.headers.Authorization, "Bearer synthetic-session");
   assert.equal(JSON.parse(request.body).callContext.model, undefined);
   assert.equal(api.getTurnCallCounts("wiki-test-turn").wiki_update, 1);
+});
+
+test("diagnostics distinguish configuration, known provider attempts and missing legacy attempt counts", async () => {
+  const replies = [{ ok: true }, { error: "INVALID_WIKI_PAGE", validationProblems: ["Unknown evidence reference."], attempts: 1 }, { error: "INVALID_WIKI_PAGE" }];
+  const events = [];
+  const api = new LiteratureApiClient({ baseUrl: "https://fixture.invalid", getHeaders: () => ({}),
+    runtimeLog: { begin: () => (status, details) => events.push({ status, ...details }) },
+    fetch: async () => { const body = replies.shift(); return new Response(JSON.stringify(body), { status: body.ok ? 200 : 502 }); } });
+  await api.request("/api/literature/config", undefined, undefined, "GET", { turnId: "counts" });
+  for (const expected of [1, null]) await assert.rejects(api.updateWikiPage(input(), { callContext: { turnId: "counts" } }), error => error.attempts === expected);
+  const counts = api.getTurnAccounting("counts");
+  assert.equal(counts.configurationRequests, 1);
+  assert.equal(counts.logicalEndpointCalls["/api/knowledge/update-wiki"], 2);
+  assert.equal(counts.providerAttempts["/api/knowledge/update-wiki"], 1);
+  assert.equal(counts.unknownProviderResponses, 1);
+  assert.ok(events.some(event => event.processingKind === "configuration" && event.providerAttempts === 0));
+  assert.ok(events.some(event => event.code === "INVALID_WIKI_PAGE" && event.providerAttempts === null));
 });

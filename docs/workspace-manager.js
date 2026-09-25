@@ -455,8 +455,8 @@
     if (/^\.biodesign\/literature\/summaries\/[^/]+\.json$/.test(path)) {
       return assertLiteratureSummary(value);
     }
-    if (path === ".biodesign/chat/index.json") return assertChatIndex(value);
-    if (/^\.biodesign\/chat\/conversations\/[^/]+\.json$/.test(path)) {
+    if (/^\.biodesign\/chat\/(?:agents\/[a-zA-Z0-9_-]+\/)?index\.json$/.test(path)) return assertChatIndex(value);
+    if (/^\.biodesign\/chat\/(?:agents\/[a-zA-Z0-9_-]+\/)?conversations\/[^/]+\.json$/.test(path)) {
       return assertChatConversation(value);
     }
     if (path === ".biodesign/sources/registry.json") {
@@ -972,20 +972,23 @@
       super({ ...options, secureContext: true, directoryPicker: async () => null });
       this.desktop = options.desktop || globalThis.biodesignDesktop;
       this.pendingClose = Promise.resolve();
+      this.projectBridge = this.desktop;
     }
 
     isSupported() {
       return Boolean(this.desktop?.project && this.desktop?.files);
     }
 
-    async selectWorkspace() {
+    async selectWorkspace(selectionOptions = null) {
       if (!this.isSupported()) {
         throw new WorkspaceError("DESKTOP_BRIDGE_UNAVAILABLE", "The secure desktop bridge is unavailable.");
       }
       await this.pendingClose.catch(() => {});
       let selection;
       try {
-        selection = await this.desktop.project.open();
+        selection = selectionOptions
+          ? await this.desktop.project.activate(selectionOptions)
+          : await this.desktop.project.open();
       } catch (error) {
         throw new WorkspaceError(
           error?.code === "PICKER_CANCELLED" ? "PICKER_CANCELLED" : "PICKER_FAILED",
@@ -993,6 +996,13 @@
           error
         );
       }
+      // Capture the main-process session ID, not just the persistent workspace ID.
+      // Services holding this manager cannot retarget late I/O to another project.
+      const bridge = this.projectBridge;
+      const bind = group => Object.fromEntries(Object.entries(group || {}).map(([name, fn]) => [name,
+        name === "onProgress" ? fn : (payload = {}) => fn({ ...payload, projectId: selection.projectId }),
+      ]));
+      this.desktop = { ...bridge, files: bind(bridge.files), knowledge: bind(bridge.knowledge) };
       this.rootHandle = { name: selection.name || "BioDesign Workspace" };
       this.workspace = null;
       this.state = null;
