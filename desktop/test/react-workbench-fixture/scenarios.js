@@ -117,6 +117,28 @@ async function runWorkbenchHome() {
   await tick();
 }
 async function runWorkbenchScenarios() {
+  const account = document.querySelector('.account-menu summary');
+  check(account.getBoundingClientRect().bottom > innerHeight - 90, 'account control is anchored at the lower left');
+  account.click(); document.querySelector('.account-options button').click();
+  await waitFor(() => document.querySelector('.library-url-dialog'), 'Library URL dialog');
+  const dialog = () => document.querySelector('.library-url-dialog');
+  const press = label => [...dialog().querySelectorAll('button')].find(button => button.textContent === label).click();
+  check(dialog().textContent.includes('only open-access papers'), 'library dialog explains the no-URL limitation');
+  document.querySelector('#library-url-input').value = 'javascript:alert(1)'; press('Save');
+  check(Boolean(dialog()) && dialog().querySelector('[role=alert]').textContent, 'invalid library URL cannot be saved');
+  document.querySelector('#library-url-input').value = 'https://library.example.edu'; press('Save'); await tick();
+  account.click(); document.querySelector('.account-options button').click();
+  await waitFor(() => dialog(), 'saved Library URL dialog');
+  check(document.querySelector('#library-url-input').value === 'https://library.example.edu/', 'account setting restores the saved library URL');
+  press('Cancel'); await tick();
+  let choice = null;
+  const pending = window.BioDesignLibrarySettings.edit({ account: snapshot().account, requiredChoice: true }).then(value => { choice = value; });
+  await tick(); check(choice === null && dialog().open, 'literature setup waits for an explicit user choice');
+  press('Continue without library'); await pending;
+  check(choice.url === '' && window.BioDesignLibrarySettings.get(snapshot().account) === 'https://library.example.edu/', 'skipping library applies to this request without erasing the saved URL');
+  const controller = new AbortController();
+  const cancelled = window.BioDesignLibrarySettings.edit({ account: snapshot().account, requiredChoice: true, signal: controller.signal }).catch(error => error.code);
+  controller.abort(); check(await cancelled === 'OPERATION_ABORTED' && !dialog(), 'cancelling the request dismisses library setup');
   await sendAgent('Explore directions for a literature review.'); await waitFor(() => !snapshot().agentBusy, 'default workspace response');
   const defaultChatId = snapshot().activeAgentId;
   check(document.querySelector('nav[aria-label="Chats"]').textContent.includes('Explore directions'), 'a chat without a chosen folder appears under Chats');

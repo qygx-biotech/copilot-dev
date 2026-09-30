@@ -1606,7 +1606,7 @@
       const requestedSelection = [...new Set(options.selectedPaperIds || [])];
       const selected = requestedSelection.length ? requestedSelection.filter(id => registeredPapers.some(source => source.sourceId === id))
         : registeredPapers.filter(source => paths.includes(source.path)).map(source => source.sourceId);
-      const hardSelection = paths.length > 0 || (options.selectedPaperIds || []).length > 0;
+      const hardSelection = options.forceHardSelection === true || paths.length > 0 || (options.selectedPaperIds || []).length > 0;
       const all = this.sourceRegistry?.list({ sourceKind: "paper" }) || [];
       const papers = all.filter(source => !["missing", "deleted", "removed"].includes(source.catalogStatus) && (!hardSelection || selected.includes(source.sourceId)));
       const selectedFiles = flattenWorkspaceTree(options.workspaceTree).filter(item => item.type === "file" && (paths.includes(item.relativePath) || (hardSelection && papers.some(source => source.path === item.relativePath))));
@@ -2016,7 +2016,7 @@
     }
 
     async buildContextInternal(options) {
-      if (options.surface !== "agent_command") return this.buildAgentContext({ ...options, surface: "side_chat", retrievalProfile: "medium", qualityMode: "balanced" });
+      if (options.generalPurpose || options.surface !== "agent_command") return this.buildAgentContext({ ...options, surface: "side_chat", retrievalProfile: "medium", qualityMode: "balanced" });
       return this.buildPlannedContextInternal(options);
     }
 

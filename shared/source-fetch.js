@@ -44,13 +44,13 @@ async function resolvePublicTarget(url, lookup = dns.lookup) {
   return addresses[0];
 }
 
-function requestOnce(url, address, { signal, maxBytes, connectMs, readMs }) {
+function requestOnce(url, address, { signal, maxBytes, connectMs, readMs, hostHeaders = {} }) {
   return new Promise((resolve, reject) => {
     // Pin the validated address while retaining the original Host and TLS SNI.
     // A second DNS lookup cannot turn a public validation into a private fetch.
     const request = (url.protocol === "https:" ? https : http).get(url, {
       agent: false, signal,
-      headers: { Accept: "application/pdf,text/*,application/json,application/xml;q=0.8,*/*;q=0.5", "Accept-Encoding": "identity", "User-Agent": "BioDesign-Source-Downloader/1.0" },
+      headers: { Accept: "application/pdf,text/*,application/json,application/xml;q=0.8,*/*;q=0.5", "Accept-Encoding": "identity", "User-Agent": "BioDesign-Source-Downloader/1.0", ...hostHeaders },
       lookup: (_hostname, options, callback) => options.all
         ? callback(null, [address]) : callback(null, address.address, address.family),
     });

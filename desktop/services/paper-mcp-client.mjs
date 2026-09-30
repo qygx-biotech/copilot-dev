@@ -1,3 +1,4 @@
+import Ajv from "ajv/dist/2020.js";
 import path from "node:path";
 import { access } from "node:fs/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -36,6 +37,9 @@ export class PaperMcpClient {
       try {
         await client.connect(transport, { timeout: 15000 });
         const listed = await client.listTools({}, { timeout: 10000 });
+        this.tools = listed.tools;
+        const ajv = new Ajv({ strict: false });
+        this.validators = new Map(listed.tools.map(tool => [tool.name, ajv.compile(tool.inputSchema)]));
         const names = new Set(listed.tools.map(tool => tool.name));
         if (!["search_academic_papers", "get_academic_paper", "resolve_paper_full_text"].every(name => names.has(name))) throw error("PAPER_MCP_INCOMPATIBLE");
         if (this.closed) throw error("OPERATION_ABORTED");
@@ -52,6 +56,7 @@ export class PaperMcpClient {
       academic.validateInput(name, args);
       if (academic.isWrite(name)) throw error("TOOL_NOT_ALLOWED");
       const client = await this.start();
+      if (!this.validators.get(name)?.(args)) throw error("INVALID_ACADEMIC_INPUT");
       try {
         const result = await client.callTool({ name, arguments: args }, undefined, { timeout: 45000, signal });
         if (result.isError) {

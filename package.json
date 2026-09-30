@@ -42,7 +42,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.27.1",
+    "@playwright/mcp": "0.0.83",
     "@tobilu/qmd": "2.8.3",
+    "ajv": "8.17.1",
     "electron-squirrel-startup": "1.0.1",
     "katex": "0.18.1",
     "pdfjs-dist": "6.3.289",

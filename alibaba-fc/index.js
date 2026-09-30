@@ -7129,11 +7129,11 @@ async function callRequesty(
 
   const selection = selectRequestyModel(env);
   const toolMode = require("./requesty-models.js").toolMode(env);
-  const agentCapabilities = responseMode === "side_chat" ? await require("./requesty-models.js").agentCapabilities(env, model, selection.capabilities) : null;
+  const agentCapabilities = responseMode === "side_chat" || desktopContext.literature ? await require("./requesty-models.js").agentCapabilities(env, model, selection.capabilities) : null;
   if (desktopContext.images?.length && !agentCapabilities?.supportsImages) return { ok: false, error: "MODEL_IMAGE_CAPABILITY_UNAVAILABLE", reason: "Image input is unavailable or unconfirmed for the selected model. The model was not changed." };
   const supportsWebSearch = agentCapabilities ? agentCapabilities.supportsWebSearch : await require("./requesty-models.js").webSearchCapability(env, model, selection.capabilities.supportsWebSearch);
   const retrievalScope = require("./requesty-search-stage.js").retrievalScope(workspaceContext.localWorkspaceContext?.semantic?.ir);
-  const localAcademicMode = require("./academic-agent.js").enabled({ surface: responseMode === "side_chat" ? "side_chat" : "agent_command", desktopAcademic: desktopContext.academic, ir: workspaceContext.localWorkspaceContext?.semantic?.ir });
+  const localAcademicMode = !desktopContext.literature && require("./academic-agent.js").enabled({ surface: responseMode === "side_chat" ? "side_chat" : "agent_command", desktopAcademic: desktopContext.academic, ir: workspaceContext.localWorkspaceContext?.semantic?.ir });
   console.info("requesty_web_search", { model, provider: selection.provider, toolMode, retrievalScope, webSearchSupported: supportsWebSearch,
     webSearchEnabled: !localAcademicMode && supportsWebSearch && (toolMode === "combined" || ["web", "both"].includes(retrievalScope) && !desktopContext.resume?.searchStage) });
   const providerDeadlineAt = Math.min(Date.now() + 300000, desktopContext.deadlineAt || Infinity);
@@ -7171,6 +7171,7 @@ async function callRequesty(
     imageCount: desktopContext.images?.length || 0,
     desktopDownloads: desktopContext.enabled === true,
     desktopAcademic: desktopContext.academic === true,
+    desktopLiterature: desktopContext.literature === true,
     downloadPermission: desktopContext.permission || "read_only",
     resume: desktopContext.resume || null,
     surface: responseMode === "side_chat" ? "side_chat" : "agent_command",
@@ -7194,7 +7195,7 @@ async function callRequesty(
         buildAgentRequest({ messages: agentMessages, tools, temperature, stage, maxTokens }),
         apiKey,
         false,
-        streaming && stage !== "context-summary" ? { signal: combinedSignal, onSources: async sources => streaming.emit("sources", { webSearchSources: sources }), onText: async delta => {
+        streaming && !["context-summary", "literature-specialist"].includes(stage) ? { signal: combinedSignal, onSources: async sources => streaming.emit("sources", { webSearchSources: sources }), onText: async delta => {
           accumulated += delta;
           const preview = stage === "web-search" ? accumulated : require("./shared/event-stream.js").previewReply(accumulated, responseMode !== "side_chat");
           if (preview === visible) return;
@@ -7591,13 +7592,14 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         );
       }
       const desktopContext = { account: `${auth.user.id}:${auth.user.account}`, signal: transport?.signal, deadlineAt: transport?.deadlineAt, originalRequest, enabled: responseMode !== "side_chat" && body.desktopTools?.version === 1,
+        literature: responseMode !== "side_chat" && body.desktopTools?.version === 1 && body.desktopTools?.literatureVersion === 1,
         academic: responseMode !== "side_chat" && body.desktopTools?.version === 1 && body.desktopTools?.academicVersion === 1,
         permission: ["workspace_write", "full_access"].includes(body.desktopTools?.permission) ? body.desktopTools.permission : "read_only" };
       if (responseMode === "side_chat" && body.conversationTranscript !== undefined) {
         if (body.conversationTranscript?.version !== 1) return jsonResponse({ error: "INVALID_CONVERSATION_TRANSCRIPT" }, 400, event);
         desktopContext.conversationTranscript = require("./shared/conversation-transcript.js").normalize(body.conversationTranscript);
       }
-      desktopContext.projectTools = responseMode === "side_chat" && localWorkspaceContext?.agentLoop?.version === 1;
+      desktopContext.projectTools = (responseMode === "side_chat" || desktopContext.literature) && localWorkspaceContext?.agentLoop?.version === 1;
       if (responseMode === "side_chat" && body.images !== undefined) {
         try {
           desktopContext.images = require("./shared/chat-images.js").validateImages(body.images);
@@ -7608,6 +7610,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         ...(desktopContext.images?.length ? { imageDigest: crypto.createHash("sha256").update(JSON.stringify(desktopContext.images)).digest("hex") } : {}), account: auth.user.account, turnId: callContext.turnId, messages, originalRequest,
         ...(desktopContext.conversationTranscript ? { conversationTranscript: desktopContext.conversationTranscript } : {}),
         ...(desktopContext.academic ? { academicVersion: 1 } : {}),
+        ...(desktopContext.literature ? { literatureVersion: 1 } : {}),
         model: getEnvString(chatEnv, "REQUESTY_MODEL"), permission: desktopContext.permission,
         projectId: body.desktopTools?.projectId || localWorkspaceContext?.project?.workspaceId || "", surface: responseMode,
         workspaceId: localWorkspaceContext?.project?.workspaceId || "",
@@ -7628,7 +7631,9 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         try {
           if (!desktopContext.enabled && !desktopContext.projectTools) throw new Error();
           const state = agentContinuation.open(body.desktopContinuation, continuationBinding, env.JWT_SECRET);
-          if (desktopContext.projectTools) {
+          if (desktopContext.literature && state.specialist) {
+            if (!state.pending?.every(call => call.name === 'literature_worker' || require('./shared/side-chat-tools.js').isTool(call.name))) throw new Error();
+          } else if (desktopContext.projectTools) {
             if (!state.projectToolState || state.pending?.some(call => !require("./shared/side-chat-tools.js").isTool(call.name))) throw new Error();
           } else if (!sourceDownload.allowed("agent_command", desktopContext.permission) && (!desktopContext.academic || state.pending?.some(call => !require("./shared/academic-tools.js").allowed(call.name, "agent_command", desktopContext.permission)))) throw new Error();
           desktopContext.resume = agentContinuation.withResults(state, body.desktopToolResults);

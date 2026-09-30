@@ -3969,8 +3969,10 @@ async function runAgentInstruction(panelId, revision = null) {
   setAgentBusy(true, panelId);
   const requestWorkspace = typeof workspaceManager === "undefined" ? null : workspaceManager.workspace;
   const requestService = projectContextService;
-  const requestPaths = [...selectedWorkspacePaths];
-  const requestPaperIds = getSelectedPaperIds();
+  const resumeScope = panel.literatureResumeScope;
+  delete panel.literatureResumeScope;
+  const requestPaths = [...(resumeScope ?? selectedWorkspacePaths)];
+  const requestPaperIds = Array.isArray(resumeScope) ? [] : getSelectedPaperIds();
   const requestGoal = getProjectContext();
   const isCurrentRequest = () => requestService === projectContextService && (!requestWorkspace || requestWorkspace === workspaceManager.workspace) && findAnalysisPanel(panelId) === panel;
   const frontendTurn = window.BioDesignFrontend?.beginTurn({ role: "agent_command", conversationId: panelId,
@@ -4005,11 +4007,13 @@ async function runAgentInstruction(panelId, revision = null) {
       try {
         localWorkspaceContext = await projectContextService.buildContext({
           surface: "agent_command",
+          generalPurpose: Boolean(window.biodesignDesktop?.execution?.runWorkflow),
           turnId: requestTurnId,
           ...(turn.requestedModel !== "default" ? { callContext: { model: turn.requestedModel } } : {}),
           question: instruction,
           retrievalProfile,
           selectedPaths: requestPaths,
+          forceHardSelection: Array.isArray(resumeScope),
           selectedPaperIds: requestPaperIds,
           workspaceTree,
           onCatalogUpdated: (tree, documents) => { if (isCurrentRequest() && !requestSignal?.aborted) applyRequestCatalog(tree, documents); },
@@ -4048,7 +4052,7 @@ async function runAgentInstruction(panelId, revision = null) {
       mode: "agent_instruction",
       originalRequest: instruction,
       model: turn.requestedModel,
-      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, academicVersion: 1, permission: turn.permission, projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
+      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: turn.permission, projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
       messages: buildAgentMessages(instruction, localWorkspaceContext?.requestUnderstanding?.answerLanguage, requestGoal),
       localWorkspaceContext,
       signal: requestSignal,
@@ -4143,6 +4147,7 @@ function setAgentBusy(isBusy, panelId = "") {
 // side_chat mode may update derived internal knowledge/metadata through the
 // shared source system, but it must never mutate the Current Recommendation.
 async function sendWorkbenchRequest(options) {
+  options = { ...options, libraryChoice: options.libraryChoice || {} };
   const service = projectContextService;
   if (!options.localWorkspaceContext || !service?.answerWithEvidenceRecovery) return sendWorkbenchRequestOnce(options);
   const requestAuth = authToken;
@@ -4211,6 +4216,7 @@ async function sendWorkbenchRequestOnce({
   agentContinuation = null,
   desktopToolResults = null,
   desktopRound = 0,
+  libraryChoice = {},
 }) {
   const isSideChat = mode === "side_chat";
   const turnAuth = authToken;
@@ -4339,7 +4345,7 @@ async function sendWorkbenchRequestOnce({
       const api = window.BioDesignSourceDownload;
       const academic = window.BioDesignAcademicTools;
       if (isSideChat || !desktopTools || !api ||
-        !window.biodesignDesktop?.execution?.runWorkflow || desktopRound >= 8 || !data.desktopContinuation ||
+        !window.biodesignDesktop?.execution?.runWorkflow || desktopRound >= (desktopTools.literatureVersion === 1 ? 100 : 8) || !data.desktopContinuation ||
         !Array.isArray(data.desktopToolCalls) || data.desktopToolCalls.length > 24) {
         throw Object.assign(new Error("Desktop source download is unavailable or exceeds this move's permission/budget."), { code: "PERMISSION_DENIED" });
       }
@@ -4352,6 +4358,36 @@ async function sendWorkbenchRequestOnce({
       const results = [];
       for (const call of data.desktopToolCalls) {
         ensureCurrent();
+        if (call.name === 'literature_worker') {
+          if (desktopTools.literatureVersion !== 1) throw Object.assign(new Error('Literature workers unavailable.'), { code: 'PERMISSION_DENIED' });
+          if (call.args.action === 'begin' && !call.args.task?.job_id && !libraryChoice.value) {
+            libraryChoice.value = await window.BioDesignLibrarySettings.edit({ account: currentAccount, language: currentLanguage, requiredChoice: true, signal });
+            ensureCurrent();
+          }
+          const authorization = { download: window.BioDesignLiteratureAgent.downloadAuthorized(originalRequest) };
+          const input = { ...call.args, execution_id: call.id, permission: desktopTools.permission, authorization, model,
+            ...(call.args.action === 'begin' && !call.args.task?.job_id ? { libraryAccess: libraryChoice.value } : {}),
+            scopePaths: localWorkspaceContext?.agentLoop?.hardSelection ? [...new Set([...(localWorkspaceContext.sourceMap?.paperSources || []).map(f => f.path), ...(localWorkspaceContext.files || []).map(f => f.path)].filter(Boolean))] : null };
+          const cancel = () => { if (input.job_id) void window.biodesignDesktop.execution.runWorkflow({ workflowId: 'literature_worker', input: { ...input, action: 'cancel' } }).catch(() => {}); };
+          signal?.addEventListener('abort', cancel, { once: true });
+          let result;
+          try {
+            result = await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input });
+            if (result.job_id) input.job_id = result.job_id;
+            if (signal?.aborted) cancel();
+            while (result.needs_login) {
+              ensureCurrent();
+              const resume = await window.BioDesignLiteratureLogin.wait({ jobId: result.job_id, signal });
+              ensureCurrent();
+              result = await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { ...input, execution_id: undefined, action: resume ? 'resume' : 'cancel' } });
+              if (!resume && !result.final) result = { final: result };
+            }
+          } finally { signal?.removeEventListener('abort', cancel); }
+          ensureCurrent(); results.push({ id: call.id, result }); continue;
+        }
+        if (window.BioDesignSideChatTools?.isTool(call.name) && desktopTools.literatureVersion === 1) {
+          results.push(await projectContextService.executeAgentTool(call, { turnId: callContext?.turnId, signal, isCurrent: () => { ensureCurrent(); return true; }, onProgress: event => onStream({ type: 'status', ...event }) })); continue;
+        }
         if (academic?.isTool(call.name)) {
           if (desktopTools.academicVersion !== 1 || !academic.allowed(call.name, "agent_command", desktopTools.permission)) throw Object.assign(new Error("Academic tool unavailable on this move."), { code: "PERMISSION_DENIED" });
           const args = academic.validateInput(call.name, call.args);
@@ -4394,6 +4430,7 @@ async function sendWorkbenchRequestOnce({
       // Resume the same bounded server loop with actual tool results. New raw
       // files are picked up by normal source preflight on the next user request.
       return sendWorkbenchRequestOnce({ mode, model, messages, conversationTranscript, onTranscript, originalRequest, projectGoal, localWorkspaceContext, callContext, onStream, signal, desktopTools,
+        libraryChoice,
         desktopContinuation: data.desktopContinuation, desktopToolResults: results, desktopRound: desktopRound + 1 });
     }
     return data;
@@ -6935,6 +6972,7 @@ window.BioDesignFrontend?.connect({
     }),
   }),
   commands: {
+    'account.library': () => window.BioDesignLibrarySettings.edit({ account: currentAccount, language: currentLanguage }),
     'project.goal.edit': ({ catalogId }) => runDesktopNavigation(async () => {
       if (await openDesktopProject(catalogId)) openDesktopGoalEditor();
     }),
@@ -6982,4 +7020,18 @@ window.BioDesignFrontend?.connect({
       return runAgentInstruction(conversationId);
     },
   },
+});
+
+window.addEventListener('biodesign-literature-resume', async event => {
+  if (activeAgentRequest || sideChatBusy) { showToast('Finish or stop the current request before resuming a library job.'); return; }
+  try {
+    const job = event.detail;
+    selectedWorkspacePaths.clear(); for (const path of job.scopePaths || []) selectedWorkspacePaths.add(path);
+    syncWorkspaceSelectionToDocuments();
+    const panel = createAnalysisPanel({ title: 'Resume library job', selectedModel: job.model, selectedPermission: job.permission,
+      instruction: `${job.kind === 'retrieve_papers' ? 'Resume and download the exact authorized papers' : 'Resume literature discovery'} using ${job.kind} with these saved arguments. Recheck browser state and continue the unfinished work: ${JSON.stringify({ ...job.task, job_id: job.job_id })}` });
+    panel.literatureResumeScope = job.scopePaths;
+    analysisPanels.push(panel); if (window.BioDesignFrontend) await activateDesktopAgent(panel.id);
+    saveAnalysisPanels(); renderAnalysisPanels(); await runAgentInstruction(panel.id);
+  } catch (error) { showToast(error.message || 'Could not resume the library job.'); }
 });

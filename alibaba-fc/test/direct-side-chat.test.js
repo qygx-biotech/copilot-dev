@@ -64,6 +64,16 @@ test("ordinary requests reconcile/invalidate before context, reuse cards, preser
   assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: "R1" });
 });
 
+test("resuming an explicitly empty source scope cannot reopen project evidence", async () => {
+  const f = await host();
+  const context = await f.service.buildContext({ ...f.options, turnId: "empty-resume", generalPurpose: true, forceHardSelection: true, selectedPaths: [], selectedPaperIds: [] });
+  assert.equal(context.agentLoop.hardSelection, true);
+  assert.deepEqual(context.sourceMap.paperSources, []);
+  assert.deepEqual(context.inventory, []);
+  const denied = await f.service.executeAgentTool({ id: "empty-scope", name: "retrieve_project_evidence", args: { query: "docking" } }, { turnId: "empty-resume" });
+  assert.equal(denied.result.error, "SOURCE_SCOPE_UNRESOLVED");
+});
+
 test("model-selected original evidence survives signed continuation, keeps citations and pairing, and replays without reexecution", async () => {
   const f = await host(), paper = f.context.sourceMap.paperSources.find(source => /SurfDock/.test(source.path));
   let count = 0;

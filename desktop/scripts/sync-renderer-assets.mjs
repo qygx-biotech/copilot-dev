@@ -6,6 +6,7 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const vendorRoot = path.join(repositoryRoot, "docs", "vendor");
 
 const assets = [
+  ["shared/literature-agent.js", "literature-agent.js"],
   ["shared/side-chat-tools.js", "side-chat-tools.js"],
   ["shared/conversation-transcript.js", "conversation-transcript.js"],
   ["shared/backend-config.js", "backend-config.js"],

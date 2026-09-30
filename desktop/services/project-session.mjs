@@ -1,3 +1,8 @@
+import path from "node:path";
+import os from "node:os";
+import crypto from "node:crypto";
+import { PlaywrightMcpClient } from "./playwright-mcp-client.mjs";
+import { LiteratureWorkflows } from "./literature-workflows.mjs";
 import { EventEmitter } from "node:events";
 import { ProjectFilesystem } from "./project-filesystem.mjs";
 import { JobManager } from "./job-manager.mjs";
@@ -14,6 +19,7 @@ export class ProjectSessionManager extends EventEmitter {
     this.appPath = options.appPath;
     this.qmdCacheRoot = options.qmdCacheRoot;
     this.paperOptions = { appPath: options.appPath, resourcesPath: options.resourcesPath, packaged: options.packaged };
+    this.browserOptions = { profileRoot: options.browserProfileRoot || (options.qmdCacheRoot ? path.join(options.qmdCacheRoot, "library-browser") : path.join(os.tmpdir(), "biodesign-browser", crypto.randomUUID())), headless: options.browserHeadless === true };
     this.active = null;
   }
 
@@ -33,6 +39,13 @@ export class ProjectSessionManager extends EventEmitter {
     const active = this.active;
     active.paperMcp = new PaperMcpClient(this.paperOptions);
     registerAcademicWorkflows(active, active.paperMcp, () => this.active === active);
+    active.browserMcp = new PlaywrightMcpClient({ ...this.browserOptions, profileRoot: path.join(this.browserOptions.profileRoot, crypto.createHash('sha256').update(filesystem.root).digest('hex').slice(0, 24)) });
+    active.literature = new LiteratureWorkflows(active, active.browserMcp, () => this.active === active);
+    active.execution.register({ id: 'literature_worker', effect: 'bounded_specialist' }, input => active.literature.run(input));
+    active.execution.register({ id: 'literature_jobs', effect: 'informational' }, input => {
+      if (Object.keys(input).length) throw Object.assign(new Error('Invalid job listing'), { code: 'INVALID_INPUT' });
+      return active.literature.list();
+    });
     active.execution.register({ id: "download_sources", effect: "source_write" }, (input, context) => downloadSources(input, {
       ...context, signal: active.sourceDownloads.signal, isCurrent: () => this.active === active,
     }));
@@ -108,6 +121,7 @@ export class ProjectSessionManager extends EventEmitter {
     const active = this.active;
     this.active = null;
     active.sourceDownloads.abort();
+    await active.browserMcp?.close().catch(() => {});
     await active.paperMcp?.close().catch(() => {});
     await active.jobs.close().catch(() => {});
     await active.qmd?.close().catch(() => {});

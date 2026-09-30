@@ -37,6 +37,7 @@ const excludedTopLevel = new Set([
   "learn-claude-code",
   "nanobot",
   "paper-search-mcp",
+  "playwright-mcp",
   "out",
   "worker",
 ]);

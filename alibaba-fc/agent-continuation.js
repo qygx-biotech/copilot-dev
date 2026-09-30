@@ -26,9 +26,14 @@ function open(token, binding, secret) {
   } catch { throw invalid(); }
 }
 function withResults(state, results) {
-  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState || state.projectToolState ? 180000 : 60000)) throw invalid();
+  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState || state.projectToolState || state.specialist ? 180000 : 60000)) throw invalid();
   for (const call of state.pending) {
     const matches = results.filter(item => item?.id === call.id);
+    if (call.name === 'literature_worker') {
+      if (!state.specialist || matches.length !== 1 || state.specialist.pendingId !== call.id) throw invalid();
+      require('./literature-specialist.js').accept(state.specialist, matches[0].result);
+      continue;
+    }
     if (require("./shared/side-chat-tools.js").isTool(call.name)) {
       if (!state.projectToolState || matches.length !== 1 || !matches[0].result || typeof matches[0].result.ok !== "boolean") throw invalid();
       const message = state.agentMessages.find(item => item.role === "tool" && item.tool_call_id === call.id);

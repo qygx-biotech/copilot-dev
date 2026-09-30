@@ -6,7 +6,7 @@
 })(typeof globalThis === "undefined" ? this : globalThis, function () {
   "use strict";
   const roles = new Set(["side_chat", "agent_command"]);
-  const navigation = new Set(['project.choose', 'project.activate', 'project.confirm', 'project.cancel', 'project.retry', 'chat.new', 'chat.open']);
+  const navigation = new Set(['account.library', 'project.choose', 'project.activate', 'project.confirm', 'project.cancel', 'project.retry', 'chat.new', 'chat.open']);
   const fail = (code, message) => Object.assign(new Error(message), { code });
   const clone = value => JSON.parse(JSON.stringify(value));
 

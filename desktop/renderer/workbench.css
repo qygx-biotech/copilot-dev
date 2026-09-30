@@ -34,6 +34,25 @@
 .project-chats { padding-left:17px; }
 .sidebar-footer { display:flex; align-items:center; gap:7px; font-size:10px; color:var(--muted); padding:15px 10px; }
 .sidebar-footer>span:last-child { margin-left:auto; }
+.account-menu { position:relative; width:100%; }
+.account-menu summary { display:flex; align-items:center; gap:10px; padding:9px; cursor:pointer; border-radius:9px; list-style:none; }
+.account-menu summary::-webkit-details-marker { display:none; }
+.account-menu summary:hover, .account-options button:hover { background:var(--surface-muted); }
+.account-menu summary>span:last-child { margin-left:auto; }
+.account-menu strong, .account-menu small { display:block; font-size:12px; line-height:1.5; }
+.account-menu small { font-size:10px; max-width:150px; overflow:hidden; text-overflow:ellipsis; }
+.account-avatar { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:var(--surface-muted); color:var(--accent); font-size:13px; }
+.account-options { position:absolute; bottom:calc(100% + 8px); left:0; right:0; padding:6px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 30px #0002; z-index:40; }
+.account-options button { width:100%; text-align:left; padding:10px; border:0; border-radius:6px; background:transparent; color:var(--ink); }
+.library-url-dialog { width:min(440px, calc(100vw - 40px)); box-sizing:border-box; margin:auto; }
+.library-url-dialog::backdrop { background:rgba(20,30,26,.35); }
+.library-url-dialog h2 { margin:0 0 12px; font-size:20px; }
+.library-url-dialog p { font-size:13px; line-height:1.6; }
+.library-url-dialog label { display:block; font-size:12px; margin:18px 0 6px; }
+.library-url-dialog input { box-sizing:border-box; width:100%; padding:11px; border:1px solid #aaa; border-radius:7px; font:inherit; background:Canvas; color:CanvasText; }
+.library-url-dialog .library-url-error { color:#b42318; min-height:20px; margin:6px 0; }
+.library-url-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.library-url-actions button { padding:9px 12px; border-radius:7px; border:1px solid #aaa; cursor:pointer; }
 .local-dot { width:5px; height:5px; border-radius:50%; background:var(--accent); }
 .copilot-main { flex:1; min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--surface); }
 .copilot-topbar { min-height:58px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 18px; background:var(--surface); }
