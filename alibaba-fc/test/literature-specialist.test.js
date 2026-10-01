@@ -107,3 +107,84 @@ test('nested hosted-search failure propagates through the real search stage and 
   assert.equal(result.failure.failureStage, 'literature-specialist.web-search');
   assert.equal(result.data.desktopToolCalls, undefined); assert.equal(resumed.specialist.final, undefined);
 });
+
+const snapshotTool = contract.tool('browser_snapshot', 'Observe the page', contract.object({}));
+const restoreWithReceipt = (state, response) => {
+  const pending = specialist.handoff(state), binding = { model: 'selected/model', project: 'project-1' };
+  const restored = continuation.open(continuation.seal({ specialist: state, pending: [pending] }, binding, 'secret'), binding, 'secret');
+  return continuation.withResults(restored, [{ id: pending.id, result: response }]).specialist;
+};
+test('a mixed batch drains in order across signed continuations before requesting the next model turn', async () => {
+  let state = ready(); state.schemas.push(snapshotTool);
+  const batch = [call('browser_snapshot', {}, 'first'), call('browser_snapshot', {}, 'second'), call('search_web', { query: 'enzyme' }, 'third')];
+  let models = 0, searches = 0;
+  const options = { supportsWebSearch: true, search: async () => { searches++; return 'Verified enzyme metadata'; }, requestTurn: async request => {
+    models++;
+    if (models === 1) return { ok: true, message: { content: 'Observe twice, then search.', tool_calls: batch } };
+    const assistantIndex = request.messages.findIndex(message => message.role === 'assistant');
+    assert.deepEqual(request.messages[assistantIndex].tool_calls, batch);
+    const replies = request.messages.slice(assistantIndex + 1);
+    assert.deepEqual(replies.map(message => message.role), ['tool', 'tool', 'tool']);
+    assert.deepEqual(replies.map(message => message.tool_call_id), ['first', 'second', 'third']);
+    assert.match(replies[0].content, /STALE_REFERENCE/); assert.match(replies[1].content, /fresh snapshot/);
+    assert.match(replies[2].content, /Verified enzyme metadata/); assert.match(replies[2].content, /recorded/);
+    return { ok: true, message: { tool_calls: [call('finish_discovery', { candidates: [], limitations: ['No matching papers.'] })] } };
+  } };
+  await specialist.advance(state, options);
+  const first = specialist.handoff(state); assert.equal(specialist.handoff(state).id, first.id);
+  assert.equal(state.pending.name, 'browser_snapshot'); assert.equal(models, 1); assert.equal(searches, 0);
+  state = restoreWithReceipt(state, { error: 'STALE_REFERENCE', message: 'The page changed.' });
+  await specialist.advance(state, options);
+  const second = specialist.handoff(state);
+  assert.equal(second.args.name, 'browser_snapshot'); assert.notEqual(second.id, first.id);
+  assert.equal(models, 1); assert.equal(searches, 0);
+  state = restoreWithReceipt(state, { result: { snapshot: 'fresh snapshot' } });
+  await specialist.advance(state, options);
+  assert.equal(state.pending.action, 'web_receipt'); assert.equal(models, 1); assert.equal(searches, 1);
+  state = restoreWithReceipt(state, { result: { recorded: true } });
+  await specialist.advance(state, options);
+  assert.equal(models, 2); assert.equal(state.pending.name, 'finish_discovery');
+});
+test('cancellation between queued calls prevents the remaining tools and model requests', async () => {
+  let state = ready(); state.schemas.push(snapshotTool);
+  const controller = new AbortController(); let models = 0, searches = 0;
+  const options = { signal: controller.signal, supportsWebSearch: true, search: async () => { searches++; }, requestTurn: async () => {
+    models++; return { ok: true, message: { tool_calls: [call('browser_snapshot', {}), call('search_web', { query: 'enzyme' })] } };
+  } };
+  await specialist.advance(state, options);
+  state = restoreWithReceipt(state, { result: { snapshot: 'observed' } });
+  controller.abort();
+  await assert.rejects(specialist.advance(state, options), { code: 'OPERATION_ABORTED' });
+  assert.equal(models, 1); assert.equal(searches, 0); assert.equal(state.pending, null);
+});
+for (const status of ['needs_login', 'cancelled', 'completed']) test(`host terminal status ${status} stops queued tools`, async () => {
+  let state = ready(); state.schemas.push(snapshotTool); let models = 0;
+  const options = { requestTurn: async () => { models++; return { ok: true, message: { tool_calls: [call('browser_snapshot', {}, 'first'), call('browser_snapshot', {}, 'second')] } }; } };
+  await specialist.advance(state, options);
+  state = restoreWithReceipt(state, { final: { version: 1, job_id: state.jobId, status, candidates: [], searches: [], limitations: [] } });
+  await specialist.advance(state, options);
+  assert.equal(models, 1); assert.equal(state.pending, null); assert.deepEqual(state.queuedCalls, []);
+});
+test('an invalid later tool cannot bypass validation by riding behind a valid tool', async t => {
+  const state = ready(); state.schemas.push(snapshotTool); t.mock.method(console, 'error', () => {});
+  let models = 0;
+  await specialist.advance(state, { requestTurn: async () => {
+    models++;
+    return { ok: true, message: { tool_calls: models === 1
+      ? [call('browser_snapshot', {}), call('browser_run_code_unsafe', { code: 'unsafe' })]
+      : [call('finish_discovery', { candidates: [], limitations: ['Corrected tool selection.'] })] } };
+  } });
+  assert.equal(models, 2); assert.equal(state.calls, 1); assert.equal(state.pending.name, 'finish_discovery');
+});
+test('retrieval batches execute requested papers in order before finalization', async () => {
+  const paper = { title: 'enzyme', authors: [], source_urls: [] };
+  let state = specialist.create('retrieve_papers', { papers: [paper, { ...paper, title: 'another enzyme' }], accepted_versions: ['published'] }, 'main');
+  specialist.accept(state, { job_id: 'lit_' + 'b'.repeat(24), tools: [contract.tool('retrieve_next', 'Retrieve', contract.object({ index: { type: 'integer' } })), contract.tool('finish_retrieval', 'Finish', contract.object({}))] });
+  let models = 0;
+  const options = { requestTurn: async () => { models++; return { ok: true, message: { tool_calls: [call('retrieve_next', { index: 0 }, 'first'), call('retrieve_next', { index: 1 }, 'second'), call('finish_retrieval', {})] } }; } };
+  for (const index of [0, 1]) {
+    await specialist.advance(state, options); assert.equal(state.pending.name, 'retrieve_next'); assert.equal(state.pending.args.index, index);
+    state = restoreWithReceipt(state, { result: { status: 'access_unavailable', reason: 'No authorized download route.' } });
+  }
+  await specialist.advance(state, options); assert.equal(state.pending.name, 'finish_retrieval'); assert.equal(models, 1);
+});

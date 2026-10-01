@@ -5,6 +5,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import Ajv from 'ajv/dist/2020.js';
 import contract from '../../shared/literature-agent.js';
 import sourceFetch from '../../shared/source-fetch.js';
+import { EventEmitter } from 'node:events';
 
 const fail = code => Object.assign(new Error(code), { code });
 const allowed = new Set(['browser_navigate', 'browser_navigate_back', 'browser_snapshot', 'browser_find', 'browser_click', 'browser_type', 'browser_select_option', 'browser_tabs', 'browser_wait_for']);
@@ -17,53 +18,83 @@ export function redactBrowserText(text) {
 
 // The local host owns a real MCP server/client pair and the browser context.
 // No renderer or model receives Playwright objects, credentials or executable code.
-export class PlaywrightMcpClient {
+export class PlaywrightMcpClient extends EventEmitter {
   constructor({ profileRoot, headless = false, launch, connect } = {}) {
+    super();
     this.profileRoot = profileRoot; this.headless = headless; this.launch = launch; this.connect = connect;
-    this.owner = null; this.queue = Promise.resolve(); this.refs = new Set(); this.lastDownloads = []; this.generation = 0;
+    this.owner = null; this.queue = Promise.resolve(); this.refs = new Set(); this.lastDownloads = []; this.generation = 0; this.lifecycle = 0;
   }
   async start() {
+    await this.closing;
     if (this.client) return;
     if (this.starting) return this.starting;
+    const startLifecycle = this.lifecycle, startOwner = this.owner;
     this.starting = (async () => {
       await mkdir(this.profileRoot, { recursive: true, mode: 0o700 });
       const { chromium } = await import('playwright');
       // Auto downloads are disabled even during retrieval. Only captureArticle
       // can transfer a file, with byte/time/redirect limits and host verification.
-      this.context = await (this.launch || chromium.launchPersistentContext.bind(chromium))(path.join(this.profileRoot, 'profile'), {
+      const launched = await (this.launch || chromium.launchPersistentContext.bind(chromium))(path.join(this.profileRoot, 'profile'), {
         channel: 'chrome', headless: this.headless, acceptDownloads: false, serviceWorkers: 'block',
       });
-      await this.context.route('**/*', async route => {
+      if (this.lifecycle !== startLifecycle) { await launched.close(); throw fail('BROWSER_CLOSED'); }
+      this.context = launched;
+      const context = this.context;
+      const closed = () => {
+        // Events from a disposed context must never release a newer owner.
+        if (this.context === context) void this.close(undefined, fail('BROWSER_CLOSED'));
+      };
+      context.on('close', closed);
+      context.browser()?.on('disconnected', closed);
+      await context.route('**/*', async route => {
         try { const url = sourceFetch.validateSourceUrl(route.request().url()); await sourceFetch.resolvePublicTarget(url); await route.continue(); }
         catch { await route.abort().catch(() => {}); }
       });
       const observePage = page => {
-        page.on('download', download => { this.lastDownloads.push(download.url()); this.lastDownloads = this.lastDownloads.slice(-4); });
-        page.on('framenavigated', frame => { if (frame === page.mainFrame()) { this.refs.clear(); this.generation++; } });
+        page.on('close', () => {
+          if (this.context !== context) return;
+          this.refs.clear(); this.generation++;
+          const remaining = context.pages().filter(page => !page.isClosed());
+          if (!remaining.length) closed();
+          else if (this.currentPage === page) this.currentPage = remaining[0];
+        });
+        page.on('download', download => { if (this.context === context) { this.lastDownloads.push(download.url()); this.lastDownloads = this.lastDownloads.slice(-4); } });
+        page.on('framenavigated', frame => { if (this.context === context && frame === page.mainFrame()) { this.refs.clear(); this.generation++; } });
       };
-      this.currentPage = this.context.pages()[0];
-      this.context.pages().forEach(observePage); this.context.on('page', observePage);
+      this.currentPage = context.pages()[0];
+      context.pages().forEach(observePage); context.on('page', observePage);
       const { createConnection } = await import('@playwright/mcp');
       this.server = await (this.connect || createConnection)({ browser: {}, webmcp: false, snapshot: { mode: 'none' }, codegen: 'none', imageResponses: 'omit', saveSession: false,
-        outputDir: path.join(this.profileRoot, 'transient'), timeouts: { action: 8000, navigation: 30000 } }, async () => this.context);
+        outputDir: path.join(this.profileRoot, 'transient'), timeouts: { action: 8000, navigation: 30000 } }, async () => context);
+      if (this.context !== context) throw fail('BROWSER_CLOSED');
       const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
       this.client = new Client({ name: 'biodesign-browser-host', version: '1' }, { capabilities: {} });
       await this.server.connect(serverTransport); await this.client.connect(clientTransport);
       const listed = await this.client.listTools();
+      if (this.context !== context) throw fail('BROWSER_CLOSED');
       const ajv = new Ajv({ strict: false });
       this.tools = listed.tools.filter(tool => allowed.has(tool.name));
       this.validators = new Map(this.tools.map(tool => [tool.name, ajv.compile(tool.inputSchema)]));
-    })().catch(async () => { await this.close(); throw fail('BROWSER_UNAVAILABLE'); }).finally(() => { this.starting = null; });
+    })().catch(async error => {
+      const wrapped = error.code === 'BROWSER_CLOSED' ? error : Object.assign(new Error(error.message || 'Browser unavailable', { cause: error }), { code: 'BROWSER_UNAVAILABLE' });
+      if (this.lifecycle === startLifecycle) await this.close(startOwner ?? undefined, wrapped);
+      throw wrapped;
+    }).finally(() => { this.starting = null; });
     return this.starting;
   }
   async exclusive(owner, fn) {
-    if (this.owner && this.owner !== owner) throw fail('BROWSER_BUSY');
+    if (this.owner && this.owner !== owner) throw Object.assign(new Error(`Browser is owned by active job ${this.owner}.`), { code: 'BROWSER_BUSY', ownerId: this.owner, jobId: owner });
     if (!this.owner) { this.refs.clear(); this.lastDownloads = []; }
     this.owner = owner;
     const run = async () => { if (this.owner !== owner) throw fail('BROWSER_OWNERSHIP_LOST'); return fn(); };
     const result = this.queue.then(run, run); this.queue = result.catch(() => {}); return result;
   }
   release(owner) { if (this.owner === owner) { this.owner = null; this.refs.clear(); } }
+  async operationFailed(owner, error) {
+    if (['BROWSER_BUSY', 'BROWSER_TOOL_NOT_ALLOWED', 'STALE_REFERENCE', 'AMBIGUOUS_TAB_REFERENCE'].includes(error.code)) throw error;
+    const wrapped = error.code?.startsWith('BROWSER_') ? error : Object.assign(new Error(error.message || 'Browser operation failed', { cause: error }), { code: 'BROWSER_OPERATION_FAILED' });
+    await this.close(owner, wrapped); throw wrapped;
+  }
   async loginState() {
     for (const page of this.currentPage && !this.currentPage.isClosed() ? [this.currentPage] : this.context.pages()) {
       if (authPattern.test(page.url())) return true;
@@ -75,6 +106,7 @@ export class PlaywrightMcpClient {
     if (await this.loginState()) { this.refs.clear(); return { status: 'needs_login', instruction: 'Complete sign-in directly in the dedicated browser, then select Resume.' }; }
     const result = await this.client.callTool({ name: 'browser_snapshot', arguments: {} }, undefined, { signal, timeout: 30000 });
     const raw = result.content?.filter(x => x.type === 'text').map(x => x.text).join('\n') || '';
+    if (result.isError) throw Object.assign(new Error(redactBrowserText(raw).slice(0, 1000) || 'Browser snapshot failed'), { code: 'BROWSER_MCP_ERROR' });
     const pageUrl = raw.match(/^- Page URL: (.+)$/m)?.[1];
     const matchingPages = this.context.pages().filter(page => page.url() === pageUrl);
     if (matchingPages.length === 1) this.currentPage = matchingPages[0];
@@ -98,18 +130,18 @@ export class PlaywrightMcpClient {
         const type = await matching.getAttribute('type'); const autocomplete = await matching.getAttribute('autocomplete');
         if (['password', 'email', 'tel'].includes(type) || /password|username|one-time-code/i.test(autocomplete || '')) return { status: 'needs_login' };
       }
-      const abort = () => { void this.close(); }; signal?.addEventListener('abort', abort, { once: true });
+      const abort = () => { void this.close(owner); }; signal?.addEventListener('abort', abort, { once: true });
       try {
         if (name !== 'browser_snapshot') {
           const result = await this.client.callTool({ name, arguments: args }, undefined, { signal, timeout: 35000 });
           if (name === 'browser_tabs' && args.action === 'select') this.currentPage = this.context.pages()[args.index];
           if (name === 'browser_tabs' && args.action === 'new') this.currentPage = this.context.pages().at(-1);
-          if (result.isError) return { ...(await this.observe(signal)), error: 'BROWSER_ACTION_FAILED' };
+          if (result.isError) throw Object.assign(new Error(redactBrowserText(result.content?.filter(item => item.type === 'text').map(item => item.text).join('\n') || 'Browser action failed').slice(0, 1000)), { code: 'BROWSER_MCP_ERROR' });
         }
         // Never forward raw MCP diagnostics, action code, network logs or URLs.
         return await this.observe(signal);
       } finally { signal?.removeEventListener('abort', abort); }
-    });
+    }).catch(error => this.operationFailed(owner, error));
   }
   async locator(target) {
     if (!this.refs.has(target)) throw fail('STALE_REFERENCE');
@@ -141,10 +173,19 @@ export class PlaywrightMcpClient {
         } });
     });
   }
-  async close() {
-    this.refs.clear(); this.generation++;
+  async close(owner, error) {
+    if (owner !== undefined && this.owner !== owner) return;
+    const previousOwner = this.owner;
+    this.owner = null;
+    this.refs.clear(); this.lastDownloads = []; this.generation++; this.lifecycle++;
     const client = this.client, server = this.server, context = this.context;
     this.client = null; this.server = null; this.context = null; this.currentPage = null;
-    await client?.close().catch(() => {}); await server?.close().catch(() => {}); await context?.close().catch(() => {});
+    if (previousOwner && error) {
+      console.error('literature.browser.closed', { jobId: previousOwner, ownerId: previousOwner, code: error.code, message: redactBrowserText(error.message).slice(0, 1000) });
+      this.emit('ownership-lost', { ownerId: previousOwner, error: Object.assign(error, { ownerId: previousOwner }) });
+    }
+    const disposal = (async () => { await client?.close().catch(() => {}); await server?.close().catch(() => {}); await context?.close().catch(() => {}); })();
+    this.closing = Promise.all([this.closing, disposal]);
+    await this.closing;
   }
 }

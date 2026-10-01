@@ -8,6 +8,7 @@ function failure(state, error, stage = 'provider') {
   const code = /^[A-Za-z][A-Za-z0-9_]{0,99}$/.test(error?.error || error?.code || '') ? error.error || error.code : 'LITERATURE_SPECIALIST_FAILED';
   const diagnostics = { code, message: safeText(error?.reason || error?.message || code), failureStage: `literature-specialist.${stage}`,
     jobId: state.jobId, capability: state.kind, step: state.turns, toolCalls: state.calls,
+    ...(error?.diagnostics?.ownerId ? { ownerId: error.diagnostics.ownerId } : {}),
     inputCharacters: JSON.stringify(state.messages).length,
     ...(Number.isInteger(error?.status) ? { providerStatus: error.status } : {}),
     ...(Number.isInteger(error?.attempts) ? { providerAttempts: error.attempts } : {}),
@@ -25,7 +26,7 @@ function create(name, task, mainCallId) {
   contract.validate(contract.tasks[name], task);
   return { kind: name, task, mainCallId, turns: 0, calls: 0, startedAt: Date.now(),
     messages: [{ role: 'system', content: `${name === 'discover_papers' ? prompts.discover : prompts.retrieve}\n${prompts.browser}` }, { role: 'user', content: JSON.stringify(task) }],
-    pending: { action: 'begin', kind: name, task }, schemas: [], results: [] };
+    pending: { action: 'begin', kind: name, task }, queuedCalls: [], schemas: [], results: [] };
 }
 function handoff(state) {
   const fingerprint = crypto.createHash('sha256').update(JSON.stringify(state.pending)).digest('hex');
@@ -36,10 +37,17 @@ function handoff(state) {
 }
 function accept(state, response) {
   if (!response || typeof response !== 'object' || JSON.stringify(response).length > 150000) throw new Error('Invalid literature host result');
+  if (response.blocked) {
+    state.jobId = response.job_id || state.jobId;
+    state.blocked = response; state.pending = null;
+    return;
+  }
   if (response.final) {
     try { state.final = contract.validate(contract.results[state.kind], response.final); }
     catch (error) { failure(state, error, 'finalization'); throw error; }
-    state.pending = null; return;
+    state.pending = null; state.pendingModelCall = null; state.queuedCalls = [];
+    delete state.pendingWebEvidence; delete state.pendingFingerprint; delete state.pendingId;
+    return;
   }
   if (response.tools) {
     if (!Array.isArray(response.tools) || response.tools.length > 40 || !/^lit_[a-f0-9]{24}$/.test(response.job_id)) throw new Error('Invalid specialist tools');
@@ -49,39 +57,60 @@ function accept(state, response) {
     else if (response.access?.library_url) state.messages.push({ role: 'system', content: `The user selected this library URL in the application: ${JSON.stringify(response.access.library_url)}. Use it as the institutional entry point; it supersedes any library URL in the original delegated task.` });
   }
   if (state.pendingModelCall) {
-    state.messages.push({ role: 'tool', tool_call_id: state.pendingModelCall.id, content: JSON.stringify(response.result || response.error && { error: response.error, message: response.message, diagnostics: response.diagnostics } || response) });
+    const receipt = response.result || response.error && { error: response.error, message: response.message, diagnostics: response.diagnostics } || response;
+    state.messages.push({ role: 'tool', tool_call_id: state.pendingModelCall.id, content: JSON.stringify(state.pendingWebEvidence !== undefined ? { evidence: state.pendingWebEvidence, receipt } : receipt) });
     state.pendingModelCall = null;
+    delete state.pendingWebEvidence;
   } else state.messages.push({ role: 'user', content: JSON.stringify(response) });
   state.pending = null;
+  // Retries of one pending handoff reuse its ID, but consecutive identical
+  // model calls are distinct executions and must not reuse a cached receipt.
+  delete state.pendingFingerprint; delete state.pendingId;
 }
 async function advance(state, { requestTurn, supportsWebSearch, search, onProgress = async () => {}, signal }) {
+  if (state.blocked) return failure(state, state.blocked, 'browser');
   if (state.final || state.pending) return;
   const finish = state.kind === 'discover_papers' ? 'finish_discovery' : 'finish_retrieval';
   delete state.failure;
   while (true) {
     if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
-    state.turns++;
-    await onProgress({ stage: 'literature-specialist', capability: state.kind, step: state.turns });
-    if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
     const webTool = contract.tool('search_web', 'Search external scholarly metadata with the selected model; no downloading.', contract.object({ query: contract.text(2000) }));
     const tools = [...state.schemas, ...(supportsWebSearch && state.kind === 'discover_papers' ? [webTool] : [])];
-    let turn;
-    try { turn = await requestTurn({ messages: state.messages, tools, temperature: 0.2, stage: 'literature-specialist', signal }); }
-    catch (error) {
-      if (signal?.aborted || error?.code === 'OPERATION_ABORTED') throw error;
-      return failure(state, error);
+    // The queue travels inside the signed continuation. Drain it through one
+    // host handoff at a time before asking the model for another decision.
+    if (!state.queuedCalls?.length) {
+      state.turns++;
+      await onProgress({ stage: 'literature-specialist', capability: state.kind, step: state.turns });
+      if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
+      let turn;
+      try { turn = await requestTurn({ messages: state.messages, tools, temperature: 0.2, stage: 'literature-specialist', signal }); }
+      catch (error) {
+        if (signal?.aborted || error?.code === 'OPERATION_ABORTED') throw error;
+        return failure(state, error);
+      }
+      if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
+      if (!turn?.ok) {
+        if (turn?.error === 'OPERATION_ABORTED') throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
+        return failure(state, turn);
+      }
+      const calls = (Array.isArray(turn.message?.tool_calls) ? turn.message.tool_calls : []).filter(call => call?.type === 'function');
+      if (!calls.length) { failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL_COUNT', message: `Expected tool calls; received none. Finish with ${finish}.` }, 'tool-selection'); state.messages.push({ role: 'user', content: `Choose exposed functions; they execute in the supplied order. Finish through ${finish}; prose cannot establish retrieval.` }); continue; }
+      const queued = calls.map(call => {
+        let args;
+        try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = null; }
+        return { call, args };
+      });
+      const ids = new Set();
+      const invalid = queued.some(({ call, args }) => {
+        if (typeof call.id !== 'string' || !call.id || ids.has(call.id) || !tools.some(tool => tool.function?.name === call.function?.name) || !args || typeof args !== 'object' || Array.isArray(args)) return true;
+        ids.add(call.id); return false;
+      });
+      if (invalid) { failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL', message: 'Tool names must be exposed, arguments must be JSON objects, and call IDs must be unique.' }, 'tool-validation'); state.messages.push({ role: 'user', content: 'Invalid tool name, arguments, or call ID. Use the current schemas and unique call IDs.' }); continue; }
+      state.messages.push({ role: 'assistant', content: turn.message.content || '', tool_calls: calls });
+      state.queuedCalls = queued;
     }
-    if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
-    if (!turn?.ok) {
-      if (turn?.error === 'OPERATION_ABORTED') throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
-      return failure(state, turn);
-    }
-    const calls = (Array.isArray(turn.message?.tool_calls) ? turn.message.tool_calls : []).filter(call => call?.type === 'function');
-    if (calls.length !== 1) { failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL_COUNT', message: `Expected one tool call; received ${calls.length}. Finish with ${finish}.` }, 'tool-selection'); state.messages.push({ role: 'user', content: `Choose exactly one exposed function per turn. Finish through ${finish}; prose cannot establish retrieval.` }); continue; }
-    const call = calls[0]; let args;
-    try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = null; }
-    if (!tools.some(tool => tool.function?.name === call.function?.name) || !args) { failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL', message: 'Tool name is not exposed or arguments are not valid JSON.' }, 'tool-validation'); state.messages.push({ role: 'user', content: 'Invalid tool name or arguments. Use the current schemas.' }); continue; }
-    state.messages.push({ role: 'assistant', content: turn.message.content || '', tool_calls: [call] }); state.calls++;
+    const { call, args } = state.queuedCalls.shift();
+    state.calls++;
     if (call.function.name === 'search_web') {
       try { contract.validate(webTool.function.parameters, args); } catch (error) { return failure(state, error, 'tool-validation'); }
       state.webCalls = (state.webCalls || 0) + 1;
@@ -92,7 +121,9 @@ async function advance(state, { requestTurn, supportsWebSearch, search, onProgre
         return failure(state, error, 'web-search');
       }
       if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
-      state.messages.push({ role: 'tool', tool_call_id: call.id, content: evidence }); state.pending = { action: 'web_receipt', job_id: state.jobId, args: { query, evidence: String(evidence).slice(0, 40000) } }; return;
+      state.pendingModelCall = call;
+      state.pendingWebEvidence = evidence;
+      state.pending = { action: 'web_receipt', job_id: state.jobId, args: { query, evidence: String(evidence).slice(0, 40000) } }; return;
     }
     state.pendingModelCall = call;
     state.pending = { action: 'step', job_id: state.jobId, name: call.function.name, args };

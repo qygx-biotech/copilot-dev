@@ -5,6 +5,7 @@ import { assertOnlyKeys, assertRelativePath } from '../ipc/validation.mjs';
 import { acquirePaperPdf } from './paper-acquisition.mjs';
 import { downloadSources } from './source-downloader.mjs';
 import { verifyPaper } from './paper-verification.mjs';
+import { redactBrowserText } from './playwright-mcp-client.mjs';
 
 const fail = code => Object.assign(new Error(code), { code });
 const code = error => /^[A-Z_]{1,80}$/.test(error?.code || '') ? error.code : 'LITERATURE_OPERATION_FAILED';
@@ -26,6 +27,39 @@ export class LiteratureWorkflows {
   constructor(active, browser, isCurrent, dependencies = {}) {
     this.active = active; this.browser = browser; this.isCurrent = isCurrent; this.dependencies = dependencies;
     this.jobs = new Map(); this.controllers = new Map(); this.queue = Promise.resolve();
+    browser.on?.('ownership-lost', ({ ownerId, error }) => {
+      const job = this.jobs.get(ownerId);
+      if (!job || ['completed', 'cancelled', 'failed', 'partial'].includes(job.status)) return;
+      this.block(job, error);
+      void this.save(job).catch(error => console.error('literature.checkpoint.failure', { jobId: job.id, code: code(error) }));
+    });
+    active.sourceDownloads.signal.addEventListener('abort', () => {
+      const owner = browser.owner;
+      if (owner) void this.cancel(owner).catch(error => console.error('literature.cancel.failure', { jobId: owner, code: code(error) }));
+    }, { once: true });
+  }
+  diagnose(job, error, stage = 'literature-host') {
+    const diagnostics = { code: code(error), message: redactBrowserText(error?.message || code(error)).slice(0, 1000),
+      failureStage: stage, jobId: job.id, ownerId: error?.ownerId || this.browser.owner || null,
+      ...(error?.cause ? { causeCode: code(error.cause), causeMessage: redactBrowserText(error.cause.message).slice(0, 1000) } : {}) };
+    job.lastError = diagnostics; console.error('literature.host.failure', diagnostics); return diagnostics;
+  }
+  block(job, error) {
+    job.status = 'blocked'; this.diagnose(job, error, 'literature-browser');
+    this.browser.release(job.id);
+    return this.blockedResult(job);
+  }
+  blockedResult(job) {
+    return { blocked: true, job_id: job.id, error: job.lastError?.code || 'BROWSER_UNAVAILABLE',
+      message: job.lastError?.message || 'Resume the saved job to reacquire its browser.', diagnostics: job.lastError };
+  }
+  async suspend(input) {
+    const job = await this.load(input.job_id);
+    if (job.model !== input.model || job.permission !== input.permission || JSON.stringify(job.scopePaths) !== JSON.stringify(input.scopePaths ?? null)) throw fail('JOB_BINDING_CHANGED');
+    if (!['completed', 'partial', 'cancelled', 'blocked'].includes(job.status)) job.status = 'failed';
+    this.controllers.get(job.id)?.abort();
+    await this.browser.close(job.id); this.browser.release(job.id);
+    await this.save(job); return { job_id: job.id, status: job.status };
   }
   async save(job) { await this.active.filesystem.writeText(jobPath(job.id), JSON.stringify(clean(job))); }
   async load(id) {
@@ -34,8 +68,8 @@ export class LiteratureWorkflows {
     const job = JSON.parse(await this.active.filesystem.readText(jobPath(id)));
     if (job.id !== id || !contract.tasks[job.kind]) throw fail('INVALID_JOB');
     contract.validate(contract.tasks[job.kind], job.task);
-    job.status = ['completed', 'cancelled'].includes(job.status) ? job.status : 'needs_login';
-    job.observations = ''; this.jobs.set(id, job); return job;
+    job.status = ['completed', 'cancelled', 'blocked', 'failed'].includes(job.status) ? job.status : 'needs_login';
+    this.jobs.set(id, job); return job;
   }
   async list() {
     let files; try { files = await this.active.filesystem.list('.biodesign/literature-jobs'); } catch { return []; }
@@ -47,7 +81,7 @@ export class LiteratureWorkflows {
   }
   async cancel(id) {
     const job = await this.load(id); job.status = 'cancelled'; this.controllers.get(id)?.abort();
-    if (this.browser.owner === id) await this.browser.close(); this.browser.release(id); await this.save(job); return this.result(job);
+    if (this.browser.owner === id) await this.browser.close(id); this.browser.release(id); await this.save(job); return this.result(job);
   }
   toolDefinitions(job) {
     const host = job.kind === 'discover_papers' ? [contract.tool('finish_discovery', 'Return observed candidates and search limitations. Does not download.', schema({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(field(2000), 30) }))]
@@ -66,6 +100,7 @@ export class LiteratureWorkflows {
   async run(input) {
     assertOnlyKeys(input, ['action', 'job_id', 'kind', 'task', 'name', 'args', 'permission', 'authorization', 'model', 'scopePaths', 'execution_id', 'libraryAccess']);
     if (input.action === 'cancel') return this.cancel(input.job_id);
+    if (input.action === 'suspend') return this.suspend(input);
     if (input.execution_id !== undefined && !/^literature_[a-f0-9]{16}$/.test(input.execution_id)) throw fail('INVALID_EXECUTION_ID');
     const operation = async () => {
       const fingerprint = crypto.createHash('sha256').update(JSON.stringify({ ...input, execution_id: undefined })).digest('hex');
@@ -110,7 +145,8 @@ export class LiteratureWorkflows {
       this.jobs.set(job.id, job); await this.save(job);
     } else job = await this.load(input.job_id);
     if (job.model !== input.model || job.permission !== input.permission || JSON.stringify(job.scopePaths) !== JSON.stringify(input.scopePaths ?? null)) throw fail('JOB_BINDING_CHANGED');
-    if (job.status === 'cancelled') return { final: this.result(job) };
+    if (job.status === 'cancelled' && input.action !== 'resume') return { final: this.result(job) };
+    if (input.action === 'resume') this.controllers.delete(job.id);
     if (job.kind === 'retrieve_papers' && (!job.authorized || !authorized(input))) throw fail('DOWNLOAD_NOT_AUTHORIZED');
     const controller = this.controllers.get(job.id) || new AbortController(); this.controllers.set(job.id, controller);
     const signal = AbortSignal.any([controller.signal, this.active.sourceDownloads.signal]);
@@ -120,21 +156,26 @@ export class LiteratureWorkflows {
       ensureCurrent();
       if (['begin', 'resume'].includes(input.action)) {
         job.status = 'running';
+        let refreshedObservation = '';
         try { await this.active.paperMcp.start(); job.paperTools = this.active.paperMcp.tools.filter(t => academic.isTool(t.name) && !academic.isWrite(t.name)); }
         catch { job.paperTools = []; job.limitations.push('Local paper MCP unavailable; use other supported sources.'); }
-        if (!job.openAccessOnly) try {
+        if (!job.openAccessOnly) {
           await this.browser.exclusive(job.id, () => this.browser.start()); job.browserTools = this.browser.tools;
           // Runtime discovery is authoritative; only the host-filtered schemas reach the worker.
           const recheckUrl = job.libraryUrl || job.task.library_url || (input.action === 'resume' ? job.task.papers?.[job.position || 0]?.source_urls?.[0] : null);
           const observation = await this.browser.call(job.id, recheckUrl ? 'browser_navigate' : 'browser_snapshot', recheckUrl ? { url: recheckUrl } : {}, signal);
           if (observation.status === 'needs_login') { job.status = 'needs_login'; return { job_id: job.id, needs_login: true, final: this.result(job) }; }
-          job.observations = observation.snapshot || '';
-        } catch (error) { job.browserTools = []; job.limitations.push(`Browser unavailable (${code(error)}); paper MCP remains available.`); this.browser.release(job.id); }
+          refreshedObservation = observation.snapshot || '';
+          job.observations = [job.observations, refreshedObservation].filter(Boolean).join('\n').slice(-60000);
+        }
         else job.browserTools = [];
-        return { job_id: job.id, tools: this.toolDefinitions(job), checkpoint: this.result(job), observation: job.observations,
+        delete job.lastError;
+        return { job_id: job.id, tools: this.toolDefinitions(job), checkpoint: this.result(job), observation: refreshedObservation,
           access: { open_access_only: Boolean(job.openAccessOnly), library_url: job.openAccessOnly ? '' : job.libraryUrl || job.task.library_url || '' } };
       }
       if (job.status === 'needs_login') return { job_id: job.id, needs_login: true, final: this.result(job) };
+      if (job.status === 'blocked' || job.status === 'failed') return this.blockedResult(job);
+      if (!job.openAccessOnly && this.browser.owner !== job.id) throw fail('BROWSER_OWNERSHIP_LOST');
       if (input.action === 'web_receipt') {
         contract.validate(contract.object({ query: field(2000), evidence: field(40000) }), input.args);
         job.observations = (job.observations + '\n' + clean(input.args.evidence)).slice(-60000);
@@ -229,6 +270,8 @@ export class LiteratureWorkflows {
         job.downloads++;
         try { const fetched = await this.browser.captureArticle(job.id, input.args.target, signal); return { result: await this.saveFetched(job, index, fetched, 'institutional', attempts, signal) }; }
         catch (error) {
+          if (/^BROWSER_/.test(error.code || '')) throw error;
+          if (job.status === 'blocked') return this.blockedResult(job);
           attempts.push({ route: 'institutional', reason: code(error) });
           if (error.code === 'NEEDS_LOGIN') { job.status = 'needs_login'; outcome('needs_login', 'Complete university login in the visible browser.', 'institutional'); return { job_id: job.id, needs_login: true, final: this.result(job) }; }
           return { result: outcome('unresolved', code(error), 'institutional') };
@@ -236,22 +279,20 @@ export class LiteratureWorkflows {
       }
       throw fail('SPECIALIST_TOOL_NOT_ALLOWED');
     } catch (error) {
-      if (signal.aborted) { job.status = 'cancelled'; job.limitations.push('Execution cancelled.'); this.browser.release(job.id); return { final: this.result(job) }; }
+      if (signal.aborted) { if (job.status !== 'failed') job.status = 'cancelled'; job.limitations.push('Execution interrupted.'); return { final: this.result(job) }; }
+      if (/^BROWSER_/.test(error.code || '') || ['begin', 'resume'].includes(input.action)) return this.block(job, error);
       if (job.kind === 'retrieve_papers' && ['retrieve_next', 'capture_article'].includes(input.name) && job.task.papers[input.args?.index]) {
         const index = input.args.index;
         job.results[index] = { requested: job.task.papers[index], status: 'failed', document_version: 'unknown', attempts: (job.results[index]?.attempts || []).slice(-23), reason: code(error), job_id: job.id };
         return { result: job.results[index] };
       }
-      const diagnostics = { code: code(error), message: clean(String(error?.message || code(error))).replace(/(?:authorization|cookie|token|password|secret)\s*[:=]\s*[^\r\n]*/gi, '[redacted credentials]').slice(0, 1000),
-        failureStage: input.name === 'finish_discovery' ? 'discovery-finalization' : 'literature-host', jobId: job.id, tool: input.name,
-        ...(error?.cause?.code ? { causeCode: code(error.cause) } : {}) };
-      job.lastError = diagnostics;
-      console.error('literature.host.failure', diagnostics);
+      const diagnostics = this.diagnose(job, error, input.name === 'finish_discovery' ? 'discovery-finalization' : 'literature-host');
       return { error: diagnostics.code, message: diagnostics.message, diagnostics, job_id: job.id };
     } finally {
-      if (signal.aborted && this.browser.owner === job.id) { await this.browser.close(); this.browser.release(job.id); }
+      if (signal.aborted && this.browser.owner === job.id) { await this.browser.close(job.id); this.browser.release(job.id); }
       job.elapsed += Date.now() - started; job.searches = job.searches.slice(-30); job.limitations = [...new Set(job.limitations)].slice(-30);
-      await this.save(job);
+      try { await this.save(job); }
+      catch (error) { await this.browser.close(job.id); throw error; }
     }
   }
   async findLocal(job, paper, signal) {

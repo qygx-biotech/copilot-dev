@@ -4207,7 +4207,19 @@ async function sendWorkbenchRequestOnce({
   desktopToolResults = null,
   desktopRound = 0,
   libraryChoice = {},
+  literatureSession = null,
 }) {
+  const ownsLiteratureSession = !literatureSession;
+  literatureSession ||= { jobs: new Map() };
+  const releaseLiterature = async action => {
+    for (const [id, input] of literatureSession.jobs) {
+      try {
+        await window.biodesignDesktop.execution.runWorkflow({ workflowId: 'literature_worker', input: { ...input, execution_id: undefined, job_id: id, action } });
+        literatureSession.jobs.delete(id);
+      } catch (error) { runtimeLog?.record('literature.cleanup.failure', { jobId: id, code: error?.code || 'CLEANUP_FAILED' }, 'error'); }
+    }
+  };
+  const abortLiterature = () => { void releaseLiterature('cancel'); };
   const isSideChat = mode === "side_chat";
   const chatTrace = runtimeLog?.chatTiming?.({ turnId: callContext?.turnId, endpoint: "/chat", model: model || "default" });
   const saveTranscript = async turn => {
@@ -4273,6 +4285,7 @@ async function sendWorkbenchRequestOnce({
     originalRequestPreserved: Boolean(originalRequest), semanticContextPresent: Boolean(localWorkspaceContext?.semantic?.ir), retrievalScope: localWorkspaceContext?.semantic?.ir?.retrievalScope });
   let pendingRead;
   try {
+    if (ownsLiteratureSession) signal?.addEventListener('abort', abortLiterature, { once: true });
     const serialized = chatTrace?.start("request_serialization");
     const requestJson = JSON.stringify(requestBody);
     const requestBytes = chatTrace?.bytes(requestJson);
@@ -4380,12 +4393,14 @@ async function sendWorkbenchRequestOnce({
           const input = { ...call.args, execution_id: call.id, permission: desktopTools.permission, authorization, model,
             ...(call.args.action === 'begin' && !call.args.task?.job_id ? { libraryAccess: libraryChoice.value } : {}),
             scopePaths: localWorkspaceContext?.agentLoop?.hardSelection ? [...new Set([...(localWorkspaceContext.sourceMap?.paperSources || []).map(f => f.path), ...(localWorkspaceContext.files || []).map(f => f.path)].filter(Boolean))] : null };
+          const knownJobId = input.job_id || input.task?.job_id;
+          if (knownJobId) literatureSession.jobs.set(knownJobId, input);
           const cancel = () => { if (input.job_id) void window.biodesignDesktop.execution.runWorkflow({ workflowId: 'literature_worker', input: { ...input, action: 'cancel' } }).catch(() => {}); };
           signal?.addEventListener('abort', cancel, { once: true });
           let result;
           try {
             result = await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input });
-            if (result.job_id) input.job_id = result.job_id;
+            if (result.job_id) { input.job_id = result.job_id; literatureSession.jobs.set(result.job_id, input); }
             if (signal?.aborted) cancel();
             while (result.needs_login) {
               ensureCurrent();
@@ -4395,6 +4410,7 @@ async function sendWorkbenchRequestOnce({
               if (!resume && !result.final) result = { final: result };
             }
           } finally { signal?.removeEventListener('abort', cancel); }
+          if (result.final && !result.needs_login) literatureSession.jobs.delete(input.job_id);
           ensureCurrent(); results.push({ id: call.id, result }); continue;
         }
         if ((desktopTools.literatureVersion === 1 || localWorkspaceContext?.agentLoop?.academicAcquisition === true) && window.BioDesignSideChatTools?.isTool(call.name)) {
@@ -4445,8 +4461,8 @@ async function sendWorkbenchRequestOnce({
       }
       // Resume the same bounded server loop with actual tool results. New raw
       // files are picked up by normal source preflight on the next user request.
-      return sendWorkbenchRequestOnce({ mode, model, messages, conversationTranscript, onTranscript, originalRequest, projectGoal, localWorkspaceContext, callContext, onStream, signal, desktopTools,
-        libraryChoice,
+      return await sendWorkbenchRequestOnce({ mode, model, messages, conversationTranscript, onTranscript, originalRequest, projectGoal, localWorkspaceContext, callContext, onStream, signal, desktopTools,
+        libraryChoice, literatureSession,
         desktopContinuation: data.desktopContinuation, desktopToolResults: results, desktopRound: desktopRound + 1 });
     }
     return data;
@@ -4455,6 +4471,11 @@ async function sendWorkbenchRequestOnce({
     chatTrace?.finish(signal?.aborted ? "cancelled" : "failed");
     finish?.("failed", { code: error?.code || "BACKEND_REQUEST_FAILED", status: error?.status });
     throw error;
+  } finally {
+    if (ownsLiteratureSession) {
+      signal?.removeEventListener('abort', abortLiterature);
+      await releaseLiterature(signal?.aborted ? 'cancel' : 'suspend');
+    }
   }
 }
 

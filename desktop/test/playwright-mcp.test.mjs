@@ -56,3 +56,23 @@ test('real Chrome fixture: multilingual interactions, login suppression and logi
     assert.equal(await page.evaluate(() => window.resumed), true);
   } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
 });
+
+test('real Chrome window closure releases ownership and a subsequent job can acquire a fresh browser', { skip: process.env.PLAYWRIGHT_MCP_SMOKE !== '1' }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'browser-ownership-'));
+  const browser = new PlaywrightMcpClient({ profileRoot: root, headless: true });
+  try {
+    await browser.call('first-job', 'browser_snapshot', {});
+    await assert.rejects(browser.call('competing-job', 'browser_snapshot', {}), { code: 'BROWSER_BUSY' });
+    const context = browser.context;
+    const lastPage = await context.newPage();
+    await context.pages()[0].close();
+    assert.equal(browser.owner, 'first-job'); assert.equal(browser.context, context);
+    await lastPage.close(); await browser.closing;
+    assert.equal(browser.owner, null); assert.equal(browser.context, null);
+    const next = await browser.call('next-job', 'browser_snapshot', {});
+    assert.equal(next.status, 'observed'); assert.equal(browser.owner, 'next-job');
+    assert.notEqual(browser.context, context);
+    await browser.close('first-job'); assert.equal(browser.owner, 'next-job');
+    await browser.close('next-job'); assert.equal(browser.owner, null);
+  } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
+});

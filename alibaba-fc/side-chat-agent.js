@@ -2367,11 +2367,16 @@ async function runSideChatAgent({
   progressState.evidenceCycle = evidenceCycle;
   const progressBudgets = step => ({ modelTurnsRemaining: Math.max(0, MAX_AGENT_STEPS - step), toolCallsRemaining: Math.max(0, MAX_TOTAL_TOOL_CALLS - totalToolCalls), timeRemainingMs: Number.isFinite(contextManager.hardRemainingMs()) ? contextManager.hardRemainingMs() : null });
   const usefulFailure = async (turn, blocker) => {
-    const reply = academicMode ? (recoveryReply().reply || "")
+    const browserBlocked = turn.failure?.failureStage === 'literature-specialist.browser';
+    const reply = browserBlocked ? `${turn.error}: ${turn.failure.message}\n\n${contextManager.language.startsWith('zh')
+      ? '图书馆检索已暂停，任务和已有证据已保存。请在浏览器可用后从 Library jobs 恢复任务。'
+      : 'Library searching is blocked. The job and collected evidence are saved; resume it from Library jobs when the browser is available.'}`
+      : academicMode ? (recoveryReply().reply || "")
       : progressApi.fallback(progressState, activeRequest, blocker, contextManager.language);
     const providerReply = turn.partialReply || turn.data?.reply;
     const safeReply = (reply && providerReply ? reply + "\n\n" + providerReply : reply || providerReply) || progressApi.fallback(progressState, activeRequest, blocker, contextManager.language);
     const data = finalData({ reply: academicMode ? reply : safeReply });
+    if (browserBlocked) data.literatureBlocked = { status: 'blocked', jobId: turn.failure.jobId, ownerId: turn.failure.ownerId || null, error: turn.error };
     appendMessages({ role: "assistant", content: JSON.stringify({ reply: data.reply }) });
     await saveTranscript("failed");
     return { ...turn, ok: false, error: turn.error || "AgentTaskIncomplete", reason: blocker, failureStage: "main-agent",
