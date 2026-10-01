@@ -52,7 +52,7 @@ test("project-bound local recovery retains the original model-round budget", asy
   const first = await run(f.local, async () => {
     calls++;
     return { ok: true, message: { tool_calls: calls === 7 ? [call()] : [{ id: `list-${calls}`, type: "function",
-      function: { name: "list_papers", arguments: "{}" } }] } };
+      function: { name: "get_local_worker_status", arguments: "{}" } }] } };
   }, { onProgress: async event => { if (event.stage === "model-request") steps.push(event.step); } });
   assert.equal(calls, 7); assert.equal(first.continuationState.step, 7);
   assert.equal(first.continuationState.totalToolCalls, 7);
@@ -63,9 +63,9 @@ test("project-bound local recovery retains the original model-round budget", asy
     return { ok: true, message: { content: "The evidence budget is exhausted; the license could not be verified." } };
   }, { resume: first.continuationState, onProgress: async event => { if (event.stage === "model-request") steps.push(event.step); } });
   assert.equal(resumed.ok, true);
-  assert.equal(calls, 9, "Eight model rounds plus one no-tools finalization across both HTTP exchanges");
-  assert.deepEqual(steps, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.equal(resumed.semanticTelemetry.cloudCalls.answer, 9);
+  assert.equal(calls, 8, "Seven exploratory rounds reserve the final turn across both HTTP exchanges");
+  assert.deepEqual(steps, [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.equal(resumed.semanticTelemetry.cloudCalls.answer, 8);
   assert.equal(resumed.semanticTelemetry.cloudCallsCumulative, true);
   assert.equal(resumed.data.evidenceRecovery, undefined);
 });

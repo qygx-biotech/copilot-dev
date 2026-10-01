@@ -16,6 +16,9 @@ async function fixture() {
   const initial = await f.service.buildContext(options);
   f.source = initial.sourceMap.paperSources.find(source => /SurfDock/.test(source.path));
   f.options = { ...options, selectedPaperIds: [f.source.sourceId] }; f.context = await f.service.buildContext(f.options);
+  // Seed only the original extraction whose chunk layout this fixture replaces.
+  await f.system.preparation.ensureSourceReady([f.source.sourceId], "search", f.options);
+  f.source = f.system.registry.get(f.source.sourceId);
   f.artifact = await f.system.preparation.readPaperArtifact(f.source.sourceId);
   f.artifact.chunks = [
     ...Array.from({ length: 6 }, (_, index) => ({ chunkId: `early-${index}`, page: index + 1, section: 'Performance', text: (`SurfDock source code performance scores in table ${index}. `).repeat(250) })),
@@ -105,7 +108,9 @@ test('one completion check permits useful targeted refinement and blocks identic
       return { tool_calls: [call(f, 'SurfDock performance repository', 'duplicate', { page: 1 })] };
     }
     if (count === 4) {
-      assert.equal(JSON.parse(body.messages.findLast(message => message.role === 'tool').content).error, 'EVIDENCE_REFINEMENT_REQUIRED');
+      const duplicate = JSON.parse(body.messages.findLast(message => message.role === 'tool').content);
+      assert.equal(duplicate.error, 'UNPRODUCTIVE_REPEAT_SUPPRESSED');
+      assert.equal(duplicate.previous_error, 'EVIDENCE_NOT_LOCATED');
       return { tool_calls: [call(f, 'SurfDock code availability repository', 'refined', { max_characters: 1600 })] };
     }
     return { content: '已检查指定来源；请依据返回的完整原文判断仓库归属。' };

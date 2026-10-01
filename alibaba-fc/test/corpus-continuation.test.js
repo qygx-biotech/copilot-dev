@@ -27,6 +27,8 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
     (`Paper ${i} reports ectoine production using methane at pH ${6 + i}. Salinity affects osmotic stress. `).repeat(180));
   f.system.corpusWorkflows.mapWorker = () => { throw Error("No per-paper provider calls"); };
   const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
+  // Seed a previously prepared workspace; ordinary chat no longer warms artifacts.
+  await f.pipeline.preflight({ turnId: "seed-cached-evidence", callContext: { model } });
   const local = await service.buildContext({ question, surface: "side_chat", turnId: "corpus-resume", callContext: { model }, language: "zh" });
   const cards = f.calls.cards, requests = [], exchanges = [], checkpoints = [];
   const priorSource = local.sourceMap.paperSources[0];
@@ -42,6 +44,10 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
     if (url.endsWith("/models")) { configurationRequests++; return new Response(JSON.stringify({ data: [] })); }
     const request = JSON.parse(options.body); requests.push(request);
     assert.equal(request.model, model); assert.equal(request.response_format, undefined);
+    if (request.messages[0].content.startsWith("Create a factual working-state checkpoint")) {
+      assert.ok(!request.tools?.length);
+      return respond ? respond(requests.length, request, () => reply("Historical review; exact source detail remains archived. Next: answer the pending request.")) : reply("Historical review checkpoint.");
+    }
     assert.ok(request.messages.some(message => message.role === "user" && message.content.includes(question)));
     if (quotaBeforeTool && requests.length === 1) return new Response(JSON.stringify({ error: { message:
       "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_3_input_token_count, limit: 16000. Retry in 0s." } }), { status: 429 });
@@ -83,7 +89,7 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
     callContext: { turnId: "corpus-resume", callRole: "answer", profile: "medium" } });
   assert.equal(exchanges.length, 2); assert.ok(exchanges[1].desktopContinuation);
   assert.equal(service.agentTurns.get("corpus-resume").calls, 1, "recovery must not reexecute collection");
-  assert.equal(f.calls.cards, cards); assert.equal(cards, 0, "Corpus requests prepare no cards before or during the tool");
+  assert.equal(f.calls.cards, cards); assert.equal(cards, 3, "Fixture seeds cards explicitly; the request and tool generate none");
   assert.ok(f.workspace.writes.every(path => path.startsWith(".biodesign/")));
   assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: "R1" });
   assert.equal(result.semanticTelemetry.providerAttempts, requests.length);
@@ -102,18 +108,27 @@ test("three-paper Chinese review sends collected evidence to the same model and 
   assert.ok(JSON.parse(saved.content).knowledge, "full original receipt stays persisted");
   assert.equal(f.checkpoints.at(-1).status, "completed");
   assert.ok(f.log.entries().some(item => item.event === "backend.transcript-diagnostics" && item.details.providerAttempts === 2));
+  assert.ok(f.log.entries().filter(item => item.event === "main-agent.buffered-response").every(item => item.details.stage === "response_received"));
+  assert.ok(f.log.entries().some(item => item.event === "main-agent.partial" && item.details.stage === "tool_handoff"));
+  assert.equal(f.log.entries().at(-1).details.stage, "final_answer");
+  const timingStages = f.log.entries().filter(item => item.event === "chat.timing").map(item => item.details.stage);
+  for (const stage of ["request_serialization_end", "fetch_headers", "response_read_end", "json_parse_end", "transcript_save_end", "client_complete"])
+    assert.ok(timingStages.includes(stage), stage);
+  assert.ok(timingStages.indexOf("response_read_end") < timingStages.indexOf("transcript_save_start"));
+  assert.ok(f.exchanges.every(exchange => /^[a-f0-9-]{36}$/.test(exchange.timingRequestId)));
 });
 
-test("quota retry before corpus handoff preserves evidence; repeated quota after handoff stops unchanged", async t => {
+test("quota recovery before handoff does not synthetically block fresh collection results", async t => {
   const f = await run(t, () => new Response(JSON.stringify({ error: { message:
     "Quota exceeded for metric: generate_content_input_token_count, limit: 16000. Retry in 0s." } }), { status: 429 }), { quotaBeforeTool: true });
-  assert.equal(f.requests.length, 4);
-  assert.equal(f.result.fallback, true);
-  assert.deepEqual(f.requests[0], f.requests[1]);
-  assert.deepEqual(f.requests[2], f.requests[3]);
-  assert.equal(f.log.entries().filter(entry => entry.event === "backend.context-compacted").length, 0);
-  assert.equal(f.checkpoints.at(-1).messages.find(message => message.tool_call_id === call.id).content,
-    f.requests[2].messages.find(message => message.tool_call_id === call.id).content);
+  assert.ok(f.requests.length > 2 && f.requests.length <= 2 + 1 + 4 + 16);
+  assert.equal(JSON.parse(f.requests[2].messages.at(-1).content).coverage.papersSuccessfullyAnalyzed, 3,
+    "fresh evidence reaches the provider despite cached capacity and previous requests");
+  assert.equal(f.result.fallback, true); assert.equal(f.result.error, "InputQuotaRecoveryIncomplete");
+  assert.ok(JSON.stringify(f.requests[1]).length < JSON.stringify(f.requests[0]).length);
+  const saved = JSON.parse(f.checkpoints.at(-1).messages.find(message => message.tool_call_id === call.id).content);
+  assert.equal(saved.coverage.papersSuccessfullyAnalyzed, 3);
+  assert.ok(saved.findings.papers.every(p => p.originalEvidence.length));
 });
 
 for (const kind of ["context"]) test(`${kind}: resumed persisted transcript actually shrinks on one bounded retry`, async t => {
@@ -144,12 +159,17 @@ for (const kind of ["empty", "quota", "rejected", "context", "network"]) test(`$
   assert.equal(f.requests.length, ["empty", "context", "network"].includes(kind) ? 3 : 2);
   assert.equal(f.result.fallback, true); assert.equal(f.result.taskOutcome.status, "incomplete");
   assert.match(f.result.reply, /未能完成本次回答/); assert.doesNotMatch(f.result.reply, /safe fallback|成功分析|PRIVATE_EVIDENCE_SENTINEL/);
-  assert.equal(f.result.failure.category, kind === "empty" ? "provider_content" : kind === "network" ? "provider_transport" : "provider_rejection");
+  assert.equal(f.result.failure.category, kind === "empty" ? "provider_content" : kind === "network" ? "provider_fetch_exception" : "provider_rejection");
+  if (kind === "network") {
+    assert.equal(f.result.failure.exceptionName, "Error");
+    assert.equal(f.result.failure.transportCode, undefined, "An untyped fetch exception does not prove a network cause");
+  }
   assert.equal(f.result.failure.providerStatus, ["empty", "network"].includes(kind) ? undefined : kind === "quota" ? 429 : 400);
   if (!["empty", "network"].includes(kind)) assert.equal(f.result.failure.requestId, "fixture-upstream-id");
   assert.equal(f.checkpoints.at(-1).status, "failed");
   assert.ok(f.checkpoints.at(-1).messages.some(message => message.role === "tool"));
   assert.equal(f.log.entries().at(-1).event, "main-agent.failed");
+  assert.equal(f.log.entries().at(-1).details.stage, "incomplete_result");
   assert.ok(f.log.entries().some(item => item.event === "main-agent.failure" && item.details.code === f.result.error));
 });
 
@@ -178,18 +198,18 @@ test("corpus compaction preserves complete JSON, all sources/versions/references
   assert.ok(result.at(-1).content.length < content.length / 2);
 });
 
- test("input-token quota retries unchanged evidence after provider backoff, without context compaction", async t => {
+ test("input-token quota retries reduced evidence after provider backoff", async t => {
   const f = await run(t, (count, request, final) => count === 2
     ? new Response(JSON.stringify({ error: { message: "Quota exceeded for metric: generate_content_input_token_count, limit: 12000. Please retry in 0s." } }), { status: 429 }) : final());
   assert.equal(f.requests.length, 3); assert.equal(f.result.fallback, false);
-  assert.deepEqual(f.requests[1].messages, f.requests[2].messages);
+  assert.ok(JSON.stringify(f.requests[2].messages).length < JSON.stringify(f.requests[1].messages).length);
  });
 
-test("repeated input-token quota stops unchanged and preserves actual measured corpus coverage", async t => {
+test("repeated input-token quota stops after reduction and preserves actual measured corpus coverage", async t => {
   const f = await run(t, () => new Response(JSON.stringify({ error: { message: "Quota exceeded for metric: generate_content_input_token_count, limit: 12000. Please retry in 0s." } }), { status: 429 }));
   assert.equal(f.requests.length, 3); assert.equal(f.result.fallback, true);
-  assert.deepEqual(f.requests[1].messages, f.requests[2].messages);
-  const before = JSON.parse(f.requests[2].messages.find(message => message.role === "tool").content);
+  assert.ok(JSON.stringify(f.requests[2].messages).length < JSON.stringify(f.requests[1].messages).length);
+  const before = JSON.parse(f.requests[1].messages.find(message => message.role === "tool").content);
   assert.equal(before.coverage.papersSuccessfullyAnalyzed, 3);
   assert.equal(f.result.semanticTelemetry.providerAttempts, 3);
   assert.equal(f.checkpoints.at(-1).messages.find(message => message.role === "tool").content, JSON.stringify(before));

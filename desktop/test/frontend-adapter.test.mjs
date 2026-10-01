@@ -120,3 +120,22 @@ test('Side Chat navigation is bound to its Agent Work panel, including queued ac
   await assert.rejects(queued, { code: 'CONVERSATION_MISMATCH' });
   assert.equal(calls, 0);
 });
+
+test('display timing counts each turn independently and freezes at completion or cancellation', async () => {
+  let now = 1000;
+  const adapter = frontend.createFrontendAdapter({ now: () => now });
+  adapter.connect({ readSnapshot: () => ({ project: { id: 'project-a' } }), commands: {} });
+  const side = adapter.beginTurn({ role: 'side_chat', conversationId: 'side-a' });
+  now = 2400;
+  const agent = adapter.beginTurn({ role: 'agent_command', conversationId: 'agent-a' });
+  now = 4200; side.finish(); await tick();
+  assert.equal(adapter.getSnapshot().runs['side_chat:side-a'].elapsedMs, 3200);
+  assert.equal(adapter.getSnapshot().runs['agent_command:agent-a'].status, 'running');
+  now = 6000; side.finish(); agent.finish('failed'); await tick();
+  assert.equal(adapter.getSnapshot().runs['side_chat:side-a'].elapsedMs, 3200);
+  assert.equal(adapter.getSnapshot().runs['agent_command:agent-a'].elapsedMs, 3600);
+  const next = adapter.beginTurn({ role: 'side_chat', conversationId: 'side-a' });
+  now = 7000; adapter.cancel({ projectId: 'project-a', role: 'side_chat', conversationId: 'side-a' }); next.finish(); await tick();
+  assert.equal(adapter.getSnapshot().runs['side_chat:side-a'].elapsedMs, 1000);
+  assert.equal(adapter.getSnapshot().runs['side_chat:side-a'].status, 'cancelled');
+});

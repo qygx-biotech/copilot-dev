@@ -5,6 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
   const PROVIDERS = Object.freeze(["arxiv", "pubmed", "biorxiv", "medrxiv", "google_scholar", "iacr", "semantic", "crossref", "openalex", "pmc", "core", "europepmc", "dblp", "openaire", "citeseerx", "doaj", "zenodo", "hal", "ssrn"]);
+  const DOWNLOAD_LIMITS = Object.freeze({ maxPapers: 100, concurrency: 1, totalMs: 600000, resultCharacters: 160000 });
   const handle = { type: "string", pattern: "^paper_[a-f0-9]{24}$" };
   const definition = (name, description, properties, required) => ({ type: "function", function: { name, description, parameters: { type: "object", additionalProperties: false, properties, required } } });
   const tools = Object.freeze([
@@ -20,14 +21,40 @@
       paper_ref: handle, query: { type: "string", minLength: 1, maxLength: 1000 },
     }, []),
     definition("resolve_paper_full_text", "Resolve public full-text candidate locations for a previously returned paper_ref. Checks matching identifiers/title; locations remain unverified PDFs until downloaded. Does not write files.", { paper_ref: handle }, ["paper_ref"]),
-    definition("download_papers", "Download up to five selected academic paper_refs as PDFs into the local project. Requires an explicit user save/download request and Agent Work workspace_write/full_access. Resolves alternative public locations and verifies PDF bytes; never counts HTML as a paper. Returns per-paper saved paths or failures. Existing ingestion runs on the next request.", {
-      paper_refs: { type: "array", minItems: 1, maxItems: 5, uniqueItems: true, items: handle },
+    definition("download_papers", "Download the remaining selected target set in one call (up to 100 paper_refs) as PDFs into the local project. Electron executes sequentially with concurrency 1 and returns one aggregate result; internal batch boundaries require no model call. The total topic target defaults to 10; plan_literature_search.requested_count overrides it when the user specifies a count. Pass only the remaining requested set, then reason about replacements only after aggregate failures. Requires an explicit user save/download request and Agent Work workspace_write/full_access. Resolves alternative public locations and verifies PDF bytes; never counts HTML as a paper. Returns per-paper saved paths or failures. Existing ingestion runs on the next request.", {
+      paper_refs: { type: "array", minItems: 1, maxItems: DOWNLOAD_LIMITS.maxPapers, uniqueItems: true, items: handle },
       destination: { type: "string", maxLength: 800 },
     }, ["paper_refs"]),
   ]);
   const names = new Set(tools.map(tool => tool.function.name));
   const isTool = name => names.has(name);
   const isWrite = name => name === "download_papers";
+  // A lightweight entry shortcut, not an intent model or a grant of access.
+  // Unrelated Agent Work requests retain their existing preparation path.
+  const requestText = value => String(value || "").replace(/```[\s\S]*?```|`[^`]*`|^\s*>.*$/gm, " ");
+  function isAcquisitionRequest(value) {
+    const text = requestText(value);
+    const paper = /\b(?:papers?|publications?|literature|articles?|pdfs?|doi)\b|\b10\.\d{4,9}\/\S+|\.pdf(?:\b|[?#])|论文|文献|文章|期刊/i.test(text);
+    const acquire = /\b(?:search|find|look\s+up|locate|retrieve|download|save|collect|fetch|get)\b|搜索|检索|查找|寻找|下载|保存|找.*(?:论文|文献)/i.test(text);
+    const localOnly = /\b(?:in|within|from)\s+(?:my|our|the|this)\s+(?:project|workspace|folder|library)\b|(?:项目|工作区|文件夹)(?:中|里)/i.test(text) &&
+      !/\b(?:online|internet|new|download)\b|在线|网上|新文献|下载/i.test(text);
+    return paper && acquire && !localOnly;
+  }
+  function savingRequested(value) {
+    const text = requestText(value).replace(/"[^"\n]*"|“[^”]*”/g, " ");
+    // Fail closed for negated/instructional requests; plan/tool text is never
+    // passed here. Ambiguous wording can still search without writing files.
+    if (/^\s*(?:how|where|what|why|whether|explain|describe|simulate|pretend|imagine|can\s+(?!you\b)|could\s+(?!you\b))\b|^\s*(?:请)?(?:解释|说明|假设|模拟)/i.test(text)) return false;
+    if (/\b(?:do\s+not|don't|never|without|not\s+to)\b[^.;\n]{0,70}\b(?:download|save|fetch)\b|(?:不要|无需|不必|禁止|别)[^。；\n]{0,30}(?:下载|保存)/i.test(text)) return false;
+    if (/\b(?:how\s+(?:can|do|should|to)|explain\s+how|where\s+can)\b[^?\n]{0,100}\b(?:download|save)\b|如何(?:下载|保存)|怎么下载/i.test(text)) return false;
+    return /\b(?:download|save)\b[\s\S]{0,160}(?:\b(?:papers?|publications?|literature|articles?|pdfs?|sources?|files?|them|it)\b|\b10\.\d{4,9}\/\S+|\.pdf\b)|(?:下载|保存)[^。\n]{0,120}(?:论文|文献|文章|PDF|篇)|(?:论文|文献|PDF)[^。\n]{0,80}(?:下载|保存)/i.test(text);
+  }
+  function requestedCount(value) {
+    const text = requestText(value);
+    const match = text.match(/\b(\d{1,3})\s+(?:(?:relevant|recent|new|suitable|research|academic|review|best|related)\s+){0,3}(?:papers?|articles?|publications?|pdfs?)\b|(\d{1,3})\s*篇/i);
+    const number = Number(match?.[1] || match?.[2]);
+    return number >= 1 && number <= 100 ? number : null;
+  }
   const allowed = (name, surface, permission) => isTool(name) && surface === "agent_command" && (!isWrite(name) || ["workspace_write", "full_access"].includes(permission));
   const bad = (details = {}) => { throw Object.assign(new Error("Invalid academic tool data."), { code: "INVALID_ACADEMIC_INPUT", details }); };
   const plain = value => value && typeof value === "object" && !Array.isArray(value);
@@ -79,24 +106,43 @@
     return JSON.parse(JSON.stringify(input));
   }
   function validateResult(name, value) {
-    if (!plain(value) || JSON.stringify(value).length > 90000 || value.version !== 1) bad();
+    if (!plain(value) || JSON.stringify(value).length > (name === "download_papers" ? DOWNLOAD_LIMITS.resultCharacters : 90000) || value.version !== 1) bad();
     if (value.status === "failed") {
       if (!/^[A-Z_]{1,80}$/.test(value.error?.code || "")) bad();
       return { version: 1, status: "failed", error: { code: value.error.code } };
     }
     if (!["completed", "partial", "unavailable"].includes(value.status)) bad();
     if (name === "download_papers") {
-      if (!Array.isArray(value.results) || value.results.length > 5) bad();
+      if (!Array.isArray(value.results) || value.results.length > DOWNLOAD_LIMITS.maxPapers || new Set(value.results.map(item => item?.paper_ref)).size !== value.results.length) bad();
       for (const item of value.results) {
         if (!validRef(item.paper_ref) || !["downloaded", "failed"].includes(item.status)) bad();
+        if (item.attempted !== undefined && typeof item.attempted !== "boolean") bad();
+        if (item.status === "failed" && !/^[A-Z_]{1,80}$/.test(item.error?.code || "")) bad();
+        if (item.status === "downloaded" && item.attempted === false) bad();
         if (item.status === "downloaded" && (item.contentType !== "application/pdf" || typeof item.path !== "string" || item.path.length > 1000 || /[\\:\x00-\x1f]/.test(item.path) || item.path.split("/").some(part => !part || part.startsWith(".")))) bad();
       }
     } else {
       if (!Array.isArray(value.papers) || value.papers.length > 20) bad();
       for (const paper of value.papers) if (!plain(paper) || !validRef(paper.paper_ref) || typeof paper.title !== "string" || !Array.isArray(paper.authors) || !Array.isArray(paper.locations) || !Array.isArray(paper.providers)) bad();
     }
-    return JSON.parse(JSON.stringify(value));
+    return JSON.parse(JSON.stringify(name === "download_papers" ? { ...value, summary: downloadSummary(value.results) } : value));
+  }
+  function downloadSummary(results) {
+    const saved = results.filter(item => item.status === "downloaded").length;
+    const attempted = results.filter(item => item.attempted !== false).length;
+    return { requested: results.length, attempted, saved, failed: attempted - saved, not_attempted: results.length - attempted };
+  }
+  function compactDownloads(value) {
+    const result = { ...value, summary: downloadSummary(value.results) };
+    if (JSON.stringify(result).length <= DOWNLOAD_LIMITS.resultCharacters) return result;
+    return { version: 1, status: result.status, summary: result.summary, compacted: true,
+      ...(result.receipt_path ? { receipt_path: result.receipt_path } : {}),
+      results: result.results.map(item => ({ paper_ref: item.paper_ref, status: item.status,
+        ...(item.attempted === false ? { attempted: false } : {}),
+        ...(item.status === "downloaded" ? { path: item.path, contentType: item.contentType, ...(item.reused ? { reused: true } : {}) } : { error: { code: item.error.code } }),
+        ...(item.attempts ? { acquisition_attempt_count: item.attempts.length } : {}) })),
+    };
   }
   const failure = code => ({ version: 1, status: "failed", error: { code: /^[A-Z_]{1,80}$/.test(code || "") ? code : "ACADEMIC_TOOL_FAILED" } });
-  return Object.freeze({ PROVIDERS, tools, isTool, isWrite, allowed, validRef, normalizeSearchInput, validateInput, validateResult, failure });
+  return Object.freeze({ DOWNLOAD_LIMITS, downloadSummary, compactDownloads, PROVIDERS, tools, isTool, isWrite, allowed, validRef, normalizeSearchInput, validateInput, validateResult, failure, isAcquisitionRequest, savingRequested, requestedCount });
 });

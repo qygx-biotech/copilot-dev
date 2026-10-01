@@ -36,7 +36,8 @@ for (const content of ['Hello. 你好。', '## Result\n\n**Measured** activity.\
 test('provider failure returns its error without a fabricated project or fallback assessment', async t => {
   const f = setup(t, () => new Response(JSON.stringify({ error: { message: 'Provider rejected this request.' } }), { status: 400 }));
   const result = await f.send();
-  assert.equal(result.fallback, true); assert.equal(result.error, 'LlmHttpError'); assert.match(result.reply, /LlmHttpError/);
+  assert.equal(result.fallback, true); assert.equal(result.error, 'LlmHttpError'); assert.match(result.reply, /provider could not complete final synthesis/);
+  assert.equal(result.recoveryDiagnostics.blocker, "LlmHttpError");
   assert.equal(result.project, undefined); assert.doesNotMatch(result.reply, /safe fallback|biological design review|draft memo/i);
 });
 for (const mode of ['plain', 'returned-error', 'thrown-error', 'legacy-error']) {

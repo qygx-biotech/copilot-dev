@@ -4,6 +4,7 @@
 // owns authentication, validation, tool authorization, and provider requests.
 const http = require("node:http");
 const { once } = require("node:events");
+const chatTiming = require("../chat-timing.js");
 const { handler: functionComputeHandler } = require("../index.js");
 
 async function readBody(req) {
@@ -18,6 +19,10 @@ async function readBody(req) {
 }
 
 async function handler(req, res) {
+  const trace = chatTiming.enabled() && req.method === "POST" && new URL(req.url || "/", "http://local").pathname === "/chat" ? chatTiming.create() : null;
+  trace?.activate(); trace?.mark("http_entry");
+  res.once("finish", () => trace?.mark("http_response_finished", { status: res.statusCode }));
+  res.once("close", () => { if (!res.writableFinished) trace?.mark("http_connection_closed"); });
   const controller = new AbortController();
   const disconnected = () => { if (!res.writableEnded) controller.abort(); };
   res.once("close", disconnected);
@@ -32,6 +37,7 @@ async function handler(req, res) {
       res.writeHead(200, { ...headers, "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no", "Transfer-Encoding": "chunked" });
       res.flushHeaders(); started = true;
+      trace?.mark("http_headers_sent", { transport: "sse" });
       res.write(": connected\n\n");
       heartbeat = setInterval(() => { if (!res.destroyed && !res.writableNeedDrain) res.write(": heartbeat\n\n"); }, 15000);
       heartbeat.unref();
@@ -42,7 +48,10 @@ async function handler(req, res) {
     },
   };
   try {
+    const endBody = trace?.start("http_body_read");
     const body = await readBody(req);
+    endBody?.({ requestBytes: Buffer.byteLength(body) });
+    const bodyReadMs = trace?.snapshot().events.find(event => event.stage === "http_body_read_end")?.durationMs;
     const response = await functionComputeHandler(
       {
         requestContext: {
@@ -54,10 +63,12 @@ async function handler(req, res) {
         headers: { ...req.headers },
         ...(body ? { body } : {}),
       },
-      { requestId: String(req.headers["x-fc-request-id"] || "local-http-adapter").slice(0, 160) },
+      { requestId: String(req.headers["x-fc-request-id"] || "local-http-adapter").slice(0, 160),
+        ...(trace ? { chatTransportTiming: { requestId: trace.requestId, bodyReadMs } } : {}) },
       transport
     );
     if (res.destroyed) return;
+    trace?.mark("http_result_ready", { status: response.statusCode });
     if (started) {
       const data = JSON.parse(response.body || "{}");
       if (response.statusCode >= 400 || data.fallback) await transport.emit("error", { code: data.error || "STREAM_INTERRUPTED" });
@@ -70,6 +81,7 @@ async function handler(req, res) {
     res.statusCode = Number(response.statusCode) || 500;
     res.end(response.body || "");
   } catch (error) {
+    trace?.mark("http_failed", { outcome: controller.signal.aborted ? "cancelled" : "failed" });
     if (res.destroyed) return;
     if (started) res.end('event: error\ndata: {"code":"STREAM_INTERRUPTED"}\n\n');
     else {

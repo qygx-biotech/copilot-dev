@@ -11,7 +11,7 @@
     "prestart": "npm run sync:shared",
     "start": "node src/index.js",
     "precheck": "npm run sync:shared",
-    "check": "node --check context-recovery.js && node --check index.js && node --check semantic-intent-planner.js && node --check requesty-models.js && node --check requesty-search-stage.js && node --check requesty-tool-context.js && node --check requesty-stream.js && node --check side-chat-agent.js && node --check src/index.js && node --check ../docs/workspace-manager.js && node --check ../docs/knowledge-service.js && node --check ../docs/source-system.js && node --check ../docs/literature-module.js && node --check ../docs/project-context-service.js && node --check ../docs/app.js",
+    "check": "node --check wiki-generation.js && node --check ../shared/literature-wiki.js && node --check ../docs/literature-wiki.js && node --check chat-timing.js && node --check input-quota.js && node --check context-recovery.js && node --check index.js && node --check semantic-intent-planner.js && node --check requesty-models.js && node --check requesty-search-stage.js && node --check requesty-tool-context.js && node --check requesty-stream.js && node --check side-chat-agent.js && node --check src/index.js && node --check ../docs/workspace-manager.js && node --check ../docs/knowledge-service.js && node --check ../docs/source-system.js && node --check ../docs/literature-module.js && node --check ../docs/project-context-service.js && node --check ../docs/app.js",
     "pretest": "npm run sync:shared",
     "test": "node --test test/*.test.js"
   },

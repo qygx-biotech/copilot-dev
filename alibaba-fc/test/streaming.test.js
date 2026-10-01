@@ -70,6 +70,32 @@ async function serverFixture(run) {
 }
 const chatBody = mode => ({ stream: true, mode, messages: [{ role: "user", content: "Summarize evidence" }] });
 
+test("debug timing correlates slow HTTP body receipt, provider calls and streamed completion", async t => {
+  const previous = process.env.CHAT_TIMING_DEBUG; process.env.CHAT_TIMING_DEBUG = "1";
+  t.after(() => previous === undefined ? delete process.env.CHAT_TIMING_DEBUG : process.env.CHAT_TIMING_DEBUG = previous);
+  const originalFetch = global.fetch, logs = [];
+  t.mock.method(console, "info", (name, data) => { if (name === "chat_timing") logs.push(data); });
+  t.mock.method(global, "fetch", async (url, options) => String(url).includes("router.requesty.ai")
+    ? new Response(JSON.stringify({ choices: [{ message: { content: "Private answer." } }] })) : originalFetch(url, options));
+  await serverFixture(async url => {
+    const text = JSON.stringify({ ...chatBody("side_chat"), timingRequestId: "11111111-2222-4333-8444-555555555555" });
+    const bytes = new TextEncoder().encode(text);
+    const body = new ReadableStream({ start(controller) {
+      controller.enqueue(bytes.slice(0, 20));
+      setTimeout(() => { controller.enqueue(bytes.slice(20)); controller.close(); }, 50);
+    } });
+    const response = await fetch(url + "/chat", { method: "POST", duplex: "half", body,
+      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" } });
+    const data = await readWorkbenchResponse(response);
+    assert.equal(data.reply, "Private answer."); assert.ok(data.chatTiming.bodyReadMs > 0);
+    assert.equal(data.chatTiming.clientRequestId, "11111111-2222-4333-8444-555555555555");
+    const correlated = logs.filter(event => event.requestId === data.chatTiming.requestId);
+    for (const stage of ["http_entry", "http_body_read_end", "handler_entry", "provider_fetch_end", "provider_body_end", "http_result_ready"])
+      assert.ok(correlated.some(event => event.stage === stage), stage);
+    assert.doesNotMatch(JSON.stringify(logs), /Private answer|Summarize evidence|Bearer|streaming-fixture-key/);
+  });
+});
+
 test("the HTTP streaming adapter preserves authentication and validation before opening SSE", async () => {
   await serverFixture(async url => {
     const denied = await fetch(url + "/chat", { method: "POST", body: JSON.stringify(chatBody("side_chat")) });

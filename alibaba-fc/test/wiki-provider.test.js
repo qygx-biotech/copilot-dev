@@ -58,7 +58,8 @@ test("invalid configuration is rejected; usable Markdown with unresolved citatio
   const result = await invoke({ input: input() });
   assert.equal(result.status, 200); assert.equal(result.body.acceptance, "unverified_draft");
   assert.match(result.body.validationProblems[0], /not supplied/);
-  assert.equal(result.body.attempts, 1);
+  assert.equal(result.body.attempts, 2);
+  assert.equal(result.body.generationAudit.modelRepairCalls, 1);
   assert.match(result.body.page.markdown, /SYNTHETIC_SENSITIVE_PROVIDER_TEXT/);
   assert.equal(result.body.integrity.verifiedClaimCount, 0);
   assert.equal(result.body.integrity.references.length, 0);

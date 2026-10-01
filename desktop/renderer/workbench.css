@@ -84,6 +84,8 @@
 .project-context-menu button { width:100%; border:0; border-radius:4px; padding:9px 10px; text-align:left; background:transparent; color:var(--ink); }
 .project-context-menu button:hover, .project-context-menu button:focus { background:var(--accent-soft); }
 .project-goal-field { display:grid; gap:10px; color:var(--ink); font-size:13px; }
+.chat-name-field { display:grid; gap:10px; color:var(--ink); font-size:13px; }
+.chat-name-field input { width:100%; border:1px solid var(--line); border-radius:7px; padding:12px; background:var(--surface-muted); color:var(--ink); }
 .project-goal-field textarea { width:100%; resize:vertical; min-height:130px; max-height:45dvh; border:1px solid var(--line); border-radius:7px; padding:12px; background:var(--surface-muted); color:var(--ink); }
 .side-history-picker { display:flex; flex-wrap:wrap; align-items:center; gap:7px; flex-shrink:0; margin:0 0 12px; color:var(--muted); font-size:11px; }
 .side-history-picker select { flex:1; min-width:0; width:100%; max-width:100%; min-height:30px; border:1px solid var(--line); border-radius:5px; background:var(--surface-muted); color:var(--ink); padding:5px 8px; text-overflow:ellipsis; }
@@ -109,8 +111,8 @@
 .copilot-workbench #sideChatHistory { flex:1; min-height:50px; max-height:none; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; padding:8px 3px 20px; gap:20px; }
 .copilot-workbench .side-message { border:0; background:transparent; box-shadow:none; padding:4px 0 12px; margin:0; overflow-wrap:anywhere; font-size:13px; line-height:1.8; }
 .copilot-workbench .side-message>strong { display:block; font-size:10px; font-weight:600; color:var(--muted); margin-bottom:7px; }
-.copilot-workbench .side-message.user { background:var(--blue); color:white; border-radius:10px; padding:12px 15px; margin:5px 0 18px; }
-.copilot-workbench .side-message.user .side-message-body, .copilot-workbench .side-message.user .agent-turn-meta, .copilot-workbench .side-message.user>strong { color:white; }
+.copilot-workbench .side-message.user { width:66.6667%; align-self:flex-end; margin:5px 0 18px auto; padding:0; background:transparent; color:var(--ink); }
+.copilot-workbench .side-message.user .side-message-body, .copilot-workbench .side-message.user .agent-turn-meta, .copilot-workbench .side-message.user .message-bubble>strong { color:var(--ink); }
 .copilot-workbench .side-message h1, .copilot-workbench .side-message h2 { font-size:17px; }
 .copilot-workbench .side-message h3 { font-size:14px; }
 .copilot-workbench .side-message-body { min-width:0; overflow-wrap:anywhere; }
@@ -246,3 +248,7 @@
 .copilot-workbench .side-chat-compose-actions > button, .copilot-workbench .agent-composer-actions > button { width:auto; flex-shrink:0; }
 .copilot-workbench .side-chat-model-control { grid-template-columns:minmax(0,1fr); }
 .copilot-workbench .message-copy-button { font-size:11px; }
+
+.copilot-workbench .message-bubble > strong { display:block; color:var(--muted); font-size:10px; margin-bottom:7px; }
+.copilot-workbench .side-message.user > .message-bubble { background:#e7f3ff; padding:12px 15px; border-radius:14px; }
+.copilot-workbench .message-actions > button { font-size:11px; }

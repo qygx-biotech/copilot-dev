@@ -50,7 +50,15 @@ async function preparationFixture() {
   return { ...f, service };
 }
 
-for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "terminal" : "recoverable"}: explicit maintenance drains before completing and synthesis uses only a complete valid set`, async () => {
+// These tests explicitly request canonical preparation after metadata context.
+async function prepareContext(f, options) {
+  const context = await f.service.buildContext(options);
+  const response = await f.service.executeAgentTool({ id: "prepare-cards", name: "run_corpus_workflow", args: { prepare: "paper_cards" } }, { turnId: options.turnId });
+  assert.equal(response.result.ok, true, JSON.stringify(response));
+  return context;
+}
+
+for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "terminal" : "recoverable"}: preparation drains before the main loop and synthesis uses only a complete valid set`, async () => {
   process.env.REQUESTY_MODEL = "google/gemma-4-31b-it";
   process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
   const f = await preparationFixture();
@@ -83,7 +91,7 @@ for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "termin
     }
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) }, finish_reason: "stop" }] }));
   };
-  const contextPromise = f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-card-maintenance", callContext: { model: process.env.REQUESTY_MODEL } }).then(() => f.service.buildContext({ question: "我新加了一篇文章，结合新的文章更新综述。", surface: "side_chat", turnId: "barrier", callContext: { model: process.env.REQUESTY_MODEL } }))
+  const contextPromise = prepareContext(f, { question: "我新加了一篇文章，结合新的文章更新综述。", surface: "side_chat", turnId: "barrier", callContext: { model: process.env.REQUESTY_MODEL } })
     .then(context => { prepared = true; return context; });
   await entered; await invalid;
   await new Promise(resolve => setImmediate(resolve));
@@ -97,11 +105,11 @@ for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "termin
   assert.equal(source.paperCardStatus, terminal ? "failed" : "ready");
   if (terminal) {
     assert.ok(counts.size < 12, "stop scheduling new excerpts after terminal failure");
-    assert.equal(source.knowledgeSync.stages.l1, "ready");
+    assert.equal(source.indexStatus, "ready");
   } else {
     assert.equal(counts.size, 12);
     const count = requests.length;
-    await f.service.buildContext({ question: "继续", surface: "side_chat", turnId: "cached", callContext: { model: process.env.REQUESTY_MODEL } });
+    await prepareContext(f, { question: "继续", surface: "side_chat", turnId: "cached", callContext: { model: process.env.REQUESTY_MODEL } });
     assert.equal(requests.length, count, "a compatible completed card remains cached");
   }
   let modelCalls = 0;
@@ -131,8 +139,7 @@ test("large excerpt summaries reduce within the FC size bound even without a lea
     const value = isExcerpt ? { ...chunk(), summary: "Evidence. ".repeat(700) } : synthesis();
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) }, finish_reason: "stop" }] }));
   };
-  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-long-summaries", callContext: { model: process.env.REQUESTY_MODEL } });
-  await f.service.buildContext({ question: "总结这篇论文", surface: "side_chat", turnId: "long-summaries", callContext: { model: process.env.REQUESTY_MODEL } });
+  await prepareContext(f, { question: "总结这篇论文", surface: "side_chat", turnId: "long-summaries", callContext: { model: process.env.REQUESTY_MODEL } });
   assert.equal(excerpts, 12); assert.equal(syntheses, 3, "two bounded reductions followed by the final card synthesis");
   assert.equal(f.system.registry.list()[0].paperCardStatus, "ready");
 });
@@ -162,8 +169,7 @@ test("reference-only excerpt 7 of 12 proceeds once to final synthesis without a 
     }
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) }, finish_reason: "stop" }] }));
   };
-  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-reference-only", callContext: { model: process.env.REQUESTY_MODEL } });
-  await f.service.buildContext({ question: "总结这篇论文", surface: "side_chat", turnId: "reference-only", callContext: { model: process.env.REQUESTY_MODEL } });
+  await prepareContext(f, { question: "总结这篇论文", surface: "side_chat", turnId: "reference-only", callContext: { model: process.env.REQUESTY_MODEL } });
   assert.deepEqual([...excerpts.values()], Array(12).fill(1));
   assert.equal(syntheses, 1); assert.equal(requests.length, 13);
   assert.equal(f.system.registry.list()[0].paperCardStatus, "ready");
@@ -411,8 +417,7 @@ test("normalized synthesis publishes once, reuses compatible cache, and failed v
     delete returned.title;
     return fetchProvider(url, options);
   };
-  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-normalized-card", callContext: { model: process.env.REQUESTY_MODEL } });
-  await f.service.buildContext({ question: "总结论文", surface: "side_chat", turnId: "normalized-card" });
+  await prepareContext(f, { question: "总结论文", surface: "side_chat", turnId: "normalized-card" });
   const source = f.system.registry.list()[0];
   assert.equal(source.paperCardStatus, "ready");
   const path = source.artifacts.paperCard.path;
@@ -420,7 +425,7 @@ test("normalized synthesis publishes once, reuses compatible cache, and failed v
   assert.equal(saved.title, null);
   const count = requests.length;
   assert.equal(count, 13, "twelve excerpts plus one final synthesis; missing title adds no calls");
-  await f.service.buildContext({ question: "继续", surface: "side_chat", turnId: "cached-normalized-card" });
+  await prepareContext(f, { question: "继续", surface: "side_chat", turnId: "cached-normalized-card" });
   assert.equal(requests.length, count);
   const input = { source, contentHash: source.contentHash,
     paperArtifact: await f.system.preparation.readPaperArtifact(source.sourceId),
@@ -511,14 +516,13 @@ test('final synthesis repair reuses all collected summaries without repeating su
     const value = excerpt ? chunk() : syntheses === 1 ? { ...synthesis(), methods: 'wrong' } : synthesis();
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] }));
   };
-  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-synthesis-repair", callContext: { model: process.env.REQUESTY_MODEL } });
-  await f.service.buildContext({ question: '总结所有内容', surface: 'side_chat', turnId: 'synthesis-repair' });
+  await prepareContext(f, { question: '总结所有内容', surface: 'side_chat', turnId: 'synthesis-repair' });
   assert.equal(excerpts, 12); assert.equal(syntheses, 2);
   const calls = requests.filter(request => !/Excerpt \d+ of/.test(request.messages[1].content));
   assert.deepEqual(calls[1].messages.slice(0, 2), calls[0].messages);
   assert.equal(f.system.registry.list()[0].paperCardStatus, 'ready');
   const count = requests.length;
-  await f.service.buildContext({ question: '继续', surface: 'side_chat', turnId: 'cached-repair' });
+  await prepareContext(f, { question: '继续', surface: 'side_chat', turnId: 'cached-repair' });
   assert.equal(requests.length, count);
 });
 

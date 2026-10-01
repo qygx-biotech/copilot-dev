@@ -254,6 +254,95 @@
       return { tree, reconciliation, diff: reconciliation.diff, report, telemetry, wikiMaintenance: null };
     }
 
+    // Invoked only after the main agent selects a derived-evidence tool. The
+    // caller supplies a resolved, host-authorized scope, never model permissions.
+    async prepareDerived(options) {
+      const signal = options.signal && this.workspaceSignal && root.AbortSignal?.any
+        ? root.AbortSignal.any([options.signal, this.workspaceSignal]) : options.signal || this.workspaceSignal;
+      const check = () => {
+        this.assertWorkspace();
+        if (signal?.aborted) throw Object.assign(new Error("Request cancelled"), { code: "OPERATION_ABORTED" });
+      };
+      check();
+      const { registry, preparation, topicService, literatureWiki } = this.system;
+      const ids = unique(options.paperIds);
+      // Keep failed work bounded on repeated tool calls within a turn. A later
+      // user turn may retry using the existing preparation/wiki policies.
+      const key = JSON.stringify([options.turnId, options.kind, ids.map(id => [id, registry.get(id)?.contentHash]), options.callContext?.model]);
+      this.derivedTurns ||= new Map();
+      if (this.derivedTurns.has(key)) return this.derivedTurns.get(key);
+      const work = (async () => {
+        const started = clock(), before = { ...preparation.metrics };
+        const accountingTurn = options.callContext?.turnId || options.turnId;
+        const beforeAccounting = this.literature.api?.getTurnAccounting?.(accountingTurn);
+        const beforeAttempts = { ...(beforeAccounting?.providerAttempts || {}) };
+        const beforeUnknown = beforeAccounting?.unknownProviderResponses || 0;
+        const report = { status: "completed", kind: options.kind, sourceIds: ids, cached: 0, failures: [] };
+        const command = options.kind === "wiki" ? wikiContract.command(options.question) : null;
+        const context = { ...options, signal, deferTopicUpdate: true, strictKnowledgeSync: true };
+        // 'added' survives metadata reconciliation until explicit full sync.
+        // Old missing pages or configuration changes are not new raw evidence.
+        const changedPaperIds = ids.filter(id => registry.get(id)?.syncPending === "added");
+        try {
+          if (command?.action !== "check") {
+            for (const id of ids) {
+              check();
+              try {
+                const ready = await preparation.ensureSourceReady([id], "paper_card", context); check();
+                report.cached += ready.sources?.[0]?.cached ? 1 : 0;
+                if (options.kind === "wiki") {
+                  const source = registry.get(id);
+                  if (source.artifacts?.topicMembership?.contentHash !== source.contentHash) {
+                    const card = await this.workspace.readJson(source.artifacts.paperCard.path); check();
+                    const topicIds = await topicService.updatePaper(source, card); check();
+                    source.artifacts.topicMembership = { sourceId: id, contentHash: source.contentHash, schemaVersion: 1, topicIds };
+                    await registry.persist();
+                  }
+                }
+              } catch (error) {
+                check();
+                if (error.code === "OPERATION_ABORTED") throw error;
+                report.failures.push({ sourceId: id, code: safeCode(error) });
+              }
+            }
+          }
+          if (options.kind === "wiki" && ids.length && literatureWiki) {
+            // Existing admission, raw-evidence eligibility, cooldown and bounded
+            // generation remain authoritative. Model text cannot force retries.
+            const wiki = await literatureWiki.maintain({ ...context, ...command, paperIds: ids, hardSelection: true,
+              changedPaperIds, logger: this.log,
+              reconciledSources: new Map(ids.map(id => registry.get(id)).filter(source => source?.hashStatus === "ready")
+                .map(source => [source.sourceId, { contentHash: source.contentHash, statSignature: source.statSignature }])) }); check();
+            report.wiki = { status: wiki.status, generationCalls: wiki.generationCalls || 0,
+              providerAttempts: wiki.providerAttempts ?? null, counts: wiki.counts,
+              pages: (wiki.pages || []).map(page => ({ pageId: page.pageId, status: page.status, reason: page.reason, code: page.code, pending: page.pending })) };
+            if (["offline", "unavailable", "no-matching-subject", "ambiguous-subject"].includes(wiki.status)) report.failures.push({ code: "WIKI_UNAVAILABLE", reason: wiki.status });
+            for (const page of wiki.pages || []) if (page.pending || page.status === "stale") report.failures.push({ pageId: page.pageId, code: page.code || page.reason || "WIKI_UNAVAILABLE" });
+          }
+        } catch (error) {
+          check();
+          if (error.code === "OPERATION_ABORTED") throw error;
+          report.failures.push({ code: safeCode(error) });
+        } finally {
+          const generationCount = preparation.metrics.paperCardCalls - before.paperCardCalls;
+          const accounting = this.literature.api?.getTurnAccounting?.(accountingTurn);
+          report.diagnostics = { durationMs: clock() - started,
+            l1UpdateMs: preparation.metrics.paperParseDurationMs - before.paperParseDurationMs,
+            paperCardGenerationCount: generationCount,
+            l2LlmMs: preparation.metrics.paperCardDurationMs - before.paperCardDurationMs,
+            providerAttempts: (accounting?.unknownProviderResponses || 0) > beforeUnknown ? null : accounting?.providerAttempts
+              ? Object.entries(accounting.providerAttempts).reduce((sum, [endpoint, count]) => sum + Math.max(0, (Number(count) || 0) - (Number(beforeAttempts[endpoint]) || 0)), 0)
+              : generationCount || (report.wiki && report.wiki.providerAttempts === null) ? null : report.wiki?.providerAttempts || 0 };
+          this.log?.record("knowledge.derived-preparation", { turnId: options.turnId, ...report.diagnostics, failureCount: report.failures.length });
+        }
+        report.status = report.failures.length ? "partial" : "completed";
+        return report;
+      })();
+      this.derivedTurns.set(key, work);
+      if (this.derivedTurns.size > 50) this.derivedTurns.delete(this.derivedTurns.keys().next().value);
+      return work;
+    }
+
     async run(options = {}) {
       this.assertWorkspace();
       const started = clock(), wallStarted = Date.now();
@@ -402,7 +491,7 @@
           ? root.AbortSignal.any([options.signal, this.workspaceSignal]) : options.signal || this.workspaceSignal;
         const start = clock();
         try {
-          wikiMaintenance = await this.system.literatureWiki.maintain({ ...context, ...command, signal: wikiSignal, paperIds,
+          wikiMaintenance = await this.system.literatureWiki.maintain({ ...context, ...command, signal: wikiSignal, paperIds, logger: this.log,
             hardSelection: Boolean(options.selectedPaperIds?.length || options.selectedPaths?.length),
             // Only actual raw-evidence changes grant automatic generation. Local
             // repair, renaming, configuration and prior failures do not.
@@ -419,11 +508,13 @@
           if (wikiMaintenance.admission) {
             const { deferredReasons, ...counts } = wikiMaintenance.admission;
             this.log?.record("wiki.admission", { runId: syncTurnId, ...counts });
-            for (const [reason, count] of Object.entries(deferredReasons))
-              this.log?.record("wiki.admission-deferred", { runId: syncTurnId, reason, deferredCandidateCount: count });
+            for (const [reason, count] of Object.entries(deferredReasons)) {
+              const rejected = wikiMaintenance.pages.filter(page => page.stage === "admission" && page.reason === reason && page.category === "rejected").length;
+              this.log?.record("wiki.admission-outcome", { runId: syncTurnId, reason, rejectedCandidateCount: rejected, deferredCandidateCount: count - rejected });
+            }
           }
           for (const page of wikiMaintenance.pages || []) if (page.outcome) this.log?.record("wiki.attempt-outcome", {
-            runId: syncTurnId, outcome: page.outcome, reason: page.reason, attempts: page.attempts,
+            runId: syncTurnId, pageId: page.pageId, stage: page.stage, outcome: page.outcome, reason: page.reason, code: page.code, attempts: page.attempts,
             elapsedMs: page.elapsedMs, nextEligibleAt: page.nextEligibleAt, timeoutCount: page.timeoutCount,
             providerRequestStarted: page.providerRequestStarted, providerCompletion: page.providerCompletion,
             transportStarted: page.transportStarted, automaticRetry: page.automaticRetry,
@@ -438,16 +529,17 @@
         }
       }
       if (wikiMaintenance && ["partial", "unavailable"].includes(wikiMaintenance.status)) {
-        const failedPages = (wikiMaintenance.pages || []).filter(page => page.status === "stale");
+        const failedPages = (wikiMaintenance.pages || []).filter(page => page.pending || page.status === "stale");
         for (const page of failedPages.length ? failedPages : [wikiMaintenance]) report.failures.push({
-          sourceId: null, pageId: page.pageId || null, stage: "L3", code: page.code || "WIKI_UNAVAILABLE", retryable: page.automaticRetry === true,
+          sourceId: null, pageId: page.pageId || null, stage: "L3", code: page.code || "WIKI_UNAVAILABLE", retryable: page.retryEligibleOnFutureMaintenance === true,
           validationProblems: page.validationProblems || [],
           pending: page.pending === true, reason: page.reason || null, nextRetryAt: page.nextRetryAt || null,
           generationSkipped: page.generationSkipped === true, draftSaved: page.draftSaved === true,
         });
       }
       if (report.failures.length) report.status = "partial";
-      if (wikiMaintenance) report.wiki = { admission: wikiMaintenance.admission, status: wikiMaintenance.status, generationRequests: wikiMaintenance.generationCalls || 0,
+      if (wikiMaintenance) report.wiki = { admission: wikiMaintenance.admission, status: wikiMaintenance.status, outcome: wikiMaintenance.outcome, counts: wikiMaintenance.counts, deadlineReached: wikiMaintenance.deadlineReached,
+        automaticRetryScheduled: false, executionMode: "foreground", pendingWork: wikiMaintenance.pendingPages, generationRequests: wikiMaintenance.generationCalls || 0,
         skippedGenerationCount: wikiMaintenance.skippedGenerationCount || 0, pendingPages: (wikiMaintenance.pages || []).filter(page => page.pending).length };
       this.assertWorkspace();
       // Projection only: reuse the turn reconciliation, never scan/hash again.

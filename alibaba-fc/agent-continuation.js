@@ -44,6 +44,7 @@ function withResults(state, results) {
     if (academic.isTool(call.name)) {
       if (!state.academicState || matches.length !== 1) throw invalid();
       try {
+        academic.validateInput(call.name, call.args);
         const result = require("./academic-agent.js").recordResult(state.academicState, call, matches[0].result);
         const message = state.agentMessages.find(item => item.role === "tool" && item.tool_call_id === call.id);
         if (!message) throw invalid();

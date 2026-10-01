@@ -494,6 +494,8 @@ const I18N = {
     notAvailable: "Not available.",
     sideChatUserLabel: "You",
     copyMessage: "Copy",
+    turnWorking: "Working",
+    turnElapsed: "Elapsed",
     sideChatAssistantLabel: "Workbench side chat",
     backendDisabled: "Backend disabled.",
     backendReturned: "Backend returned {status}",
@@ -914,6 +916,8 @@ const I18N = {
     notAvailable: "暂无。",
     sideChatUserLabel: "你",
     copyMessage: "复制",
+    turnWorking: "进行中",
+    turnElapsed: "用时",
     sideChatAssistantLabel: "工作台侧边问答",
     backendDisabled: "后端已禁用。",
     backendReturned: "后端返回 {status}",
@@ -4205,6 +4209,12 @@ async function sendWorkbenchRequestOnce({
   libraryChoice = {},
 }) {
   const isSideChat = mode === "side_chat";
+  const chatTrace = runtimeLog?.chatTiming?.({ turnId: callContext?.turnId, endpoint: "/chat", model: model || "default" });
+  const saveTranscript = async turn => {
+    const end = chatTrace?.start("transcript_save");
+    try { await onTranscript(turn); end?.({ outcome: "completed" }); }
+    catch (error) { end?.({ outcome: "failed" }); throw error; }
+  };
   const turnAuth = authToken;
   const turnWorkspace = typeof workspaceManager === "undefined" ? null : workspaceManager.workspace;
   const assertCurrentResponse = () => {
@@ -4227,6 +4237,7 @@ async function sendWorkbenchRequestOnce({
       : [];
   const requestBody = {
     mode,
+    ...(chatTrace ? { timingRequestId: chatTrace.requestId } : {}),
     ...(model ? { model } : {}),
     stream: true,
     ...(desktopTools && !isSideChat ? { desktopTools } : {}),
@@ -4260,28 +4271,40 @@ async function sendWorkbenchRequestOnce({
   const finish = runtimeLog?.begin("main-agent", { agent: isSideChat ? "SideChatAgent" : "WorkbenchAgent",
     surface: isSideChat ? "side_chat" : "agent_command", model: model || "default", turnId: callContext?.turnId, endpoint: "/chat", stage: "awaiting-backend",
     originalRequestPreserved: Boolean(originalRequest), semanticContextPresent: Boolean(localWorkspaceContext?.semantic?.ir), retrievalScope: localWorkspaceContext?.semantic?.ir?.retrievalScope });
+  let pendingRead;
   try {
+    const serialized = chatTrace?.start("request_serialization");
+    const requestJson = JSON.stringify(requestBody);
+    const requestBytes = chatTrace?.bytes(requestJson);
+    serialized?.({ requestBytes, imageCount: images.length });
+    chatTrace?.dispatch(backendUrl("/chat"), requestBytes);
     const response = await fetch(backendUrl("/chat"), {
       method: "POST",
       headers: getAuthHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify(requestBody),
+      body: requestJson,
       signal,
     });
+    chatTrace?.headers(response);
     assertCurrentResponse();
     if (response.status === 401) finish?.("failed", { status: response.status, code: "AUTH_REQUIRED" });
     requireLoginForUnauthorized(response);
     if (!response.ok) {
+      const endErrorRead = chatTrace?.start("error_response_read");
       const payload = await response.json().catch(() => null);
+      endErrorRead?.(); chatTrace?.server(payload?.chatTiming);
       const code = ["INVALID_CHAT_MODEL", "INVALID_CALL_CONTEXT", "INVALID_SEMANTIC_CONTEXT", "INVALID_TOOL_CONTINUATION"].includes(payload?.error)
         ? payload.error : "BACKEND_HTTP_ERROR";
       throw Object.assign(new Error(t("backendReturned", { status: response.status })), { code, status: response.status });
     }
     let firstDelta = true, outputLength = 0, receivedCheckpoint = null;
-    const data = await window.BioDesignEventStream.readWorkbenchResponse(response, { signal, onEvent: async event => {
+    const endRead = pendingRead = chatTrace?.start("response_read");
+    const data = await window.BioDesignEventStream.readWorkbenchResponse(response, { signal,
+      ...(chatTrace ? { onTiming: stage => chatTrace.mark(stage) } : {}), onEvent: async event => {
+      chatTrace?.event(event.type);
       assertCurrentResponse();
       if (event.type === "transcript") {
         receivedCheckpoint = window.BioDesignConversationTranscript.applyCheckpoint(receivedCheckpoint, event);
-        await onTranscript(receivedCheckpoint); return;
+        await saveTranscript(receivedCheckpoint); return;
       }
       if (event.stage === "historical-replay") runtimeLog?.record("backend.historical-replay", { turnId: callContext?.turnId,
         turns: event.turns, toolCalls: event.toolCalls, toolResults: event.toolResults, invalidatedTurns: event.invalidatedTurns,
@@ -4292,15 +4315,16 @@ async function sendWorkbenchRequestOnce({
         firstDelta = false;
       } else runtimeLog?.record("main-agent.stream-stage", { turnId: callContext?.turnId,
         stage: event.stage || event.type, capability: event.capability, correctiveContinuation: event.correctiveContinuation,
-        attempt: event.attempt, inputCharacters: event.inputCharacters, retryAfterMs: event.retryAfterMs,
+        attempt: event.attempt, estimatedTokens: event.estimatedTokens, retryAfterMs: event.retryAfterMs,
         originalRequestPreserved: event.originalRequestPreserved, semanticContextPresent: event.semanticContextPresent,
         downloadRequested: event.downloadRequested, downloadExposed: event.downloadExposed, downloadPermitted: event.downloadPermitted,
         downloadAttemptCount: event.downloadAttemptCount, downloadResultCount: event.downloadResultCount });
       onStream(event);
     } });
+    endRead?.(); pendingRead = null; chatTrace?.server(data.chatTiming);
     assertCurrentResponse();
-    if (data.conversationTurn) await onTranscript(data.conversationTurn);
-    if (firstDelta) runtimeLog?.record("main-agent.buffered-response", { turnId: callContext?.turnId, stage: "answer-received" });
+    if (data.conversationTurn) await saveTranscript(data.conversationTurn);
+    if (firstDelta) runtimeLog?.record("main-agent.buffered-response", { turnId: callContext?.turnId, stage: "response_received" });
     if (!data.reply && !data.project && !data.evidenceRecovery && !data.desktopToolCalls) {
       throw Object.assign(new Error(t("backendMissingPayload")), { code: "BACKEND_MISSING_PAYLOAD" });
     }
@@ -4324,7 +4348,9 @@ async function sendWorkbenchRequestOnce({
     }
     if (data.fallback || data.failure) runtimeLog?.record("main-agent.failure", { turnId: callContext?.turnId,
       code: data.error, ...data.failure, providerAttempts: data.semanticTelemetry?.providerAttempts ?? data.failure?.providerAttempts }, "error");
-    finish?.(data.fallback || data.failure ? "failed" : data.taskOutcome && data.taskOutcome.status !== "completed" ? "partial" : "completed", { ...data.taskOutcome, status: response.status, stage: data.fallback ? "answer-failed" : "answer-received", model: data.model || null, outputLength,
+    const responseOutcome = runtimeLog?.responseOutcome?.(data) || { status: "partial", stage: "response_received" };
+    chatTrace?.finish(responseOutcome.stage);
+    finish?.(responseOutcome.status, { ...data.taskOutcome, status: response.status, stage: responseOutcome.stage, model: data.model || null, outputLength,
       taskStatus: data.taskOutcome?.status });
     if (data.desktopToolCalls && isSideChat && localWorkspaceContext?.agentLoop?.version === 1) return data;
     if (data.desktopToolCalls) {
@@ -4371,8 +4397,12 @@ async function sendWorkbenchRequestOnce({
           } finally { signal?.removeEventListener('abort', cancel); }
           ensureCurrent(); results.push({ id: call.id, result }); continue;
         }
-        if (window.BioDesignSideChatTools?.isTool(call.name) && desktopTools.literatureVersion === 1) {
-          results.push(await projectContextService.executeAgentTool(call, { turnId: callContext?.turnId, signal, isCurrent: () => { ensureCurrent(); return true; }, onProgress: event => onStream({ type: 'status', ...event }) })); continue;
+        if ((desktopTools.literatureVersion === 1 || localWorkspaceContext?.agentLoop?.academicAcquisition === true) && window.BioDesignSideChatTools?.isTool(call.name)) {
+          if (!projectContextService?.executeAgentTool) throw Object.assign(new Error("Project evidence tools unavailable."), { code: "PERMISSION_DENIED" });
+          results.push(await projectContextService.executeAgentTool(call, { turnId: callContext?.turnId, signal,
+            isCurrent: () => { ensureCurrent(); return true; }, onProgress: event => onStream({ type: "status", ...event }) }));
+          ensureCurrent();
+          continue;
         }
         if (academic?.isTool(call.name)) {
           if (desktopTools.academicVersion !== 1 || !academic.allowed(call.name, "agent_command", desktopTools.permission)) throw Object.assign(new Error("Academic tool unavailable on this move."), { code: "PERMISSION_DENIED" });
@@ -4380,7 +4410,7 @@ async function sendWorkbenchRequestOnce({
           onStream({ type: "reset" }); onStream({ type: "status", stage: "tool-running", capability: call.name });
           let result;
           try {
-            result = academic.validateResult(call.name, await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { args, surface: "agent_command", permission: desktopTools.permission } }));
+            result = academic.validateResult(call.name, await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { args, surface: "agent_command", permission: desktopTools.permission, ...(Number.isFinite(call.deadlineAt) ? { deadlineAt: call.deadlineAt } : {}) } }));
           } catch (error) {
             if (error.code === "OPERATION_ABORTED") throw error;
             result = academic.failure(error.code);
@@ -4421,6 +4451,8 @@ async function sendWorkbenchRequestOnce({
     }
     return data;
   } catch (error) {
+    pendingRead?.({ outcome: signal?.aborted ? "cancelled" : "failed" });
+    chatTrace?.finish(signal?.aborted ? "cancelled" : "failed");
     finish?.("failed", { code: error?.code || "BACKEND_REQUEST_FAILED", status: error?.status });
     throw error;
   }
@@ -4466,6 +4498,7 @@ function createStreamingAnswer(container, scrollContainer = null) {
     if (follow) scrollContainer.scrollTop = scrollContainer.scrollHeight;
   };
   return {
+    element,
     get hasText() { return Boolean(text); },
     update(event) {
       if (removed) return;
@@ -5056,14 +5089,11 @@ ${t("defaultHumanReview")}`;
 }
 
 function getAgentModelOptions() {
-  // Reuse the existing catalog and authenticated default label, with an Agent-only option.
-  const options = [...sideChatModelSelect.options].map(option => {
+  // Both surfaces use the same catalog and authenticated default label.
+  return [...sideChatModelSelect.options].map(option => {
     const model = option.value === "default" ? defaultSideChatModel || option.dataset.modelName : option.value;
     return { value: option.value, label: model ? shortSideChatModelName(model) : t("sideChatModelDefault"), title: model };
   });
-  const model = "google/gemini-3.1-flash-lite:flex";
-  if (!options.some(option => option.value === model)) options.push({ value: model, label: model, title: model });
-  return options;
 }
 
 function normalizeAgentModel(value) {
@@ -5225,6 +5255,24 @@ async function deleteDesktopAgentChat({ catalogId, conversationId }) {
   await flushWorkspaceState();
   await store.clearConversations();
   await refreshDesktopProjects();
+}
+
+async function renameDesktopAgentChat({ catalogId, conversationId, title }) {
+  if (typeof title !== 'string' || !title.trim() || title.length > 120) throw new Error('Chat name must contain 1–120 characters.');
+  if (activeAgentRequest || sideChatBusy) throw new Error('Wait for active chats to finish before renaming.');
+  const token = authToken;
+  if (!await openDesktopProject(catalogId) || token !== authToken) return false;
+  const panel = findAnalysisPanel(conversationId), manager = workspaceManager;
+  if (!panel) throw new Error('This chat is no longer available.');
+  panel.title = title.trim().replace(/\s+/g, ' ');
+  panel.customTitle = true;
+  // A name change does not change the turn history or its recency.
+  scheduleWorkspaceStateSave();
+  renderAnalysisPanels();
+  await flushWorkspaceState();
+  if (manager !== workspaceManager || token !== authToken) return false;
+  await refreshDesktopProjects();
+  return true;
 }
 
 async function deleteAnalysisPanel(panelId) {
@@ -5455,6 +5503,8 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
   };
   renderSideChatConversation();
   const thinkingMessage = addSideChatThinking();
+  const turnClock = window.BioDesignAgentWork.createTurnClock({ startedAt: userMessage.createdAt, working: true, label: t('turnWorking') });
+  thinkingMessage.element.prepend(turnClock.element);
   const unsubscribeKnowledgeStatus = window.BioDesignFrontend ? null : knowledgeService?.subscribe?.((event) => {
     updateSideChatThinking(thinkingMessage, {
       stage: `knowledge-${event.stage || "working"}`,
@@ -5563,6 +5613,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       const messagesForBackend = buildSideChatMessages(question, conversationContext, localWorkspaceContext.agentLoop?.answerLanguage || localWorkspaceContext.requestUnderstanding?.answerLanguage, userMessage.imageUnderstanding);
       const citationContext = getSideChatCitationContext(true);
       streamingPreview = createStreamingAnswer(sideChatHistory, sideChatHistory);
+      streamingPreview.element.before(turnClock.element);
       const response = await sendWorkbenchRequest({
         mode: "side_chat",
         originalRequest: question,
@@ -5614,6 +5665,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       id: makeId(),
       role: "assistant",
       content: reply,
+      elapsedMs: Math.max(0, Date.now() - Date.parse(userMessage.createdAt)),
       citations, webSearchSources, webSearchMetadata,
       activity: getSideChatActivitySteps(thinkingMessage),
       createdAt: new Date().toISOString(),
@@ -5662,6 +5714,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
 
     if (window.BioDesignFrontend) {
       const message = { id: makeId(), role: "assistant", content: `${t("sideChatContextFailed", { message: error.message || "Request failed" })}`,
+        elapsedMs: Math.max(0, Date.now() - Date.parse(userMessage.createdAt)),
         activity: getSideChatActivitySteps(thinkingMessage), createdAt: new Date().toISOString() };
       sideChatMessages.push(message);
       addSideChatMessage("assistant", message.content, { messageId: message.id, activity: message.activity });
@@ -5682,6 +5735,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
       id: makeId(),
       role: "assistant",
       content: coveredReply,
+      elapsedMs: Math.max(0, Date.now() - Date.parse(userMessage.createdAt)),
       activity: getSideChatActivitySteps(thinkingMessage),
       createdAt: new Date().toISOString(),
     };
@@ -5697,6 +5751,7 @@ async function askSideChat(question, { revision = null, images = [] } = {}) {
         sequence: latestTranscriptTurn.sequence + 1, updatedAt: new Date().toISOString() }).catch(() => {});
     }
     frontendTurn?.finish(turnStatus, turnError);
+    if (keepStreamingPreview) turnClock.stop(t('turnElapsed')); else turnClock.remove();
     if (!keepStreamingPreview) streamingPreview?.remove();
     unsubscribeKnowledgeStatus?.();
     if (!isCurrentRequest()) { thinkingMessage.element.remove(); return; }
@@ -6440,6 +6495,11 @@ function addSideChatMessage(
     copy.textContent = t('copyMessage');
     message.append(copy);
   }
+  window.BioDesignAgentWork.decorateMessage(message, {
+    createdAt: sideChatMessages.find(item => item.id === messageId)?.createdAt,
+    copyLabel: t('copyMessage'), editLabel: t('editLastMessage'),
+  });
+  if (role === 'assistant' && !isIntro) message.prepend(window.BioDesignAgentWork.createTurnClock({ elapsedMs: sideChatMessages.find(item => item.id === messageId)?.elapsedMs, label: t('turnElapsed') }).element);
   sideChatHistory.appendChild(message);
   sideChatHistory.scrollTop = sideChatHistory.scrollHeight;
 }
@@ -6762,6 +6822,7 @@ function normalizeStoredAnalysisPanel(panel) {
     sideChatScope: panel.sideChatScope === 'legacy' ? 'legacy' : undefined,
     sideChatCount: Math.max(0, Math.min(5, Number(panel.sideChatCount) || 0)),
     title: panel.title,
+    customTitle: panel.customTitle === true,
     summary: panel.summary,
     messages: Array.isArray(panel.messages) ? panel.messages : undefined,
     selectedModel: normalizeAgentModel(panel.selectedModel),
@@ -6981,6 +7042,10 @@ window.BioDesignFrontend?.connect({
     'chat.delete': payload => {
       if (payload.role !== 'agent_command') throw new Error('An Agent Work target is required.');
       return runDesktopNavigation(() => deleteDesktopAgentChat(payload));
+    },
+    'chat.rename': payload => {
+      if (payload.role !== 'agent_command') throw new Error('An Agent Work target is required.');
+      return runDesktopNavigation(() => renameDesktopAgentChat(payload));
     },
     'sources.refresh': () => refreshWorkspaceExplorer(),
     'sources.select': ({ path, selected }) => {

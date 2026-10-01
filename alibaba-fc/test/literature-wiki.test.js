@@ -205,10 +205,10 @@ test("maintenance flags broken links, unknown references, source and generation 
   assert.equal(f.workspace.writes.length, writes); assert.equal(f.requests.length, before);
 });
 
-test("updates preserve omitted supported findings and retain at most two revisions", async () => {
+test("updates preserve findings and all revision files while bounding navigation history", async () => {
   const f = await setup(); await f.pipeline.preflight(f.turn(1));
   const topic = f.system.topicService.topics.find(topic => topic.topicId === "thermostability");
-  const original = await f.wiki.read(topic);
+  const original = await f.wiki.read(topic), originalPath = topic.wiki.path;
   f.wiki.generateWikiPage = async input => {
     const page = pageFor(input);
     page.findings = [page.findings[0]]; // Both sources are still covered by the explanation.
@@ -218,7 +218,8 @@ test("updates preserve omitted supported findings and retain at most two revisio
   const current = await f.wiki.read(topic);
   assert.deepEqual(current.page.findings, original.page.findings);
   assert.equal(topic.wiki.history.length, 1);
-  assert.equal([...f.workspace.files.keys()].filter(path => path.startsWith(`.biodesign/knowledge/wiki_pages/${topic.topicId}/`)).length, 2);
+  assert.equal([...f.workspace.files.keys()].filter(path => path.startsWith(`.biodesign/knowledge/wiki_pages/${topic.topicId}/`)).length, 4);
+  assert.deepEqual(await f.workspace.readJson(originalPath), original);
 });
 
 test("an index publication failure cannot replace the saved artifact or leave an unpublished revision", async () => {
@@ -236,13 +237,16 @@ test("an index publication failure cannot replace the saved artifact or leave an
   assert.ok(await f.wiki.read(topic));
 });
 
-test("wiki generation attempts and lint scans are bounded, including failed requests", async () => {
+test("each eligible existing page is attempted once while lint scans remain bounded", async () => {
   const f = await setup(); await f.pipeline.preflight(f.turn(1));
   const base = f.system.topicService.topics.find(topic => topic.wiki);
   for (let n = 0; n < 35; n++) f.system.topicService.topics.push({ ...clone(base), topicId: `extra-${n}`, label: `Extra subject ${n}` });
   f.wiki.generateWikiPage = async () => { throw new Error("Synthetic failure"); };
   const update = await f.wiki.maintain({ action: "update", callContext: { model: selectedModel } });
-  assert.equal(update.generationCalls, contract.LIMITS.pagesPerRun);
+  assert.equal(update.generationCalls, 35);
+  assert.equal(update.unknownProviderAttempts, 35);
+  assert.equal(update.providerAttempts, null);
+  assert.equal((await f.wiki.maintain({ callContext: { model: selectedModel } })).generationCalls, 0);
   const lint = await f.wiki.maintain({ action: "check" });
   assert.equal(lint.pages.length, contract.LIMITS.lintPages); assert.equal(lint.truncated, true);
   const input = clone(f.requests[0].input), page = pageFor(input);
@@ -251,7 +255,7 @@ test("wiki generation attempts and lint scans are bounded, including failed requ
 });
 
 test("concurrent ordinary questions and explicit commands keep their wiki intent and scope", async () => {
-  const f = await setup(); await f.pipeline.preflight(f.turn(1));
+  const f = await setup(); f.system.topicService.labelsFromCard = () => ["thermostability"]; await f.pipeline.preflight(f.turn(1));
   await Promise.all([
     f.pipeline.preflight(f.turn(2)),
     f.pipeline.preflight({ ...f.turn(3), question: "Incorporate a thermostability comparison into the wiki." }),
@@ -397,7 +401,7 @@ test("optional answer-time Paper Card reads preserve the selected model and cann
 });
 
 test("explicit wiki incorporation uses validated comparison updates, while checks are bounded and read-only", async () => {
-  const f = await setup(); await f.pipeline.preflight(f.turn(1));
+  const f = await setup(); f.system.topicService.labelsFromCard = () => ["thermostability"]; await f.pipeline.preflight(f.turn(1));
   const context = await f.service.buildPlannedContext({ ...f.turn(2), question: "Incorporate a thermostability comparison into the literature wiki." });
   assert.ok(f.system.topicService.topics.some(topic => topic.pageKind === "comparison" && topic.wiki));
   assert.equal(context.literature.corpusWideRequest, false);
@@ -455,7 +459,7 @@ test("failed wiki attempts survive restart and unchanged Chinese requests withou
   await restarted.wiki.maintain({ action: "update", callContext: { model: selectedModel } });
   const explicit = await restarted.wiki.maintain({ action: "update", callContext: { model: selectedModel } });
   assert.equal(explicit.status, "ready");
-  assert.equal(restarted.requests.length, pending.length + 1, "Explicit update can retry reserved pages and create the ceiling-deferred topic");
+  assert.equal(restarted.requests.length, pending.length, "Explicit update retries reserved pages without bypassing the ceiling");
   assert.equal(restarted.calls.cards, 0); assert.equal(restarted.calls.parses, 0);
   for (const topic of restarted.system.topicService.topics.filter(topic => topic.wiki)) {
     assert.equal(topic.wikiMaintenance.status, "current");
@@ -491,13 +495,15 @@ test("only explicit retries can repeat a failed evidence version, with bounded a
   assert.equal(f.calls.cards, 2);
 });
 
-test("page budget leaves already-admitted versioned pending work and gives unattempted subjects priority on subsequent requests", async () => {
+test("maintenance time leaves already-admitted versioned pending work and gives unattempted subjects priority on subsequent requests", async () => {
   const f = await setup(); await f.pipeline.preflight(f.turn(1));
   const base = f.system.topicService.topics.find(topic => topic.wiki);
   for (let n = 0; n < 19; n++) f.system.topicService.topics.push({ ...clone(base), topicId: `pending-${n}`, label: `Pending ${n}`, wiki: undefined, wikiMaintenance: undefined, wikiEvidence: undefined });
-  const before = f.requests.length;
+  const before = f.requests.length, generate = f.wiki.generateWikiPage;
+  f.wiki.generateWikiPage = async (...args) => { f.advance(80000); return generate(...args); };
   const first = { wikiMaintenance: await f.wiki.maintain({ changedPaperIds: base.paperIds, callContext: { model: selectedModel } }) };
-  assert.equal(first.wikiMaintenance.generationCalls, contract.LIMITS.pagesPerRun);
+  f.wiki.generateWikiPage = generate;
+  assert.equal(first.wikiMaintenance.generationCalls, 3, "elapsed time, not a page-count cutoff, defers remaining work");
   assert.equal(first.wikiMaintenance.status, "partial");
   const deferred = f.system.topicService.topics.filter(topic => topic.wikiMaintenance?.status === "pending");
   assert.ok(deferred.length >= 11);
@@ -632,11 +638,11 @@ test("missing pages alone do not authorize spending, and invalid source scopes f
   f.workspace.set(source.path, "Not reconciled yet", Date.now());
   const changed = await f.wiki.maintain({ action: "update" });
   assert.equal(changed.generationCalls, 0);
-  assert.ok(changed.pages.every(page => page.validationProblems.includes("stale-source")));
+  assert.ok(changed.pages.every(page => page.reason === "page_ceiling" || page.validationProblems.includes("stale-source")));
   f.workspace.files.delete(source.path);
   const deleted = await f.wiki.maintain({ action: "update" });
   assert.equal(deleted.generationCalls, 0);
-  assert.ok(deleted.pages.every(page => page.validationProblems.includes("missing-source")));
+  assert.ok(deleted.pages.every(page => page.reason === "page_ceiling" || page.validationProblems.includes("missing-source")));
   const writes = f.workspace.writes.length;
   const scoped = await f.wiki.maintain({ repairPending: true, paperIds: [topic.paperIds[1]] });
   assert.equal(scoped.pages.length, 0); assert.equal(scoped.generationCalls, 0);
@@ -815,4 +821,58 @@ test("legacy failed-attempt journals migrate without another call for the same e
     assert.ok(topic.wikiEvidence.attemptedFingerprints.includes(topic.wikiEvidence.fingerprint));
     assert.equal(topic.wikiMaintenance.lastFailure.code, "PROVIDER_UNAVAILABLE");
   }
+});
+
+test("publication repairs preserve raw generation, source bytes and provenance; older Markdown pages stay reusable", async () => {
+  const f = await setup({ generate: async input => {
+    const refs = input.papers.map(p => p.evidence[0].reference);
+    return { page: contract.markdownPage(`A comparison [[cite:${refs[0]}], [cite:${refs[1]}]]<br>\n`), configuration: input.configuration, attempts: 1 };
+  } });
+  const before = f.workspace.files.get("literature/a.pdf");
+  await f.pipeline.preflight(f.turn("repair-format"));
+  const topic = f.system.topicService.topics.find(t => t.wiki);
+  const record = await f.wiki.readForUse(topic);
+  assert.match(record.generation.audit.outputs[0].rawPage.markdown, /\], \[cite:/);
+  assert.doesNotMatch(record.page.markdown, /\], \[cite:|<br>/);
+  assert.equal(record.generation.audit.outputs[0].repairs.length, 2);
+  assert.equal(f.workspace.files.get("literature/a.pdf"), before);
+  assert.equal(record.integrity.references.length, 2);
+  assert.equal(record.integrity.claimVerification, "not_semantically_verified");
+  const calls = f.requests.length;
+  record.configuration.promptVersion = "literature-wiki-markdown-v2";
+  await f.workspace.writeJson(topic.wiki.path, record);
+  await f.pipeline.preflight(f.turn("old-prompt"));
+  assert.equal(f.requests.length, calls);
+  assert.equal((await f.wiki.readForUse(topic)).configuration.promptVersion, "literature-wiki-markdown-v2");
+});
+
+test("saving a later draft preserves the original draft file and separate raw repair audit", async () => {
+  const f = await setup({ generate: async input => ({ page: contract.markdownPage("Original [[cite:unknown:p1:bad]]"), configuration: input.configuration, attempts: 1 }) });
+  await f.pipeline.preflight(f.turn("draft-preserve"));
+  const topic = f.system.topicService.topics.find(t => t.wikiDraft), oldPath = topic.wikiDraft.path;
+  const original = await f.workspace.readJson(oldPath);
+  const input = f.requests.find(r => r.input.pageId === topic.topicId).input;
+  const response = { attempts: 2, generationAudit: { outputs: [{ stage: "generation", rawPage: original.page, repairs: [] }] } };
+  await f.wiki.saveDraft(topic, { input, key: original.key, dependencies: original.dependencies }, response,
+    contract.markdownPage("Later [[cite:unknown:p2:bad]]"), {});
+  assert.notEqual(topic.wikiDraft.path, oldPath);
+  assert.deepEqual(await f.workspace.readJson(oldPath), original);
+  const latest = await f.wiki.readDraftForUse(topic);
+  assert.deepEqual(latest.generation.audit.outputs[0].rawPage, original.page);
+  assert.equal(latest.publicationStatus, "unverified_draft");
+});
+
+test("production wiki selection includes cross-page continuation without altering canonical PDF artifacts", async () => {
+  const f = await setup({ generate: async input => ({ page: markdownFor(input), configuration: input.configuration, attempts: 1 }) });
+  f.workspace.set("literature/a.pdf", "EctD enzyme engineering detected DNA-\n# Page 2\nprotein complexes at 30 C.");
+  await f.pipeline.preflight(f.turn("cross-page"));
+  const selected = f.requests.flatMap(r => r.input.papers).find(p => p.evidence.some(e => e.text.endsWith("DNA-")));
+  assert.ok(selected);
+  const first = selected.evidence.find(e => e.text.endsWith("DNA-")), next = selected.evidence.find(e => e.reference === first.continuity[0].reference);
+  assert.ok(first.reference.includes(":p1:")); assert.ok(next.reference.includes(":p2:"));
+  assert.match(next.text, /^protein complexes/);
+  const original = await f.system.preparation.readPaperArtifact(selected.paperId);
+  assert.equal(original.chunks[0].text, first.text);
+  assert.equal(original.chunks[1].text, next.text);
+  assert.equal(original.chunks[0].continuity, undefined);
 });

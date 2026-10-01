@@ -17,7 +17,7 @@ async function harness(t, { count = 2, labels = ['thermostability'] } = {}) {
   const nativeTimer = globalThis.setTimeout;
   // Advance the host's clock when its real deadline callback fires. No shortened
   // production budget or forged timeout error; only test wall time is accelerated.
-  t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => nativeTimer(() => { if (ms >= 60000) state.now += ms; fn(...args); }, ms >= 60000 ? 5 : ms));
+  t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => nativeTimer(() => { if (ms >= 60000) state.now += ms; fn(...args); }, ms >= 60000 ? (state.mode === 'unavailable' ? 1000 : 5) : ms));
   t.mock.method(globalThis, 'fetch', async (_url, options) => {
     const body = JSON.parse(options.body), input = JSON.parse(body.messages.at(-1).content);
     state.requests.push({ input, model: body.model }); state.signals.push(options.signal);
@@ -35,6 +35,7 @@ async function harness(t, { count = 2, labels = ['thermostability'] } = {}) {
     if (!workspace) for (let i = 0; i < count; i++) f.workspace.set(`literature/p${i}.pdf`, `Evidence of thermostability and distinct concepts in paper ${i}.`);
     f.system.topicService.labelsFromCard = () => labels;
     f.wiki = f.system.literatureWiki; f.wiki.now = () => state.now;
+    f.wiki.setMaintenanceTimeout = nativeTimer; // Accelerate provider waits, not local admission I/O.
     f.log = createRuntimeLogger({ sink: null, heartbeatMs: 0 }); f.pipeline.log = f.log;
     const api = new LiteratureApiClient({ baseUrl: 'https://fixture.invalid', getHeaders: () => ({ Authorization: `Bearer ${token}` }), now: () => state.now,
       fetch: async (_url, options) => {
@@ -117,7 +118,7 @@ test('fresh pages and timeout pages alternate fairly across runs and concurrent 
   assert.equal(new Set(attempts.map(attempt => attempt.scheduleSequence)).size, attempts.length);
 });
 
-test('duration estimator defers short remaining work without consuming fingerprints; three attempts per run', async t => {
+test('duration estimator defers short remaining work without consuming fingerprints; no page-count cutoff', async t => {
   const { f, state } = await harness(t, { count: 20, labels: ['alpha concept', 'beta concept', 'gamma concept', 'delta concept', 'epsilon concept'] });
   state.mode = () => { state.now += 210000; return 'success'; };
   const first = await f.run('slow');
@@ -127,8 +128,8 @@ test('duration estimator defers short remaining work without consuming fingerpri
   assert.ok(deferred.every(topic => !topic.wikiEvidence.attemptedFingerprints.length && topic.wikiEvidence.eligibleFingerprint));
   assert.ok(first.wikiMaintenance.pages.some(page => page.reason === 'insufficient_remaining_time'));
   state.mode = 'success';
-  const second = await f.run('next'); assert.equal(second.wikiMaintenance.generationCalls, 3);
-  assert.equal((await f.run('last')).wikiMaintenance.generationCalls, 1);
+  const second = await f.run('next'); assert.equal(second.wikiMaintenance.generationCalls, 4);
+  assert.equal((await f.run('last')).wikiMaintenance.generationCalls, 0);
   assert.equal((await f.run('cached')).wikiMaintenance.generationCalls, 0);
   assert.equal(state.transports, 5); assert.equal(new Set(state.requests.map(item => item.input.pageId)).size, 5);
 });
@@ -143,7 +144,7 @@ test('explicit cancellation and unrelated failures cannot authorize timeout reco
     assert.equal(f.topic().wikiMaintenance.attempts.at(-1).status, mode === 'cancel' ? 'cancelled' : 'failed');
     const calls = state.requests.length;
     assert.equal(state.transports, 1);
-    assert.equal(calls, mode === 'unavailable' ? 2 : 1, 'FC keeps its two-attempt bound, host sends only once');
+    assert.equal(calls, mode === 'unavailable' ? 5 : mode === 'citation' ? 2 : 1, '503 allows five attempts; other bounds are unchanged and the host sends only once');
     state.now += 86400000; state.mode = 'success'; await f.run('unchanged');
     assert.equal(state.requests.length, calls);
   });

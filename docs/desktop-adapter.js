@@ -10,7 +10,7 @@
   const fail = (code, message) => Object.assign(new Error(message), { code });
   const clone = value => JSON.parse(JSON.stringify(value));
 
-  function createFrontendAdapter() {
+  function createFrontendAdapter({ now = Date.now } = {}) {
     let service = null, scheduled = false, epoch = 0;
     let snapshot = Object.freeze({ ready: false, project: null, conversations: [], agents: [], runs: {} });
     const listeners = new Set(), pending = new Map(), runs = new Map();
@@ -84,7 +84,8 @@
       else signal?.addEventListener("abort", abort, { once: true });
       const run = { controller, state: { projectId, role, conversationId, model,
         permission: role === "side_chat" ? "read_only" : permission,
-        sourcePaths: [...sourcePaths], status: "running", steps: [], outputCharacters: 0 } };
+        sourcePaths: [...sourcePaths], status: "running", steps: [], outputCharacters: 0,
+        startedAt: now(), finishedAt: null, elapsedMs: 0 } };
       runs.set(key, run);
       const isCurrent = () => generation === epoch && service?.readSnapshot().project?.id === projectId && runs.get(key) === run;
       function event(value) {
@@ -99,6 +100,10 @@
       function finish(status = "completed", error = "") {
         signal?.removeEventListener("abort", abort);
         if (!isCurrent()) return;
+        if (run.state.finishedAt === null) {
+          run.state.finishedAt = now();
+          run.state.elapsedMs = Math.max(0, run.state.finishedAt - run.state.startedAt);
+        }
         run.state.status = controller.signal.aborted ? "cancelled" : status;
         run.state.error = error;
         invalidate();

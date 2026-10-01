@@ -144,7 +144,7 @@ async function runScenarios() {
     } finally { frame.remove(); }
   });
   await scenario("Model selection replaces levels, persists independently, and is sent with Side Chat", async () => {
-    equal(sideChatModelSelect.options.length, 2);
+    equal(sideChatModelSelect.options.length, 3);
     updateSideChatModelConfiguration({ chatModel: "google/gemini-fixture" });
     equal(sideChatModelSelect.options[0].textContent, "google/gemini-fixture");
     equal(sideChatModelSelect.options[1].textContent, "nvidia/nemotron-3-nano-omni");

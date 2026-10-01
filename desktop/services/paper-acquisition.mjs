@@ -74,16 +74,16 @@ export function paperCandidateUrls(paper) {
   ])].slice(0, 16);
 }
 
-export async function acquirePaperPdf(paper, { signal, ensureCurrent, fetchSource = sourceFetch.fetchSource }) {
+export async function acquirePaperPdf(paper, { signal, ensureCurrent, fetchSource = sourceFetch.fetchSource, deadlineAt = Infinity }) {
   const queue = paperCandidateUrls(paper).map(url => ({ url, depth: 0 }));
   const attempted = new Set(), attempts = [];
   const recordAttempt = (url, code, httpStatus) => {
-    // Keep five-paper continuation results bounded even with long publisher tokens.
+    // Bound per-paper diagnostics; aggregate receipts compact these if needed.
     const truncated = url.length > 700;
     attempts.push({ url: truncated ? url.slice(0, 700) : url, code, ...(truncated ? { url_truncated: true } : {}),
       ...(Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599 ? { httpStatus } : {}) });
   };
-  const deadline = Date.now() + 90000;
+  const deadline = Math.min(Date.now() + 90000, deadlineAt);
   while (queue.length && attempted.size < 16 && Date.now() < deadline) {
     ensureCurrent();
     const { url, depth } = queue.shift();

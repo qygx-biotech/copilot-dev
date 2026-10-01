@@ -62,7 +62,7 @@ for (const providerFailure of [false, true]) test(`production renderer → authe
   allowLibrary({ url: 'https://example.org/library' });
   const result = await pending; noPreparation(); assert.equal(prompts, 1);
   if (providerFailure) {
-    assert.match(result.reply, /400/); assert.doesNotMatch(result.reply, /budget exhausted/);
+    assert.match(result.reply, /模型服务无法完成|provider could not complete/); assert.doesNotMatch(result.reply, /budget exhausted/);
     assert.equal(result.failure.providerStatus, 400);
     assert.equal(result.failure.failureStage, 'literature-specialist.provider');
     assert.equal(result.failure.requestId, 'specialist-failure-fixture');

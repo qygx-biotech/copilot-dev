@@ -8,6 +8,10 @@
   // Only operational metadata belongs here. Never collect prompts, paper text,
   // response bodies, headers, tokens, arbitrary errors, or absolute file paths.
   const fields = new Set([
+    "transportPhase", "exceptionName", "transportCode", "transportCauseCode",
+    "pageId", "admissionMs", "eligibilityOutcome", "remainingMaintenanceMs", "providerAttemptsKnown", "initialGenerationMs", "repairMs", "retryEligibility",
+    "topicCandidateCount", "totalReservedPageCount", "rejectedCandidateCount", "deadlineReached", "executionMode", "knownProviderAttempts", "unknownProviderAttempts",
+    "updatedPageCount", "reusedPageCount", "rejectedPageCount", "failedPageCount", "deferredPageCount", "pendingPageCount",
     "operationId", "turnId", "runId", "workspaceId", "sourceId", "paperId", "jobId", "workflowId",
     "agent", "surface", "stage", "layer", "status", "code", "endpoint", "method", "role", "route",
     "capability", "jobType", "cached", "retryable", "attempt", "attempts", "providerAttempts",
@@ -22,12 +26,19 @@
     "projectPaperCount", "automaticPageCeiling", "existingReservedPageCount", "remainingHeadroom", "admittedCandidateCount", "deferredCandidateCount",
     "wikiGenerationRequests", "generationCalls", "wikiMaintenanceMs", "wikiLocalMaintenanceMs", "wikiSkippedGenerationCount", "skippedGenerationCount", "cachedPaperCards",
     "failureStage", "validationField", "validationReason", "normalizedFields",
+    "repairedCount", "validationCount", "referenceCount", "unresolvedReferenceCount", "possibleUnsupportedClaimCount",
     "generationStage", "logicalGenerationAttempts", "repairAttempted", "repairOutcome", "stoppingReason", "initialValidationReason",
     "sessionId", "estimatedTokens", "reportedTokens", "effectiveLimit", "outputReserve", "inputBudget", "limitScope",
+    "activeRecoveryMs", "quotaWaitMs", "providerCallTimeoutMs", "quotaWaitRemainingMs", "hardDeadlineRemainingMs", "automaticRetryScheduled",
+    "callId", "callStage", "callStatus", "timeoutMs", "callsDispatched", "callsCompleted", "callsTimedOut", "callsCancelled", "checkpointCount",
+    "recoveryMode", "eventKind", "classificationEvidence", "contextBudget", "quotaCapacity", "quotaRemaining", "quotaResetAt", "quotaScope", "quotaPeriod", "recoveryTarget",
     "beforeTokens", "afterTokens", "chunkCount", "summaryCalls", "summaryTokens", "checkpointBoundary", "continuationStateReset", "degraded",
     "compactionUsed", "compactionCount", "sequence", "toolResultCount", "recoveryStopReason", "providerAttemptsBeforeRetry", "beforeCharacters", "afterCharacters", "affectedResultCount", "trigger", "retryCount", "freshEvidencePreserved", "freshResultCount", "freshResultsShortened",
     "activeCharacterLimit", "continuationByteLimit", "desktopResultCharacterLimit", "httpBodyByteLimit", "compacted",
-    "category", "requestId", "inputCharacters", "modelCalls", "providerCalls", "toolExecutions",
+    "category", "requestId", "modelCalls", "providerCalls", "toolExecutions",
+    "serverRequestId", "clientRequestId", "timingSpanId", "eventType", "transport", "requestBytes", "responseBytes", "processUptimeMs",
+    "handlerMs", "bodyReadMs", "clientRoundTripMs", "clientOutsideHandlerMs", "serverTimingAvailable", "resourceTimingAvailable", "networkTimingDetailed", "networkTimingAmbiguous",
+    "dnsMs", "connectMs", "tlsMs", "requestToFirstByteMs", "downloadMs", "resourceDurationMs", "transferBytes", "droppedEvents",
     "turns", "toolCalls", "toolResults", "invalidatedTurns", "compactedTurns", "compactedToolResults", "chunkIndex",
     "syncAgentSpawned", "l1UpdateCount", "l2LlmCallCount", "l2LlmMs", "l3UpdateMs", "hashCalls",
     "combinedTextSupported", "nativePdfSupported", "structuredOutputMode", "promptVersion", "model",
@@ -58,14 +69,15 @@
         if (typeof value === "string" && /^(?:body|query|profile|callContext|activeScope|paperCandidates|conversationContext|projectSemanticRegistry|paperCard)(?:\.[A-Za-z_]+|\[\d{1,5}\])*$/.test(value)) result[key] = value.slice(0, 200);
         continue;
       }
-      if (typeof value === "boolean") result[key] = value;
+      if (value === null && ["providerAttempts", "attempts", "initialGenerationMs", "repairMs"].includes(key)) result[key] = null;
+      else if (typeof value === "boolean") result[key] = value;
       else if (typeof value === "number" && Number.isFinite(value)) result[key] = Math.round(value * 100) / 100;
       else if (typeof value === "string" && value) result[key] = token(value);
     }
     return result;
   }
 
-  function createRuntimeLogger({ limit = 1000, sink = root.console, now = () => Date.now(), heartbeatMs = 15000 } = {}) {
+  function createRuntimeLogger({ limit = 1000, sink = root.console, now = () => Date.now(), monotonic = () => root.performance?.now?.() ?? Date.now(), resourceEntries = url => root.performance?.getEntriesByName?.(url) || [], heartbeatMs = 15000 } = {}) {
     const entries = [], listeners = new Set();
     const capacity = Math.max(1, Math.min(5000, Number(limit) || 1000));
     let sequence = 0;
@@ -97,7 +109,54 @@
           status === "failed" ? "error" : ["partial", "cancelled"].includes(status) ? "warn" : "info");
       };
     }
-    return { record, begin, entries: () => entries.slice(),
+    function chatTiming(details) {
+      const requestId = root.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const n = Math.random() * 16 | 0; return (c === "x" ? n : n & 3 | 8).toString(16); });
+      const started = monotonic(); let fetchStarted, fetchUrl, firstEvent = false, finished = false, spanId = 0;
+      const emit = (stage, fields = {}) => record("chat.timing", { ...details, requestId, stage, elapsedMs: monotonic() - started, ...fields });
+      const start = stage => {
+        const at = monotonic(), timingSpanId = ++spanId; emit(stage + "_start", { timingSpanId }); let done = false;
+        return (fields = {}) => { if (!done) { done = true; emit(stage + "_end", { timingSpanId, durationMs: monotonic() - at, ...fields }); } };
+      };
+      emit("client_entry");
+      return {
+        requestId, start, mark: emit,
+        bytes: value => new root.TextEncoder().encode(value).byteLength,
+        dispatch(url, requestBytes) { fetchUrl = url; fetchStarted = monotonic(); emit("fetch_start", { requestBytes }); },
+        headers(response) { emit("fetch_headers", { durationMs: monotonic() - fetchStarted, status: response.status,
+          transport: /text\/event-stream/i.test(response.headers?.get?.("content-type") || "") ? "sse" : "json" }); },
+        event(type) { if (!firstEvent) { firstEvent = true; emit("first_stream_event", { eventType: type }); } },
+        server(timing) {
+          const clientRoundTripMs = monotonic() - fetchStarted;
+          const valid = timing?.version === 1 && Number.isFinite(timing.handlerMs) && timing.handlerMs >= 0;
+          emit("round_trip", { clientRoundTripMs, serverTimingAvailable: valid,
+            ...(valid ? { serverRequestId: timing.requestId, handlerMs: timing.handlerMs, bodyReadMs: timing.bodyReadMs,
+              clientOutsideHandlerMs: Math.max(0, clientRoundTripMs - timing.handlerMs), droppedEvents: timing.droppedEvents } : {}) });
+          if (valid) for (const event of (Array.isArray(timing.events) ? timing.events : []).slice(0, 256)) {
+            if (!event || typeof event !== "object") continue;
+            record("chat.server-timing", { ...details, requestId, serverRequestId: timing.requestId,
+              stage: event.stage, elapsedMs: event.elapsedMs, durationMs: event.durationMs, status: event.status,
+              attempt: event.attempt, callStage: event.callStage, outcome: event.outcome, transport: event.transport,
+              transportPhase: event.transportPhase, exceptionName: event.exceptionName, transportCode: event.transportCode, transportCauseCode: event.transportCauseCode,
+              estimatedTokens: event.estimatedTokens, outputReserve: event.outputReserve, imageCount: event.imageCount,
+              requestBytes: event.requestBytes, responseBytes: event.responseBytes, processUptimeMs: event.processUptimeMs });
+          }
+          // Match only one completed resource. Concurrent indistinguishable
+          // fetches must not receive each other's network measurements.
+          let resources = [];
+          try { resources = resourceEntries(fetchUrl); } catch { /* Optional browser diagnostics must not fail the answer. */ }
+          const candidates = resources.filter(e => e.initiatorType === "fetch" && e.startTime >= fetchStarted - 1 && e.responseEnd > 0 && e.responseEnd <= monotonic() + 1);
+          const entry = candidates.length === 1 ? candidates[0] : null;
+          const detailed = Boolean(entry && entry.requestStart > 0 && entry.responseStart > 0);
+          emit("browser_network", { resourceTimingAvailable: Boolean(entry), networkTimingDetailed: detailed, networkTimingAmbiguous: candidates.length > 1,
+            ...(entry ? { resourceDurationMs: entry.duration } : {}),
+            ...(detailed ? { transferBytes: entry.transferSize, dnsMs: entry.domainLookupEnd - entry.domainLookupStart, connectMs: entry.connectEnd - entry.connectStart,
+              tlsMs: entry.secureConnectionStart > 0 ? entry.connectEnd - entry.secureConnectionStart : 0,
+              requestToFirstByteMs: entry.responseStart - entry.requestStart, downloadMs: entry.responseEnd - entry.responseStart } : {}) });
+        },
+        finish(outcome) { if (!finished) { finished = true; emit("client_complete", { outcome, durationMs: monotonic() - started }); } },
+      };
+    }
+    return { record, begin, chatTiming, responseOutcome, entries: () => entries.slice(),
       clear() { entries.length = 0; notify(); },
       subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
       format(entry) { return `${entry.timestamp} ${entry.level.toUpperCase()} ${entry.event} ${JSON.stringify(entry.details)}`; },
@@ -159,5 +218,14 @@
     setLanguage(doc.documentElement.lang);
     logger.record("app.ready", { stage: "awaiting-request" });
   }
-  return Object.assign(logger, { createRuntimeLogger, installPanel, setLanguage });
+  function responseOutcome(data) {
+    if (data.fallback || data.failure || data.contextRecoveryIncomplete || (data.taskOutcome && data.taskOutcome.status !== "completed"))
+      return { status: data.fallback || data.failure ? "failed" : "partial", stage: "incomplete_result" };
+    if (data.desktopToolCalls?.length || data.desktopContinuation || data.evidenceRecovery || data.agentContinuation)
+      return { status: "partial", stage: "tool_handoff" };
+    if (typeof data.reply === "string" && data.reply.trim() || data.project)
+      return { status: "completed", stage: "final_answer" };
+    return { status: "partial", stage: "response_received" };
+  }
+  return Object.assign(logger, { createRuntimeLogger, installPanel, setLanguage, responseOutcome });
 });

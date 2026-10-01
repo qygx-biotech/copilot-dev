@@ -549,6 +549,7 @@
         id: message.id,
         role: message.role,
         content: message.content.trim(),
+        ...(message.role === 'assistant' && Number.isFinite(message.elapsedMs) && message.elapsedMs >= 0 ? { elapsedMs: message.elapsedMs } : {}),
         ...(message.role === "user" && chatImages.normalizeAttachments(message.images).length ? {
           images: chatImages.normalizeAttachments(message.images),
           ...(chatImages.normalizeUnderstanding(message.imageUnderstanding) ? { imageUnderstanding: chatImages.normalizeUnderstanding(message.imageUnderstanding) } : {}),
@@ -1594,12 +1595,15 @@
         if (options.signal?.aborted || this.workspace.workspace !== project) throw Object.assign(new Error("The project request was stopped."), { code: "OPERATION_ABORTED" });
       };
       assertCurrent();
+      const metadataStarted = Date.now();
       const preflight = this.requestPipeline ? await this.requestPipeline.preflight({ ...options, preparationMode: 'metadata' }) : null;
       assertCurrent();
       if (preflight) {
         options = { ...options, workspaceTree: preflight.tree, turnReconciliation: preflight.reconciliation };
         options.onCatalogUpdated?.(preflight.tree, this.literature.documents);
       }
+      root.BioDesignRuntimeLog?.record("knowledge.metadata-reconciliation", { turnId: options.turnId,
+        durationMs: Date.now() - metadataStarted, providerAttempts: 0 });
       const paths = [...new Set((options.selectedPaths || []).map(normalizePath).filter(Boolean))];
       const registeredPapers = this.sourceRegistry?.list({ sourceKind: "paper", includeMissing: true }) || [];
       // This is the explicit host selection, not the bounded retrieval shortlist.
@@ -1611,11 +1615,11 @@
       const papers = all.filter(source => !["missing", "deleted", "removed"].includes(source.catalogStatus) && (!hardSelection || selected.includes(source.sourceId)));
       const selectedFiles = flattenWorkspaceTree(options.workspaceTree).filter(item => item.type === "file" && (paths.includes(item.relativePath) || (hardSelection && papers.some(source => source.path === item.relativePath))));
       const context = this.baseContext(options, hardSelection ? "files" : "project", selectedFiles);
-      context.agentLoop = { version: 1, answerLanguage: options.language, hardSelection, paperIds: papers.map(source => source.sourceId) };
+      context.agentLoop = { version: 1, ...(options.academicAcquisition ? { academicAcquisition: true } : {}), answerLanguage: options.language, hardSelection, paperIds: papers.map(source => source.sourceId) };
       context.inventory = context.inventory.filter(item => !hardSelection || paths.includes(item.relativePath) || selected.includes(item.paperId));
       context.sourceMap = { selectedPaperIds: selected, activePaperIds: [], selectedExperimentIds: [], activeExperimentIds: [],
         paperSources: papers.map(source => ({ sourceId: source.sourceId, sourceKind: "paper", path: source.path, displayName: source.displayName,
-          contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardStatus: source.paperCardStatus })),
+          contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardStatus: source.hashStatus === "dirty" ? "stale" : source.paperCardStatus })),
         availableSourceTools: Boolean(this.sourceSystem), sourceCounts: { papers: papers.length } };
       context.literature = { ...context.literature, selectedPaperIds: selected, explicitPaperIds: [], relevantPaperIds: [], retrievalProfile: "medium",
         index: this.buildLiteratureIndex(selected).filter(paper => papers.some(source => source.sourceId === paper.paperId)),
@@ -1661,7 +1665,7 @@
           const permitted = registrySources.filter(source => !turn.hardSelection || turn.selected.includes(source.sourceId));
           const sources = permitted.filter(source => !["missing", "deleted", "removed"].includes(source.catalogStatus));
           const allowed = sources.map(source => source.sourceId);
-          const resolvedArgs = contract.resolveArguments(call.name, inputArgs, { sources: registrySources.map(source => ({ ...source, metadataVersion: turn.sourceStats[source.sourceId] })), allowedIds: permitted.map(source => source.sourceId) });
+          const resolvedArgs = contract.resolveArguments(call.name, inputArgs, { sources: registrySources.map(source => ({ ...source, metadataVersion: turn.sourceStats[source.sourceId] })), allowedIds: permitted.map(source => source.sourceId), allowPendingPreparation: true });
           const args = contract.evidenceArguments(call.name, resolvedArgs);
           const corpus = call.name === 'run_corpus_workflow';
           const authoritativeIds = corpus ? permitted.map(source => source.sourceId) : allowed;
@@ -1683,10 +1687,19 @@
           if (currentIds.length) await this.preparation.ensureSourceReady(currentIds, "stable_snapshot", { ...options, deferKnowledgeIndex: true }); check();
           for (const id of currentIds) {
             const current = this.sourceRegistry.get(id);
-            if (!current || !current.contentHash || (turn.sourceVersions[id] && current.contentHash !== turn.sourceVersions[id])) throw contract.identityError('SOURCE_VERSION_CHANGED');
+            if (!current || !current.contentHash || (turn.sourceVersions[id] && current.contentHash !== turn.sourceVersions[id]) || (turn.sourceStats[id] && current.statSignature !== turn.sourceStats[id])) throw contract.identityError('SOURCE_VERSION_CHANGED');
             turn.sourceVersions[id] = current.contentHash;
             turn.sourceStats[id] = current.statSignature;
           }
+          let preparationReport;
+          if (args.prepare && args.prepare !== "cached") {
+            if (!this.requestPipeline?.prepareDerived) throw Object.assign(new Error("Derived preparation is unavailable; retrieve original evidence."), { code: "KNOWLEDGE_PREPARATION_UNAVAILABLE" });
+            // Resolved host scope, original request, and cancellation are the
+            // authority. Model arguments cannot grant explicit wiki retry rights.
+            preparationReport = await this.requestPipeline.prepareDerived({ ...options, paperIds: currentIds, kind: args.prepare }); check();
+            for (const failure of preparationReport.failures) gaps.push(`Derived knowledge unavailable for ${failure.sourceId || failure.pageId || "scope"}: ${failure.code}. Retrieve original evidence for missing support.`);
+          }
+          const retrievalStarted = Date.now();
           let result, boundedWorkerCount = 0;
           if (call.name === "search_project_knowledge") {
             const collectedCitationEvidence = [];
@@ -1938,6 +1951,7 @@
           if (nowSources.length !== sources.length || versions.some(([id, hash, size, mtime]) => { const source = this.sourceRegistry.get(id); return !source || ["missing", "deleted", "removed"].includes(source.catalogStatus) || source.hashStatus === "dirty" || source.contentHash !== hash || source.sizeBytes !== size || source.mtimeNs !== mtime; })) throw Object.assign(new Error("Source changed during tool execution."), { code: "SOURCE_VERSION_CHANGED" });
           turn.context.sourceMap.paperSources = sources.map(source => ({ sourceId: source.sourceId, sourceKind: "paper", path: source.path, displayName: source.displayName, contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardStatus: source.paperCardStatus }));
           turn.context.sourceMap.sourceCounts = { ...turn.context.sourceMap.sourceCounts, papers: sources.length };
+          if (preparationReport) result.preparation = preparationReport;
           const knowledgeArtifacts = result.knowledge?.hits || [];
           if (!result.evidenceBudget && result.collectionMode !== "local-evidence" && JSON.stringify(result).length > 32000) {
             if (result.findings) result.findings = JSON.stringify(result.findings).slice(0, 20000);
@@ -1980,6 +1994,7 @@
               complete: coverage.papersSuccessfullyAnalyzed === coverage.papersIncludedInSnapshot && !coverage.papersFailed && !coverage.papersMissing }
               : { searchedSourceIds: searchedIds, failed: result.failures?.length || 0 },
             escalationHints: call.name === 'search_project_knowledge' ? ['For details absent from derived knowledge, use retrieve_project_evidence with the relevant source IDs.'] : (result.retrievalDetails?.sources || []).flatMap(source => source.refinementHints) });
+          root.BioDesignRuntimeLog?.record(result.files?.length || corpus ? 'knowledge.original-evidence' : 'knowledge.cached-retrieval', { turnId, tool: call.name, durationMs: Date.now() - retrievalStarted, providerAttempts: 0 });
           root.BioDesignRuntimeLog?.record('knowledge.access', { turnId, tool: call.name, localKnowledgeUsed: true,
             ...(scopeResolution || {}),
             scopeType: requirement.scope.type, sourceIds: scopedIds, granularity: requirement.granularity, sufficiency: result.evidenceBundle.sufficiency,
@@ -2024,6 +2039,10 @@
 
     async buildContextInternal(options) {
       if (options.generalPurpose || options.surface !== "agent_command") return this.buildAgentContext({ ...options, surface: options.surface || "side_chat", retrievalProfile: "medium", qualityMode: "balanced" });
+      const academic = root.BioDesignAcademicTools || require("../shared/academic-tools.js");
+      if (academic.isAcquisitionRequest(options.question)) {
+        return this.buildAgentContext({ ...options, academicAcquisition: true, retrievalProfile: "medium", qualityMode: "balanced" });
+      }
       return this.buildPlannedContextInternal(options);
     }
 

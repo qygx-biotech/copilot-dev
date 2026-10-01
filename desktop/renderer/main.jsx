@@ -69,7 +69,7 @@ function ProjectGoalEditor({ editor, busy, error, act, zh }) {
   </Modal>;
 }
 
-function ProjectMenu({ menu, close, edit, zh, label }) {
+function ProjectMenu({ menu, close, edit, zh, label, rename }) {
   const element = useRef(null);
   useEffect(() => {
     element.current.querySelector('button').focus();
@@ -78,7 +78,31 @@ function ProjectMenu({ menu, close, edit, zh, label }) {
     document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape);
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
   }, [menu]);
-  return <div ref={element} className="project-context-menu" role="menu" aria-label="Project actions" style={{ left: menu.x, top: menu.y }}><button role="menuitem" onClick={edit}>{label || (menu.project.hasGoal ? (zh ? '编辑项目目标' : 'Edit project goal') : (zh ? '添加项目目标' : 'Add project goal'))}</button></div>;
+  return <div ref={element} className="project-context-menu" role="menu" aria-label={menu.chat ? 'Chat actions' : 'Project actions'} style={{ left: menu.x, top: menu.y }}>{rename && <button role="menuitem" onClick={rename}>{zh ? '重命名' : 'Rename'}</button>}<button role="menuitem" onClick={edit}>{label || (menu.project.hasGoal ? (zh ? '编辑项目目标' : 'Edit project goal') : (zh ? '添加项目目标' : 'Add project goal'))}</button></div>;
+}
+
+function RenameChat({ target, close, zh }) {
+  const [title, setTitle] = useState(target.chat.title);
+  const [saving, setSaving] = useState(false), [error, setError] = useState('');
+  const dismiss = () => { if (!saving) close(); };
+  const save = async event => {
+    event.preventDefault();
+    if (saving || !title.trim()) return;
+    setSaving(true); setError('');
+    try {
+      const saved = await adapter.command('chat.rename', { projectId: target.projectId, catalogId: target.catalogId, role: 'agent_command', conversationId: target.chat.id, title });
+      if (saved) close();
+      else setError(adapter.getSnapshot().projectError || (zh ? '无法重命名对话。' : 'Could not rename this chat.'));
+    } catch (failure) { setError(failure.message); }
+    finally { setSaving(false); }
+  };
+  return <Modal title={zh ? '重命名对话' : 'Rename chat'} label="Rename chat" close={dismiss}>
+    <form onSubmit={save}>
+      <label className="chat-name-field">{zh ? '对话名称' : 'Chat name'}<input aria-label="Chat name" autoFocus value={title} maxLength={120} disabled={saving} onFocus={event => event.target.select()} onChange={event => setTitle(event.target.value)} /></label>
+      {error && <p role="alert">{error}</p>}
+      <div className="dialog-actions"><button type="button" className="secondary-button" disabled={saving} onClick={dismiss}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button" disabled={saving || !title.trim()}>{zh ? '保存' : 'Save'}</button></div>
+    </form>
+  </Modal>;
 }
 
 function SideHistory({ conversations, activeId, disabled, select, context, zh }) {
@@ -121,6 +145,7 @@ function Workbench() {
   const [library, setLibrary] = useState(false);
   const [projectMenu, setProjectMenu] = useState(null);
   const [chatMenu, setChatMenu] = useState(null), [deletion, setDeletion] = useState(null);
+  const [renaming, setRenaming] = useState(null);
   const [error, setError] = useState('');
   const zh = state.language === 'zh';
   const projectId = state.project?.id;
@@ -178,7 +203,7 @@ function Workbench() {
     setProjectMenu(null);
     const rect = event.currentTarget.getBoundingClientRect();
     setChatMenu({ project: {}, trigger: event.currentTarget, chat, catalogId, projectId, agentPanelId: state.activeAgentId,
-      x: Math.max(8, Math.min(event.clientX || rect.left, innerWidth - 220)), y: Math.max(8, Math.min(event.clientY || rect.bottom, innerHeight - 65)) });
+      x: Math.max(8, Math.min(event.clientX || rect.left, innerWidth - 220)), y: Math.max(8, Math.min(event.clientY || rect.bottom, innerHeight - (chat.role === 'agent_command' ? 110 : 65))) });
   };
   const confirmDelete = async () => {
     try {
@@ -236,7 +261,8 @@ function Workbench() {
         {pane('agent_command')}<ResizeHandle value={ratio} min={30} max={70} onChange={setRatio} controls="copilot-panes" ratio label="Resize Side Chat and Agent Work" />{pane('side_chat')}
       </div>
     </div>
-    {chatMenu && <ProjectMenu menu={chatMenu} close={() => setChatMenu(null)} zh={zh} label={zh ? '删除对话' : 'Delete chat'} edit={() => { setDeletion(chatMenu); setChatMenu(null); }} />}
+    {chatMenu && <ProjectMenu menu={chatMenu} close={() => setChatMenu(null)} zh={zh} rename={chatMenu.chat.role === 'agent_command' ? () => { setRenaming(chatMenu); setChatMenu(null); } : undefined} label={zh ? '删除对话' : 'Delete chat'} edit={() => { setDeletion(chatMenu); setChatMenu(null); }} />}
+    {renaming && <RenameChat target={renaming} close={() => setRenaming(null)} zh={zh} />}
     {deletion && <Modal title={zh ? '删除对话？' : 'Delete chat?'} label="Delete chat" close={() => { if (!busy) setDeletion(null); }}>
       <p>{zh ? '确定要删除此对话吗？' : 'Are you sure you want to delete this chat?'}</p><p><strong>{deletion.chat.title}</strong></p>
       <p>{deletion.chat.role === 'agent_command' ? (zh ? '同时删除其所有 Side Chat。项目文件与研究结果将保留。' : 'This also deletes its Side Chats. Project files and research results are kept.') : (zh ? '此问答记录将被删除。' : 'This Side Chat history will be deleted.')}</p>

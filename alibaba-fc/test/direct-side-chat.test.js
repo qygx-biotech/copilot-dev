@@ -34,7 +34,7 @@ test("actual Requesty catalog tool/vision fields enable only the advertised sele
   assert.equal(requests, 1, "Configuration cache is distinct from inference calls");
 });
 
-test("ordinary requests reconcile/invalidate metadata, preserve scope, and never prepare cards or invoke a semantic gate", async () => {
+test("ordinary requests reconcile/invalidate before context without preparing cards, preserve scope, and never invoke a semantic gate", async () => {
   const f = await host();
   assert.equal(f.context.semantic, undefined); assert.equal(f.context.agentLoop.answerLanguage, "zh");
   assert.equal(f.context.files.length, 0); assert.equal(f.calls.cards, 0);
@@ -119,7 +119,7 @@ test("corpus tool preserves both Chinese actions and reports real workflow cover
   const second = await run(f.context, async () => ({ ok: true, message: { content: "文献综述：根据已完成的逐篇分析讨论方法，并说明缺失证据。" } }), { resume: continuation.withResults(first.continuationState, [result]) });
   assert.equal(second.data.corpusCoverage.includedPaperIds.length, 2);
   assert.ok(second.data.reply.includes("本次文献覆盖"));
-  assert.equal(f.calls.cards, 2);
+  assert.equal(f.calls.cards, 2, "Only the fixture explicitly prepared cards");
 });
 
 test("an unsupported corpus claim receives at most one correction and an explicit measured limitation", async () => {
@@ -176,7 +176,7 @@ test("successful corpus maps measure every selected source and reuse compatible 
   assert.equal(first.result.coverage.papersSuccessfullyAnalyzed, 2, JSON.stringify(first.result.failures));
   assert.equal(maps, 0, "Compatible Paper Cards avoid extra provider maps");
   const second = await f.service.executeAgentTool({ id: "repeat-corpus", name: "run_corpus_workflow", args: {} }, { turnId: "direct-turn" });
-  assert.equal(second.result.coverage.papersSuccessfullyAnalyzed, 2); assert.equal(maps, 0, "Compatible Paper Cards avoid extra provider maps"); assert.equal(f.calls.cards, 2);
+  assert.equal(second.result.coverage.papersSuccessfullyAnalyzed, 2); assert.equal(maps, 0, "Compatible Paper Cards avoid extra provider maps"); assert.equal(f.calls.cards, 2, "Only the fixture explicitly prepared cards");
 });
 
 test("source changes during a selected tool prevent publishing stale findings", async () => {

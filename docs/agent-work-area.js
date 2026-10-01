@@ -43,7 +43,7 @@
     if (revision) {
       const index = chat.messages.indexOf(revision.message);
       chat.messages.splice(index);
-      if (index === 0) chat.title = "";
+      if (index === 0 && !chat.customTitle) chat.title = "";
     }
     chat.messages.push({ ...turn, role: "user", attachments: turn.attachments.map(attachmentMetadata) });
     if (!chat.title) chat.title = turn.content.replace(/\s+/g, " ").slice(0, 64);
@@ -59,7 +59,8 @@
 
   function finishTurn(chat, turn, { content, summary = content, citations = [], webSearchSources = [], webSearchMetadata = [], academicSources = [], isResult = false, status = "completed" }) {
     const now = new Date().toISOString();
-    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, academicSources, isResult, createdAt: now });
+    const elapsedMs = Number.isFinite(Date.parse(turn.createdAt)) ? Math.max(0, Date.parse(now) - Date.parse(turn.createdAt)) : 0;
+    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, academicSources, isResult, createdAt: now, elapsedMs });
     chat.summary = String(summary || "").replace(/[#*`>]/g, "").replace(/\s+/g, " ").trim().slice(0, 360);
     chat.updatedAt = now;
     chat.taskStatus = status;
@@ -74,6 +75,57 @@
     if (className) node.className = className;
     if (text !== undefined) node.textContent = text;
     return node;
+  }
+
+  function createTurnClock({ startedAt, elapsedMs = 0, working = false, label = '' } = {}) {
+    const node = element('div', 'turn-message-clock');
+    node.dataset.working = String(working);
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(icon.namespaceURI, 'path');
+    path.setAttribute('d', 'M12 6v6l4 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'); icon.append(path);
+    const time = element('time');
+    const caption = element('span', '', label);
+    node.append(icon, caption, time);
+    const start = Date.parse(startedAt);
+    let timer;
+    const paint = () => {
+      const ms = working && Number.isFinite(start) ? Math.max(0, Date.now() - start) : Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+      const seconds = Math.floor(ms / 1000);
+      time.textContent = `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+      time.dateTime = `PT${seconds}S`;
+    };
+    paint();
+    if (working) timer = setInterval(() => { if (!node.isConnected) clearInterval(timer); else paint(); }, 1000);
+    return { element: node, stop(finalLabel = label) { paint(); working = false; caption.textContent = finalLabel; node.dataset.working = 'false'; clearInterval(timer); }, remove() { clearInterval(timer); node.remove(); } };
+  }
+
+  // Presentation only: retain the original buttons and delegated action targets.
+  function decorateMessage(article, { createdAt, copyLabel, editLabel }) {
+    const bubble = element('div', 'message-bubble');
+    const footer = element('div', 'message-actions');
+    const copy = article.querySelector(':scope > .message-copy-button');
+    const edit = article.querySelector(':scope > .side-message-edit-button');
+    const date = new Date(createdAt || '');
+    if (Number.isFinite(date.getTime())) {
+      const time = element('time', 'message-time', date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      time.dateTime = date.toISOString(); footer.append(time);
+    }
+    for (const [button, label, path] of [
+      [copy, copyLabel, 'M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2 M5 7h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z'],
+      [edit, editLabel, 'm16 3 5 5 M3 21l5-1L21 7a2 2 0 0 0-5-5L3 15v6Z'],
+    ]) {
+      if (!button) continue;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+      const stroke = document.createElementNS(svg.namespaceURI, 'path');
+      stroke.setAttribute('d', path); svg.append(stroke);
+      button.replaceChildren(svg); button.title = label; button.setAttribute('aria-label', label);
+      footer.append(button);
+    }
+    bubble.append(...article.childNodes);
+    article.append(bubble);
+    if (footer.childNodes.length) article.append(footer);
   }
 
   function createAgentWorkArea({ container, t, formatTime, getModels, renderMarkdown, resultActions, getProgress, isBusy }) {
@@ -181,6 +233,8 @@
       const copy = action(chat, "copy-message", t("copyMessage"), "message-copy-button");
       copy.dataset.messageId = message.id;
       article.append(copy);
+      decorateMessage(article, { createdAt: message.createdAt, copyLabel: t('copyMessage'), editLabel: t('editLastMessage') });
+      if (message.role === 'assistant') article.prepend(createTurnClock({ elapsedMs: message.elapsedMs, label: t('turnElapsed') }).element);
       return article;
     }
 
@@ -201,6 +255,7 @@
       const latestUser = chat.messages.findLast(message => message.role === "user");
       chat.messages.forEach(message => conversation.append(createAgentMessage(chat, message, latestResult, latestUser)));
       if (!streamHosts.has(chat.id)) streamHosts.set(chat.id, element("div", "agent-stream-slot"));
+      if (chat.taskStatus === 'running') conversation.append(createTurnClock({ startedAt: latestUser?.createdAt, working: true, label: t('turnWorking') }).element);
       conversation.append(streamHosts.get(chat.id));
       return conversation;
     }
@@ -312,5 +367,5 @@
     return { render, getStreamHost: id => streamHosts.get(id), getConversation: id => conversations.get(id) };
   }
 
-  root.BioDesignAgentWork = { hydrate, beginTurn, finishTurn, serialize, createAgentWorkArea };
+  root.BioDesignAgentWork = { hydrate, beginTurn, finishTurn, serialize, createAgentWorkArea, decorateMessage, createTurnClock };
 })(window);

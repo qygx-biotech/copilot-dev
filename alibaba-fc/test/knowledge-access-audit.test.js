@@ -23,6 +23,8 @@ async function fixture(question, { failedCard = false, selected = null } = {}) {
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
     semanticInterpreter: { interpret() { throw Error('Mandatory planner is forbidden'); } } });
   f.options = { question, surface: 'side_chat', turnId: 'audit', callContext: { model } };
+  // Seed a previously prepared workspace; ordinary chat no longer warms artifacts.
+  await f.pipeline.preflight(f.options);
   f.context = await f.service.buildContext(f.options);
   f.ids = texts.map(([name]) => f.context.sourceMap.paperSources.find(s => s.path.includes(name)).sourceId);
   for (let index = 0; index < f.ids.length; index++) {

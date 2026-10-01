@@ -14,7 +14,7 @@ test('fetch retry and terminal failure retain original message and network cause
   const result = await requestRequestyMessage(request, 'fixture-secret');
   assert.equal(calls, 2); assert.equal(waits.length, 1);
   assert.equal(result.error, 'LlmRequestFailed'); assert.equal(result.terminalProviderFailure, true);
-  assert.deepEqual(result.transportError, { name: 'TypeError', message: 'fetch failed', causeCode: 'ECONNREFUSED', causeMessage: 'connect ECONNREFUSED 127.0.0.1:443' });
+  assert.deepEqual(result.transportError, { name: 'TypeError', message: 'fetch failed', causeCode: 'ECONNREFUSED' });
   assert.match(result.message, /fetch failed.*ECONNREFUSED/);
   assert.equal(logs.length, 2); assert(logs.every(entry => entry[1].transportError.causeCode === 'ECONNREFUSED'));
   assert.doesNotMatch(JSON.stringify([logs, result]), /PRIVATE_PROMPT|fixture-secret|stack/);
@@ -32,7 +32,7 @@ test('transport diagnostics redact credentials and URLs and exclude attached obj
   });
   const result = await requestRequestyMessage(request, 'fixture-secret', false, null, { maxAttempts: 1 });
   assert.equal(result.transportError.causeCode, 'UND_ERR_SOCKET');
-  assert.equal(result.transportError.causeMessage, 'socket closed');
+  assert.equal(result.transportError.causeMessage, undefined, 'Arbitrary exception prose is never retained');
   assert.match(result.transportError.message, /fetch failed/);
   assert.doesNotMatch(JSON.stringify([logs, result]), /fixture-secret|user:password|other-secret|token=hidden|PRIVATE_|COOKIE_SECRET/);
 });

@@ -158,7 +158,7 @@ test("empty detection ignores reported usage and preserves only safe provider di
   assert.doesNotMatch(JSON.stringify(result), /DO_NOT_LOG|fixture-api-key/);
 });
 
-test("one retry allowance survives selection/download continuations and retains the earlier summary", async t => {
+test("one retry allowance survives selection/download continuations and refreshes stale outcome counts", async t => {
   const resume = await downloaded(t);
   const p = provider(t, count => count === 1 ? answer(summary) : count === 2 ? { content: "" }
     : actions(tool("select_literature_papers", select(refs.slice(5))), tool("download_papers", { paper_refs: refs.slice(5) })));
@@ -168,7 +168,9 @@ test("one retry allowance survives selection/download continuations and retains 
   const empty = provider(t, () => ({ content: "" }));
   const final = await run({ ...empty, resume: resumed });
   assert.equal(empty.requests.length, 1);
-  assert.equal(final.data.reply, summary); assert.equal(final.data.downloadResults.length, 7);
+  assert.notEqual(final.data.reply, summary, "The old summary said two failures; four attempts have now failed");
+  assert.match(final.data.reply, /3 \/ 5 PDFs saved/); assert.match(final.data.reply, /Source 7/);
+  assert.equal(final.data.downloadResults.length, 7);
   assert.equal(final.data.taskOutcome.downloadSuccessCount, 3);
   assert.equal(final.data.taskOutcome.emptyResponseRecovery.stoppingLimit, "empty_response_retry_exhausted");
 });

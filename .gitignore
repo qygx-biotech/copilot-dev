@@ -19,7 +19,7 @@ desktop/paper-search/dist/
 desktop/paper-search/*.spec
 __pycache__/
 nanobot/
+playwright-mcp/
 
 docs/desktop.html
 docs/desktop-assets/
-playwright-mcp/

@@ -19,6 +19,8 @@ async function fixture(question = 'What are the major themes in the project lite
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
     semanticInterpreter: { interpret() { throw Error('No compulsory semantic planner'); } } });
   f.options = { question, surface: 'side_chat', turnId: 'evidence-turn', callContext: { model } };
+  // Seed a previously prepared workspace; ordinary chat no longer warms artifacts.
+  await f.pipeline.preflight(f.options);
   f.context = await f.service.buildContext(f.options);
   f.ids = f.context.sourceMap.paperSources.map(s => s.sourceId);
   f.tool = async (name, args, id = name) => {
@@ -57,7 +59,7 @@ test('CASE 1: general knowledge can answer directly with zero knowledge searches
   let calls = 0;
   const answer = await loop(f, async request => {
     calls++;
-    assert.ok(request.messages.some(m => /general questions can be answered directly/.test(m.content)));
+    assert.ok(request.messages.some(m => /general questions and conversational follow-ups, answer directly when existing conversation context is sufficient/.test(m.content)));
     return { ok: true, message: { content: 'Bayesian optimization uses a probabilistic surrogate and an acquisition function.' } };
   });
   assert.equal(calls, 1); assert.match(answer.data.reply, /surrogate/);

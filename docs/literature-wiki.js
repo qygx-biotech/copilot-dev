@@ -29,6 +29,18 @@
           (this.workspace.workspace?.workspaceId || this.workspace.workspace?.id) !== this.workspaceId) throw fail("OPERATION_ABORTED");
     }
     time() { return Number(this.now ? this.now() : Date.now()); }
+    async withinMaintenanceBudget(work, options) {
+      const remaining = options.deadline - this.time();
+      if (remaining <= 0) throw Object.assign(fail("WIKI_MAINTENANCE_DEADLINE"), { attempts: 0 });
+      const controller = new AbortController(); let timer, abort;
+      const stopped = new Promise((_, reject) => {
+        abort = () => { controller.abort(); reject(fail("OPERATION_ABORTED")); };
+        options.signal?.addEventListener("abort", abort, { once: true });
+        timer = (this.setMaintenanceTimeout || setTimeout)(() => { controller.abort(); reject(Object.assign(fail("WIKI_MAINTENANCE_DEADLINE"), { attempts: 0 })); }, remaining);
+      });
+      try { this.assertActive(options); return await Promise.race([work(controller.signal), stopped]); }
+      finally { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); }
+    }
     sourceVersions(topic) {
       return [...topic.paperIds].sort().map(sourceId => ({ sourceId, contentHash: this.registry.get(sourceId)?.contentHash || null }));
     }
@@ -74,62 +86,109 @@
     // Admission lives on the same authoritative index as revisions/attempts.
     // maintain() serializes admissions and commits reservations before provider work.
     async admitPages(candidates, explicit, options) {
-      const current = this.registry.list({ sourceKind: "paper" }).filter(source =>
-        !["missing", "removed", "deleted"].includes(source.catalogStatus));
+      const current = this.registry.list({ sourceKind: "paper" }).filter(source => !["missing", "removed", "deleted"].includes(source.catalogStatus));
       const currentIds = new Set(current.map(source => source.sourceId));
+      const occupied = topic => Boolean(topic.wiki || topic.wikiDraft || topic.wikiAdmission ||
+        topic.wikiMaintenance?.attempts?.some(attempt => attempt.generationStarted || attempt.providerAttempts > 0 || ["generation", "validation", "publication"].includes(attempt.stage)));
+      const reserved = this.topics.topics.filter(occupied);
+      const counted = new Set(reserved.map(topic => topic.topicId));
       const report = { projectPaperCount: currentIds.size, automaticPageCeiling: automaticPageCeiling(currentIds.size),
-        existingReservedPageCount: 0, remainingHeadroom: 0, admittedCandidateCount: 0, deferredCandidateCount: 0,
-        deferredReasons: {} };
-      let changed = false;
+        topicCandidateCount: candidates.length, existingReservedPageCount: counted.size,
+        admittedCandidateCount: 0, totalReservedPageCount: counted.size, remainingHeadroom: 0,
+        deferredCandidateCount: 0, rejectedCandidateCount: 0, deferredReasons: {} };
       const reservations = new Map(this.topics.topics.map(topic => [topic, topic.wikiAdmission]));
-      const occupied = topic => Boolean(topic.wiki || topic.wikiDraft || topic.wikiAdmission || topic.wikiMaintenance);
-      // Grandfather existing published/draft/pending work, even above the ceiling.
-      for (const topic of this.topics.topics.filter(occupied)) if (!topic.wikiAdmission) {
-        topic.wikiAdmission = { schemaVersion: 1, origin: "legacy", admittedAt: this.time(), key: admissionKey(topic) };
-        changed = true;
+      // Retain old slots above the ceiling; their presence grants no expansion.
+      const owners = new Map();
+      for (const topic of [...reserved].sort((a, b) => Number(Boolean(b.wiki)) - Number(Boolean(a.wiki)) || a.topicId.localeCompare(b.topicId))) {
+        if (!owners.has(admissionKey(topic))) owners.set(admissionKey(topic), topic.topicId);
       }
-      const counted = new Set(this.topics.topics.filter(occupied).map(topic => topic.topicId));
-      const keys = new Set(this.topics.topics.filter(occupied).map(admissionKey));
-      const support = topic => unique(topic.paperIds).filter(id => {
-        const source = this.registry.get(id);
-        return currentIds.has(id) && source.hashStatus === "ready" &&
-          this.preparation.capabilitySatisfied(source, "full_text");
-      }).length;
       const rank = topic => ["concept", "method", "comparison"].includes(topic.pageKind) ? 2 : topic.pageKind === "entity" ? 1 : 0;
-      const supportCounts = new Map(candidates.map(topic => [topic.topicId, support(topic)]));
-      const deferred = [], admitted = [];
       candidates = [...candidates].sort((a, b) => Number(counted.has(b.topicId)) - Number(counted.has(a.topicId)) ||
-        rank(b) - rank(a) || supportCounts.get(b.topicId) - supportCounts.get(a.topicId) || a.topicId.localeCompare(b.topicId));
+        rank(b) - rank(a) || b.paperIds.length - a.paperIds.length || a.topicId.localeCompare(b.topicId));
+      const deferred = [], admitted = [], prepared = new Map(), durations = new Map(); let changed = false;
+      const logger = options.logger || this.runtimeLog || root.BioDesignRuntimeLog;
+      const logCandidate = (topic, fields) => logger?.record("wiki.candidate-admission", { pageId: topic.topicId,
+        turnId: options.callContext?.turnId || options.turnId, stage: "admission", remainingMaintenanceMs: Math.max(0, options.deadline - this.time()), ...fields });
       for (const topic of candidates) {
         this.assertActive(options);
-        if (counted.has(topic.topicId)) { admitted.push(topic); continue; }
-        const key = admissionKey(topic);
-        const reason = !explicit && (supportCounts.get(topic.topicId) < 2 ? "insufficient_support" : keys.has(key) ? "redundant_candidate" :
-          counted.size >= report.automaticPageCeiling ? "page_ceiling" : null);
+        const started = this.time(), key = admissionKey(topic), existing = counted.has(topic.topicId);
+        let reason, code, diagnostics = [], transient = false;
+        if (topic.paperIds.length < 2) reason = "insufficient_support";
+        else if (topic.paperIds.length > contract.LIMITS.papers || new Set(topic.paperIds).size !== topic.paperIds.length) reason = "unsupported_source_scope";
+        else if (topic.paperIds.some(id => !currentIds.has(id))) reason = "missing_source";
+        else if (topic.paperIds.some(id => {
+          const source = this.registry.get(id);
+          return source.hashStatus !== "ready" || !this.preparation.capabilitySatisfied(source, "full_text");
+        })) { reason = "source_not_ready"; transient = true; }
+        else if (owners.has(key) && owners.get(key) !== topic.topicId) reason = "redundant_candidate";
+        else if (!existing && counted.size >= report.automaticPageCeiling) reason = "page_ceiling";
+        else if (this.time() >= options.deadline) { reason = "maintenance_deadline"; transient = true; }
+        else if (options.configuration) {
+          try {
+            // The same source checks and input builder used at dispatch determine admission.
+            const input = await this.withinMaintenanceBudget(async signal => {
+              const checkedOptions = { ...options, signal };
+              await this.checkSources(topic, checkedOptions);
+              // Current valid pages need no new model input and no prompt-version regeneration.
+              if (existing && !options.analysisRequest && await this.readForUse(topic, { ...checkedOptions, paperCardContract: options.configurationResult })) return null;
+              return this.prepare(topic, options.configuration, options.configurationResult, checkedOptions);
+            }, options);
+            if (this.time() >= options.deadline) { reason = "maintenance_deadline"; transient = true; }
+            else prepared.set(topic.topicId, input);
+          } catch (error) {
+            if (error.code === "OPERATION_ABORTED") throw error;
+            code = error.code || "WIKI_PREPARATION_FAILED";
+            reason = code === "WIKI_MAINTENANCE_DEADLINE" ? "maintenance_deadline" : code === "WIKI_INPUT_LIMIT" ? "input_size_limit" : code === "WIKI_COMPATIBLE_CARD_REQUIRED" ? "compatible_card_required" : "evidence_preparation_failed";
+            diagnostics = error.validationProblems || [];
+            transient = !["WIKI_INPUT_LIMIT", "WIKI_INVALID_EVIDENCE"].includes(code);
+          }
+        } else if (!existing) { reason = options.configurationError ? "configuration_unavailable" : "generation_unavailable"; transient = true; }
         if (reason) {
-          deferred.push({ pageId: topic.topicId, status: "deferred", pending: false, generationSkipped: true, reason, attempts: 0 });
+          const result = { pageId: topic.topicId, status: transient ? "deferred" : "rejected", category: transient ? "deferred" : "rejected",
+            pending: transient, generationSkipped: true, reason, code: code || `WIKI_${reason.toUpperCase()}`,
+            validationProblems: diagnostics, requiredAction: {
+              insufficient_support: "Use at least two distinct supporting papers.",
+              unsupported_source_scope: "Use 2–20 distinct supporting papers.",
+              missing_source: "Restore or reconcile missing sources before updating this page.",
+              source_not_ready: "Finish preparing current original evidence, then invoke maintenance again.",
+              redundant_candidate: "Use the existing topic page; an alias does not receive another slot.",
+              page_ceiling: "Refresh an existing eligible page; the project has no new-page headroom.",
+              maintenance_deadline: "Invoke maintenance again to continue; no automatic retry is scheduled.",
+              compatible_card_required: "Prepare compatible Paper Cards before requesting this update.",
+              input_size_limit: "Narrow the topic or incorporated analysis to fit wiki input limits.",
+              evidence_preparation_failed: "Reconcile original evidence and address the validation diagnostics before retrying.",
+              configuration_unavailable: "Restore the selected model configuration, then invoke maintenance again.",
+              generation_unavailable: "Configure the wiki provider before requesting generation.",
+            }[reason], attempts: 0, stage: "admission", eligibilityOutcome: "ineligible",
+            durationMs: Math.max(0, this.time() - started), remainingMaintenanceMs: Math.max(0, options.deadline - this.time()),
+            automaticRetry: false, automaticRetryScheduled: false, retryEligibility: transient ? "future_maintenance_after_prerequisite" : "requires_eligibility_change" };
+          deferred.push(result);
+          logCandidate(topic, { eligibilityOutcome: "ineligible", outcome: result.category, reason, code: result.code, durationMs: result.durationMs, providerAttempts: 0 });
           report.deferredReasons[reason] = (report.deferredReasons[reason] || 0) + 1;
           continue;
         }
-        topic.wikiAdmission = { schemaVersion: 1, origin: explicit ? "explicit" : "automatic", admittedAt: this.time(), key };
-        counted.add(topic.topicId); keys.add(key); admitted.push(topic);
-        report.admittedCandidateCount++; changed = true;
+        if (!topic.wikiAdmission) {
+          topic.wikiAdmission = { schemaVersion: 1, origin: existing ? "legacy" : explicit ? "explicit" : "automatic", admittedAt: this.time(), key };
+          changed = true;
+        }
+        if (!existing) { counted.add(topic.topicId); report.admittedCandidateCount++; }
+        owners.set(key, topic.topicId); admitted.push(topic);
+        durations.set(topic.topicId, Math.max(0, this.time() - started));
+        logCandidate(topic, { eligibilityOutcome: "eligible", outcome: existing ? "existing_slot" : "new_slot", durationMs: durations.get(topic.topicId), providerAttempts: 0 });
       }
-      report.existingReservedPageCount = counted.size;
+      report.totalReservedPageCount = counted.size;
       report.remainingHeadroom = Math.max(0, report.automaticPageCeiling - counted.size);
-      report.deferredCandidateCount = deferred.length;
+      report.deferredCandidateCount = deferred.filter(page => page.category === "deferred").length;
+      report.rejectedCandidateCount = deferred.filter(page => page.category === "rejected").length;
       if (changed) {
         this.assertActive(options);
         try { await this.topics.persist(); }
         catch (error) {
-          for (const [topic, previous] of reservations) {
-            if (previous) topic.wikiAdmission = previous;
-            else delete topic.wikiAdmission;
-          }
+          for (const [topic, previous] of reservations) { if (previous) topic.wikiAdmission = previous; else delete topic.wikiAdmission; }
           throw error;
         }
       }
-      return { candidates: admitted, deferred, report };
+      return { candidates: admitted, deferred, report, prepared, durations };
     }
     async preparationPending(topic, configuration, options) {
       const dependencies = this.sourceVersions(topic);
@@ -184,7 +243,8 @@
         nextEligibleAt: active && recovery.status === "retryable_timeout" ? recovery.nextRetryAt : null,
         elapsedMs: last?.generationDurationMs || 0, transportStarted: last?.transportStarted || false,
         providerRequestStarted: last?.providerRequestStarted ?? null, providerCompletion: last?.providerCompletion || "unknown",
-        automaticRetry: active && recovery?.status === "retryable_timeout" };
+        automaticRetry: false, automaticRetryScheduled: false,
+        retryEligibleOnFutureMaintenance: active && recovery?.status === "retryable_timeout" };
     }
     estimatedDuration(topic, configuration) {
       const own = (topic.wikiMaintenance?.attempts || []).filter(attempt => attempt.generationStarted && attempt.generationDurationMs > 0 && attempt.configuration?.modelSignature === configuration.modelSignature);
@@ -311,9 +371,10 @@
           const parsed = await this.preparation.readPaperArtifact(source.sourceId);
           if (parsed.contentHash !== dependency.contentHash) { issues.push("stale-evidence"); continue; }
           if (issues.includes("out-of-scope-reference") || source.contentHash !== dependency.contentHash || source.hashStatus !== "ready") continue;
-          papers.push({ paperId: source.sourceId, contentHash: dependency.contentHash, evidence: (parsed.chunks || []).map(chunk => ({
-            reference: `${source.sourceId}:p${chunk.page}:${chunk.chunkId}`, text: chunk.text || "",
-          })) });
+          const evidence = (parsed.chunks || []).map(chunk => ({ reference: `${source.sourceId}:p${chunk.page}:${chunk.chunkId}`, text: chunk.text || "" }));
+          const links = contract.continuityLinks(evidence);
+          for (const item of evidence) if (links.get(item.reference)?.length) item.continuity = links.get(item.reference);
+          papers.push({ paperId: source.sourceId, contentHash: dependency.contentHash, evidence });
         } catch { issues.push("missing-evidence"); }
       }
       const input = { pageId: topic.topicId, papers, relatedPages: this.topics.topics
@@ -334,7 +395,7 @@
       if (!record) return false;
       if (!configuration) return true;
       // Version-one saved prose remains readable through the existing legacy gate.
-      if (record.page?.schemaVersion === 1 && record.configuration?.promptVersion === "literature-wiki-v1") return record.configuration.modelSignature === configuration.modelSignature && record.configuration.evidenceVersion === configuration.evidenceVersion;
+      if ((record.page?.schemaVersion === 1 && record.configuration?.promptVersion === "literature-wiki-v1") || (record.page?.schemaVersion === 2 && record.configuration?.promptVersion === "literature-wiki-markdown-v2")) return record.configuration.modelSignature === configuration.modelSignature && record.configuration.evidenceVersion === configuration.evidenceVersion;
       return contract.sameConfiguration(record.configuration, configuration);
     }
     async readDraftForUse(topic, options = {}) {
@@ -344,21 +405,22 @@
       return checked.issues.length ? null : { ...record, integrity: checked.integrity, publicationStatus: "unverified_draft" };
     }
     async saveDraft(topic, prepared, response, page, options) {
-      if (!contract.isMarkdownPage(page) || contract.validateDraft(page).length) return;
+      if (!contract.isMarkdownPage(page)) return;
       const contentHash = await this.hashValue(page);
-      const path = `.biodesign/knowledge/wiki_pages/${topic.topicId}/${prepared.key}-${contentHash}.draft.json`;
+      const auditHash = await this.hashValue(response.generationAudit || null);
+      const path = `.biodesign/knowledge/wiki_pages/${topic.topicId}/${prepared.key}-${contentHash}-${auditHash}.draft.json`;
       const record = { schemaVersion: contract.VERSION.schemaVersion, pageId: topic.topicId, key: prepared.key,
         configuration: prepared.input.configuration, dependencies: prepared.dependencies, evidenceFingerprint: options.evidenceFingerprint,
         page: clone(page), contentHash, publicationStatus: "unverified_draft",
-        integrity: contract.citationIntegrity(page, prepared.input), validationProblems: contract.validatePage(page, prepared.input),
-        generation: { attempts: response.attempts ?? null, usage: response.usage || null }, updatedAt: new Date().toISOString() };
+        integrity: contract.citationIntegrity(page, prepared.input), validationProblems: contract.publicationProblems(page, prepared.input),
+        generation: { attempts: response.attempts ?? null, usage: response.usage || null, audit: response.generationAudit || null }, updatedAt: new Date().toISOString() };
       this.assertActive(options);
       await this.workspace.writeJson(path, record);
       this.assertActive(options);
       const old = topic.wikiDraft;
       topic.wikiDraft = { path, key: prepared.key, updatedAt: record.updatedAt };
       try { await this.topics.persist(); } catch (error) { topic.wikiDraft = old; throw error; }
-      if (old?.path && old.path !== path) try { await this.workspace.removeFile(old.path); } catch { /* Unreferenced drafts are never served. */ }
+      // Keep prior draft bytes as an audit trail; never erase an unresolved original during repair.
     }
     async dependencies(topic, paperCardContract, options = {}) {
       const result = [];
@@ -391,28 +453,35 @@
         .sort((a, b) => a.topicId.localeCompare(b.topicId)).slice(0, 12).map(other => ({ pageId: other.topicId, label: other.label }));
       const words = tokens(topic.label);
       const retainedRefs = new Set(contract.references(existingPage));
-      const papers = [];
+      const papers = [], chunksByPaper = new Map();
       for (const dependency of dependencies) {
         const source = this.registry.get(dependency.sourceId);
         const card = (await this.corpusWorkflows.readValidPaperCardForCorpusMap(source, paperCardContract)).card;
         const original = await this.preparation.readPaperArtifact(source.sourceId);
         if (original.contentHash !== dependency.contentHash) throw fail("WIKI_SOURCE_CHANGED");
         const chunks = (original.chunks || []).map(chunk => ({ reference: `${source.sourceId}:p${chunk.page}:${chunk.chunkId}`, text: chunk.text || "" }));
+        chunksByPaper.set(source.sourceId, chunks);
         const ranked = chunks.map(item => ({ ...item, score: words.reduce((n, word) => n + (item.text.toLowerCase().includes(word) ? 1 : 0), 0) }))
           .sort((a, b) => b.score - a.score);
         const selected = unique([...chunks.filter(item => retainedRefs.has(item.reference)), ...ranked.slice(0, 3)].map(item => item.reference));
-        const evidence = selected.map(reference => {
-          const chunk = chunks.find(item => item.reference === reference);
-          // Original L1 stays intact. Only bounded, subject-specific excerpts cross
-          // the provider boundary. Existing quotations must fit or validation fails.
-          return { reference, text: chunk.text.slice(0, 6000) };
-        });
+        const evidence = contract.selectEvidence(chunks, selected, 0);
         const orientation = { title: String(card.title || "").slice(0, 500), researchQuestion: String(card.researchQuestion || "").slice(0, 1000),
           summary: String(card.summary || "").slice(0, 2000), methods: (card.methods || []).slice(0, 8).map(value => String(value).slice(0, 200)) };
         papers.push({ paperId: source.sourceId, contentHash: source.contentHash, card: orientation, evidence });
       }
       const input = { pageId: topic.topicId, label: topic.label, kind: topic.pageKind || "concept", configuration, papers,
         existingPage, relatedPages, analysisRequest: options.analysisRequest || topic.wikiMaintenance?.analysisRequest || previous?.analysisRequest || "" };
+      const evidenceStarted = this.time();
+      for (const paper of papers) {
+        const chunks = chunksByPaper.get(paper.paperId);
+        const remaining = Math.max(0, contract.LIMITS.inputCharacters - JSON.stringify(input).length - 4000);
+        const expanded = contract.selectEvidence(chunks, paper.evidence.map(e => e.reference), Math.min(3600, Math.floor(remaining / 2)));
+        const previous = paper.evidence;
+        paper.evidence = expanded;
+        if (JSON.stringify(input).length > contract.LIMITS.inputCharacters) paper.evidence = previous;
+      }
+      root.BioDesignRuntimeLog?.record("wiki.evidence_prepared", { stage: "adjacent_context", turnId: options.callContext?.turnId, sourceCount: papers.length,
+        included: papers.reduce((n, p) => n + p.evidence.length, 0), durationMs: Math.max(0, this.time() - evidenceStarted) });
       // A corrupt or stale historical revision is never model evidence for its
       // own repair. Original chunks and compatible cards remain authoritative.
       if (contract.isMarkdownPage(input.existingPage)) {
@@ -428,7 +497,8 @@
         input.existingPage.relatedPageIds = input.existingPage.relatedPageIds.filter(id => relatedPages.some(page => page.pageId === id));
       }
       if (previous?.contentHash && previous.contentHash !== await this.hashValue(previous.page)) input.existingPage = null;
-      if (contract.validateInput(input).length) throw fail("WIKI_INPUT_LIMIT");
+      const inputProblems = contract.validateInput(input);
+      if (inputProblems.length) throw fail(inputProblems.some(problem => /evidence/i.test(problem)) ? "WIKI_INVALID_EVIDENCE" : "WIKI_INPUT_LIMIT", inputProblems);
       const key = await this.hashValue({ configuration, pageId: topic.topicId, kind: input.kind, dependencies,
         relatedPageIds: relatedPages.map(item => item.pageId), analysisRequest: input.analysisRequest });
       return { input, dependencies, previous, key };
@@ -475,7 +545,7 @@
       let prepared;
       try {
         await this.checkSources(topic, options);
-        prepared = await this.prepare(topic, configuration, paperCardContract, options);
+        prepared = options.admittedPreparation || await this.prepare(topic, configuration, paperCardContract, options);
       } catch (error) {
         if (error.code !== "OPERATION_ABORTED") await this.preparationPending(topic, configuration, options);
         throw error;
@@ -547,6 +617,9 @@
           await this.topics.persist();
           return this.deferred(topic, "insufficient_remaining_time");
         }
+        (options.logger || this.runtimeLog || root.BioDesignRuntimeLog)?.record("wiki.page-stage", { pageId: topic.topicId,
+          turnId: options.callContext?.turnId || options.turnId, stage: "generation", providerAttempts: null,
+          remainingMaintenanceMs: Math.max(0, options.deadline - this.time()) });
         this.metrics.generationCalls++;
         const generationStarted = this.time();
         let response;
@@ -588,10 +661,23 @@
         attempt.providerAttempts = response?.attempts ?? null;
         attempt.providerRequestStarted = Number.isInteger(response?.attempts) ? response.attempts > 0 : null;
         attempt.providerCompletion = response?.attempts === 0 ? "not_started" : "response_received";
+        attempt.initialGenerationMs = response?.generationAudit?.calls?.filter(call => call.stage === "generation").reduce((n, call) => n + call.durationMs, 0) ?? null;
+        attempt.repairMs = response?.generationAudit?.calls?.filter(call => call.stage === "repair").reduce((n, call) => n + call.durationMs, 0) ?? null;
         attempt.stage = "validation";
         this.assertActive(options);
         if (!contract.sameConfiguration(response?.configuration, configuration)) throw fail("WIKI_CONFIGURATION_CHANGED");
-        const validationProblems = contract.validatePage(response?.page, prepared.input);
+        const validationStarted = this.time();
+        const normalized = contract.normalizeMarkdown(response?.page, prepared.input);
+        if (contract.isMarkdownPage(response?.page)) {
+          if (response.generationAudit && normalized.repairs.length) response.generationAudit.hostRepairs = normalized.repairs;
+          response.generationAudit ||= { outputs: [{ stage: "generation", rawPage: clone(response.page), repairs: normalized.repairs }] };
+          response.page = normalized.page;
+        }
+        const validationProblems = contract.publicationProblems(response?.page, prepared.input);
+        root.BioDesignRuntimeLog?.record("wiki.validation", { stage: "publication", turnId: options.callContext?.turnId, repairAttempted: Boolean(response.generationAudit?.modelRepairCalls),
+          durationMs: Math.max(0, this.time() - validationStarted),
+          repairedCount: [...(response.generationAudit?.outputs || []).flatMap(output => output.repairs || []), ...(response.generationAudit?.hostRepairs || [])].reduce((n, repair) => n + repair.count, 0), validationCount: validationProblems.length,
+          outcome: validationProblems.length ? "unverified_draft" : "references_validated" });
         if (validationProblems.length) {
           await this.saveDraft(topic, prepared, response, response?.page, options);
           throw Object.assign(fail("INVALID_WIKI_PAGE", validationProblems), { attempts: response.attempts ?? null });
@@ -612,7 +698,7 @@
         const path = `.biodesign/knowledge/wiki_pages/${topic.topicId}/${prepared.key}.json`;
         const record = { schemaVersion: contract.VERSION.schemaVersion, pageId: topic.topicId, key: prepared.key,
           configuration, dependencies: prepared.dependencies, evidenceFingerprint: options.evidenceFingerprint, page, contentHash: await this.hashValue(page),
-          generation: { attempts: response.attempts ?? null, usage: response.usage || null },
+          generation: { attempts: response.attempts ?? null, usage: response.usage || null, audit: response.generationAudit || null },
           integrity: contract.citationIntegrity(page, prepared.input),
           analysisRequest: prepared.input.analysisRequest, updatedAt: new Date().toISOString() };
         const checked = await this.inspect(topic, record, { ...options, reconciledSources: null, paperCardContract });
@@ -643,11 +729,7 @@
         // searchable projection, so index/renderer failure never loses a valid page.
         try { await this.project(topic, options); }
         catch (error) { error.code ||= "WIKI_PROJECTION_FAILED"; throw error; }
-        for (const obsolete of [old.wiki, ...(old.wiki?.history || [])].filter(Boolean)) {
-          if (obsolete.path !== path && !history.some(item => item.path === obsolete.path)) {
-            try { if (await this.workspace.fileExists(obsolete.path)) await this.workspace.removeFile(obsolete.path); } catch { /* Cleanup can be retried without changing the page. */ }
-          }
-        }
+        // Keep historical revision bytes; only the navigation history is bounded.
         return { pageId: topic.topicId, status: "updated", attempts: attempt.providerAttempts, ...this.attemptStatus(topic) };
       }, options);
     }
@@ -670,7 +752,51 @@
       } finally { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); }
     }
     async maintain(options = {}) {
-      const run = this.queue.then(() => this.maintainInternal(options));
+      const run = this.queue.then(async () => {
+        const started = this.time(), deadline = Math.min(Number.isFinite(options.deadline) ? options.deadline : Infinity, started + RUN_BUDGET_MS);
+        let result;
+        try { result = await this.maintainInternal({ ...options, deadline }); }
+        catch (error) {
+          (options.logger || this.runtimeLog || root.BioDesignRuntimeLog)?.record("wiki.maintenance-outcome", { stage: "maintenance",
+            code: error.code || "WIKI_MAINTENANCE_FAILED", outcome: error.code === "OPERATION_ABORTED" ? "cancelled" : "failed",
+            durationMs: Math.max(0, this.time() - started), remainingMaintenanceMs: Math.max(0, deadline - this.time()),
+            deadlineReached: this.time() >= deadline, automaticRetryScheduled: false, executionMode: "foreground" });
+          throw error;
+        }
+        if (options.action === "check") return result;
+        const counts = { updated: 0, reused: 0, rejected: 0, failed: 0, deferred: 0 };
+        for (const page of result.pages || []) {
+          page.category ||= ["updated", "reused", "rejected", "deferred"].includes(page.status) ? page.status : page.generationSkipped ? "deferred" : "failed";
+          counts[page.category]++;
+          page.automaticRetryScheduled = false; page.automaticRetry = false;
+          const evidence = this.topics.topics.find(topic => topic.topicId === page.pageId)?.wikiEvidence;
+          const unattemptedEvidence = evidence?.eligibleFingerprint === evidence?.fingerprint && evidence?.fingerprint && !evidence.attemptedFingerprints?.includes(evidence.fingerprint);
+          page.retryEligibility ||= page.retryEligibleOnFutureMaintenance ? "future_maintenance_after_cooldown" : !page.pending ? "none" :
+            unattemptedEvidence ? "future_maintenance" : "explicit_retry_or_new_evidence";
+        }
+        const knownProviderAttempts = result.providerAttempts ?? 0;
+        const report = { ...result, counts, knownProviderAttempts, providerAttempts: result.unknownProviderAttempts > 0 ? null : knownProviderAttempts,
+          deadlineReached: this.time() >= deadline, durationMs: Math.max(0, this.time() - started),
+          remainingMaintenanceMs: Math.max(0, deadline - this.time()), pendingPages: (result.pages || []).filter(page => page.pending).map(page => ({ pageId: page.pageId, reason: page.reason || page.code, retryEligibility: page.retryEligibility })),
+          automaticRetryScheduled: false, executionMode: "foreground", outcome: counts.failed || counts.deferred ? "incomplete" : counts.rejected ? "completed_with_rejections" : "completed" };
+        const logger = options.logger || this.runtimeLog || root.BioDesignRuntimeLog;
+        for (const page of report.pages || []) logger?.record("wiki.page-outcome", {
+          pageId: page.pageId, turnId: options.callContext?.turnId || options.turnId, stage: page.stage || "configuration",
+          eligibilityOutcome: page.eligibilityOutcome, outcome: page.category, reason: page.reason, code: page.code,
+          durationMs: page.durationMs ?? page.elapsedMs ?? 0, admissionMs: page.admissionMs, remainingMaintenanceMs: page.remainingMaintenanceMs ?? report.remainingMaintenanceMs,
+          providerAttempts: page.attempts ?? null, providerAttemptsKnown: Number.isInteger(page.attempts),
+          initialGenerationMs: page.initialGenerationMs ?? null, repairMs: page.repairMs ?? null,
+          providerCompletion: page.providerCompletion, automaticRetryScheduled: false,
+          retryEligibility: page.retryEligibility,
+        });
+        logger?.record("wiki.maintenance-outcome", { turnId: options.callContext?.turnId || options.turnId, outcome: report.outcome,
+          durationMs: report.durationMs, remainingMaintenanceMs: report.remainingMaintenanceMs, deadlineReached: report.deadlineReached,
+          updatedPageCount: counts.updated, reusedPageCount: counts.reused, rejectedPageCount: counts.rejected,
+          failedPageCount: counts.failed, deferredPageCount: counts.deferred, pendingPageCount: report.pendingPages.length,
+          knownProviderAttempts, unknownProviderAttempts: report.unknownProviderAttempts || 0,
+          automaticRetryScheduled: false, executionMode: "foreground" });
+        return report;
+      });
       this.queue = run.catch(() => {});
       return run;
     }
@@ -705,10 +831,16 @@
       }
       const eligibility = new Map();
       for (const topic of candidates) eligibility.set(topic.topicId, await this.observeEvidence(topic, changed));
-      const admission = await this.admitPages(candidates, explicit, options);
+      let configurationResult, configuration, configurationError;
+      if (candidates.length && this.getPaperCardConfiguration && this.generateWikiPage && this.time() < options.deadline) try {
+        configurationResult = await this.withinMaintenanceBudget(signal => this.getPaperCardConfiguration(signal, options.callContext, this.workspace.workspace || this.workspace), options);
+        configuration = configurationResult?.wikiConfiguration;
+        if (!contract.sameConfiguration(configuration, contract.configuration(configuration?.modelSignature))) throw fail("WIKI_CONFIGURATION_UNAVAILABLE");
+      } catch (error) { this.assertActive(options); configurationError = error; configuration = null; }
+      const admission = await this.admitPages(candidates, explicit, { ...options, configuration, configurationResult, configurationError });
       candidates = admission.candidates;
       const admissionReport = admission.report;
-      if (!candidates.length) return { status: "ready", pages: admission.deferred, admission: admissionReport, generationCalls: 0, providerAttempts: 0, skippedGenerationCount: admission.deferred.length };
+      if (!candidates.length) return { status: !this.getPaperCardConfiguration || !this.generateWikiPage ? "offline" : configurationError ? "unavailable" : admission.deferred.some(page => page.pending) ? "partial" : "ready", pages: admission.deferred, admission: admissionReport, generationCalls: 0, providerAttempts: 0, skippedGenerationCount: admission.deferred.length };
       if (!this.getPaperCardConfiguration || !this.generateWikiPage) {
         const pages = [...admission.deferred];
         for (const topic of candidates) {
@@ -720,13 +852,8 @@
         }
         return { status: "offline", pages, admission: admissionReport, generationCalls: 0, providerAttempts: 0, unknownProviderAttempts: 0, skippedGenerationCount: pages.length };
       }
-      let configurationResult, configuration;
-      try {
-        configurationResult = await this.getPaperCardConfiguration?.(options.signal, options.callContext, this.workspace.workspace || this.workspace);
-        configuration = configurationResult?.wikiConfiguration;
-        if (!contract.sameConfiguration(configuration, contract.configuration(configuration?.modelSignature))) throw fail("WIKI_CONFIGURATION_UNAVAILABLE");
-      } catch (error) {
-        this.assertActive(options);
+      if (configurationError) {
+        const error = configurationError;
         error.attempts = 0; // Configuration transport never calls the model.
         const pages = [...admission.deferred];
         for (const topic of candidates) {
@@ -737,7 +864,7 @@
         return { status: "unavailable", pages, admission: admissionReport, generationCalls: 0, providerAttempts: 0, unknownProviderAttempts: 0 };
       }
       const before = this.metrics.generationCalls, generationMsBefore = this.metrics.generationMs, providerBefore = this.metrics.providerAttempts, unknownBefore = this.metrics.unknownProviderAttempts, pages = [...admission.deferred];
-      const deadline = this.time() + RUN_BUDGET_MS;
+      const deadline = options.deadline;
       candidates = this.schedule([...new Map(candidates.map(topic => [topic.topicId, topic])).values()], eligibility, explicit);
       for (const topic of candidates) {
         this.assertActive(options);
@@ -745,14 +872,17 @@
         const eligible = explicit || evidence.eligible;
         const recovery = topic.wikiMaintenance?.timeoutRecovery;
         const deferReason = evidence.timeoutRetry && recovery.nextRetryAt > this.time() ? "timeout_cooldown" :
-          this.metrics.generationCalls - before >= contract.LIMITS.pagesPerRun ? "run_attempt_limit" :
           deadline - this.time() < this.estimatedDuration(topic, configuration) ? "insufficient_remaining_time" : null;
         const allowGeneration = Boolean(this.generateWikiPage) && eligible && !deferReason;
         if (!contract.sameConfiguration(topic.wikiCompatibility, configuration)) { topic.wikiCompatibility = clone(configuration); await this.topics.persist(); }
-        const callsBefore = this.metrics.generationCalls;
+        const callsBefore = this.metrics.generationCalls, pageStarted = this.time();
         try {
-          const result = await this.update(topic, configuration, configurationResult, { ...options, ...evidence, eligible, allowGeneration, deferReason, deadline });
-          pages.push(result);
+          const result = await this.update(topic, configuration, configurationResult, { ...options, ...evidence, eligible, allowGeneration, deferReason, deadline, admittedPreparation: admission.prepared.get(topic.topicId) });
+          const last = topic.wikiMaintenance?.attempts?.at(-1);
+          pages.push({ ...result, attempts: result.attempts ?? (result.status === "reused" ? 0 : null), stage: result.status === "updated" ? "publication" : "scheduling",
+            eligibilityOutcome: "eligible", durationMs: Math.max(0, this.time() - pageStarted) + (admission.durations.get(topic.topicId) || 0), admissionMs: admission.durations.get(topic.topicId) || 0, remainingMaintenanceMs: Math.max(0, deadline - this.time()),
+            initialGenerationMs: this.metrics.generationCalls > callsBefore ? last?.initialGenerationMs ?? null : 0,
+            repairMs: this.metrics.generationCalls > callsBefore ? last?.repairMs ?? null : 0 });
           if (result.status === "stale" && !result.projectionPending && !result.currentRevisionAvailable) topic.summaryStatus = "stale";
           if (result.status === "reused") topic.summaryStatus = "ready";
         } catch (error) {
@@ -772,7 +902,9 @@
           if (error.code === "OPERATION_ABORTED") throw error;
           topic.summaryStatus = await this.readForUse(topic, options) ? "ready" : "stale";
           pages.push({ pageId: topic.topicId, status: "stale", pending: true, ...this.failure(error),
-            attempts: error.attempts ?? null, nextRetryAt: topic.wikiMaintenance?.nextRetryAt || null, draftSaved: Boolean(topic.wikiDraft), ...this.attemptStatus(topic) });
+            attempts: error.attempts ?? null, nextRetryAt: topic.wikiMaintenance?.nextRetryAt || null, draftSaved: Boolean(topic.wikiDraft), ...this.attemptStatus(topic), category: "failed", stage: topic.wikiMaintenance?.attempts?.at(-1)?.stage || "preparation",
+            eligibilityOutcome: "eligible_at_admission", durationMs: Math.max(0, this.time() - pageStarted) + (admission.durations.get(topic.topicId) || 0), admissionMs: admission.durations.get(topic.topicId) || 0, remainingMaintenanceMs: Math.max(0, deadline - this.time()),
+            initialGenerationMs: this.metrics.generationCalls > callsBefore ? topic.wikiMaintenance?.attempts?.at(-1)?.initialGenerationMs ?? null : 0, repairMs: this.metrics.generationCalls > callsBefore ? topic.wikiMaintenance?.attempts?.at(-1)?.repairMs ?? null : 0 });
         }
       }
       if (this.topics.topics.some(topic => statuses.get(topic.topicId) !== topic.summaryStatus)) {

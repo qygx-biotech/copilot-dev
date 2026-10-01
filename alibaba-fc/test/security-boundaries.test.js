@@ -31,7 +31,18 @@ const originalFetch = global.fetch;
 let logs, providerRequests;
 const completion = content => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) }, finish_reason: "stop" }] }));
 const finalAnswer = { reply: "Fixture answer.", project: { summary: "Fixture", organism: "Unknown", missingInformation: [], safetyLevel: "Review", safetyNotes: "Review", draftMemo: "Fixture" } };
-test.beforeEach(t => {
+test.beforeEach(async t => {
+  // Learned limits must survive production requests, but not leak across tests
+  // or repeated suite runs that use the same synthetic provider identity.
+  const fs = require("node:fs/promises");
+  const root = await fs.mkdtemp(require("node:path").join(require("node:os").tmpdir(), "security-context-"));
+  const previousRoot = process.env.CONTEXT_ARCHIVE_DIR;
+  process.env.CONTEXT_ARCHIVE_DIR = root;
+  t.after(async () => {
+    await fs.rm(root, { recursive: true, force: true });
+    if (previousRoot === undefined) delete process.env.CONTEXT_ARCHIVE_DIR;
+    else process.env.CONTEXT_ARCHIVE_DIR = previousRoot;
+  });
   Object.assign(process.env, env); logs = []; providerRequests = [];
   for (const method of ["log", "info", "warn", "error"]) t.mock.method(console, method, (...args) => logs.push(format(...args)));
   // Legacy review checks its sidecar before reading PDF metadata; keep every
@@ -116,7 +127,7 @@ test("forged models cannot select keys; valid beta and admin answer modes retain
     for (const [mode, model] of [["side_chat", "default"], ["agent_instruction", "default"], ["agent_instruction", "google/gemini-3.1-flash-lite:flex"]]) {
       const result = await invoke("/chat", { ...chat, mode, model,
         role: "admin", account: users[1].account, requestyKeyEnv: "REQUESTY_KEY_BETA2", apiKey: "forged-key", env: { REQUESTY_API_KEY: "forged-key" } }, identity);
-      assert.equal(result.body.fallback, false); assert.equal(result.body.reply, finalAnswer.reply);
+      assert.equal(result.body.fallback, false); assert.equal(result.body.reply, mode === "agent_instruction" ? JSON.stringify(finalAnswer) : finalAnswer.reply);
       assert.ok(providerRequests.at(-1).headers.Authorization === `Bearer ${key}`, "Only the verified identity selects the key");
       assert.equal(JSON.parse(providerRequests.at(-1).body).model, model === "default" ? env.REQUESTY_MODEL : model);
       assertClean(result);
