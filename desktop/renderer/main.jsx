@@ -221,7 +221,7 @@ function Workbench() {
       <div className="sidebar-footer">
         <details className="account-menu">
           <summary aria-label={zh ? '账号' : 'Account'}><span className="account-avatar" aria-hidden="true">{(state.account || 'A').slice(0, 1).toUpperCase()}</span><span><strong>{zh ? '账号' : 'Account'}</strong><small>{state.account || 'BioDesign Copilot'}</small></span><span aria-hidden="true">⌃</span></summary>
-          <div className="account-options"><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.library'); }}>Library URL</button></div>
+          <div className="account-options"><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.library'); }}>Library URL</button><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.libraryJobs'); }}>{zh ? '图书馆任务' : 'Library jobs'}</button></div>
         </details>
       </div>
       <ResizeHandle value={sidebarWidth} min={230} max={420} onChange={setSidebarWidth} controls="copilot-sidebar" label="Resize sidebar" />

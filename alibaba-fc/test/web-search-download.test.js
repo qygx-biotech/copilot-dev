@@ -166,7 +166,7 @@ test("agent loop resumes hosted search → desktop download → existing local t
       { id: "hosted-1", type: "web_search_call", status: "completed" }, call("download_sources", { sources: [{ url, title: "EctD paper" }] }),
     ] },
     { content: null, tool_calls: [call("list_papers", {}, "list-local")] },
-    { content: JSON.stringify(final) },
+    { content: final.reply },
   ];
   global.fetch = async (_address, options) => { requests.push(JSON.parse(options.body)); return new Response(JSON.stringify({ choices: [{ message: messages.shift(), finish_reason: "stop" }] })); };
   const body = { mode: "agent_instruction", messages: [{ role: "user", content: "Find EctD papers and download the most relevant PDF, then compare existing papers" }],

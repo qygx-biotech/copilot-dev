@@ -34,12 +34,12 @@ test("actual Requesty catalog tool/vision fields enable only the advertised sele
   assert.equal(requests, 1, "Configuration cache is distinct from inference calls");
 });
 
-test("ordinary requests reconcile/invalidate before context, reuse cards, preserve scope, and never invoke a semantic gate", async () => {
+test("ordinary requests reconcile/invalidate metadata, preserve scope, and never prepare cards or invoke a semantic gate", async () => {
   const f = await host();
   assert.equal(f.context.semantic, undefined); assert.equal(f.context.agentLoop.answerLanguage, "zh");
-  assert.equal(f.context.files.length, 0); assert.equal(f.calls.cards, 2);
+  assert.equal(f.context.files.length, 0); assert.equal(f.calls.cards, 0);
   const next = await f.service.buildContext({ ...f.options, turnId: "next", question: "你好" });
-  assert.equal(f.calls.cards, 2); assert.equal(next.agentLoop.version, 1);
+  assert.equal(f.calls.cards, 0); assert.equal(next.agentLoop.version, 1);
   const id = next.sourceMap.paperSources[0].sourceId;
   const selected = await f.service.buildContext({ ...f.options, turnId: "selected", selectedPaperIds: [id] });
   assert.deepEqual(selected.sourceMap.paperSources.map(source => source.sourceId), [id]);
@@ -88,7 +88,7 @@ test("model-selected original evidence survives signed continuation, keeps citat
   assert.deepEqual(result, duplicate); assert.equal(f.service.agentTurns.get("direct-turn").calls, 1);
   assert.equal(result.result.ok, true, JSON.stringify(result));
   assert.match(result.result.files[0].content, /code availability/);
-  assert.equal(f.calls.cards, 2);
+  assert.equal(f.calls.cards, 0);
   const token = continuation.seal(first.continuationState, { project: "P" }, "fixture");
   const resumed = continuation.withResults(continuation.open(token, { project: "P" }, "fixture"), [result]);
   const reference = f.context.citationEvidence[0].reference;
@@ -108,6 +108,7 @@ test("model-selected original evidence survives signed continuation, keeps citat
 
 test("corpus tool preserves both Chinese actions and reports real workflow coverage with cached Paper Cards", async () => {
   const f = await host(); let observed;
+  await f.system.preparation.ensureSourceReady(f.context.sourceMap.paperSources.map(p => p.sourceId), "paper_card", { surface: "side_chat", deferTopicUpdate: true });
   const real = f.system.corpusWorkflows.run.bind(f.system.corpusWorkflows);
   f.system.corpusWorkflows.run = async (question, options) => { observed = { question, options }; return real(question, options); };
   const first = await run(f.context, async () => ({ ok: true, message: { tool_calls: [call("run_corpus_workflow")] } }));
@@ -164,6 +165,7 @@ test("original image/question reach the selected main model directly; no extract
 
 test("successful corpus maps measure every selected source and reuse compatible cards and maps", async () => {
   const f = await host(); let maps = 0;
+  await f.system.preparation.ensureSourceReady(f.context.sourceMap.paperSources.map(p => p.sourceId), "paper_card", { surface: "side_chat", deferTopicUpdate: true });
   f.system.corpusWorkflows.mapWorker = async input => {
     maps++;
     return { relevance: "high", themes: ["docking"], findings: input.evidence.slice(0, 1).map(item => ({ claim: item.claimCandidate, evidenceRefs: [item.evidenceRef] })),

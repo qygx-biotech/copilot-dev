@@ -230,16 +230,20 @@ For live streamed answers, use the [streaming deployment instructions](STREAMING
    `ListObjects` uses the bucket itself as the RAM resource; the `oss:Prefix` condition restricts the listable scope. Legacy application authentication further narrows every request to the current account's exact hashed prefix.
 
    The legacy object-level statement must include `oss:GetObject`, `oss:PutObject`, and `oss:DeleteObject` on `acs:oss:*:*:biodesign-copilot-files-2026/uploads/*` if those old endpoints remain deployed.
-7. Install production dependencies, synchronize the shared retrieval contract, and package the root handler with `node_modules`:
+7. Install production dependencies and build a validated runtime archive:
 
    ```bash
    cd alibaba-fc
    npm ci --omit=dev
-   npm run sync:shared
-   zip -r ../alibaba-fc-local-workspace.zip ./*.js src shared bootstrap package.json package-lock.json node_modules
+   npm run package
    ```
 
-8. Upload `alibaba-fc-local-workspace.zip`. Keep the handler set to `index.handler`.
+   This synchronizes all shared contracts, stages only runtime files, and checks
+   handler loading, health, login and session validation with synthetic credentials
+   before replacing `alibaba-fc/Archive.zip`. Do not manually zip a stale `shared/`
+   directory: missing imports can prevent every route, including login, from starting.
+
+8. Upload `alibaba-fc/Archive.zip`. Keep the handler set to `index.handler`.
 9. The local-workspace routes process one bounded chunk per invocation and a separate bounded synthesis request. Keep the existing memory and timeout settings; the legacy server-side OSS review still benefits from 1 GB memory and a 300-second timeout.
 10. Keep the existing HTTP-trigger CORS origin for the GitHub Pages frontend.
 11. The local-workspace flow does not require OSS bucket CORS. Keep the old rule only if the retained legacy signed-upload endpoint is still in use elsewhere.

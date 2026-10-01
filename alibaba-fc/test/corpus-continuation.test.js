@@ -83,7 +83,7 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
     callContext: { turnId: "corpus-resume", callRole: "answer", profile: "medium" } });
   assert.equal(exchanges.length, 2); assert.ok(exchanges[1].desktopContinuation);
   assert.equal(service.agentTurns.get("corpus-resume").calls, 1, "recovery must not reexecute collection");
-  assert.equal(f.calls.cards, cards); assert.equal(cards, 3);
+  assert.equal(f.calls.cards, cards); assert.equal(cards, 0, "Corpus requests prepare no cards before or during the tool");
   assert.ok(f.workspace.writes.every(path => path.startsWith(".biodesign/")));
   assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: "R1" });
   assert.equal(result.semanticTelemetry.providerAttempts, requests.length);

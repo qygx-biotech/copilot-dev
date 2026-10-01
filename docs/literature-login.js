@@ -68,10 +68,4 @@
       dialog.append(button('Close', () => dialog.remove()));
     },
   };
-  window.addEventListener('DOMContentLoaded', () => {
-    if (!window.biodesignDesktop?.execution) return;
-    const control = button('Library jobs', () => window.BioDesignLiteratureLogin.showJobs());
-    control.style.cssText = 'position:fixed;bottom:12px;right:16px;z-index:30;padding:7px 12px;border-radius:8px';
-    document.body.append(control);
-  });
 })();

@@ -11,6 +11,8 @@ async function fixture(options = {}) {
   const f = await createFixture(options);
   f.workspace.set('literature/SurfDock.pdf', 'SurfDock code availability: https://example.invalid/SurfDock. The reactor pH was 7.2.');
   f.workspace.set('literature/Other.pdf', 'Other unrelated work on reactor design.');
+  // Seed existing derived artifacts explicitly; request context preparation is metadata-only.
+  await f.pipeline.preflight({ turnId: "seed-fixture" });
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
     semanticInterpreter: { interpret() { throw Error('No planner for routine reads'); } } });
   f.options = { question, surface: 'side_chat', turnId: 'identity-turn', callContext: { model } };

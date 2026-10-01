@@ -50,7 +50,7 @@ async function preparationFixture() {
   return { ...f, service };
 }
 
-for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "terminal" : "recoverable"}: preparation drains before the main loop and synthesis uses only a complete valid set`, async () => {
+for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "terminal" : "recoverable"}: explicit maintenance drains before completing and synthesis uses only a complete valid set`, async () => {
   process.env.REQUESTY_MODEL = "google/gemma-4-31b-it";
   process.env.REQUESTY_MODEL_SUPPORTS_JSON_SCHEMA = "false";
   const f = await preparationFixture();
@@ -83,11 +83,11 @@ for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "termin
     }
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) }, finish_reason: "stop" }] }));
   };
-  const contextPromise = f.service.buildContext({ question: "我新加了一篇文章，结合新的文章更新综述。", surface: "side_chat", turnId: "barrier", callContext: { model: process.env.REQUESTY_MODEL } })
+  const contextPromise = f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-card-maintenance", callContext: { model: process.env.REQUESTY_MODEL } }).then(() => f.service.buildContext({ question: "我新加了一篇文章，结合新的文章更新综述。", surface: "side_chat", turnId: "barrier", callContext: { model: process.env.REQUESTY_MODEL } }))
     .then(context => { prepared = true; return context; });
   await entered; await invalid;
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(prepared, false, "the failed worker must not let the main agent overtake the other active excerpt");
+  assert.equal(prepared, false, "explicit maintenance must drain the other active excerpt before completing");
   assert.equal(syntheses, 0);
   release(); const context = await contextPromise;
   assert.equal(active, 0);
@@ -131,6 +131,7 @@ test("large excerpt summaries reduce within the FC size bound even without a lea
     const value = isExcerpt ? { ...chunk(), summary: "Evidence. ".repeat(700) } : synthesis();
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) }, finish_reason: "stop" }] }));
   };
+  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-long-summaries", callContext: { model: process.env.REQUESTY_MODEL } });
   await f.service.buildContext({ question: "总结这篇论文", surface: "side_chat", turnId: "long-summaries", callContext: { model: process.env.REQUESTY_MODEL } });
   assert.equal(excerpts, 12); assert.equal(syntheses, 3, "two bounded reductions followed by the final card synthesis");
   assert.equal(f.system.registry.list()[0].paperCardStatus, "ready");
@@ -161,6 +162,7 @@ test("reference-only excerpt 7 of 12 proceeds once to final synthesis without a 
     }
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) }, finish_reason: "stop" }] }));
   };
+  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-reference-only", callContext: { model: process.env.REQUESTY_MODEL } });
   await f.service.buildContext({ question: "总结这篇论文", surface: "side_chat", turnId: "reference-only", callContext: { model: process.env.REQUESTY_MODEL } });
   assert.deepEqual([...excerpts.values()], Array(12).fill(1));
   assert.equal(syntheses, 1); assert.equal(requests.length, 13);
@@ -409,6 +411,7 @@ test("normalized synthesis publishes once, reuses compatible cache, and failed v
     delete returned.title;
     return fetchProvider(url, options);
   };
+  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-normalized-card", callContext: { model: process.env.REQUESTY_MODEL } });
   await f.service.buildContext({ question: "总结论文", surface: "side_chat", turnId: "normalized-card" });
   const source = f.system.registry.list()[0];
   assert.equal(source.paperCardStatus, "ready");
@@ -508,6 +511,7 @@ test('final synthesis repair reuses all collected summaries without repeating su
     const value = excerpt ? chunk() : syntheses === 1 ? { ...synthesis(), methods: 'wrong' } : synthesis();
     return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(value) } }] }));
   };
+  await f.pipeline.preflight({ surface: "side_chat", turnId: "explicit-synthesis-repair", callContext: { model: process.env.REQUESTY_MODEL } });
   await f.service.buildContext({ question: '总结所有内容', surface: 'side_chat', turnId: 'synthesis-repair' });
   assert.equal(excerpts, 12); assert.equal(syntheses, 2);
   const calls = requests.filter(request => !/Excerpt \d+ of/.test(request.messages[1].content));

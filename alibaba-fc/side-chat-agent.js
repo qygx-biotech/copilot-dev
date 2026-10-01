@@ -1979,6 +1979,7 @@ async function runSideChatAgent({
   parseFinalAnswer,
   surface = "side_chat",
   onProgress = async () => {},
+  signal,
   supportsWebSearch = false,
   supportsTools = true,
   projectToolsEnabled = false,
@@ -2010,7 +2011,7 @@ async function runSideChatAgent({
     const sourceId = paperSourceId(item);
     const source = knowledgeBase.sourceMap?.paperSources?.find(source => source.sourceId === sourceId);
     const paper = isRegisteredPaperItem(item) && item.evidenceType !== 'corpus-workflow' && item.source !== 'saved-derived-knowledge' && source;
-    const binding = { itemId: item.id, kind: paper ? 'paper' : 'artifact', ...(paper ? { sourceId, contentHash: source.contentHash } : {}) };
+    const binding = { itemId: item.id, kind: paper ? 'paper' : 'artifact', ...(paper ? { sourceId, contentHash: source.contentHash, statSignature: source.statSignature } : {}) };
     if (!knowledgeIdentity.handles.some(previous => JSON.stringify(previous) === JSON.stringify(binding))) knowledgeIdentity.handles.push(binding);
   }
   const directLoop = surface === "side_chat" || desktopLiterature;
@@ -2340,11 +2341,17 @@ async function runSideChatAgent({
   }
 
   if (specialist) {
-    await literatureSpecialist.advance(specialist, { requestTurn, supportsWebSearch, onProgress,
+    const specialistFailure = await literatureSpecialist.advance(specialist, { requestTurn, supportsWebSearch, onProgress, signal,
       search: async query => {
-        const searched = await searchStageApi.run({ activeRequest: query, projectContext: '', surface, conversationMessages: [], supported: supportsWebSearch, requestTurn, onProgress });
+        const searched = await searchStageApi.run({ activeRequest: query, projectContext: '', surface, conversationMessages: [], supported: supportsWebSearch,
+          requestTurn: async request => {
+            const turn = await requestTurn({ ...request, signal });
+            if (!turn.ok) throw Object.assign(new Error(turn.reason || turn.message || turn.error), { ...turn, code: turn.error });
+            return turn;
+          }, onProgress, propagateFailure: true });
         return searchStageApi.evidenceMessage(searched.state, searched.sources).content;
       } });
+    if (specialistFailure?.ok === false) return { ...specialistFailure, data: sourceData(), ...semanticTelemetry() };
     if (specialist.final) {
       const message = agentMessages.find(m => m.role === 'tool' && m.tool_call_id === specialist.mainCallId);
       if (!message) return { ok: false, error: 'INVALID_TOOL_CONTINUATION' };
@@ -2441,7 +2448,7 @@ async function runSideChatAgent({
         return {
           ok: false,
           error: "InvalidLlmResponse",
-          reason: "Model returned no usable Side Chat answer.", data: sourceData(), ...semanticTelemetry()
+          reason: "Model returned no visible final answer.", data: sourceData(), ...semanticTelemetry()
         };
       }
       if (academicMode && typeof parsed.reply === "string" && parsed.reply.trim()) {
@@ -2496,7 +2503,7 @@ async function runSideChatAgent({
       await saveTranscript("completed");
       triggerSideChatHooks("Stop", agentMessages, parsed);
       const data = finalData(parsed);
-      return { ok: data.taskOutcome?.status !== "incomplete", ...(data.taskOutcome?.status === "incomplete" ? { error: "AgentTaskIncomplete", reason: "A requested action remains incomplete." } : {}), data, ...semanticTelemetry() };
+      return { modelFinalAnswer: true, ok: data.taskOutcome?.status !== "incomplete", ...(data.taskOutcome?.status === "incomplete" ? { error: "AgentTaskIncomplete", reason: "A requested action remains incomplete." } : {}), data, ...semanticTelemetry() };
     }
 
     appendMessages(require("./requesty-tool-context.js").assistantMessage(turn, toolCalls));
@@ -2717,7 +2724,7 @@ async function runSideChatAgent({
     appendMessages({ role: "assistant", content: evidenceLimited || finalTurn.contextLimitation ? parsed.reply : finalTurn.message.content });
     await saveTranscript("completed");
     const data = finalData(parsed);
-    return { ok: data.taskOutcome?.status !== "incomplete", ...(data.taskOutcome?.status === "incomplete" ? { error: "AgentTaskIncomplete", reason: "A requested action remains incomplete." } : {}), data, ...semanticTelemetry() };
+    return { modelFinalAnswer: true, ok: data.taskOutcome?.status !== "incomplete", ...(data.taskOutcome?.status === "incomplete" ? { error: "AgentTaskIncomplete", reason: "A requested action remains incomplete." } : {}), data, ...semanticTelemetry() };
   }
   await saveTranscript("failed");
   return {

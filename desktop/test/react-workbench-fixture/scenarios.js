@@ -9,10 +9,12 @@ window.copiedChats = [];
 // Reproduce the production browser permission denial. Copy must use native IPC.
 Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new DOMException('Write permission denied.', 'NotAllowedError'); } } });
 let gates = {}, delayedPreparation = null, delayedHttp = null, nextFailure = false, responseText = '', nextSideTools = false, imageRequests = [];
+let nextLoginStatus = 0;
 const nativeFetch = window.fetch.bind(window);
 window.fetch = async (url, options = {}) => {
   if (String(url).startsWith('file:')) return nativeFetch(url, options);
   const route = new URL(url).pathname;
+  if (route === '/api/login' && nextLoginStatus) { const status = nextLoginStatus; nextLoginStatus = 0; return new Response('Internal Server Error', { status }); }
   if (route === '/api/login' || route === '/api/me') return new Response(JSON.stringify({ token: 'fixture-session', user: { account: 'researcher' } }), { headers: { 'content-type': 'application/json' } });
   if (route === '/api/chat/understand-images') {
     const body = JSON.parse(options.body); imageRequests.push(body);
@@ -106,6 +108,16 @@ async function runWorkbenchHome() {
   check(document.documentElement.dataset.renderer === 'biodesign-react', 'production React renderer loads from file URL');
   check(typeof window.require === 'undefined' && typeof window.process === 'undefined', 'renderer stays sandboxed with no Node globals');
   check(document.querySelectorAll('#sideChatForm').length === 1, 'React mounts one composer without cloning event listeners');
+  check(![...document.querySelectorAll('body > button')].some(node => node.textContent.includes('Library jobs')), 'signed-out page has no floating library controls');
+  for (const status of [502, 401]) {
+    nextLoginStatus = status;
+    document.getElementById('loginAccount').value = 'researcher'; document.getElementById('loginPassword').value = 'fixture';
+    document.getElementById('loginForm').requestSubmit();
+    await waitFor(() => document.getElementById('loginError').textContent, 'login error response');
+    const message = document.getElementById('loginError').textContent;
+    check(status === 502 ? message.includes('HTTP 502') && message.includes('service') : message.includes('Incorrect account'), 'login distinguishes service outage from invalid credentials: ' + status);
+    check(!document.getElementById('loginPanel').hidden && !document.getElementById('loginPassword').value, 'failed login preserves signed-out state and clears the password: ' + status);
+  }
   document.getElementById('loginAccount').value = 'researcher'; document.getElementById('loginPassword').value = 'fixture';
   document.getElementById('loginForm').requestSubmit();
   await waitFor(() => snapshot().project && !snapshot().projectBusy, 'default workspace bootstrap after login');
@@ -117,6 +129,11 @@ async function runWorkbenchHome() {
   await tick();
 }
 async function runWorkbenchScenarios() {
+  document.querySelector('.account-menu summary').click();
+  [...document.querySelectorAll('.account-options button')].find(button => button.textContent === 'Library jobs').click();
+  await waitFor(() => [...document.querySelectorAll('dialog')].some(node => node.textContent.includes('No unfinished library jobs.')), 'account library jobs dialog');
+  [...document.querySelectorAll('dialog button')].find(button => button.textContent === 'Close').click();
+  check(![...document.querySelectorAll('body > button')].some(node => node.textContent.includes('Library jobs')), 'library jobs remains inside the signed-in account menu');
   const account = document.querySelector('.account-menu summary');
   check(account.getBoundingClientRect().bottom > innerHeight - 90, 'account control is anchored at the lower left');
   account.click(); document.querySelector('.account-options button').click();
@@ -232,9 +249,8 @@ async function runWorkbenchScenarios() {
   document.getElementById('sideChatInput').value = '';
   gates.agent_instruction.splice(0).forEach(finish => finish()); delete gates.agent_instruction;
   await waitFor(() => !snapshot().agentBusy, 'Agent completion');
-  check(currentRecommendation.currentInterpretation === 'Evidence supports a controlled comparison.', 'authorized Agent Work commits structured recommendation through existing path');
-  check(Boolean(document.querySelector('.agent-result-actions details')), 'structured recommendation review/copy/export panel remains connected');
-  document.querySelector('.agent-result-actions details').open = true;
+  check(JSON.stringify(currentRecommendation) === originalRecommendation, 'Agent Work displays its answer without inventing a recommendation');
+  check(analysisPanels.find(panel => panel.id === runningAgentId).messages.some(message => message.content.includes('### Evidence review')), 'plain Markdown Agent Work answer is preserved');
   const savedChatId = snapshot().activeConversationId;
   await adapter.command('side.new', { projectId: firstProjectId, role: 'side_chat' }); await tick();
   check(snapshot().activeConversationId !== savedChatId && sideChatMessages.length === 0, 'New Side Chat creates an independent persisted conversation');
@@ -345,7 +361,7 @@ async function runWorkbenchScenarios() {
   check(analysisPanels.some(panel => panel.id === forkedAgentId && panel.messages.some(message => message.content === 'Continue only the forked analysis.')) && snapshot().conversations.some(chat => chat.id === forkedSideId), 'both independent forks survive project close and reopen');
   check(sideChatMessages.some(message => message.content.includes('25 U/mL')), 'Side Chat history survives project close/reopen');
   check(sideChatMessages.some(message => message.images?.[0]?.attachmentId === attachmentId), 'image attachment reference survives project close/reopen');
-  check(currentRecommendation.currentInterpretation === 'Evidence supports a controlled comparison.', 'Agent Work recommendation restores from project-owned state');
+  check(JSON.stringify(currentRecommendation) === originalRecommendation, 'existing recommendation remains unchanged after reopening');
   check(analysisPanels[0].messages.some(message => message.content.includes('Not yet ingested')), 'Agent Work transcript and download result survive reopen');
   await adapter.command('agent.open', { projectId: firstProjectId, role: 'agent_command', conversationId: secondAgentId }); await tick();
   check(snapshot().activeConversationId === secondSideId && sideChatMessages[0].content.includes('Independent notes'), 'a second Agent Work panel restores its own Side Chat after a project reopen');

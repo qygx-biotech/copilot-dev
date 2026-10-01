@@ -748,7 +748,7 @@
       ].join("\n\n")); } catch { /* The JSON index remains authoritative; the navigation projection is repairable. */ }
     }
 
-    async renderAndIndex(topicIds = []) {
+    async renderAndIndex(topicIds = [], options = {}) {
       if (typeof this.workspace.writeFile !== "function") return;
       const selected = topicIds.length
         ? this.topics.filter((topic) => topicIds.includes(topic.topicId))
@@ -762,7 +762,7 @@
             sourceVersions: Object.fromEntries(revision.dependencies.map(item => [item.sourceId, item.contentHash])) } : topic)
         );
       }
-      if (this.knowledgeService?.available) {
+      if (this.knowledgeService?.available && options.reindex !== false) {
         await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.topics, {
           embed: false,
         });
@@ -860,7 +860,7 @@
       return [...affected];
     }
 
-    async removePaper(paperId) {
+    async removePaper(paperId, options = {}) {
       await this.load();
       const affected = [];
       for (const topic of this.topics) {
@@ -879,7 +879,7 @@
       const retained = uniqueStrings(affected, 1000).filter(
         (topicId) => !removedIds.has(topicId)
       );
-      await this.renderAndIndex(retained);
+      await this.renderAndIndex(retained, options);
       return uniqueStrings(affected, 1000);
     }
   }
@@ -895,11 +895,11 @@
 
     async removePaperArtifacts(sourceId, options = {}) {
       await this.removePaperEvidenceArtifact(sourceId, { update: false });
-      await this.removePaperCardArtifact(sourceId, { update: false });
+      await this.removePaperCardArtifact(sourceId, { ...options, update: false });
       if (options.invalidate !== false) {
         await this.corpusWorkflows?.invalidateForSources?.(
           [sourceId],
-          "source_version_changed_or_removed"
+          "source_version_changed_or_removed", options
         );
       }
     }
@@ -921,7 +921,7 @@
         this.workspace,
         `${KNOWLEDGE_PATHS.paperCards}/${sourceId}.md`
       );
-      await this.topics?.removePaper(sourceId);
+      await this.topics?.removePaper(sourceId, options);
       if (options.update !== false && this.knowledgeService?.available) {
         await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.paperCards);
       }
@@ -998,8 +998,8 @@
         if (path?.startsWith(".biodesign/literature/")) await removeWorkspaceFileIfPresent(this.workspace, path);
       }
       if (source.sourceKind === "paper") {
-        await this.removePaperArtifacts(source.sourceId);
-        if (this.knowledgeService?.available) {
+        await this.removePaperArtifacts(source.sourceId, options);
+        if (this.knowledgeService?.available && options.reindex !== false) {
           await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.literatureEvidence);
           await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.paperCards);
           await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.topics);
@@ -1009,7 +1009,7 @@
         await this.corpusWorkflows?.invalidateForSources?.([source.sourceId], "experiment_source_changed_or_removed");
       } else {
         await removeWorkspaceFileIfPresent(this.workspace, `${KNOWLEDGE_PATHS.projectMemory}/source-${source.sourceId}.md`);
-        if (this.knowledgeService?.available) await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.projectMemory);
+        if (this.knowledgeService?.available && options.reindex !== false) await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.projectMemory);
       }
       source.artifacts = {};
       source.legacy = {};
@@ -1026,8 +1026,8 @@
           }
         }
       }
-      if (this.knowledgeService?.available && state?.memory?.records?.some((record) => record.status === "stale")) await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.projectMemory);
-      if (this.knowledgeService?.collectionsBlocked?.(collections)) {
+      if (this.knowledgeService?.available && options.reindex !== false && state?.memory?.records?.some((record) => record.status === "stale")) await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.projectMemory);
+      if (options.reindex !== false && this.knowledgeService?.collectionsBlocked?.(collections)) {
         throw new SourceSystemError("KNOWLEDGE_INDEX_NOT_READY", "Removed source indexes are awaiting a successful update.");
       }
       if (options.persist !== false) await this.registry.persist();
@@ -2572,6 +2572,7 @@
     }
 
     async ensureSourceReady(sourceIds, capability, requestContext = {}) {
+      if (requestContext.signal?.aborted) throw new SourceSystemError('OPERATION_ABORTED', 'Source preparation was cancelled.');
       requireAuthorizedTool(requestContext.surface || "side_chat", "ensure_source_ready");
       if (!(capability in READINESS_CAPABILITIES)) {
         throw new SourceSystemError("UNKNOWN_CAPABILITY", `Unknown source capability: ${capability}`);
@@ -2604,6 +2605,7 @@
         ids,
         Math.min(2, Number(requestContext.concurrency) || 2),
         async (sourceId) => {
+          if (requestContext.signal?.aborted) throw new SourceSystemError('OPERATION_ABORTED', 'Source preparation was cancelled.');
           const sourceRequestContext = {
             ...effectiveRequestContext,
             onProgress: typeof effectiveRequestContext.onProgress === "function"
@@ -2616,6 +2618,7 @@
           try {
             return await this.ensureOne(sourceId, capability, sourceRequestContext);
           } catch (error) {
+            if (error?.code === 'OPERATION_ABORTED') throw error;
             if (
               (ids.length === 1 && requestContext.collectFailures !== true) ||
               requestContext.failFast === true
@@ -2639,6 +2642,7 @@
     }
 
     async ensureOne(sourceId, capability, requestContext = {}) {
+      if (requestContext.signal?.aborted) throw new SourceSystemError('OPERATION_ABORTED', 'Source preparation was cancelled.');
       let source = this.registry.get(sourceId);
       if (!source) throw new SourceSystemError("SOURCE_NOT_FOUND", "The source is missing or no longer active.");
       if (
@@ -2658,6 +2662,7 @@
       }
       if (this.capabilitySatisfied(source, capability, requestContext)) {
         if (await this.cachedCapabilityAvailable(source, capability, requestContext)) {
+          if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
           if (capability === "paper_card" && source.artifacts?.paperCard?.path) {
             const card = await this.workspace.readJson(source.artifacts.paperCard.path);
             if (card?.source && (
@@ -2671,7 +2676,7 @@
               await this.workspace.writeJson(source.artifacts.paperCard.path, card);
             }
           }
-          if (this.knowledgeService?.available) {
+          if (this.knowledgeService?.available && !requestContext.deferKnowledgeIndex) {
             if (["full_text", "search"].includes(capability) &&
               source.qmdLexStatus !== "ready") {
               const artifact = await this.readPaperArtifact(source.sourceId);
@@ -2885,7 +2890,9 @@
           }
         }
       }
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       const finalFile = await this.readCurrentFile(source);
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       if (
         Number(finalFile.size) !== Number(file.size) ||
         Number(finalFile.lastModified) !== Number(file.lastModified)
@@ -3061,6 +3068,7 @@
         legacy: JSON.parse(JSON.stringify(source.legacy || {})),
       };
       const firstFile = await this.readCurrentFile(source);
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       const currentSignature = statSignatureFor({
         relativePath: source.path,
         size: firstFile.size,
@@ -3140,6 +3148,7 @@
       const bytes = needsBytes
         ? new Uint8Array(await firstFile.arrayBuffer())
         : null;
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       let contentHash = source.contentHash;
       let hashBytesRead = 0;
       if (needsHash) {
@@ -3151,13 +3160,14 @@
         this.metrics.fullHashBytes += bytes.byteLength;
         this.metrics.hashDurationMs += Date.now() - hashStarted;
       }
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       const previousHash = source.contentHash;
       const contentChanged = Boolean(previousHash && previousHash !== contentHash);
 
       if (contentChanged) {
         await this.knowledgeLifecycle?.removeDerivedSourceArtifacts({
           ...source, artifacts: previousDerivedState.artifacts, legacy: previousDerivedState.legacy,
-        }, { persist: false });
+        }, { persist: false, reindex: !requestContext.deferKnowledgeIndex });
         source.artifacts = {};
         source.legacy = {};
         source.parseStatus = "not_started";
@@ -3196,9 +3206,11 @@
             throw new SourceSystemError("PDF_PARSER_MISSING", "No PDF parser is configured.");
           }
           await report({ stage: "parsing", completed: 0, total: 1 });
+          if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
           this.metrics.paperParseCalls += 1;
           const parseStarted = Date.now();
           const extracted = await this.parsePaper({ source, file: firstFile, bytes, signal: requestContext.signal });
+          if (requestContext.signal?.aborted) throw new SourceSystemError('OPERATION_ABORTED', 'Source preparation was cancelled.');
           paperArtifact = paperArtifactFromExtraction(source, extracted, requestContext);
           this.metrics.paperParseDurationMs += Date.now() - parseStarted;
           const indexStarted = Date.now();
@@ -3247,11 +3259,13 @@
       }
 
       if (capability === "paper_card") {
+        if (requestContext.signal?.aborted) throw new SourceSystemError('OPERATION_ABORTED', 'Source preparation was cancelled.');
         if (!paperCardArtifactMatches(source.artifacts?.paperCard)) {
           if (typeof this.generatePaperCard !== "function") {
             throw new SourceSystemError("PAPER_CARD_GENERATOR_MISSING", "No Paper Card generator is configured.");
           }
           await report({ stage: "paper-card", completed: 0, total: 1 });
+          if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
           this.metrics.paperCardCalls += 1;
           const cardStarted = Date.now();
           let generated;
@@ -3365,7 +3379,9 @@
         source.paperCardStatus = "ready";
       }
 
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       const finalFile = await this.readCurrentFile(source);
+      if (requestContext.signal?.aborted) throw new SourceSystemError("OPERATION_ABORTED", "Source preparation was cancelled.");
       if (
         Number(finalFile.size) !== Number(firstFile.size) ||
         Number(finalFile.lastModified) !== Number(firstFile.lastModified)
@@ -3400,7 +3416,7 @@
         filesystemFileId: source.filesystemFileId,
       });
       source.lastUsedAt = nowIso(this.now);
-      if (needsPaper && paperArtifact && (capability !== "paper_card" || source.artifacts?.knowledgeMarkdown?.contentHash !== source.contentHash)) {
+      if (needsPaper && paperArtifact && !requestContext.deferKnowledgeIndex && (capability !== "paper_card" || source.artifacts?.knowledgeMarkdown?.contentHash !== source.contentHash)) {
         await report({ stage: "markdown", completed: 0, total: 1 });
         await this.refreshPaperEvidenceKnowledge(source, paperArtifact, requestContext);
       }
@@ -4677,7 +4693,7 @@
       return this.workspace.readJson(this.workflowPath(resolvedId));
     }
 
-    async invalidateForSources(sourceIds, reason = "source_registry_changed") {
+    async invalidateForSources(sourceIds, reason = "source_registry_changed", options = {}) {
       const affectedSourceIds = new Set(uniqueStrings(sourceIds, 10000));
       if (!affectedSourceIds.size) return [];
       const index = await this.readWorkflowIndex();
@@ -4688,6 +4704,7 @@
       ], 1000);
       const staleWorkflowIds = [];
       for (const workflowId of workflowIds) {
+        if (options.signal?.aborted) throw new SourceSystemError('OPERATION_ABORTED', 'Source invalidation was cancelled.');
         const workflowPath = this.workflowPath(workflowId);
         if (!(await this.workspace.fileExists(workflowPath))) continue;
         const journal = await this.workspace.readJson(workflowPath);
@@ -4713,7 +4730,7 @@
         }
         staleWorkflowIds.push(workflowId);
       }
-      if (staleWorkflowIds.length && this.knowledgeService?.available) {
+      if (staleWorkflowIds.length && this.knowledgeService?.available && options.reindex !== false) {
         try {
           await this.knowledgeService.indexDocuments(KNOWLEDGE_COLLECTIONS.syntheses, {
             embed: false,

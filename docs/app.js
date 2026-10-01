@@ -181,6 +181,7 @@ const I18N = {
     loginMissing: "Please enter account and password.",
     loginInvalid: "Incorrect account or password.",
     loginFailed: "Login failed. Please try again.",
+    loginServiceUnavailable: "The sign-in service is unavailable (HTTP {status}). Please try again after the backend service is restored.",
     loginTokenMissing: "Login response is missing token.",
     loginAccountMissing: "Login response is missing account info.",
     sessionChecking: "Checking...",
@@ -603,6 +604,7 @@ const I18N = {
     loginMissing: "请输入账号和密码。",
     loginInvalid: "账号或密码不正确。",
     loginFailed: "登录失败，请稍后重试。",
+    loginServiceUnavailable: "登录服务暂时不可用（HTTP {status}）。请在后端服务恢复后重试。",
     loginTokenMissing: "登录响应缺少 token。",
     loginAccountMissing: "登录响应缺少账户信息。",
     sessionChecking: "检查中...",
@@ -1119,6 +1121,8 @@ loginForm.addEventListener("submit", async (event) => {
     }
 
     if (!response.ok) {
+      runtimeLog?.record('auth.login.failed', { endpoint: '/api/login', status: response.status, code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED' });
+      if (response.status >= 500) throw new Error(t('loginServiceUnavailable', { status: response.status }));
       throw new Error(getAuthErrorMessage(data) || t("loginFailed"));
     }
 
@@ -4073,6 +4077,12 @@ async function runAgentInstruction(panelId, revision = null) {
       capabilitiesUsed: [...(localWorkspaceContext?.semantic?.telemetry?.capabilitiesUsed || []), ...(response.semanticTelemetry?.capabilitiesUsed || [])],
       cloudCalls: { ...literatureModule?.api?.getTurnCallCounts?.(requestTurnId), ...(response.semanticTelemetry?.cloudCalls || {}) },
     });
+    if (response.fallback || response.failure) {
+      const message = response.reply || response.error || "Agent request failed.";
+      agentWorkApi.finishTurn(panel, turn, { content: message, status: "failed" });
+      panel.statusKey = ""; panel.status = message;
+      return;
+    }
     if (response.taskOutcome && (response.taskOutcome.status !== "completed" || localWorkspaceContext?.semantic?.ir?.operations.every(operation => ["search", "store"].includes(operation)))) {
       agentWorkApi.finishTurn(panel, turn, { content: response.reply, isResult: response.taskOutcome.status === "completed",
         status: response.taskOutcome.status === "completed" ? "completed" : response.taskOutcome.status === "blocked" ? "waiting" : "failed",
@@ -4081,45 +4091,21 @@ async function runAgentInstruction(panelId, revision = null) {
       panel.status = response.reply;
       return;
     }
-    panel.recommendation = normalizeAgentResponse(response, instruction);
-    agentWorkApi.finishTurn(panel, turn, { content: response.reply || panel.recommendation.currentInterpretation, summary: panel.recommendation.recommendedNextStep, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata, academicSources: response.academicSources, isResult: true });
-    panel.statusKey = "recommendationUpdated";
+    agentWorkApi.finishTurn(panel, turn, { content: response.reply, citations: sourceCitationApi.bindToWorkspace(response.citations, getSideChatCitationContext(true)), webSearchSources: response.webSearchSources, webSearchMetadata: response.webSearchMetadata, academicSources: response.academicSources, isResult: true });
+    panel.statusKey = "";
     panel.status = "";
     panel.updatedAt = new Date().toISOString();
-    currentRecommendation = panel.recommendation;
     saveAnalysisPanels();
     renderAnalysisPanels();
     renderBackendStatus("backendConnected");
   } catch (error) {
     if (requestSignal?.aborted || !isCurrentRequest() || error?.code === "OPERATION_ABORTED") return;
-    if (String(error?.code || "").startsWith("STREAM_")) {
-      panel.statusKey = "";
-      panel.status = t("streamInterrupted");
-      return;
-    }
-    if (error instanceof AuthRequiredError) {
-      console.warn("Backend auth required.", error);
-      panel.statusKey = "";
-      panel.status = t("pleaseLogin");
-      return;
-    }
-
-    if (window.BioDesignFrontend) {
-      const message = error.message || t("backendReturned", { status: error.status || error.code || "unavailable" });
-      agentWorkApi.finishTurn(panel, turn, { content: message, status: "failed" });
-      panel.statusKey = ""; panel.status = message;
-      return;
-    }
-    console.warn("Agent backend failed; using local fallback.", error);
-    panel.recommendation = createLocalRecommendation(instruction);
-    agentWorkApi.finishTurn(panel, turn, { content: `${t("backendFallbackMessage")}\n\n${panel.recommendation.currentInterpretation}`, isResult: true, status: "failed" });
-    panel.statusKey = "backendFallbackMessage";
-    panel.status = "";
-    panel.updatedAt = new Date().toISOString();
-    currentRecommendation = panel.recommendation;
-    saveAnalysisPanels();
-    renderAnalysisPanels();
-    renderBackendStatus("backendFallback");
+    const code = error.code || error.name || "Error";
+    const detail = error.message || "";
+    const message = detail && detail !== code ? `${code}: ${detail}` : code;
+    agentWorkApi.finishTurn(panel, turn, { content: message, status: "failed" });
+    panel.statusKey = "";
+    panel.status = message;
   } finally {
     streamingPreview?.remove();
     if (!isCurrentRequest()) { frontendTurn?.finish("cancelled"); return; }
@@ -4345,7 +4331,7 @@ async function sendWorkbenchRequestOnce({
       const api = window.BioDesignSourceDownload;
       const academic = window.BioDesignAcademicTools;
       if (isSideChat || !desktopTools || !api ||
-        !window.biodesignDesktop?.execution?.runWorkflow || desktopRound >= (desktopTools.literatureVersion === 1 ? 100 : 8) || !data.desktopContinuation ||
+        !window.biodesignDesktop?.execution?.runWorkflow || (desktopTools.literatureVersion !== 1 && desktopRound >= 8) || !data.desktopContinuation ||
         !Array.isArray(data.desktopToolCalls) || data.desktopToolCalls.length > 24) {
         throw Object.assign(new Error("Desktop source download is unavailable or exceeds this move's permission/budget."), { code: "PERMISSION_DENIED" });
       }
@@ -5748,7 +5734,8 @@ function sideChatProgressText(progress = {}) {
     "sync-removing": ["Removing derived artifacts", "正在清理派生文件"],
     "sync-document": ["Preparing document", "正在准备文档"],
     "sync-evidence-ready": ["L1 evidence ready", "L1 证据已就绪"],
-    "sync-paper-card-ready": ["L2 Paper Card ready", "L2 论文卡片已就绪"],
+    "sync-paper-card-checking": ["Checking Paper Card cache", "正在检查论文卡片缓存"],
+    "sync-paper-card-ready": progress.cached ? ["Using cached Paper Card", "正在使用已缓存的论文卡片"] : ["L2 Paper Card ready", "L2 论文卡片已就绪"],
     "sync-topics-ready": ["L3 topics ready", "L3 主题已就绪"],
     "sync-source-ready": ["Source synchronized", "来源已同步"],
     "sync-source-failed": ["Source synchronization failed — see Debug Console", "来源同步失败，请查看调试控制台"],
@@ -5759,6 +5746,7 @@ function sideChatProgressText(progress = {}) {
   if (debugStageLabels[progress.stage]) return debugStageLabels[progress.stage][currentLanguage === "zh" ? 1 : 0];
   const labels = {
     "preflight-checking": ["Checking project files", "正在检查项目文件"],
+    "preflight-metadata-ready": ["Workspace metadata ready", "工作区元数据已就绪"],
     "preflight-current": ["Knowledge is up to date", "知识库已是最新"],
     "preflight-changes": [`Found ${progress.total || 0} source changes`, `发现 ${progress.total || 0} 个来源变更`],
     "sync-evidence": ["Preparing paper evidence", "正在准备论文证据"],
@@ -6973,6 +6961,7 @@ window.BioDesignFrontend?.connect({
   }),
   commands: {
     'account.library': () => window.BioDesignLibrarySettings.edit({ account: currentAccount, language: currentLanguage }),
+    'account.libraryJobs': () => window.BioDesignLiteratureLogin.showJobs(),
     'project.goal.edit': ({ catalogId }) => runDesktopNavigation(async () => {
       if (await openDesktopProject(catalogId)) openDesktopGoalEditor();
     }),

@@ -243,8 +243,8 @@ test("Side Chat and Agent Command answer/tool loops and streamed answers retain 
           capture(url, options);
           if (providerRequests.length === 1) return new Response(JSON.stringify({ choices: [{ message: { content: null,
             tool_calls: [{ id: "papers", type: "function", function: { name: "list_papers", arguments: "{}" } }] } }] }));
-          if (!stream) return completion(finalAnswer);
-          return new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: JSON.stringify(finalAnswer) }, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } });
+          if (!stream) return new Response(JSON.stringify({ choices: [{ message: { content: finalAnswer.reply }, finish_reason: "stop" }] }));
+          return new Response(`data: ${JSON.stringify({ choices: [{ delta: { content: finalAnswer.reply }, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } });
         };
         const events = [];
         const result = await invoke("POST", "/chat", { ...chat, mode, model, stream }, token, {}, {

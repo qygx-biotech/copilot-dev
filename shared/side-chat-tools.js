@@ -123,8 +123,12 @@
     if (!allowedIds.includes(sourceId)) throw identityError('SOURCE_OUTSIDE_SCOPE');
     const source = sources.find(item => item.sourceId === sourceId);
     if (!source || ['missing', 'deleted', 'removed'].includes(source.catalogStatus)) throw identityError('SOURCE_DELETED');
-    if (['dirty', 'stale'].includes(source.catalogStatus) || source.hashStatus === 'dirty' ||
-        (binding && (!binding.contentHash || binding.contentHash !== source.contentHash))) throw identityError('SOURCE_VERSION_CHANGED');
+    // Metadata-only turns bind unprepared sources to the host's stat snapshot.
+    // Actual content is hashed by the selected tool before any evidence is read.
+    const currentMetadata = source.statSignature && source.metadataVersion === source.statSignature;
+    if (((['dirty', 'stale'].includes(source.catalogStatus) || source.hashStatus === 'dirty') && !currentMetadata) ||
+        (binding && (binding.contentHash ? binding.contentHash !== source.contentHash
+          : !binding.statSignature || binding.statSignature !== source.statSignature))) throw identityError('SOURCE_VERSION_CHANGED');
     return sourceId;
   }
   function resolveArguments(name, args, identity) {

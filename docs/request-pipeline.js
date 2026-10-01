@@ -82,7 +82,7 @@
                 stage = "L2";
                 const worker = { agent: "PaperCardAgent", workerId: `paper-card-${workerIndex + 1}`, concurrency: 2, layer: "L2" };
                 activeCardWorkers++;
-                step("sync-paper-cards", { ...worker, activeWorkers: activeCardWorkers, status: "running" });
+                step("sync-paper-card-checking", { ...worker, activeWorkers: activeCardWorkers, status: "running" });
                 let l2;
                 try {
                   l2 = await this.tools.generate_paper_card(sourceId);
@@ -165,6 +165,12 @@
       for (const listener of this.listeners) { try { listener(event); } catch {} }
     }
     async preflight(options = {}) {
+      if (options.preparationMode === 'metadata') {
+        // Metadata requests never join or start the expensive maintenance queue.
+        const pending = (this.metadataQueue || Promise.resolve()).then(() => this.runMetadata(options));
+        this.metadataQueue = pending.catch(() => {});
+        return pending;
+      }
       if (options.signal?.aborted) throw Object.assign(new Error("Request cancelled"), { code: "OPERATION_ABORTED" });
       const key = options.turnId;
       const listener = options.onProgress;
@@ -218,6 +224,35 @@
     // Explicit host filesystem mutations invalidate the turn snapshot. Internal
     // artifact writes do not mutate L0 and never require another reconciliation.
     invalidateTurn(turnId) { this.turns.delete(turnId); }
+
+    async runMetadata(options) {
+      const started = clock();
+      const check = () => {
+        this.assertWorkspace();
+        if (options.signal?.aborted) throw Object.assign(new Error('Request cancelled'), { code: 'OPERATION_ABORTED' });
+      };
+      const emit = stage => {
+        check();
+        const event = { stage, surface: options.surface, turnId: options.turnId };
+        this.log?.record('preflight.stage', event); options.onProgress?.(event);
+      };
+      emit('preflight-checking');
+      const tree = await this.workspace.scanDirectoryTree(); check();
+      const reconciliation = await this.system.registry.reconcile(tree, { legacyDocuments: this.literature.documents }); check();
+      const changed = unique([...reconciliation.changes.dirty, ...reconciliation.changes.missing,
+        ...reconciliation.changes.renamed.map(item => item.sourceId)]);
+      // Registry dirty/missing flags close access to cached cards/wiki evidence.
+      // Invalidate historical workflow projections without rebuilding any index.
+      if (changed.length) await this.system.corpusWorkflows?.invalidateForSources(changed, 'source_metadata_changed', { reindex: false, signal: options.signal });
+      check();
+      await this.literature.scan({ tree, reconciliation, deferKnowledgeMaintenance: true }); check();
+      const report = { ...emptyReport(), mode: 'metadata', preparationDeferred: true };
+      const telemetry = { preparationMode: 'metadata', changedSourceCount: changed.length, reconciliationMs: clock() - started,
+        syncAgentSpawned: false, l1UpdateCount: 0, paperCardGenerationCount: 0, l2LlmCallCount: 0, l3LlmCallCount: 0, hashCalls: 0,
+        mainAgentStartTime: new Date().toISOString(), mainAgentStartMs: clock() - started };
+      emit('preflight-metadata-ready');
+      return { tree, reconciliation, diff: reconciliation.diff, report, telemetry, wikiMaintenance: null };
+    }
 
     async run(options = {}) {
       this.assertWorkspace();
@@ -319,7 +354,7 @@
             else source.syncPending ||= "modified";
             await registry.persist();
           },
-          update_project_metadata: async () => { if (this.workspace.state && projectState) await projectState.refreshMetadata({ surface: "side_chat" }); },
+          update_project_metadata: async () => { if (this.workspace.state && projectState) await projectState.refreshMetadata({ surface: options.surface || "side_chat" }); },
         });
         const input = { workspaceId: String((this.workspace.workspace?.workspaceId || this.workspace.workspace?.id) || "local-workspace"), changes, task: SYNC_TASK };
         report = await this.system.jobs.runDeduplicated(`knowledge-sync:${input.workspaceId}`, "knowledge-sync",
@@ -335,7 +370,7 @@
               finish?.(error?.code === "OPERATION_ABORTED" ? "cancelled" : "failed", { code: safeCode(error) });
               throw error;
             }
-          }, { surface: "side_chat" });
+          }, { surface: options.surface || "side_chat" });
         telemetry.knowledgeSyncMs = clock() - syncStarted;
       } else {
         this.log?.record("sync-agent.skipped", { agent: "KnowledgeSyncAgent", runId: syncTurnId, stage: verificationFailures.length ? "verification-failed" : "knowledge-current", unchanged: diff.unchanged });

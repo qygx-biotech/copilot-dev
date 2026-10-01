@@ -113,12 +113,11 @@ export class LiteratureWorkflows {
     if (job.status === 'cancelled') return { final: this.result(job) };
     if (job.kind === 'retrieve_papers' && (!job.authorized || !authorized(input))) throw fail('DOWNLOAD_NOT_AUTHORIZED');
     const controller = this.controllers.get(job.id) || new AbortController(); this.controllers.set(job.id, controller);
-    const signal = AbortSignal.any([controller.signal, this.active.sourceDownloads.signal, AbortSignal.timeout(Math.max(1, 240000 - job.elapsed))]);
+    const signal = AbortSignal.any([controller.signal, this.active.sourceDownloads.signal]);
     const ensureCurrent = () => { if (signal.aborted || !this.isCurrent()) throw fail('OPERATION_ABORTED'); };
     const started = Date.now();
     try {
       ensureCurrent();
-      if (job.calls >= 36 || job.elapsed >= 240000 || job.navigations > 18 || job.downloads >= 10) { job.status = 'partial'; job.limitations.push('Host execution budget exhausted.'); this.browser.release(job.id); return { final: this.result(job) }; }
       if (['begin', 'resume'].includes(input.action)) {
         job.status = 'running';
         try { await this.active.paperMcp.start(); job.paperTools = this.active.paperMcp.tools.filter(t => academic.isTool(t.name) && !academic.isWrite(t.name)); }
@@ -160,7 +159,6 @@ export class LiteratureWorkflows {
       }
       if (input.name.startsWith('browser_')) {
         const changesPage = ['browser_navigate', 'browser_navigate_back', 'browser_click', 'browser_type', 'browser_tabs'].includes(input.name);
-        if (changesPage && job.navigations >= 18) throw fail('NAVIGATION_BUDGET_EXHAUSTED');
         job.navigations += changesPage ? 1 : 0;
         const observation = await this.browser.call(job.id, input.name, input.args, signal);
         if (observation.status === 'needs_login') { job.status = 'needs_login'; return { job_id: job.id, needs_login: true, final: this.result(job) }; }
@@ -188,11 +186,17 @@ export class LiteratureWorkflows {
               ...(identity.year && job.observations.includes(String(identity.year)) ? { year: identity.year } : {}), ...(identity.language ? { language: identity.language } : {}) }, provenance: urls });
           }
         }
-        job.candidates = contract.deduplicate(clean(accepted)).slice(0, job.task.limit || 20);
-        job.limitations.push(...input.args.limitations);
-        if (!job.candidates.length) job.limitations.push('No corroborated candidates established on attempted routes.');
-        if (accepted.length !== input.args.candidates.length) job.limitations.push('Uncorroborated model candidates omitted.');
-        job.status = job.limitations.length ? 'partial' : 'completed'; this.browser.release(job.id); return { final: this.result(job) };
+        const candidates = contract.deduplicate(clean(accepted)).slice(0, job.task.limit || 20);
+        const limitations = [...job.limitations, ...input.args.limitations];
+        if (!candidates.length) limitations.push('No corroborated candidates established on attempted routes.');
+        if (accepted.length !== input.args.candidates.length) limitations.push('Uncorroborated model candidates omitted.');
+        const update = { candidates, limitations: [...new Set(limitations)].slice(-30), status: limitations.length ? 'partial' : 'completed' };
+        // Validate before committing: rejected finalization must leave the job resumable.
+        const final = this.result({ ...job, ...update });
+        Object.assign(job, update); delete job.lastError;
+        console.info('literature.discovery.finalized', { jobId: job.id, submittedCandidates: input.args.candidates.length,
+          corroboratedCandidates: accepted.length, returnedCandidates: candidates.length, status: job.status });
+        this.browser.release(job.id); return { final };
       }
       if (input.name === 'finish_retrieval') { job.status = job.task.papers.every((_, i) => ['downloaded', 'already_present'].includes(job.results[i]?.status)) ? 'completed' : 'partial'; this.browser.release(job.id); return { final: this.result(job) }; }
       const index = input.args.index, paper = job.task.papers[index]; if (!paper) throw fail('UNKNOWN_REQUESTED_PAPER');
@@ -232,13 +236,18 @@ export class LiteratureWorkflows {
       }
       throw fail('SPECIALIST_TOOL_NOT_ALLOWED');
     } catch (error) {
-      if (signal.aborted) { job.status = controller.signal.aborted || this.active.sourceDownloads.signal.aborted ? 'cancelled' : 'partial'; job.limitations.push('Execution cancelled or timed out.'); this.browser.release(job.id); return { final: this.result(job) }; }
+      if (signal.aborted) { job.status = 'cancelled'; job.limitations.push('Execution cancelled.'); this.browser.release(job.id); return { final: this.result(job) }; }
       if (job.kind === 'retrieve_papers' && ['retrieve_next', 'capture_article'].includes(input.name) && job.task.papers[input.args?.index]) {
         const index = input.args.index;
         job.results[index] = { requested: job.task.papers[index], status: 'failed', document_version: 'unknown', attempts: (job.results[index]?.attempts || []).slice(-23), reason: code(error), job_id: job.id };
         return { result: job.results[index] };
       }
-      return { error: code(error), job_id: job.id };
+      const diagnostics = { code: code(error), message: clean(String(error?.message || code(error))).replace(/(?:authorization|cookie|token|password|secret)\s*[:=]\s*[^\r\n]*/gi, '[redacted credentials]').slice(0, 1000),
+        failureStage: input.name === 'finish_discovery' ? 'discovery-finalization' : 'literature-host', jobId: job.id, tool: input.name,
+        ...(error?.cause?.code ? { causeCode: code(error.cause) } : {}) };
+      job.lastError = diagnostics;
+      console.error('literature.host.failure', diagnostics);
+      return { error: diagnostics.code, message: diagnostics.message, diagnostics, job_id: job.id };
     } finally {
       if (signal.aborted && this.browser.owner === job.id) { await this.browser.close(); this.browser.release(job.id); }
       job.elapsed += Date.now() - started; job.searches = job.searches.slice(-30); job.limitations = [...new Set(job.limitations)].slice(-30);

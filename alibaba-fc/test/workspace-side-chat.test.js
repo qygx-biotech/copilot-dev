@@ -363,7 +363,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   const agentEnd = appSource.indexOf("function setAgentBusy", agentStart);
   const agentFunction = appSource.slice(agentStart, agentEnd);
   assert.match(agentFunction, /surface:\s*"agent_command"/);
-  assert.match(agentFunction, /currentRecommendation\s*=\s*panel\.recommendation/);
+  assert.doesNotMatch(agentFunction, /currentRecommendation\s*=\s*panel\.recommendation/);
   assert.match(htmlSource, /id="analysisPanelStack"/);
   assert.match(htmlSource, /id="addAnalysisPanelButton"/);
   assert.match(htmlSource, /id="sideChatHistory"/);

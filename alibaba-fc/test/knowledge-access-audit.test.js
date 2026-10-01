@@ -18,6 +18,8 @@ const texts = [
 async function fixture(question, { failedCard = false, selected = null } = {}) {
   const f = await createFixture({ cardFailure: source => failedCard && source.path.includes('Reactor') });
   for (const [name, text] of texts) f.workspace.set(`literature/${name}.pdf`, text);
+  // These audit cases deliberately exercise pre-existing cached cards/extractions.
+  await f.pipeline.preflight({ turnId: "seed-fixture" });
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
     semanticInterpreter: { interpret() { throw Error('Mandatory planner is forbidden'); } } });
   f.options = { question, surface: 'side_chat', turnId: 'audit', callContext: { model } };

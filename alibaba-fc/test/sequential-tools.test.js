@@ -286,7 +286,7 @@ for (const streaming of [false, true]) test(`FC search → download → continua
   const citations = [{ url: methodsUrl, title: "Study methods" }];
   const search = { ...searchMessage(), content: findings, groundingMetadata, citations };
   const messages = [search, { content: null, tool_calls: [functionCall("download_sources", { sources: [{ url }] })] },
-    { content: null, tool_calls: [functionCall("list_papers", {}, "list-1")] }, { content: JSON.stringify(final) }];
+    { content: null, tool_calls: [functionCall("list_papers", {}, "list-1")] }, { content: final.reply }];
   t.mock.method(globalThis, "fetch", async (address, options) => {
     assert.equal(address, "https://router.requesty.ai/v1/chat/completions");
     assert.equal(options.headers.Authorization, `Bearer ${process.env.REQUESTY_API_KEY}`);
@@ -535,7 +535,7 @@ test("metadata-only hosted search survives streaming into the local stage", asyn
     if (++count === 1) return response({ ...searchMessage(), content: null }, true);
     checkLocal(request);
     assert.ok(request.messages.some(message => message.content?.startsWith("External search evidence") && message.content.includes(url)));
-    return response({ content: JSON.stringify(final) }, true);
+    return response({ content: final.reply }, true);
   });
   const result = JSON.parse((await send({ mode: "agent_instruction", model, stream: true, messages: [{ role: "user", content: query }],
     localWorkspaceContext: localContext(query, "web") }, { start: async () => {}, emit: async () => {} })).body);
@@ -589,7 +589,7 @@ test("FC capability override disables only search and reports the limitation", a
   t.after(() => { if (previous === undefined) delete process.env.REQUESTY_MODEL_CAPABILITIES_JSON; else process.env.REQUESTY_MODEL_CAPABILITIES_JSON = previous; });
   let count = 0;
   t.mock.method(globalThis, "fetch", async (_url, options) => {
-    count++; checkLocal(JSON.parse(options.body)); return response({ content: JSON.stringify(final) }, false);
+    count++; checkLocal(JSON.parse(options.body)); return response({ content: final.reply }, false);
   });
   const query = "Search recent EctD papers";
   const result = JSON.parse((await send({ mode: "agent_instruction", model, messages: [{ role: "user", content: query }], localWorkspaceContext: localContext(query, "web") })).body);

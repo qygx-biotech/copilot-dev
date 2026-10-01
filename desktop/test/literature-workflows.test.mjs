@@ -123,3 +123,42 @@ test('replayed host handoffs reuse receipts and reject changed execution argumen
   assert.equal((await f.service.run(step)).result.file, saved.result.file);
   assert.equal(transfers, 1);
 });
+
+test('host continues past former execution budgets; rejected finalization retains the job and records the true contract error', async t => {
+  const f = await fixture(t), first = await f.begin('discover_papers', { objective: 'enzyme', queries: ['enzyme'] });
+  const job = f.service.jobs.get(first.job_id);
+  Object.assign(job, { calls: 100, elapsed: 24 * 60 * 60000, navigations: 100, downloads: 100 });
+  job.browserTools.push({ name: 'browser_navigate', description: 'Navigate', inputSchema: contract.object({ url: contract.text(4096) }) });
+  const observation = await f.step(job.id, 'browser_navigate', { url: 'https://example.org/library' });
+  assert.equal(observation.result.status, 'observed'); assert.equal(job.navigations, 101);
+  assert.equal(observation.final, undefined); assert.equal(job.status, 'running');
+  const logs = []; t.mock.method(console, 'error', (...entry) => logs.push(entry));
+  const rejected = await f.step(job.id, 'finish_discovery', { candidates: [{ identity: paper }], limitations: [] });
+  assert.equal(rejected.error, 'INVALID_LITERATURE_CONTRACT'); assert.match(rejected.message, /input.candidates\[0\]/);
+  assert.equal(rejected.diagnostics.failureStage, 'discovery-finalization'); assert.equal(rejected.final, undefined);
+  assert.equal(job.status, 'running'); assert.equal(logs.length, 1);
+  const checkpoint = JSON.parse(await f.filesystem.readText(`.biodesign/literature-jobs/${job.id}.json`));
+  assert.equal(checkpoint.lastError.code, 'INVALID_LITERATURE_CONTRACT');
+  const finished = await f.step(job.id, 'finish_discovery', { candidates: [], limitations: ['No matches observed'] });
+  assert(finished.final); assert(!finished.final.limitations.some(text => /budget exhausted/.test(text)));
+});
+
+test('final result validation is atomic and leaves earlier discovery evidence resumable', async t => {
+  const f = await fixture(t), first = await f.begin('discover_papers', { objective: 'enzyme', queries: ['enzyme'] });
+  const job = f.service.jobs.get(first.job_id);
+  const candidate = { identity: paper, rationale: 'Relevant enzyme study', availability: 'unknown', evidence: 'metadata', provenance: paper.source_urls };
+  job.candidates = [candidate];
+  // Valid model input can still produce an invalid result from malformed upstream metadata.
+  job.known.push({ ...paper, authors: null, paper_ref: 'paper_' + 'a'.repeat(24), locations: [] });
+  const previous = JSON.stringify(job.candidates);
+  t.mock.method(console, 'error', () => {});
+  const rejected = await f.step(job.id, 'finish_discovery', { candidates: [candidate], limitations: [] });
+  assert.equal(rejected.error, 'INVALID_LITERATURE_CONTRACT');
+  assert.match(rejected.message, /candidates\[0\].identity.authors/);
+  assert.equal(job.status, 'running'); assert.equal(JSON.stringify(job.candidates), previous);
+  const checkpoint = JSON.parse(await f.filesystem.readText(`.biodesign/literature-jobs/${job.id}.json`));
+  assert.equal(checkpoint.status, 'running');
+  f.service.jobs.clear(); const saved = await f.service.load(job.id);
+  assert.equal(saved.status, 'needs_login'); assert.equal(JSON.stringify(saved.candidates), previous);
+  assert.equal(saved.lastError.failureStage, 'discovery-finalization');
+});

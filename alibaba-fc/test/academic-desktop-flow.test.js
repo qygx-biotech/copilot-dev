@@ -75,7 +75,7 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
     assert.deepEqual(body.tools.find(x=>x.function.name==='select_literature_papers').function.parameters.properties.shortlist.items.properties.covers.items.enum,['subtopic_1']);
    }
    message={tool_calls:[tool('select_literature_papers',selection),tool('download_papers',{paper_refs:[ref]})]};
-  } else message={content:JSON.stringify({reply:'Saved selected paper.',project:{summary:'',organism:'',missingInformation:[],safetyLevel:'',safetyNotes:'',draftMemo:''}})};
+  } else message={content:'Saved selected paper.'};
   return new Response(JSON.stringify({choices:[{message}]}));
  });
  const app=await readFile(path.resolve(__dirname,'../../docs/app.js'),'utf8');
@@ -104,9 +104,7 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
   assert.equal(result.taskOutcome.blocker.code,searchRecovery?'INVALID_ACADEMIC_INPUT':'UNKNOWN_SELECTION_SUBTOPIC');
   assert.equal(result.taskOutcome.downloadAttemptCount,0);
   assert.deepEqual(result.downloadResults,[]);
-  assert.match(result.reply,new RegExp(`Search candidates: ${searchRecovery?0:1}; accepted selected papers: 0; successfully saved PDF files: 0`));
-  assert.match(result.reply,searchRecovery?/field=limit; invalid_value=21/:/AI-driven synthetic biology applications/);
-  assert.match(result.reply,/not a user-confirmation requirement/);
+  assert.equal(result.reply, `AgentTaskIncomplete: ${result.taskOutcome.blocker.code}`);
   return;
  }
  assert.deepEqual(executed,['search_academic_papers','resolve_paper_full_text']);

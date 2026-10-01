@@ -9,6 +9,8 @@ async function fixture() {
   const f = await createFixture();
   f.workspace.set('literature/SurfDock.pdf', 'SurfDock fixture with code availability, results and references.');
   f.workspace.set('literature/Other.pdf', 'Other paper, not selected.');
+  // Seed existing derived artifacts explicitly; request context preparation is metadata-only.
+  await f.pipeline.preflight({ turnId: "seed-fixture" });
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
   const options = { question, turnId: 'targeted-turn', surface: 'side_chat', callContext: { model }, language: 'zh' };
   const initial = await f.service.buildContext(options);

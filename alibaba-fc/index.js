@@ -435,20 +435,7 @@ A workspace catalog establishes file presence, not scientific findings. Never ci
 
 Produce the final answer after completing requested actions or identifying a concrete blocker. Do not silently replace an unattempted action with advice. Distinguish successful, failed, blocked and unattempted work. Do not claim ingestion or analysis of newly downloaded files unless the corresponding process actually ran.
 
-Use the reply/project JSON shape below only for the final answer; it does not replace intermediate tool calls. Make reply answer the actual task, including relevant saved files and failures. Do not manufacture a project assessment, organism, safety evaluation or memo to populate project fields. Preserve supplied project values unless the task calls for updating them; unavailable strings are empty and unavailable lists are [].
-
-The final answer must be valid JSON without markdown fences or commentary outside it:
-{
-  "reply": "string",
-  "project": {
-    "summary": "string",
-    "organism": "string",
-    "missingInformation": ["string"],
-    "safetyLevel": "string",
-    "safetyNotes": "string",
-    "draftMemo": "string"
-  }
-}
+Answer the user directly in the format the task calls for: prose, Markdown, code, or JSON when requested. No fixed final-answer schema or project fields are required. Report concrete errors and blockers without inventing a fallback assessment or recommendation.
 `.trim();
 
 const sideChatSystemPrompt = `${coreSystemPrompt}
@@ -2071,6 +2058,30 @@ function isVerifiedContextLengthError(status, responseText) {
   return Boolean(require("./context-recovery.js").overflow({ ...parsed, status }));
 }
 
+function requestyTransportError(error, apiKey) {
+  // Copy only bounded diagnostic fields, never the exception/stack/request.
+  const code = value => typeof value === "string" && /^[A-Z][A-Z0-9_-]{0,79}$/.test(value) &&
+    !(apiKey && value.includes(apiKey)) ? value : undefined;
+  const message = exception => {
+    // A malformed code can itself carry credentials or arbitrary payload data.
+    if (exception?.code != null && !code(exception.code)) return undefined;
+    if (typeof exception?.message !== "string") return undefined;
+    let text = exception.message;
+    if (apiKey) text = text.split(apiKey).join("[redacted]");
+    return text
+      .replace(/(?:authorization|proxy-authorization|cookie|set-cookie|api[_-]?key|access[_-]?token|token|password|secret|session)\s*[:=]\s*[^\r\n]*/gi, "[redacted credentials]")
+      .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
+      .replace(/https?:\/\/[^\s<>"']+/gi, "[redacted URL]")
+      .split(/[\r\n]/, 1)[0].replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 500) || undefined;
+  };
+  const fields = {
+    name: typeof error?.name === "string" && /^[A-Za-z][A-Za-z0-9]{0,79}$/.test(error.name) && !(apiKey && error.name.includes(apiKey)) ? error.name : undefined,
+    message: message(error), code: code(error?.code),
+    causeCode: code(error?.cause?.code), causeMessage: message(error?.cause),
+  };
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+}
+
 async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = false, streaming = null, requestOptions = {}) {
   requestBody = require("./requesty-models.js").withCombinedToolConfig(requestBody, requestOptions.toolMode);
   if (requestBody.toolConfig?.includeServerSideToolInvocations) {
@@ -2117,20 +2128,24 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       });
     } catch (error) {
       if (requestSignal?.aborted) throw Object.assign(new Error("The request was cancelled."), { code: "OPERATION_ABORTED" });
+      const transportError = requestyTransportError(error, apiKey);
       const shouldRetry = attempt + 1 < maxAttempts;
       if (shouldRetry) {
         console.warn("Requesty request will retry:", {
           stage: "llmRetry",
           code: "NETWORK_ERROR",
+          transportError,
           attempt: attempt + 1
         });
         if (!await waitBeforeRetry(getRequestyRetryDelayMs(null, attempt))) return budgetFailure(attempt + 1);
         continue;
       }
+      console.error("Requesty transport failed:", { stage: "llmRequest", transportError, attempts: attempt + 1 });
       return {
         ok: false,
         error: "LlmRequestFailed",
-        message: "The LLM request failed.",
+        transportError,
+        message: [transportError.message || "The LLM request failed.", transportError.causeCode || transportError.code, transportError.causeMessage].filter(Boolean).join(" · "),
         terminalProviderFailure: true,
         attempts: attempt + 1
       };
@@ -5871,24 +5886,12 @@ function getBearerToken(event) {
 }
 
 function makeFallbackResponse(reason, error = "RequestyUnavailable") {
+  const detail = String(reason || "").trim();
   return {
     fallback: true,
     error,
-    reply:
-      "I could not complete the Requesty-backed review just now. I generated a safe fallback response instead. Please retry after the backend configuration or network issue is resolved.",
-    project: {
-      summary: "Requesty-backed review unavailable.",
-      organism: "Not assessed",
-      missingInformation: [
-        "Successful Requesty model response",
-        reason || "Unknown backend issue"
-      ],
-      safetyLevel: "Not assessed",
-      safetyNotes:
-        "No biological design review was completed. Keep any experimental planning high-level and ensure appropriate human safety review before wet-lab work.",
-      draftMemo:
-        "BioDesign Copilot could not generate a Requesty-backed memo because the backend request failed."
-    }
+    reply: detail && detail !== error ? `${error}: ${detail}` : error,
+    taskOutcome: { status: "incomplete", blocker: { code: error } },
   };
 }
 
@@ -5911,23 +5914,6 @@ function makeSideChatFailure(result, question, language) {
   return { fallback: true, error: code, failure, taskOutcome: { status: "incomplete", blocker: { code } },
     reply: zh ? `未能完成本次回答：${label}。${detail}${retry}已完成的资料准备和证据收集会保留；这些记录不代表最终回答已完成。`
       : `This answer could not be completed: ${label}. ${detail} ${retry} Completed source preparation and evidence collection are retained; they do not mean the final answer is complete.` };
-}
-
-function validateResponseShape(parsed) {
-  if (!parsed || typeof parsed !== "object") return false;
-  if (typeof parsed.reply !== "string") return false;
-  if (!parsed.project || typeof parsed.project !== "object") return false;
-
-  const project = parsed.project;
-
-  return (
-    typeof project.summary === "string" &&
-    typeof project.organism === "string" &&
-    Array.isArray(project.missingInformation) &&
-    typeof project.safetyLevel === "string" &&
-    typeof project.safetyNotes === "string" &&
-    typeof project.draftMemo === "string"
-  );
 }
 
 function extractFirstJsonObject(text) {
@@ -5972,25 +5958,9 @@ function extractFirstJsonObject(text) {
 }
 
 function parseModelResponse(modelText) {
-  try {
-    const parsed = parseModelJsonValue(modelText);
-    if (validateResponseShape(parsed)) return parsed;
-  } catch {
-    // Continue to extraction fallback.
-  }
-
-  const extracted = extractFirstJsonObject(modelText);
-
-  if (extracted) {
-    try {
-      const parsed = parseModelJsonValue(extracted);
-      if (validateResponseShape(parsed)) return parsed;
-    } catch {
-      // Continue to final fallback.
-    }
-  }
-
-  return null;
+  // The transport envelope is JSON; the model's answer has no required schema.
+  // Preserve user-requested JSON/code fences and whitespace as answer content.
+  return typeof modelText === "string" && modelText.trim() ? { reply: modelText } : null;
 }
 
 function sanitizeReferenceDocuments(referenceDocuments) {
@@ -6371,6 +6341,8 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
         sizeBytes: Math.max(0, Number(source.sizeBytes) || 0),
         mtimeNs: Math.max(0, Number(source.mtimeNs) || 0),
         contentHash: String(source.contentHash || "").slice(0, 200) || null,
+        statSignature: String(source.statSignature || "").slice(0, 2000) || null,
+        metadataVersion: String(source.metadataVersion || "").slice(0, 2000) || null,
         catalogStatus: String(source.catalogStatus || "discovered").slice(0, 40),
         parseStatus: String(source.parseStatus || "not_started").slice(0, 40),
         indexStatus: String(source.indexStatus || "not_started").slice(0, 40),
@@ -7154,7 +7126,7 @@ async function callRequesty(
   };
   let previousTranscriptCheckpoint = null;
   const result = await runSideChatAgent({
-    toolMode, model,
+    toolMode, model, signal: desktopContext.signal || streaming?.signal,
     contextOptions: { config: contextConfig, provider: selection.provider, endpoint: REQUESTY_URL + ":" + toolMode,
       account: require("node:crypto").createHash("sha256").update(JSON.stringify([apiKey, desktopContext.account])).digest("hex"),
       archiveAccount: JSON.stringify([desktopContext.account, workspaceContext.localWorkspaceContext?.project?.workspaceId || ""]), requestId: callContext?.turnId,
@@ -7197,7 +7169,7 @@ async function callRequesty(
         false,
         streaming && !["context-summary", "literature-specialist"].includes(stage) ? { signal: combinedSignal, onSources: async sources => streaming.emit("sources", { webSearchSources: sources }), onText: async delta => {
           accumulated += delta;
-          const preview = stage === "web-search" ? accumulated : require("./shared/event-stream.js").previewReply(accumulated, responseMode !== "side_chat");
+          const preview = responseMode !== "side_chat" || stage === "web-search" ? accumulated : require("./shared/event-stream.js").previewReply(accumulated);
           if (preview === visible) return;
           if (!preview.startsWith(visible)) await streaming.emit("reset", {});
           const next = preview.startsWith(visible) ? preview.slice(visible.length) : preview;
@@ -7664,8 +7636,12 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
 
       if (!result.ok) {
         return jsonResponse(
-          { ...(responseMode === "side_chat" ? makeSideChatFailure(result, desktopContext.originalRequest, localWorkspaceContext?.agentLoop?.answerLanguage)
-              : makeFallbackResponse(result.reason, result.error)), ...result.data,
+          { ...(responseMode === "side_chat"
+              ? { ...makeSideChatFailure(result, desktopContext.originalRequest, localWorkspaceContext?.agentLoop?.answerLanguage), ...result.data }
+              : { ...result.data, ...makeFallbackResponse(result.reason || result.message, result.error),
+                  ...(result.data?.taskOutcome ? { taskOutcome: result.data.taskOutcome } : {}),
+                  ...(result.modelFinalAnswer ? { reply: result.data.reply } : {}),
+                  ...(result.failure ? { failure: result.failure } : {}) }),
             ...(result.semanticTelemetry ? { semanticTelemetry: result.semanticTelemetry } : {}) },
           200,
           event

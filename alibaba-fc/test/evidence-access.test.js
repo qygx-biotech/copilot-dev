@@ -14,6 +14,8 @@ async function fixture(question = 'What are the major themes in the project lite
   f.workspace.set('literature/ectoine.pdf', 'Methane supplies carbon for ectoine production. Osmotic stress induces compatible solutes. Reactor pH was 7.2.');
   f.workspace.set('literature/reactor.pdf', 'Salinity and reactor configuration alter methane transfer. Software availability: https://example.invalid/repo.');
   f.workspace.set('literature/other.pdf', 'A163V improved stability.');
+  // Seed existing derived artifacts explicitly; request context preparation is metadata-only.
+  await f.pipeline.preflight({ turnId: "seed-fixture" });
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
     semanticInterpreter: { interpret() { throw Error('No compulsory semantic planner'); } } });
   f.options = { question, surface: 'side_chat', turnId: 'evidence-turn', callContext: { model } };

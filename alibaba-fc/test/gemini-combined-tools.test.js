@@ -105,7 +105,7 @@ for (const streaming of [false, true]) test(`real FC ${streaming ? "streaming" :
   const originalFetch = global.fetch, requests = [], events = [];
   const firstMessage = providerMessage();
   const final = { reply: "Downloaded the selected source.", project: { summary: "Review", organism: "Unknown", missingInformation: [], safetyLevel: "Review", safetyNotes: "Review", draftMemo: "Draft" } };
-  const responses = [firstMessage, { content: JSON.stringify(final), role: "assistant" }];
+  const responses = [firstMessage, { content: final.reply, role: "assistant" }];
   global.fetch = async (address, options) => {
     assert.equal(address, "https://router.requesty.ai/v1/chat/completions");
     const request = JSON.parse(options.body); requests.push(request);

@@ -116,7 +116,7 @@ test("real HTTP delivery streams before completion, runs tool calls, and finaliz
   }); } finally { global.fetch = originalFetch; }
 });
 
-test("Agent Command streams its selected Gemini Flex model while the structured result waits for validation", async () => {
+test("Agent Work streams plain text on its selected model without structured-answer validation", async () => {
   const originalFetch = global.fetch;
   const model = "google/gemini-3.1-flash-lite:flex", requests = [];
   const resultBody = { reply: "Readable analysis 中文", project: { summary: "Analysis", organism: "Unknown", missingInformation: [], safetyLevel: "Review", safetyNotes: "Review", draftMemo: "Draft" } };
@@ -124,14 +124,15 @@ test("Agent Command streams its selected Gemini Flex model while the structured 
     if (!String(url).includes("router.requesty.ai")) return originalFetch(url, options);
     if (!options?.body) return new Response(JSON.stringify({ data: [] }));
     requests.push(JSON.parse(options.body));
-    return response(frame({ content: '{"reply":"Readable analysis ' }) + frame({ content: '中文","project":' + JSON.stringify(resultBody.project) + '}' }, "stop") + done);
+    return response(frame({ content: 'Readable analysis ' }) + frame({ content: '中文' }, "stop") + done);
   };
   try { await serverFixture(async url => {
     const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...chatBody("agent_instruction"), model }) });
     const deltas = [];
     const result = await readWorkbenchResponse(res, { onEvent: event => { if (event.type === "delta") deltas.push(event.text); } });
     assert.equal(deltas.join(""), resultBody.reply);
-    assert.deepEqual(result.project, resultBody.project);
+    assert.equal(result.reply, resultBody.reply);
+    assert.equal(result.project, undefined);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].model, model);
     assert.equal(requests[0].stream, true);
