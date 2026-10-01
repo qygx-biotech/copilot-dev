@@ -79,7 +79,7 @@ test("reported counts correct a local underestimate and persist limits isolated 
   }
 });
 
-test("learned budget proactively compacts next request without another normal overflow", async t => {
+test("learned budget cannot compact an accepted next request", async t => {
   const { manager, options } = await fixture(t);
   await manager.learn({ limit: 3000, scope: "input", inputTokens: 10000 }, { messages: history() });
   const next = new ContextRecovery(options); next.seed(history(), 2);
@@ -88,14 +88,15 @@ test("learned budget proactively compacts next request without another normal ov
     if (request.stage === "context-summary") { summaries++; assert.ok(next.tokens(request) <= next.budget(request.maxTokens)); return ok("Goal inspect P1. Never write. Next answer."); }
     main++; return ok("done");
   });
-  assert.equal(result.ok, true); assert.equal(main, 1); assert.ok(summaries > 0);
+  assert.equal(result.ok, true); assert.equal(main, 1); assert.equal(summaries, 0);
+  assert.deepEqual(result.contextMessages, [...history(), { role: "user", content: "Continue" }]);
 });
 
 test("oversized summarizer input shrinks/splits and every later call fits learned budget", async t => {
   const { manager } = await fixture(t, { window: 6000 }); manager.seed(history(), 2);
-  let rejectedSize = null, summaries = 0;
+  let rejectedSize = null, summaries = 0, main = 0;
   const result = await manager.run({ messages: [...history(), { role: "user", content: "Continue" }], tools: [] }, async options => {
-    if (options.stage !== "context-summary") return ok("done");
+    if (options.stage !== "context-summary") return ++main === 1 ? tooLong({ max_input_tokens: 6000 }) : ok("done");
     const size = manager.tokens(options); summaries++;
     assert.ok(size <= manager.budget(options.maxTokens));
     if (!rejectedSize) { rejectedSize = size; return tooLong({ max_input_tokens: Math.floor(size * 0.7), input_tokens: size }); }
@@ -108,7 +109,9 @@ test("oversized pending tool output is saved exactly and read in bounded section
   const { manager } = await fixture(t, { window: 3500 });
   const text = "Document page\n".repeat(5000);
   const messages = [{ role: "system", content: "System" }, { role: "user", content: "Find X" }, call("large"), tool("large", text)];
+  let main = 0;
   const result = await manager.run({ messages, tools: [] }, async options => {
+    if (++main === 1) { assert.deepEqual(options.messages, messages); return tooLong({ max_input_tokens: 3500 }); }
     assert.equal(options.messages.at(-2).tool_calls[0].id, "large");
     const receipt = JSON.parse(options.messages.at(-1).content);
     assert.equal(receipt.omitted, true); assert.equal(receipt.preview, text.slice(0, 1000));
@@ -123,7 +126,7 @@ test("oversized user instructions remain exact; essential content produces an ac
   const { manager } = await fixture(t, { window: 1000 });
   const messages = [{ role: "system", content: "system" }, { role: "user", content: "Never drop this instruction. ".repeat(2000) }];
   const original = structuredClone(messages);
-  const result = await manager.run({ messages, tools: [] }, async () => assert.fail("No feasible request"));
+  const result = await manager.run({ messages, tools: [] }, async request => { assert.deepEqual(request.messages, original); return tooLong({ max_input_tokens: 1000 }); });
   assert.equal(result.error, "ContextRecoveryIncomplete"); assert.match(result.partialReply, /one bounded document section/);
   assert.deepEqual(messages, original); assert.deepEqual(result.contextMessages, original);
 });
@@ -131,14 +134,16 @@ test("oversized user instructions remain exact; essential content produces an ac
 test("excessive schemas are preserved and fail precisely rather than dropping capabilities", async t => {
   const { manager } = await fixture(t, { window: 1000 });
   const tools = [{ type: "function", function: { name: "protected", description: "schema ".repeat(2000) } }];
-  const result = await manager.run({ messages: [{ role: "user", content: "Hi" }], tools }, async () => assert.fail());
+  const result = await manager.run({ messages: [{ role: "user", content: "Hi" }], tools }, async request => { assert.deepEqual(request.tools, tools); return tooLong({ max_input_tokens: 1000 }); });
   assert.equal(result.error, "ContextRecoveryIncomplete"); assert.equal(tools[0].function.name, "protected");
 });
 
 test("all summary calls failing yields a grounded degraded checkpoint and a minimal normal attempt", async t => {
   const { manager } = await fixture(t, { window: 4000 }); manager.seed(history(), 2);
+  let main = 0;
   const result = await manager.run({ messages: [...history(), { role: "user", content: "Continue" }], tools: [] }, async request => {
     if (request.stage === "context-summary") return { ok: false, status: 503, error: "unavailable" };
+    if (++main === 1) return tooLong({ max_input_tokens: 4000 });
     assert.match(JSON.stringify(request.messages), /Incomplete extractive checkpoint/); return ok("partial findings");
   });
   assert.equal(result.ok, true); assert.equal(result.contextDegraded, true); assert.equal(manager.state.checkpoints[0].degraded, true);
@@ -150,12 +155,13 @@ test("repeated overflow and rejected summaries terminate without resubmitting id
   const result = await manager.run({ messages: [...history(), { role: "user", content: "Continue" }], tools: [] }, async request => {
     calls++; const payload = JSON.stringify(request.messages); assert.ok(!seen.has(payload)); seen.add(payload); return tooLong({});
   });
-  assert.equal(result.error, "ContextRecoveryIncomplete"); assert.ok(calls <= 9); assert.match(result.partialReply, /not establish task completion/);
+  assert.equal(result.error, "ContextRecoveryIncomplete"); assert.ok(calls <= 9); assert.match(result.partialReply, /task is incomplete/);
 });
 
 test("provider unavailable after degraded compaction returns honest failure", async t => {
   const { manager } = await fixture(t, { window: 4000 }); manager.seed(history(), 2);
-  const result = await manager.run({ messages: [...history(), { role: "user", content: "Continue" }], tools: [] }, async () => ({ ok: false, status: 503, error: "unavailable" }));
+  let main = 0;
+  const result = await manager.run({ messages: [...history(), { role: "user", content: "Continue" }], tools: [] }, async () => ++main === 1 ? tooLong({ max_input_tokens: 4000 }) : ({ ok: false, status: 503, error: "unavailable" }));
   assert.equal(result.error, "ContextRecoveryIncomplete"); assert.equal(result.recoveryStopReason, "provider_unavailable_during_recovery");
 });
 
@@ -167,10 +173,10 @@ test("non-overflow errors bypass recovery, including output truncation", async t
   }
 });
 
-test("elapsed recovery deadline bounds a stalled summarizer", async t => {
-  const { manager } = await fixture(t, { window: 4000, recoveryMs: 30 }); manager.seed(history(), 2);
-  let aborted = false;
-  const result = await manager.run({ messages: history() }, async request => new Promise(resolve => request.signal.addEventListener("abort", () => { aborted = true; resolve({ ok: false }); })));
+test("per-call timeout bounds a stalled summarizer", async t => {
+  const { manager } = await fixture(t, { window: 4000, providerCallMs: 30 }); manager.seed(history(), 2);
+  let aborted = false, main = 0;
+  const result = await manager.run({ messages: history() }, async request => ++main === 1 ? tooLong({ max_input_tokens: 4000 }) : new Promise(resolve => request.signal.addEventListener("abort", () => { aborted = true; resolve({ ok: false }); })));
   assert.equal(result.error, "ContextRecoveryIncomplete"); assert.equal(aborted, true);
 });
 
@@ -209,25 +215,28 @@ test("registered historical archive reads remain isolated by account and reject 
   assert.equal((await other.readArchive(reference)).error, "ARCHIVE_UNAVAILABLE");
 });
 
-test("large pending document is summarized in bounded sections without altering tool arguments", async t => {
+test("large pending document preview is tried before any summary, without altering tool arguments", async t => {
   const { manager } = await fixture(t, { window: 4000 });
   const documentCall = call("doc"); documentCall.tool_calls[0].function.name = "read_document";
   const messages = [{ role: "system", content: "Protect files" }, { role: "user", content: "Review the document" }, documentCall,
     tool("doc", Array.from({ length: 2000 }, (_, i) => `Section ${i}: verified source identifier P1:${i}.\n`).join(""))];
-  let summaries = 0;
+  let summaries = 0, main = 0;
   const result = await manager.run({ messages, tools: [] }, async request => {
     if (request.stage === "context-summary") { summaries++; assert.ok(manager.tokens(request) <= manager.budget(request.maxTokens)); return ok("Verified source P1; findings derived from bounded sections; detail in archive."); }
+    if (++main === 1) return tooLong({ max_input_tokens: 4000 });
     assert.deepEqual(request.messages.at(-2), documentCall);
-    assert.ok(JSON.parse(request.messages.at(-1).content).documentFindings); return ok("done");
+    assert.ok(JSON.parse(request.messages.at(-1).content).contextArchive); return ok("done");
   });
-  assert.equal(result.ok, true); assert.ok(summaries > 1 && summaries <= 24);
+  assert.equal(result.ok, true); assert.equal(summaries, 0); assert.equal(main, 2);
 });
 
 test("archive write failure stops honestly before discarding original content", async t => {
   const { manager } = await fixture(t, { window: 2000 });
   manager.archive.put = async () => { throw Object.assign(new Error("disk full"), { code: "ENOSPC" }); };
   const original = history(); manager.seed(original, 2);
-  const result = await manager.run({ messages: original }, async () => assert.fail("No request after failed archival"));
+  let calls = 0;
+  const result = await manager.run({ messages: original }, async () => { calls++; return tooLong({ max_input_tokens: 2000 }); });
+  assert.equal(calls, 1);
   assert.equal(result.recoveryStopReason, "archive_unavailable"); assert.match(result.partialReply, /could not be saved/);
   assert.deepEqual(result.contextMessages, original);
 });
@@ -247,7 +256,7 @@ test("history summaries can use archived originals beyond their previews", async
   const { manager } = await fixture(t, { window: 4000 });
   const messages = [{ role: "system", content: "Protect files" }, { role: "user", content: "Inspect P1" }, call("old"),
     tool("old", "Earlier evidence. ".repeat(2000) + " EXACT_TAIL_IDENTIFIER"), { role: "user", content: "Current instruction: answer only" }];
-  manager.seed(messages, 3); manager.recoveryStarted = Date.now();
+  manager.seed(messages, 3); manager.recoveryStarted = manager.monotonic();
   const view = await manager.offload(messages, 2000);
   const sources = [];
   await manager.compact({ messages: view, tools: [], maxTokens: 256 }, async request => {

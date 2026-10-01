@@ -20,6 +20,7 @@
 //   OSS_PUBLIC_ENDPOINT
 
 const crypto = require("node:crypto");
+const chatTiming = require("./chat-timing.js");
 const { parseModelJsonValue } = require("./model-json.js");
 const paperCardOutput = require("./paper-card-output.js");
 const OSS = require("ali-oss");
@@ -87,7 +88,8 @@ const TOTAL_PDF_SUMMARY_CONTEXT_LIMIT = 180000;
 const MAX_CHAT_HISTORY_MESSAGES = 40;
 const MAX_CHAT_MESSAGE_CHARACTERS = 120000;
 const TOTAL_CHAT_HISTORY_CHARACTERS = 120000;
-const REQUESTY_MAX_ATTEMPTS = 2;
+const REQUESTY_MAX_ATTEMPTS = 5;
+const REQUESTY_OTHER_ERROR_MAX_ATTEMPTS = 2;
 const PAPER_CARD_SCHEMA_VERSION = 2;
 const PAPER_CARD_PROMPT_VERSION = "canonical-paper-card-v2";
 const PAPER_CARD_CHUNK_PROMPT_VERSION = "canonical-paper-card-chunk-v2";
@@ -470,19 +472,24 @@ If the user asks why corpus papers failed, remained incomplete, or needed reproc
 When evidence is sufficient, stop using tools and give the final answer. Return concise Markdown; use headings, lists, links, tables, or code only when they improve readability. Do not expose the internal tool trace, wrap the whole answer in a Markdown code fence, or return structured JSON unless the user explicitly asks for JSON.`.trim();
 
 function jsonResponse(data, statusCode = 200, event = null, extraHeaders = {}) {
+  const end = chatTiming.start("response_serialization", { status: statusCode });
+  const body = JSON.stringify(data);
+  end({ responseBytes: Buffer.byteLength(body) });
   return {
     statusCode,
     headers: {
       ...getApiHeaders(event),
       ...extraHeaders
     },
-    body: JSON.stringify(data)
+    body
   };
 }
 
 function getApiHeaders(event) {
   return {
-    ...corsHeaders
+    ...corsHeaders,
+    ...(chatTiming.current()?.active ? { "timing-allow-origin": "*", "x-biodesign-request-id": chatTiming.current().requestId,
+      "access-control-expose-headers": "X-BioDesign-Request-Id, Server-Timing" } : {})
   };
 }
 
@@ -677,7 +684,7 @@ function chatModelEnvironment(env, requestedModel, surface = "side_chat") {
   const model = requestedModel === "default" ? getEnvString(env, "REQUESTY_MODEL") : requestedModel;
   if (typeof model !== "string" || ![getEnvString(env, "REQUESTY_MODEL"),
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
-    ...(["agent_instruction", "preparation"].includes(surface) ? ["google/gemini-3.1-flash-lite:flex"] : [])].includes(model)) return null;
+    "google/gemini-3.1-flash-lite:flex"].includes(model)) return null;
   const scoped = { ...env };
   const defaultModel = getEnvString(env, "REQUESTY_MODEL");
   const pdfModel = getEnvString(env, "REQUESTY_PDF_MODEL") || defaultModel;
@@ -2080,6 +2087,26 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
   const maxAttempts = Math.max(1, Math.min(REQUESTY_MAX_ATTEMPTS, Number(requestOptions.maxAttempts) || REQUESTY_MAX_ATTEMPTS));
   const attemptOffset = Math.max(0, Number(requestOptions.attemptOffset) || 0);
   const deadlineAt = Number.isFinite(requestOptions.deadlineAt) ? requestOptions.deadlineAt : Date.now() + 300000;
+  let fetchOptions;
+  try {
+    fetchOptions = {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ ...requestBody, ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}) }),
+      ...((streaming?.signal || requestOptions.signal) ? { signal: streaming?.signal || requestOptions.signal } : {}),
+    };
+    // Validate locally once. Invalid headers/body/options must not be diagnosed
+    // as network outages or consume transport retries.
+    new Request(REQUESTY_URL, fetchOptions);
+  } catch (error) {
+    const diagnostic = require("./requesty-response.js").fetchException(error, "request_setup");
+    chatTiming.mark("provider_request_invalid", diagnostic);
+    console.warn("requesty_request_invalid", diagnostic);
+    return { ok: false, error: "RequestyRequestInvalid", message: "The backend could not construct a valid model request. No provider request was sent.",
+      responseDiagnostics: diagnostic, terminalProviderFailure: true, attempts: 0 };
+  }
+  const contextApi = require("./context-recovery.js");
+  const estimatedTokens = contextApi.estimateRequest(requestBody,
+    contextApi.configFromEnv(process.env, requestBody.model).imageTokens);
   let firstInputQuota = null;
   const budgetFailure = attempts => ({ ok: false, error: "ProviderRetryBudgetExceeded", attempts,
     recoveryStopReason: "time_budget_exhausted", message: "The provider retry does not fit the remaining request time budget." });
@@ -2088,7 +2115,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
     if (requestSignal?.aborted) throw Object.assign(new Error("The request was cancelled."), { code: "OPERATION_ABORTED" });
     if (Date.now() + delay >= deadlineAt) return false;
     try {
-      await require("node:timers/promises").setTimeout(delay, undefined, { signal: requestSignal });
+      await chatTiming.measure("provider_retry_wait", () => require("node:timers/promises").setTimeout(delay, undefined, { signal: requestSignal }));
       return Date.now() < deadlineAt;
     } catch (error) {
       if (requestSignal?.aborted) throw Object.assign(new Error("The request was cancelled."), { code: "OPERATION_ABORTED" });
@@ -2102,26 +2129,22 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
     if (Date.now() >= deadlineAt) return budgetFailure(attempt);
     let response;
     const attemptEvent = { stage: "provider-request", model: requestBody.model, attempt: attemptOffset + attempt + 1,
-      inputCharacters: JSON.stringify(requestBody).length };
+      estimatedTokens };
     console.info("requesty_provider_request", attemptEvent);
     await requestOptions.onAttempt?.(attemptEvent);
+    const fetchEnd = chatTiming.start("provider_fetch", { attempt: attemptOffset + attempt + 1, callStage: requestOptions.stage || "normal", estimatedTokens, outputReserve: requestBody.max_tokens });
     try {
-      response = await fetch(REQUESTY_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({ ...requestBody, ...(streaming ? { stream: true, stream_options: { include_usage: true } } : {}) }),
-        ...(requestSignal ? { signal: requestSignal } : {})
-      });
+      response = await fetch(REQUESTY_URL, fetchOptions);
     } catch (error) {
+      const diagnostic = require("./requesty-response.js").fetchException(error);
+      fetchEnd({ outcome: requestSignal?.aborted ? "cancelled" : "failed", ...diagnostic });
       if (requestSignal?.aborted) throw Object.assign(new Error("The request was cancelled."), { code: "OPERATION_ABORTED" });
-      const shouldRetry = attempt + 1 < maxAttempts;
+      console.warn("requesty_fetch_exception", { attempt: attempt + 1, ...diagnostic });
+      const shouldRetry = attempt + 1 < Math.min(maxAttempts, REQUESTY_OTHER_ERROR_MAX_ATTEMPTS);
       if (shouldRetry) {
         console.warn("Requesty request will retry:", {
           stage: "llmRetry",
-          code: "NETWORK_ERROR",
+          code: "FETCH_EXCEPTION",
           attempt: attempt + 1
         });
         if (!await waitBeforeRetry(getRequestyRetryDelayMs(null, attempt))) return budgetFailure(attempt + 1);
@@ -2130,18 +2153,20 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       return {
         ok: false,
         error: "LlmRequestFailed",
-        message: "The LLM request failed.",
+        message: `The model request failed before HTTP response headers were received${diagnostic.transportCode ? ` (${diagnostic.transportCode})` : ""}.`,
+        responseDiagnostics: diagnostic,
         terminalProviderFailure: true,
         attempts: attempt + 1
       };
     }
+    fetchEnd({ status: response.status, outcome: "headers_received" });
 
     if (response.ok) {
       try {
         const isEventStream = Boolean(streaming && /text\/event-stream/i.test(response.headers?.get?.("content-type") || ""));
-        const responseJson = isEventStream
+        const responseJson = await chatTiming.measure("provider_body", async () => isEventStream
           ? await require("./requesty-stream.js").readRequestyStream(response, streaming)
-          : await response.json();
+          : await response.json(), { attempt: attemptOffset + attempt + 1, transport: isEventStream ? "sse" : "json" });
         const message = responseJson?.choices?.[0]?.message;
         const normalizedSearch = webSearch.normalizeResponse(responseJson, String(requestBody.model || "").split("/")[0]);
         if (requestOptions.stage === "web-search") {
@@ -2194,7 +2219,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       }
     }
 
-    const responseText = redactKey(await response.text().catch(() => ""));
+    const responseText = redactKey(await chatTiming.measure("provider_error_body", () => response.text().catch(() => "")));
     let errorBody;
     try { errorBody = JSON.parse(responseText); } catch { errorBody = {}; }
     const responseDiagnostics = require("./requesty-response.js").diagnostics(errorBody, response.headers, apiKey);
@@ -2206,19 +2231,21 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       return { ok: false, error: "WEB_SEARCH_PROVIDER_ERROR", message: "The provider rejected hosted web search for this model/tool combination.", status: response.status, attempts: attempt + 1 };
     }
     const rateLimit = providerRateLimit.parseRateLimit(response.status, responseText, response.headers?.get?.("retry-after"));
+    const inputQuota = require("./input-quota.js").inputQuota({ ...errorBody,
+      ...(!errorBody.error && !errorBody.message ? { message: responseText } : {}), status: response.status, headers: response.headers });
     const repeatedInputTokenQuota = attempt === 1 && response.status === 429 && providerRateLimit.sameInputTokenQuota(firstInputQuota, rateLimit);
     if (attempt === 0 && response.status === 429 && rateLimit?.verifiedInputTokenRateLimit && rateLimit.rateLimitRetryable) firstInputQuota = rateLimit;
     const verifiedContextLengthError = isVerifiedContextLengthError(response.status, responseText);
-    const errorCategory = verifiedContextLengthError ? "context_size" : rateLimit
+    const errorCategory = verifiedContextLengthError ? "context_size" : inputQuota ? "input_token_rate" : rateLimit
       ? !rateLimit.rateLimitRetryable ? "hard_quota" : rateLimit.verifiedInputTokenRateLimit ? "input_token_rate"
         : /output[_-]?tokens?/i.test(rateLimit.quotaMetric) ? "output_token_rate" : /requests?/i.test(rateLimit.quotaMetric) ? "request_rate" : "rate_limit"
       : /output.*token|max_tokens/i.test(String(errorBody?.error?.code || "") + " " + String(errorBody?.error?.message || "")) ? "output_token_limit" : "provider_rejection";
     console.info("requesty_provider_failure", { stage: "provider-failure", status: response.status,
-      category: errorCategory, quotaClassificationReason: rateLimit?.quotaClassificationReason, attempt: attemptOffset + attempt + 1, retryCount: attemptOffset + attempt, retryAfterMs: rateLimit?.retryAfterMs });
+      category: errorCategory, classificationEvidence: inputQuota?.evidence, quotaClassificationReason: rateLimit?.quotaClassificationReason, attempt: attemptOffset + attempt + 1, retryCount: attemptOffset + attempt, retryAfterMs: inputQuota?.retryAfterMs ?? rateLimit?.retryAfterMs });
     const shouldRetry =
-      attempt + 1 < maxAttempts &&
+      attempt + 1 < (response.status === 503 ? maxAttempts : Math.min(maxAttempts, REQUESTY_OTHER_ERROR_MAX_ATTEMPTS)) &&
       !verifiedContextLengthError && isRetryableRequestyStatus(response.status) && (!rateLimit ||
-        (!deferRateLimit && !(requestOptions.deferInputTokenRateLimit && rateLimit.verifiedInputTokenRateLimit) && rateLimit.rateLimitRetryable && rateLimit.retryAfterMs <= 120000));
+        (!deferRateLimit && !(requestOptions.deferInputTokenRateLimit && (inputQuota || rateLimit.verifiedInputTokenRateLimit)) && rateLimit.rateLimitRetryable && rateLimit.retryAfterMs <= 120000));
     // Selected callers defer quota recovery to the host. Otherwise honor the
     // exact bounded provider cooldown, not a short generic transport delay.
     if (shouldRetry) {
@@ -2246,6 +2273,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
       status: response.status,
       ...(rateLimit ? { rateLimit } : {}),
       terminalProviderFailure: [401, 403].includes(response.status),
+      ...(inputQuota ? { inputQuota } : {}),
       verifiedContextLengthError,
       ...(verifiedContextLengthError ? { contextOverflow: require("./context-recovery.js").overflow({ ...errorBody, status: response.status }) } : {}),
       attempts: attempt + 1
@@ -5897,10 +5925,12 @@ function makeSideChatFailure(result, question, language) {
   const providerStatus = Number.isInteger(result.status) ? result.status : undefined;
   const cause = result.recoveryFailureCode || code;
   const failure = { code, failureStage: result.failureStage || "main-agent",
-    category: code === "ProviderRetryBudgetExceeded" ? "local_time_budget" : providerStatus ? "provider_rejection" : cause === "LlmRequestFailed" ? "provider_transport"
+    category: code === "ProviderRetryBudgetExceeded" || ["provider_call_timeout", "quota_wait_budget_exhausted", "hard_request_deadline_exhausted"].includes(result.recoveryStopReason) ? "local_time_budget" : providerStatus ? "provider_rejection" : cause === "LlmRequestFailed" ? (result.responseDiagnostics?.transportPhase === "fetch" ? "provider_fetch_exception" : "provider_transport")
       : ["EmptyLlmResponse", "InvalidLlmResponse", "STREAM_INTERRUPTED"].includes(cause) ? "provider_content" : "backend_configuration_or_validation",
     ...(providerStatus ? { providerStatus } : {}), providerAttempts: Number(result.recoveryAttempts ?? result.attempts) || 0,
     ...(result.recoveryStopReason ? { recoveryStopReason: result.recoveryStopReason } : {}),
+    ...(result.timing ? { timing: result.timing, retryAfterMs: result.retryAfterMs, automaticRetryScheduled: false } : {}),
+    ...(typeof result.contextDegraded === "boolean" ? { degraded: result.contextDegraded, checkpointCount: result.checkpointCount, checkpointBoundary: result.checkpointBoundary } : {}),
     ...require("./requesty-response.js").diagnostics(result), ...(result.rateLimit || {}) };
   const zh = String(language || semanticIntent.requestAnswerLanguage(question)).startsWith("zh");
   const label = `${code}${providerStatus ? ` (HTTP ${providerStatus})` : ""}`;
@@ -6682,7 +6712,7 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
         item.reference.startsWith(`${item.sourceId}:p${item.page}:`) &&
         sourceMap.paperSources.some((source) => source.sourceId === item.sourceId && source.contentHash === item.contentHash))
       .map((item) => ({ sourceId: item.sourceId, reference: item.reference, page: item.page, contentHash: item.contentHash })),
-    agentLoop: value.agentLoop?.version === 1 ? { version: 1, answerLanguage: /^[a-z]{2,3}$/.test(value.agentLoop.answerLanguage || "") ? value.agentLoop.answerLanguage : null, hardSelection: value.agentLoop.hardSelection === true } : null,
+    agentLoop: value.agentLoop?.version === 1 ? { version: 1, ...(value.agentLoop.academicAcquisition === true ? { academicAcquisition: true } : {}), answerLanguage: /^[a-z]{2,3}$/.test(value.agentLoop.answerLanguage || "") ? value.agentLoop.answerLanguage : null, hardSelection: value.agentLoop.hardSelection === true } : null,
     semantic,
     requestUnderstanding: semantic ? semanticIntent.requestUnderstanding(semantic.ir, semanticQuery) : null,
     evidencePlan: semantic ? semanticIntent.planEvidenceNeeds(semantic.ir, { originalQuery: semanticQuery }) : null,
@@ -7129,7 +7159,7 @@ async function callRequesty(
 
   const selection = selectRequestyModel(env);
   const toolMode = require("./requesty-models.js").toolMode(env);
-  const agentCapabilities = responseMode === "side_chat" ? await require("./requesty-models.js").agentCapabilities(env, model, selection.capabilities) : null;
+  const agentCapabilities = responseMode === "side_chat" ? await chatTiming.measure("model_capabilities", () => require("./requesty-models.js").agentCapabilities(env, model, selection.capabilities)) : null;
   if (desktopContext.images?.length && !agentCapabilities?.supportsImages) return { ok: false, error: "MODEL_IMAGE_CAPABILITY_UNAVAILABLE", reason: "Image input is unavailable or unconfirmed for the selected model. The model was not changed." };
   const supportsWebSearch = agentCapabilities ? agentCapabilities.supportsWebSearch : await require("./requesty-models.js").webSearchCapability(env, model, selection.capabilities.supportsWebSearch);
   const retrievalScope = require("./requesty-search-stage.js").retrievalScope(workspaceContext.localWorkspaceContext?.semantic?.ir);
@@ -7137,6 +7167,7 @@ async function callRequesty(
   console.info("requesty_web_search", { model, provider: selection.provider, toolMode, retrievalScope, webSearchSupported: supportsWebSearch,
     webSearchEnabled: !localAcademicMode && supportsWebSearch && (toolMode === "combined" || ["web", "both"].includes(retrievalScope) && !desktopContext.resume?.searchStage) });
   const providerDeadlineAt = Math.min(Date.now() + 300000, desktopContext.deadlineAt || Infinity);
+  chatTiming.mark("recovery_deadline_started");
   const contextApi = require("./context-recovery.js");
   const contextConfig = contextApi.configFromEnv(env, model, agentCapabilities?.contextWindowTokens);
   const buildAgentRequest = ({ messages: agentMessages, tools, temperature, stage, maxTokens }) => {
@@ -7155,8 +7186,10 @@ async function callRequesty(
   let previousTranscriptCheckpoint = null;
   const result = await runSideChatAgent({
     toolMode, model,
-    contextOptions: { config: contextConfig, provider: selection.provider, endpoint: REQUESTY_URL + ":" + toolMode,
+    contextOptions: { config: { ...contextConfig, deadlineAt: providerDeadlineAt }, provider: selection.provider, endpoint: REQUESTY_URL + ":" + toolMode,
+      signal: AbortSignal.any([desktopContext.signal, streaming?.signal].filter(Boolean)),
       account: require("node:crypto").createHash("sha256").update(JSON.stringify([apiKey, desktopContext.account])).digest("hex"),
+      quotaEndpoint: REQUESTY_URL, quotaAccount: require("node:crypto").createHash("sha256").update(apiKey).digest("hex"),
       archiveAccount: JSON.stringify([desktopContext.account, workspaceContext.localWorkspaceContext?.project?.workspaceId || ""]), requestId: callContext?.turnId,
       measure: options => contextApi.estimateRequest(buildAgentRequest(options), contextConfig.imageTokens) },
     conversationTranscript: desktopContext.conversationTranscript,
@@ -7203,7 +7236,8 @@ async function callRequesty(
           visible = preview;
           if (next) await streaming.emit("delta", { text: next });
         } } : null,
-        { toolMode, stage, retryAfterMs, maxAttempts, attemptOffset, deadlineAt: Math.min(providerDeadlineAt, deadlineAt || Infinity), signal: combinedSignal, onAttempt: streaming ? event => streaming.emit("status", event) : undefined }
+        { toolMode, stage, retryAfterMs, maxAttempts, attemptOffset, deferInputTokenRateLimit: true,
+          deadlineAt: Math.min(providerDeadlineAt, deadlineAt || Infinity), signal: combinedSignal, onAttempt: streaming ? event => streaming.emit("status", event) : undefined }
       );
       return turn.ok
         ? turn
@@ -7226,13 +7260,20 @@ async function callRequesty(
   return result;
 }
 
-exports.handler = async function handler(rawEvent, context, transport = null) {
+async function handleRequest(rawEvent, context, transport = null) {
   let method = "GET";
   let path = "/";
   let event = null;
 
   try {
     ({ method, path, event } = getRoute(rawEvent));
+    const trace = chatTiming.current();
+    if (trace && method === "POST" && path === "/chat") {
+      trace.requestId = chatTiming.uuid(getRequestHeader(event, "x-biodesign-request-id")) || trace.requestId;
+      trace.activate();
+      trace.mark("handler_entry", { processUptimeMs: process.uptime() * 1000,
+        requestBytes: typeof event.body === "string" ? Buffer.byteLength(event.body) : undefined });
+    }
     const env = { ...process.env };
 
     if (method === "OPTIONS") {
@@ -7289,6 +7330,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
     const protectedPaths = new Set([...scopedModelRoutes, "/chat", "/api/sources/fetch", "/api/test-oss",
       "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"]);
     const auth = protectedPaths.has(path) ? requireAuth(event, env) : null;
+    chatTiming.mark("authentication_done");
     if (auth && !auth.ok) return auth.response;
     const userEnv = auth?.env || env;
 
@@ -7334,19 +7376,13 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       const configuration = literatureWiki.configuration(crypto.createHash("sha256").update(getEnvString(modelEnv, "REQUESTY_MODEL")).digest("hex"));
       if (!callContext || literatureWiki.validateInput(body.input).length) return jsonResponse({ error: "INVALID_WIKI_INPUT" }, 400, event);
       if (!literatureWiki.sameConfiguration(body.input.configuration, configuration)) return jsonResponse({ error: "WIKI_CONFIGURATION_CHANGED" }, 409, event);
-      const result = await requestRequestyMessage({
-        model: getEnvString(modelEnv, "REQUESTY_MODEL"), temperature: 0.1,
-        messages: [{ role: "system", content: literatureWiki.PROMPT }, { role: "user", content: JSON.stringify(body.input) }],
-        ...requestyMetadata(callContext),
-      }, getEnvString(modelEnv, "REQUESTY_API_KEY"), false, null, { signal: transport?.signal });
+      const result = await require("./wiki-generation.js").generateWiki({
+        input: body.input, model: getEnvString(modelEnv, "REQUESTY_MODEL"), metadata: requestyMetadata(callContext),
+        signal: transport?.signal, deadlineAt: transport?.deadlineAt || Date.now() + 300000, maxAttempts: REQUESTY_MAX_ATTEMPTS,
+        request: (requestBody, options) => requestRequestyMessage(requestBody, getEnvString(modelEnv, "REQUESTY_API_KEY"), false, null, options),
+      });
       if (!result.ok) return jsonResponse({ error: result.error, message: result.message, attempts: result.attempts }, result.status || 502, event);
-      const page = literatureWiki.markdownPage(typeof result.message?.content === "string" ? result.message.content.trim() : "");
-      const validationProblems = literatureWiki.validatePage(page, body.input);
-      if (literatureWiki.validateDraft(page).length) return jsonResponse({ error: "INVALID_WIKI_PAGE", failureKind: "invalid_returned_content",
-        message: `Wiki validation failed: ${validationProblems.join(" ")}`, validationProblems, attempts: result.attempts }, 502, event);
-      return jsonResponse({ ok: true, page, configuration, acceptance: validationProblems.length ? "unverified_draft" : "references_validated",
-        validationProblems, integrity: literatureWiki.citationIntegrity(page, body.input),
-        attempts: result.attempts, usage: sanitizeRequestyUsage(result.usage) }, 200, event);
+      return jsonResponse({ ...result, configuration }, 200, event);
     }
 
     if (method === "POST" && path === "/api/knowledge/plan-search") {
@@ -7432,6 +7468,8 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
 
     if (method === "POST" && path === "/chat") {
       const body = getRequestBody(event);
+      if (chatTiming.current()?.active) chatTiming.current().clientRequestId = chatTiming.uuid(body.timingRequestId);
+      chatTiming.mark("body_parsed", { imageCount: Array.isArray(body.images) ? body.images.length : 0 });
       const messages = body.messages;
       const lastUserContent = (Array.isArray(messages) ? messages : []).findLast(message => message?.role === "user")?.content;
       const originalRequest = body.originalRequest ?? (typeof lastUserContent === "string" ? lastUserContent.trim() : "");
@@ -7573,14 +7611,15 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
       if (responseMode !== "side_chat" && rawLocalWorkspaceContext?.semantic !== undefined && !localWorkspaceContext?.semantic) {
         return jsonResponse(makeFallbackResponse("The semantic request context is invalid.", "INVALID_SEMANTIC_CONTEXT"), 400, event);
       }
-      const storedDocumentResult = await resolveStoredPdfChatContext({
+      chatTiming.mark("validation_done");
+      const storedDocumentResult = await chatTiming.measure("stored_context", () => resolveStoredPdfChatContext({
         documents: rawStoredDocuments || [],
         selectedObjectKeys: rawSelectedDocumentKeys || [],
         messages,
         user: auth.user,
         context,
         env: chatEnv
-      });
+      }));
       if (!storedDocumentResult.ok) {
         return documentErrorResponse(
           event,
@@ -7597,7 +7636,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         if (body.conversationTranscript?.version !== 1) return jsonResponse({ error: "INVALID_CONVERSATION_TRANSCRIPT" }, 400, event);
         desktopContext.conversationTranscript = require("./shared/conversation-transcript.js").normalize(body.conversationTranscript);
       }
-      desktopContext.projectTools = responseMode === "side_chat" && localWorkspaceContext?.agentLoop?.version === 1;
+      desktopContext.projectTools = localWorkspaceContext?.agentLoop?.version === 1 && (responseMode === "side_chat" || (desktopContext.academic && localWorkspaceContext.agentLoop.academicAcquisition === true));
       if (responseMode === "side_chat" && body.images !== undefined) {
         try {
           desktopContext.images = require("./shared/chat-images.js").validateImages(body.images);
@@ -7629,14 +7668,16 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
           if (!desktopContext.enabled && !desktopContext.projectTools) throw new Error();
           const state = agentContinuation.open(body.desktopContinuation, continuationBinding, env.JWT_SECRET);
           if (desktopContext.projectTools) {
-            if (!state.projectToolState || state.pending?.some(call => !require("./shared/side-chat-tools.js").isTool(call.name))) throw new Error();
+            if (!state.projectToolState || state.pending?.some(call => !require("./shared/side-chat-tools.js").isTool(call.name) &&
+                !(desktopContext.academic && require("./shared/academic-tools.js").allowed(call.name, "agent_command", desktopContext.permission)))) throw new Error();
           } else if (!sourceDownload.allowed("agent_command", desktopContext.permission) && (!desktopContext.academic || state.pending?.some(call => !require("./shared/academic-tools.js").allowed(call.name, "agent_command", desktopContext.permission)))) throw new Error();
           desktopContext.resume = agentContinuation.withResults(state, body.desktopToolResults);
         } catch { return jsonResponse({ error: "INVALID_TOOL_CONTINUATION", message: "Invalid or expired desktop tool continuation." }, 400, event); }
       }
       const streaming = body.stream === true && typeof transport?.start === "function" ? transport : null;
+      chatTiming.mark("agent_ready", { transport: streaming ? "sse" : "json" });
       if (streaming) await streaming.start(getApiHeaders(event));
-      const result = await callRequesty(
+      const result = await chatTiming.measure("agent_loop", () => callRequesty(
         messages,
         chatEnv,
         {
@@ -7655,12 +7696,13 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
         callContext,
         streaming,
         desktopContext
-      );
+      ));
 
       if (!result.ok) {
         return jsonResponse(
           { ...(responseMode === "side_chat" ? makeSideChatFailure(result, desktopContext.originalRequest, localWorkspaceContext?.agentLoop?.answerLanguage)
-              : makeFallbackResponse(result.reason, result.error)), ...result.data,
+              : { ...makeFallbackResponse(result.reason, result.error),
+                ...(result.responseDiagnostics?.transportPhase ? { failure: makeSideChatFailure(result, desktopContext.originalRequest).failure } : {}) }), ...result.data,
             ...(result.semanticTelemetry ? { semanticTelemetry: result.semanticTelemetry } : {}) },
           200,
           event
@@ -7727,6 +7769,24 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
     if (error?.code !== "OPERATION_ABORTED") console.error("Unhandled backend error.");
     return internalServerErrorResponse(event);
   }
+}
+
+exports.handler = async function handler(rawEvent, context, transport = null) {
+  if (!chatTiming.enabled()) return handleRequest(rawEvent, context, transport);
+  const trace = chatTiming.create({ requestId: context?.chatTransportTiming?.requestId });
+  return chatTiming.run(trace, async () => {
+    const response = await handleRequest(rawEvent, context, transport);
+    if (!trace.active) return response;
+    trace.mark("handler_result", { status: response.statusCode });
+    const timing = trace.snapshot();
+    if (Number.isFinite(context?.chatTransportTiming?.bodyReadMs)) timing.bodyReadMs = context.chatTransportTiming.bodyReadMs;
+    // Numeric stage timings only. Do not include response text or diagnostics
+    // from an upstream provider in this debug envelope.
+    try { response.body = JSON.stringify({ ...JSON.parse(response.body), chatTiming: timing }); } catch {}
+    response.headers = { ...response.headers, "server-timing": `app;dur=${timing.handlerMs.toFixed(1)}` };
+    trace.mark("handler_return", { responseBytes: Buffer.byteLength(response.body || "") });
+    return response;
+  });
 };
 
 exports._test = {

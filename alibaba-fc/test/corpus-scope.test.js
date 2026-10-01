@@ -11,6 +11,8 @@ async function fixture(options = {}) {
   for (let i = 1; i <= 4; i++) f.workspace.set(`literature/P${i}.pdf`, `Methane supports ectoine production in paper ${i}. Reactor pH was ${i + 5}. `.repeat(30));
   const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
   const request = { question, surface: 'side_chat', turnId: 'corpus-scope', language: 'zh', callContext: { model } };
+  // Seed a previously prepared workspace; ordinary chat no longer warms artifacts.
+  await f.pipeline.preflight({ ...request, turnId: "seed-cached-evidence" });
   const context = await service.buildContext(request);
   f.system.corpusWorkflows.mapWorker = () => { throw Error('Per-paper provider calls forbidden'); };
   return { ...f, service, request, context, ids: context.sourceMap.paperSources.map(source => source.sourceId) };
@@ -39,7 +41,7 @@ const toolCall = args => ({ id: 'corpus-call', type: 'function', function: { nam
 
 test('corpus schema exposes analysis only; targeting remains on search/retrieve and legacy validation remains explicit', () => {
   const schema = contract.definitions.find(tool => tool.function.name === 'run_corpus_workflow').function.parameters;
-  assert.deepEqual(Object.keys(schema.properties), ['requirement']);
+  assert.deepEqual(Object.keys(schema.properties), ['requirement', 'prepare']);
   assert.deepEqual(Object.keys(schema.properties.requirement.properties), ['task', 'domains', 'granularity', 'claimSupport']);
   assert.equal(schema.required, undefined);
   assert.doesNotMatch(JSON.stringify(schema), /sourceIds|paper_ids|coverage|freshness/);

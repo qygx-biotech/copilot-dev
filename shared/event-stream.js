@@ -5,10 +5,10 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
   const failure = (code, message) => Object.assign(new Error(message), { code });
-  async function readEvents(response, onEvent, { signal, maxBytes = 8 * 1024 * 1024 } = {}) {
+  async function readEvents(response, onEvent, { signal, maxBytes = 8 * 1024 * 1024, onTiming } = {}) {
     if (!response.body?.getReader) throw failure("STREAM_UNAVAILABLE", "Streaming is unavailable on this connection.");
     const reader = response.body.getReader(), decoder = new TextDecoder();
-    let buffer = "", data = [], type = "message", bytes = 0, frameSize = 0;
+    let buffer = "", data = [], type = "message", bytes = 0, frameSize = 0, firstChunk = true;
     const abort = () => { reader.cancel().catch(() => {}); };
     signal?.addEventListener("abort", abort, { once: true });
     try {
@@ -17,6 +17,7 @@
         const next = await reader.read();
         if (signal?.aborted) throw failure("OPERATION_ABORTED", "The request was cancelled.");
         if (next.done) break;
+        if (firstChunk) { firstChunk = false; onTiming?.("first_response_bytes"); }
         bytes += next.value.byteLength;
         if (bytes > maxBytes) throw failure("STREAM_TOO_LARGE", "The response exceeded the stream limit.");
         buffer += decoder.decode(next.value, { stream: true });
@@ -82,8 +83,17 @@
     return "";
   }
 
-  async function readWorkbenchResponse(response, { signal, onEvent = () => {} } = {}) {
-    if (!/text\/event-stream/i.test(response.headers?.get?.("content-type") || "")) return response.json();
+  async function readWorkbenchResponse(response, { signal, onEvent = () => {}, onTiming } = {}) {
+    if (!/text\/event-stream/i.test(response.headers?.get?.("content-type") || "")) {
+      if (!onTiming || !response.text) return response.json();
+      onTiming("buffered_body_start");
+      const text = await response.text();
+      onTiming("buffered_body_end");
+      onTiming("json_parse_start");
+      const data = JSON.parse(text);
+      onTiming("json_parse_end");
+      return data;
+    }
     let result = null;
     try { await readEvents(response, async event => {
       let data;
@@ -92,7 +102,7 @@
       if (event.event === "complete" || event.event === "evidence-recovery") { result = data; return false; }
       else if (event.event === "error") throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");
       else if (["delta", "reset", "status", "sources", "transcript"].includes(event.event)) await onEvent({ ...data, type: event.event });
-    }, { signal }); } catch (error) {
+    }, { signal, onTiming }); } catch (error) {
       if (signal?.aborted || error?.code === "OPERATION_ABORTED") throw failure("OPERATION_ABORTED", "The request was cancelled.");
       if (String(error?.code || "").startsWith("STREAM_")) throw error;
       throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");

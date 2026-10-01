@@ -31,7 +31,18 @@ const originalFetch = global.fetch;
 let logs, providerRequests;
 const completion = content => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) }, finish_reason: "stop" }] }));
 const finalAnswer = { reply: "Fixture answer.", project: { summary: "Fixture", organism: "Unknown", missingInformation: [], safetyLevel: "Review", safetyNotes: "Review", draftMemo: "Fixture" } };
-test.beforeEach(t => {
+test.beforeEach(async t => {
+  // Learned limits must survive production requests, but not leak across tests
+  // or repeated suite runs that use the same synthetic provider identity.
+  const fs = require("node:fs/promises");
+  const root = await fs.mkdtemp(require("node:path").join(require("node:os").tmpdir(), "security-context-"));
+  const previousRoot = process.env.CONTEXT_ARCHIVE_DIR;
+  process.env.CONTEXT_ARCHIVE_DIR = root;
+  t.after(async () => {
+    await fs.rm(root, { recursive: true, force: true });
+    if (previousRoot === undefined) delete process.env.CONTEXT_ARCHIVE_DIR;
+    else process.env.CONTEXT_ARCHIVE_DIR = previousRoot;
+  });
   Object.assign(process.env, env); logs = []; providerRequests = [];
   for (const method of ["log", "info", "warn", "error"]) t.mock.method(console, method, (...args) => logs.push(format(...args)));
   // Legacy review checks its sidecar before reading PDF metadata; keep every

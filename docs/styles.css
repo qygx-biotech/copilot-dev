@@ -2182,3 +2182,23 @@ textarea:focus {
 
 .message-copy-button { display:block; width:max-content; margin-top:8px; border:1px solid var(--line); border-radius:5px; padding:4px 8px; background:var(--surface); color:var(--muted); font-size:11px; cursor:pointer; }
 .message-copy-button:hover { background:var(--accent-soft); color:var(--accent-dark); }
+
+/* Message actions sit below the bubble; action targets and handlers stay intact. */
+.side-message:has(> .message-bubble) { padding:0; background:transparent; border:0; box-shadow:none; }
+.side-message.user:has(> .message-bubble) { width:66.6667%; margin-left:auto; align-self:flex-end; color:var(--ink); }
+.message-bubble { padding:11px 12px; min-width:0; border-radius:14px; }
+.side-message.user > .message-bubble { background:#e7f3ff; color:var(--ink); }
+.side-message.assistant > .message-bubble { background:transparent; }
+.message-actions { display:flex; align-items:center; gap:6px; margin-top:5px; min-height:28px; color:var(--muted); }
+.side-message.user > .message-actions { justify-content:flex-end; }
+.message-time { font-size:11px; font-weight:400; color:var(--muted); margin-right:4px; }
+.message-actions > .message-copy-button, .message-actions > .side-message-edit-button { position:static; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:28px; margin:0; padding:5px; border:0; border-radius:5px; background:transparent; color:var(--muted); }
+.message-actions > button svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.message-actions > button:hover, .message-actions > button:focus-visible { background:var(--accent-soft); color:var(--accent-dark); }
+.message-actions > button:disabled { opacity:.45; }
+.side-message.user .side-message-body blockquote { border-left-color:var(--line); }
+.side-message.user .side-message-body th, .side-message.user .side-message-body td { border-color:var(--line); }
+.side-message.user .side-message-edit-error { color:var(--danger); }
+
+.turn-message-clock { display:flex; align-items:center; gap:6px; margin:4px 0 10px; color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
+.turn-message-clock svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }

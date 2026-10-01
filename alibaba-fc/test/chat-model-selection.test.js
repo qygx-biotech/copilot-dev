@@ -85,10 +85,14 @@ test("Agent Command Default and old clients retain the configured model independ
     assert.equal(requests[0].model, process.env.REQUESTY_MODEL);
   }
 });
-test("the Agent-only Gemini option does not expand the Side Chat allowlist", async () => {
+test("Side Chat supports the same Gemini option through every tool-loop turn", async () => {
   requests.length = 0;
-  assert.equal((await chat({ model: geminiFlex })).statusCode, 400);
-  assert.equal(requests.length, 0);
+  replies.push({ content: null, tool_calls: [{ id: "papers", type: "function", function: { name: "list_papers", arguments: "{}" } }] }, finalMessage);
+  const response = await chat({ model: geminiFlex });
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body).fallback, false);
+  assert.equal(requests.length, 2);
+  assert.ok(requests.every(request => request.model === geminiFlex));
 });
 test("the production browser request forwards each surface's own model selection", async () => {
   const app = fs.readFileSync(require.resolve("../../docs/app.js"), "utf8");

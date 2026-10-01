@@ -320,3 +320,15 @@ test('a failed deletion index write leaves history intact', async t => {
   assert.equal((await store.loadActiveConversation()).id, original.id);
   assert.ok(await workspace.fileExists(store.conversationPath(original.id)));
 });
+
+test('assistant turn durations survive persistence and legacy messages remain readable without timing', async t => {
+  const { workspace, store } = await fixture(t);
+  const chat = await turn(store, await store.startNewConversation(), 'Timed turn');
+  chat.messages.at(-1).elapsedMs = 4321;
+  await store.saveConversation(chat);
+  const loaded = await new WorkspaceChatStore({ workspace }).loadActiveConversation();
+  assert.equal(loaded.messages.at(-1).elapsedMs, 4321);
+  delete loaded.messages.at(-1).elapsedMs;
+  await store.saveConversation(loaded);
+  assert.equal((await store.loadActiveConversation()).messages.at(-1).elapsedMs, undefined);
+});

@@ -5,6 +5,25 @@ const { createRuntimeLogger } = require("../../docs/runtime-log.js");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const { LiteratureApiClient } = require("../../docs/literature-module.js");
 
+test("buffered response diagnostics distinguish handoff, final answer and incomplete result", () => {
+  const { responseOutcome } = require("../../docs/runtime-log.js");
+  assert.deepEqual(responseOutcome({}), { stage: "response_received", status: "partial" });
+  for (const data of [{ desktopToolCalls: [{ id: "read" }], reply: "Preparing evidence" }, { evidenceRecovery: {} }, { desktopContinuation: "signed" }])
+    assert.deepEqual(responseOutcome(data), { stage: "tool_handoff", status: "partial" });
+  assert.deepEqual(responseOutcome({ reply: "Verified answer" }), { stage: "final_answer", status: "completed" });
+  assert.deepEqual(responseOutcome({ reply: "Preserved checkpoint", failure: { degraded: true } }), { stage: "incomplete_result", status: "failed" });
+  assert.deepEqual(responseOutcome({ reply: "Partial findings", taskOutcome: { status: "incomplete" } }), { stage: "incomplete_result", status: "partial" });
+});
+
+test("recovery timing diagnostics retain independent budgets without private content", () => {
+  const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
+  const details = { stage: "quota-wait", recoveryMode: "input_quota", activeRecoveryMs: 80000,
+    quotaWaitMs: 58000, providerCallTimeoutMs: 90000, quotaWaitRemainingMs: 122000,
+    hardDeadlineRemainingMs: 152000, retryAfterMs: 0, summaryCalls: 2, automaticRetryScheduled: false };
+  assert.deepEqual(log.record("context.recovery", { ...details, prompt: "PRIVATE_PROMPT", credentials: "SECRET_KEY", toolOutput: "PRIVATE_DOCUMENT" }).details, details);
+  assert.doesNotMatch(log.exportText(), /PRIVATE_|SECRET_KEY/);
+});
+
 test("semantic validation diagnostics preserve schema indices and exclude input and filesystem paths", () => {
   const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
   const details = { failureStage: "backend_input_validation", validationField: "conversationContext[0].content", validationReason: "filesystem_path", providerAttempts: 0 };

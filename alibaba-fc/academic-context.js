@@ -50,6 +50,9 @@ function compactResult(name, value, state, callId, aggressive = false) {
       compacted: true, ...(value ? {} : { recovered_from: "host_state" }),
       next: "Use the current Literature candidate catalog for all inspected candidates and evidence availability. Request get_academic_paper by paper_ref for fuller metadata. A next_cursor is optional: preserve original search arguments and use it only if relevance, evidence, count or coverage needs more candidates; otherwise proceed to selection. Do not rerun this search to recover compacted text." };
   }
+  if (name === "download_papers" && value?.results) return require("./shared/academic-tools.js").compactDownloads(value);
+  if (name === "select_literature_papers" && value?.shortlist && aggressive) return { ...value,
+    shortlist: value.shortlist.map(({ paper_ref, relevance, covers, evidence, reason }) => ({ paper_ref, relevance, covers, evidence, reason: String(reason || "").slice(0, 120) })), compacted: true };
   // Selection and download receipts are bounded control records; keep their
   // accepted handles, reasons, saved paths and errors as complete JSON.
   return value || { version: 1, status: "unavailable", compacted: true,

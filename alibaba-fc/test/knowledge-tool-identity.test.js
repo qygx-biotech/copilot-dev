@@ -14,6 +14,8 @@ async function fixture(options = {}) {
   f.service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline,
     semanticInterpreter: { interpret() { throw Error('No planner for routine reads'); } } });
   f.options = { question, surface: 'side_chat', turnId: 'identity-turn', callContext: { model } };
+  // Seed a previously prepared workspace; ordinary chat no longer warms artifacts.
+  await f.pipeline.preflight(f.options);
   f.context = await f.service.buildContext(f.options);
   f.paper = f.context.sourceMap.paperSources.find(source => /SurfDock/.test(source.path));
   return f;

@@ -190,20 +190,24 @@ test("evidence bundle is bounded while full normalized citations remain availabl
   assert.ok(message.content.length < 30500); assert.equal(sources.length, 100);
 });
 
-test("unrecoverable local context rejection preserves pending signatures without repeating search", async () => {
-  let count = 0;
+test("unreducible context recovery preserves pending signatures without repeating search", async () => {
+  let count = 0, summaries = 0;
   const result = await run("Search EctD and compare local papers", "both", { requestTurn: async request => {
+    if (request.stage === "context-summary") {
+      summaries++; return { ok: true, message: { content: "Goal: compare EctD research and local papers. External research has been collected; no local comparison completed yet. Use archived evidence as needed." } };
+    }
     count++;
     if (count === 1) return { ok: true, message: searchMessage() };
     checkLocal(request);
     if (count === 2) return { ok: true, message: { tool_calls: [functionCall("list_papers")] } };
     const replay = request.messages.find(message => message.role === "assistant" && message.tool_calls);
     assert.equal(replay.tool_calls[0].extra_content.google.thought_signature, localSignature);
-    assert.ok(request.messages.some(message => message.content?.startsWith("External search evidence")));
+    assert.ok(request.messages.some(message => message.content?.startsWith("External search evidence") || message.content?.startsWith("Working-state checkpoint")));
     if (count === 3) return { ok: false, error: "context_length_exceeded" };
     return { ok: true, message: { content: "Compared" } };
   } });
-  assert.equal(count, 3); assert.equal(result.semanticTelemetry.cloudCalls.answer, 3);
+  assert.equal(count, 3); assert.equal(summaries, 1);
+  assert.equal(result.semanticTelemetry.cloudCalls.answer, count + summaries);
   assert.equal(result.error, "ContextRecoveryIncomplete");
 });
 

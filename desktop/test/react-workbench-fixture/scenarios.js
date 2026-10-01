@@ -85,8 +85,13 @@ async function selectSideHistory(id) {
 }
 async function requestChatDeletion(node) {
   node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 180, clientY: 230 })); await tick();
-  document.querySelector('[role="menuitem"]').click(); await tick();
+  [...document.querySelectorAll('[role="menuitem"]')].find(item => item.textContent === 'Delete chat').click(); await tick();
   check(Boolean(document.querySelector('[aria-label="Delete chat"]')), 'right-click deletion opens confirmation');
+}
+async function requestChatRename(node) {
+  node.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 180, clientY: 230 })); await tick();
+  [...document.querySelectorAll('[role="menuitem"]')].find(item => item.textContent === 'Rename').click(); await tick();
+  check(Boolean(document.querySelector('[aria-label="Rename chat"]')), 'right-click rename opens a name editor');
 }
 async function sendSide(text) {
   document.getElementById('sideChatInput').value = text;
@@ -109,6 +114,7 @@ async function runWorkbenchHome() {
   document.getElementById('loginAccount').value = 'researcher'; document.getElementById('loginPassword').value = 'fixture';
   document.getElementById('loginForm').requestSubmit();
   await waitFor(() => snapshot().project && !snapshot().projectBusy, 'default workspace bootstrap after login');
+  check(window.BioDesignAgentWork.createTurnClock().element.querySelector('time').textContent === '00:00:00', 'missing task timing displays zero');
   check(snapshot().catalogId === 'default' && !document.getElementById('appShell').hidden, 'login opens a chat with an automatic default workspace');
   check(document.getElementById('workspaceSelectionPanel').hidden, 'startup has no folder selection gate');
   check(!document.querySelector('.project-context-panel') && !document.querySelector('.workspace-explorer-panel'), 'project goal and workspace panels are removed from the renderer');
@@ -186,12 +192,21 @@ async function runWorkbenchScenarios() {
   check(document.querySelector('.agent-pane .streaming-answer').textContent.includes('Agent analysis'), 'Agent Work deltas render in its own timeline');
   const sideRun = snapshot().runs[`side_chat:${snapshot().activeConversationId}`];
   check(!sideRun.steps.some(step => step.stage.includes('agent-fixture')), 'Agent activity does not leak into Side Chat');
+  check(!document.querySelector('.turn-activity .turn-message-clock'), 'task clocks are in the response timeline, not the pane header');
+  await waitFor(() => document.querySelector('.side-pane .turn-message-clock[data-working="true"] time').textContent !== '00:00:00', 'live task clock advances');
+  await waitFor(() => document.querySelector('.agent-pane .turn-message-clock[data-working="true"] time').textContent !== '00:00:00', 'Agent Work live clock advances independently');
+  check(document.querySelectorAll('.turn-message-clock[data-working="true"]').length === 2, 'concurrent responses each display their own live clock');
   const runningAgentId = snapshot().activeAgentId;
   const firstSideId = snapshot().activeConversationId;
   await adapter.command('agent.new', { projectId: firstProjectId, role: 'agent_command' }); await tick();
   check(snapshot().activeAgentId === runningAgentId && snapshot().sideChatAgentId === runningAgentId, 'an active Side Chat cannot be silently reassigned by Agent Work navigation');
   gates.side_chat.splice(0).forEach(finish => finish()); delete gates.side_chat;
   await waitFor(() => !snapshot().sideBusy, 'Side Chat completion');
+  check(snapshot().runs[`side_chat:${snapshot().activeConversationId}`].elapsedMs >= 1000 && snapshot().runs[`side_chat:${snapshot().activeConversationId}`].finishedAt !== null, 'completed task timing freezes with a recorded total');
+  const firstReplyClock = document.querySelector('#sideChatHistory .side-message.assistant > .turn-message-clock');
+  const firstReplyDuration = firstReplyClock.querySelector('time').textContent;
+  check(firstReplyDuration !== '00:00:00' && firstReplyClock.dataset.working === 'false', 'response keeps its completed turn duration');
+  check(sideChatMessages.at(-1).elapsedMs >= 1000, 'completed duration is stored with the returned message');
   check(JSON.stringify(currentRecommendation) === originalRecommendation, 'completed Side Chat cannot commit the official recommendation');
   check(!document.querySelector('.sidebar-scroll').textContent.includes('What does the selected evidence'), 'Side Chat history never appears in the left sidebar');
   document.getElementById('sideChatInput').value = 'Draft for the first Agent Work panel';
@@ -229,6 +244,7 @@ async function runWorkbenchScenarios() {
   sideChatToggle.click(); await tick();
   check(historyPicker.getClientRects().length === 0, 'Side Chat history selector is unavailable when its pane is closed');
   sideChatToggle.click(); await tick();
+  check(document.querySelector('#sideChatHistory .side-message.assistant > .turn-message-clock time').textContent === firstReplyDuration, 'reopening a history retains its original turn duration');
   check(sideChatMessages.length === 2 && document.getElementById('sideChatHistory').textContent.includes('25 U/mL'), 'saved chat selection restores its actual history');
   await sendAgent('Download one enzyme paper to the project.');
   await waitFor(() => !snapshot().agentBusy, 'download continuation');
@@ -237,6 +253,7 @@ async function runWorkbenchScenarios() {
   document.querySelector('[aria-label="Close dialog"]').click();
   check(document.querySelector('.agent-conversation').textContent.includes('Not yet ingested'), 'download result does not claim premature analysis');
   check(requests.at(-1).desktopContinuation === 'fixture-signed-continuation', 'download resumes the existing FC continuation');
+  check(document.querySelectorAll('.analysis-panel:not([hidden]) .agent-message.assistant > .turn-message-clock').length === findAnalysisPanel(runningAgentId).messages.filter(message => message.role === 'assistant').length, 'each Agent reply has its own duration');
   const beforeError = JSON.stringify(currentRecommendation); nextFailure = true;
   await sendAgent('Analyze backend failure.'); await waitFor(() => !snapshot().agentBusy, 'FC error');
   check(JSON.stringify(currentRecommendation) === beforeError, 'FC errors do not commit a demo recommendation');
@@ -289,6 +306,24 @@ async function runWorkbenchScenarios() {
   const forkedAgentId = snapshot().activeAgentId, forkedAgent = findAnalysisPanel(forkedAgentId);
   check(JSON.stringify(forkedAgent.messages) === originalAgentMessages && forkedAgent.selectedPermission === 'read_only' && forkedAgent.selectedModel === findAnalysisPanel(runningAgentId).selectedModel, 'Agent fork copies history and model without transferring write permission');
   check(!sideChatMessages.length && snapshot().sideChatAgentId === forkedAgentId, 'Agent fork owns a fresh independent Side Chat store');
+  const originalTitle = findAnalysisPanel(runningAgentId).title, originalRecency = findAnalysisPanel(runningAgentId).updatedAt;
+  const originalRow = () => [...document.querySelectorAll('.chat-row')].find(node => node.title === originalTitle);
+  await requestChatRename(originalRow());
+  check(document.querySelector('[aria-label="Chat name"]').value === originalTitle, 'rename editor starts with the existing name');
+  document.querySelector('[aria-label="Rename chat"] .secondary-button').click(); await tick();
+  check(findAnalysisPanel(runningAgentId).title === originalTitle, 'cancelling rename preserves the name');
+  await requestChatRename(originalRow());
+  const nameInput = document.querySelector('[aria-label="Chat name"]');
+  const enterName = async value => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(nameInput, value); nameInput.dispatchEvent(new Event('input', { bubbles: true })); await tick(); };
+  await enterName('   ');
+  check(document.querySelector('[aria-label="Rename chat"] .primary-button').disabled, 'empty chat names cannot be saved');
+  await enterName('  Enzyme evidence review  '); nameInput.closest('form').requestSubmit();
+  await waitFor(() => !document.querySelector('[aria-label="Rename chat"]') && !snapshot().projectBusy, 'renamed chat saved'); await tick();
+  check(findAnalysisPanel(runningAgentId).title === 'Enzyme evidence review' && [...document.querySelectorAll('.chat-row')].some(node => node.title === 'Enzyme evidence review'), 'saved name updates the sidebar');
+  check(snapshot().activeAgentId === forkedAgentId && findAnalysisPanel(runningAgentId).updatedAt === originalRecency && JSON.stringify(findAnalysisPanel(runningAgentId).messages) === originalAgentMessages, 'renaming an inactive chat preserves selection, recency and messages');
+  const revised = structuredClone(findAnalysisPanel(runningAgentId));
+  window.BioDesignAgentWork.beginTurn(revised, { id: 'rename-revision-test', revision: { message: revised.messages[0], content: 'Revised first instruction' } });
+  check(revised.title === 'Enzyme evidence review', 'editing the first turn preserves a custom chat name');
   check(requests.length === beforeForkRequests + 1 && JSON.stringify(currentRecommendation) === beforeForkRecommendation, 'copy and fork trigger no model request or recommendation commit');
   await sendAgent('Continue only the forked analysis.'); await waitFor(() => !snapshot().agentBusy, 'continue forked Agent Work');
   check(JSON.stringify(findAnalysisPanel(runningAgentId).messages) === originalAgentMessages, 'continuing an Agent fork does not modify the original');
@@ -320,8 +355,10 @@ async function runWorkbenchScenarios() {
   await adapter.command('chat.open', { projectId: secondProjectId, catalogId: firstCatalogId, role: 'agent_command', conversationId: runningAgentId }); await tick();
   check(snapshot().project.id === firstProjectId && document.getElementById('workspaceSelectionPanel').hidden, 'a saved project chat reopens without another folder picker');
   check(!snapshot().goalEditor && workspaceManager.state.project.goal === 'Compare enzyme variants at matched pH.', 'reopening restores the local goal without prompting again');
+  check(findAnalysisPanel(runningAgentId).title === 'Enzyme evidence review' && findAnalysisPanel(runningAgentId).customTitle, 'custom chat name survives project close and reopen');
   check(analysisPanels.some(panel => panel.id === forkedAgentId && panel.messages.some(message => message.content === 'Continue only the forked analysis.')) && snapshot().conversations.some(chat => chat.id === forkedSideId), 'both independent forks survive project close and reopen');
   check(sideChatMessages.some(message => message.content.includes('25 U/mL')), 'Side Chat history survives project close/reopen');
+  check(sideChatMessages.some(message => message.role === 'assistant' && message.elapsedMs >= 1000), 'per-turn duration survives project close/reopen');
   check(sideChatMessages.some(message => message.images?.[0]?.attachmentId === attachmentId), 'image attachment reference survives project close/reopen');
   check(currentRecommendation.currentInterpretation === 'Evidence supports a controlled comparison.', 'Agent Work recommendation restores from project-owned state');
   check(analysisPanels[0].messages.some(message => message.content.includes('Not yet ingested')), 'Agent Work transcript and download result survive reopen');
@@ -338,7 +375,7 @@ async function runWorkbenchScenarios() {
   check(snapshot().activeConversationId === savedChatId && sideChatMessages.some(message => message.images?.[0]?.attachmentId === attachmentId), 'another panel reaching its history limit preserves this panel history and image attachments');
   await openGoalMenu('Separate Project');
   document.querySelector('[role="menuitem"]').click();
-  await waitFor(() => snapshot().project.id === secondProjectId && snapshot().goalEditor && !snapshot().projectBusy, 'inactive project goal editor'); await tick();
+  await waitFor(() => snapshot().project?.id === secondProjectId && snapshot().goalEditor && !snapshot().projectBusy, 'inactive project goal editor'); await tick();
   check(snapshot().goalEditor.goal === '', 'editing an inactive project opens that project goal');
   await saveGoal('Review the separate project evidence.');
   await adapter.command('chat.open', { projectId: secondProjectId, catalogId: firstCatalogId, role: 'agent_command', conversationId: runningAgentId }); await tick();
@@ -402,6 +439,15 @@ async function checkWorkbenchLayout(width) {
   check(document.documentElement.scrollWidth <= innerWidth + 2, `no horizontal viewport overflow at ${width}px`);
   check(composer.getBoundingClientRect().bottom <= innerHeight && composer.getBoundingClientRect().height > 60, `composer remains visible at ${width}px`);
   check(history.scrollHeight > history.clientHeight && getComputedStyle(history).overflowY === 'auto', `long timeline scrolls independently at ${width}px`);
+  for (const container of [history, ...(width >= 1000 ? [document.querySelector('.analysis-panel:not([hidden]) .agent-conversation')] : [])]) {
+    const user = container.querySelector('.side-message.user'), bubble = user.querySelector('.message-bubble'), footer = user.querySelector('.message-actions');
+    const rect = user.getBoundingClientRect(), parent = container.getBoundingClientRect();
+    check(rect.width <= parent.width * .68 && rect.left > parent.left + parent.width * .25, `user bubble occupies right two-thirds at ${width}px`);
+    check(getComputedStyle(bubble).backgroundColor === 'rgb(231, 243, 255)', 'user bubble uses the requested pale blue');
+    check(footer.getBoundingClientRect().top >= bubble.getBoundingClientRect().bottom && !bubble.contains(user.querySelector('.message-copy-button')), 'copy actions are below and outside the bubble');
+    const edit = container.querySelector('[data-side-chat-action="edit"], [data-analysis-action="edit"]');
+    check(!edit || (edit.parentElement.classList.contains('message-actions') && edit.querySelector('svg') && edit.getAttribute('aria-label')), 'edit remains accessible as a pencil outside the bubble');
+  }
   const modelRect = document.getElementById('sideChatModelSelect').getBoundingClientRect(), attachRect = document.getElementById('attachSideChatImageButton').getBoundingClientRect();
   check(modelRect.width > 50 && modelRect.right <= attachRect.left + 1, `model selector remains usable without overlapping actions at ${width}px`);
   if (width >= 1000) {

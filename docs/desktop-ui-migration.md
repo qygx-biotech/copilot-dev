@@ -206,3 +206,19 @@ Escape and Shift+F10 are supported. Selecting history still does not change its
 recency order. Each saved user/assistant message also has a **Copy** button,
 using the existing native clipboard bridge and copying only that message plus
 its attachment names.
+
+## Message presentation and task clocks
+
+User messages use a pale blue (`#e7f3ff`) bubble aligned right at two-thirds of the
+available timeline width. Copy and latest-message edit retain their existing
+handlers and targets, presented as accessible icons below the bubble alongside
+existing message timestamps. Assistant messages keep the full timeline width.
+
+Each turn shows a clock above its response, updating once per second during
+preparation and streaming. Side Chat and Agent Work count independently. The
+final duration is saved as optional `elapsedMs` metadata on the returned message
+through the existing persistence path, so each response retains its duration
+when history is reopened. Older messages without timing data show `00:00:00`.
+Interrupted Side Chat previews retain a frozen clock while visible. Timing is
+presentation metadata only; execution, authorization, and existing project
+formats remain unchanged, with no migration required.

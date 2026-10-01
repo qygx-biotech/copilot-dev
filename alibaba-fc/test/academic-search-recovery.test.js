@@ -86,10 +86,16 @@ for (const mode of ["history", "reactive", "legacy"]) test(`production plan comp
     delete recorded.name; // Older trace: identify the result by tool-call pairing.
   }
   const accepted = structuredClone(resume.academicState.plan);
-  let modelCalls = 0;
+  let modelCalls = 0, originalReceipt, previewRef;
   const pending = await run({ resume, systemPrompt: mode === "reactive" ? "Context ".repeat(22000) : "Complete the request.", requestTurn: async request => {
     modelCalls++;
-    const result = JSON.parse(request.messages.find(message => message.tool_call_id === recorded.tool_call_id).content);
+    let result = JSON.parse(request.messages.find(message => message.tool_call_id === recorded.tool_call_id).content);
+    if (result.contextArchive) {
+      assert.equal(mode, "reactive"); assert.equal(result.omitted, true);
+      previewRef = result.contextArchive;
+      // Verify the actual retained receipt after the production request returns.
+      result = originalReceipt;
+    } else originalReceipt = structuredClone(result);
     assert.deepEqual(result.plan, accepted);
     assert.equal(result.recovered_from, "host_state");
     assert.equal(result.record_type, "accepted_plan");
@@ -103,12 +109,12 @@ for (const mode of ["history", "reactive", "legacy"]) test(`production plan comp
     return actions(call("select_literature_papers", selection), call("download_papers", { paper_refs: [ref(1), ref(2)] }));
   } });
   if (mode === "reactive") {
-    assert.equal(modelCalls, 1, "mandatory system context cannot be removed or retried unchanged");
-    assert.equal(pending.error, "ContextRecoveryIncomplete");
+    assert.equal(modelCalls, 2, "preview reduction gets a provider retry before any history summary");
+    const manager = new (require("../context-recovery.js").ContextRecovery)({ state: pending.continuationState.contextRecovery });
+    assert.deepEqual(JSON.parse(await manager.archive.original(previewRef)), originalReceipt);
     assert.deepEqual(resume.academicState.plan, accepted);
-    return;
   }
-  assert.equal(modelCalls, 1);
+  assert.equal(modelCalls, mode === "reactive" ? 2 : 1);
   assert.equal(pending.data.desktopToolCalls[0].name, "download_papers");
   // Also check a very small compaction target and accepted legacy ID spellings.
   const state = structuredClone(resume.academicState);

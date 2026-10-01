@@ -13,7 +13,8 @@ async function runAgentScenarios() {
   draft(first, "Review candidate evidence");
   const geminiFlex = "google/gemini-3.1-flash-lite:flex";
   setting(first, "selectedModel", geminiFlex);
-  check(first.selectedModel === geminiFlex && ![...sideChatModelSelect.options].some(option => option.value === geminiFlex), "Gemini Flex is selectable in Agent Work without changing the Side Chat catalog");
+  check(first.selectedModel === geminiFlex && [...sideChatModelSelect.options].some(option => option.value === geminiFlex), "Gemini Flex is selectable in both panels");
+  check(JSON.stringify(getAgentModelOptions().map(option => option.value)) === JSON.stringify([...sideChatModelSelect.options].map(option => option.value)), "Agent and Side Chat model options have identical values and order");
   setting(first, "selectedPermission", "workspace_write");
   const files = new DataTransfer(); files.items.add(new File(["a,b"], "results.csv", { type: "text/csv" })); files.items.add(new File(["image"], "figure.png", { type: "image/png" }));
   const picker = card(first).querySelector('[data-agent-attachments="file"]'); picker.files = files.files; picker.dispatchEvent(new Event("change", { bubbles: true }));

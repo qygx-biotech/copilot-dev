@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
 const {readFile,mkdtemp,rm}=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const jwt=require('jsonwebtoken'),backend=require('../index.js'),semantic=require('../../shared/semantic-intent.js');
-const {ProjectContextService}=require('../../docs/project-context-service.js'),{createFixture}=require('./helpers/preflight-fixture.js');
+const {ProjectContextService}=require('../../docs/project-context-service.js'),{createFixture,SyncWorkspace}=require('./helpers/preflight-fixture.js');
 const {LiteratureApiClient}=require('../../docs/literature-module.js');
 const academic=require('../../shared/academic-tools.js'),sourceDownload=require('../../shared/source-download.js'),webSearch=require('../../shared/web-search.js'),eventStream=require('../../shared/event-stream.js');
 const ref='paper_'+'a'.repeat(24),sourceUrl='https://papers.example.org/ectd.pdf';
@@ -24,8 +24,8 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
  const prior=Object.fromEntries(Object.keys(env).map(key=>[key,process.env[key]]));Object.assign(process.env,env);
  t.after(()=>{for(const[key,value]of Object.entries(prior)){if(value===undefined)delete process.env[key];else process.env[key]=value;}});
  const token=jwt.sign({account:env.ADMIN_ACCOUNT,role:'admin'},env.JWT_SECRET),requests=[],host=[],providerRoles=[];
- const f=await createFixture({cardFailure:()=>true});
- f.workspace.workspace.workspaceId='project-1';
+ const workspace=new SyncWorkspace();workspace.workspace.workspaceId='project-1';
+ const f=await createFixture({workspace,cardFailure:()=>true});
  f.workspace.set('literature/existing.pdf','An existing PDF with no Paper Card');
  let semanticCalls=0;
  const client=new LiteratureApiClient({baseUrl:'https://fc.example.org',getHeaders:()=>({authorization:`Bearer ${token}`}),fetch:async(endpoint,options)=>{
@@ -47,7 +47,7 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
    return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(ir)},finish_reason:'stop'}]}));
   }
   providerRoles.push('acquisition');requests.push(body);
-  assert.equal(semanticCalls,1);
+  assert.equal(semanticCalls,0, 'The first acquisition decision is the main model call');
   assert.equal(f.calls.cards,0,'Existing PDF card generation must not precede any acquisition LLM call');
   assert.ok(body.tools.every(x=>x.type==='function'));
   assert.ok(body.tools.some(x=>x.function.name===(recover&&(requests.length===3||(exhausted&&requests.length===4))?'select_literature_papers':'search_academic_papers')));
@@ -89,14 +89,16 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
   window:{BioDesignAcademicTools:academic,BioDesignSourceDownload:sourceDownload,BioDesignWebSearch:webSearch,BioDesignEventStream:eventStream,biodesignDesktop:{execution:{runWorkflow:({workflowId,input})=>active.execution.run(workflowId,input,{filesystem})}}}
  });
  vm.runInContext(functions,sandbox);
- const query='Search EctD and download the relevant PDF';
+ const query='Search EctD and download 1 relevant PDF';
  const localWorkspaceContext=await contextService.buildContext({surface:'agent_command',turnId:'academic-turn',question:query,callContext:{model}});
  const result=await sandbox.sendWorkbenchRequest({mode:'agent_instruction',model,messages:[{role:'user',content:query}],originalRequest:query,
   localWorkspaceContext,
   desktopTools:{version:1,academicVersion:1,permission:'workspace_write',projectId:'project-1'},callContext:{turnId:'academic-turn',callRole:'answer',profile:'medium'}});
  const expectedCalls=recover||(searchRecovery&&!exhausted)?4:3;
  assert.equal(requests.length,expectedCalls);assert.equal(host.length,exhausted?searchRecovery?1:2:3);
- assert.deepEqual(providerRoles,['semantic',...Array(expectedCalls).fill('acquisition')]);
+ assert.deepEqual(providerRoles,Array(expectedCalls).fill('acquisition'));
+ assert.equal(localWorkspaceContext.semantic,undefined);
+ assert.equal(localWorkspaceContext.agentLoop.academicAcquisition,true);
  assert.equal(f.calls.parses,0);assert.equal(f.calls.indexing,0);assert.equal(f.workspace.rawReads,0);
  if(exhausted) {
   assert.deepEqual(executed,searchRecovery?[]:['search_academic_papers']);

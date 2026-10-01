@@ -1,6 +1,34 @@
 "use strict";
 const { textContent } = require("./shared/web-search.js");
 
+// Fixed allowlists: never expose exception messages, stacks, socket addresses,
+// headers, or arbitrary provider-supplied error codes from a thrown exception.
+const transportCodes = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EPIPE", "ENETUNREACH", "EHOSTUNREACH",
+  "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_SOCKET", "UND_ERR_CONNECT", "UND_ERR_ABORTED",
+  "UND_ERR_INVALID_ARG", "ERR_INVALID_ARG_TYPE", "ERR_INVALID_ARG_VALUE", "ERR_INVALID_URL", "ERR_INVALID_HTTP_TOKEN", "ERR_HTTP_INVALID_HEADER_VALUE",
+  "CERT_HAS_EXPIRED", "CERT_NOT_YET_VALID", "DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN", "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "ERR_TLS_CERT_ALTNAME_INVALID"]);
+const exceptionNames = new Set(["Error", "TypeError", "RangeError", "ReferenceError", "SyntaxError", "AggregateError", "AbortError", "TimeoutError"]);
+function transportDiagnostics(value = {}) {
+  return {
+    ...(["request_setup", "fetch"].includes(value.transportPhase) ? { transportPhase: value.transportPhase } : {}),
+    ...(exceptionNames.has(value.exceptionName) ? { exceptionName: value.exceptionName } : {}),
+    ...(transportCodes.has(value.transportCode) ? { transportCode: value.transportCode } : {}),
+    ...(transportCodes.has(value.transportCauseCode) ? { transportCauseCode: value.transportCauseCode } : {}),
+  };
+}
+function fetchException(error, transportPhase = "fetch") {
+  const pending = [error], seen = new Set(), codes = [];
+  while (pending.length && seen.size < 12) {
+    const item = pending.shift();
+    if (!item || typeof item !== "object" || seen.has(item)) continue;
+    seen.add(item);
+    if (transportCodes.has(item.code) && !codes.includes(item.code)) codes.push(item.code);
+    if (item.cause) pending.push(item.cause);
+    if (Array.isArray(item.errors)) pending.push(...item.errors.slice(0, 8));
+  }
+  return transportDiagnostics({ transportPhase, exceptionName: error?.name, transportCode: codes[0], transportCauseCode: codes[1] });
+}
+
 // Generation stop/usage fields do not establish whether an answer exists.
 function hasAssistantOutput(message) {
   return Boolean(textContent(message?.content).trim()) || Boolean(Array.isArray(message?.tool_calls) && message.tool_calls.some(call =>
@@ -35,7 +63,7 @@ function diagnostics(response = {}, headers, secret = "") {
     }
     if (Object.keys(details).length) usage[key] = details;
   }
-  return { ...(finishReason ? { finishReason } : {}), ...(requestId ? { requestId } : {}),
+  return { ...transportDiagnostics({ ...previous, ...response }), ...(finishReason ? { finishReason } : {}), ...(requestId ? { requestId } : {}),
     ...(providerCodes.length ? { providerCodes } : {}), usage: Object.keys(usage).length ? usage : null };
 }
-module.exports = { hasAssistantOutput, diagnostics };
+module.exports = { hasAssistantOutput, diagnostics, fetchException, fetchExceptionFields: transportDiagnostics };

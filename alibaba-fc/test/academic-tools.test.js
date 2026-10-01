@@ -58,8 +58,9 @@ test('read-only Agent search is allowed; downloads are unavailable; Side Chat re
 
 test('search-only requests cannot execute downloads even when model invents a call',async()=>{
  let n=0;
+ const searchOnly='Find two papers about enzyme engineering.';
  const localIr={...ir,operations:['search'],capabilityHints:['search_papers']};
- const result=await run({workspaceContext:{localWorkspaceContext:{semantic:{ir:localIr}}},requestTurn:async request=>{
+ const result=await run({originalRequest:searchOnly,conversationMessages:[{role:'user',content:searchOnly}],workspaceContext:{localWorkspaceContext:{semantic:{ir:localIr}}},requestTurn:async request=>{
   if(!n++) return {ok:true,message:{tool_calls:[call('download_papers',{paper_refs:[ref]})]}};
   if(n===2){assert.ok(request.messages.some(x=>x.role==='tool'&&x.content.includes('PERMISSION_DENIED')));return {ok:true,message:{tool_calls:[plan(),search()]}};}
   throw Error('unexpected');

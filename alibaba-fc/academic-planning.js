@@ -1,7 +1,7 @@
 "use strict";
 const contract = require("./shared/academic-tools.js");
 const recovery = require("./academic-recovery.js");
-const LIMITS = Object.freeze({ searchCalls: 4, focusedQueries: 6, candidates: 120, discoveryMs: 140000, moveMs: 10 * 60000 });
+const LIMITS = Object.freeze({ searchCalls: 4, focusedQueries: 6, candidates: 120, discoveryMs: 140000, moveMs: contract.DOWNLOAD_LIMITS.totalMs });
 const text = maxLength => ({ type: "string", minLength: 1, maxLength });
 const strings = (maxItems, maxLength, minItems = 0) => ({ type: "array", minItems, maxItems, uniqueItems: true, items: text(maxLength) });
 const object = (properties, required) => ({ type: "object", additionalProperties: false, properties, required });
@@ -10,11 +10,11 @@ const tools = [
   tool("plan_literature_search", "Before searching, record a concise plan grounded in the user's request: complementary subtopics, synonyms, focused queries, dates and paper count. This is in-memory planning, not a search or permission to write. Topic requests need 2–4 queries; exact named-paper requests may use one. It does not require user confirmation.", object({
     request_kind: { type: "string", enum: ["topic", "named_papers"] },
     subtopics: strings(6, 160, 1), synonyms: strings(12, 100), queries: strings(4, 1000, 1),
-    requested_count: { type: "integer", minimum: 1, maximum: 100 },
+    requested_count: { type: "integer", minimum: 1, maximum: contract.DOWNLOAD_LIMITS.maxPapers, description: "Total number of suitable papers requested by the user, across download batches. Overrides the default of 10 for topic requests. For explicitly named papers, use only the number of named papers; do not add substitutes." },
     year_from: { type: "integer", minimum: 1600, maximum: 2200 }, year_to: { type: "integer", minimum: 1600, maximum: 2200 },
   }, ["request_kind", "subtopics", "synonyms", "queries"])),
   tool("select_literature_papers", "Compare returned titles and abstracts against the original request and record a ranked shortlist with brief reasons. Relevance (3=relevant, 4=strong, 5=direct) and subtopic coverage come before download availability. Include relevant reserves for recovery. Missing abstracts require title_only evidence and explicit uncertainty. Only shortlisted handles may be downloaded. Selection does not download or ask the user for approval.", object({
-    shortlist: { type: "array", minItems: 0, maxItems: 30, items: object({
+    shortlist: { type: "array", minItems: 0, maxItems: LIMITS.candidates, items: object({
       paper_ref: { type: "string", pattern: "^paper_[a-f0-9]{24}$" }, relevance: { type: "integer", minimum: 3, maximum: 5 },
       covers: strings(6, 160), reason: text(400), evidence: { type: "string", enum: ["title_abstract", "title_only"] },
     }, ["paper_ref", "relevance", "covers", "reason", "evidence"]) },
@@ -92,6 +92,7 @@ function nextSteps(state, limit) {
     ...(error.required_tool_call ? { required_tool_call: error.required_tool_call } : {}),
     next: `The plan is already recorded. Correct ${error.code}: ${error.required_correction || "Use the actual validation error in host state."} Then continue the authorized workflow; internal correction requires no user confirmation.` };
   const wanted = target(state, limit), budget = budgetReason(state);
+  if (state.downloadStop) return { next: `Report partial saved files and the concrete blocker ${state.downloadStop}. Do not start further acquisition.` };
   if ((wanted && saved(state) >= wanted) || budget === "time_budget_exhausted") return { next: "Report actual candidates, selected papers, saved files and remaining gaps. The plan is already recorded." };
   if (!budget && (!state.searchCalls || (state.plan.request_kind === "topic" && (state.searchedQueries || []).length < 2))) return {
     required_tool: "search_academic_papers", required_tool_call: { name: "search_academic_papers", arguments: contract.normalizeSearchInput({
@@ -121,7 +122,9 @@ function execute(state, name, args, limit) {
       required_tool: "plan_literature_search", required_correction: "Provide at least two distinct complementary queries for a topic request; exact duplicates do not broaden coverage." });
     if (args.year_from && args.year_to && args.year_from > args.year_to) fail("INVALID_LITERATURE_PLAN");
     if (limit && args.requested_count && args.requested_count !== limit) fail("REQUESTED_COUNT_MISMATCH");
-    state.plan = { ...args, ...(limit ? { requested_count: limit } : {}), count_source: limit ? "user_request" : args.requested_count ? "model_interpretation" : "unspecified" };
+    const defaultCount = args.request_kind === "topic" ? 10 : null;
+    state.plan = { ...args, ...((limit || args.requested_count || defaultCount) ? { requested_count: limit || args.requested_count || defaultCount } : {}),
+      count_source: limit ? "user_request" : args.requested_count ? "model_interpretation" : defaultCount ? "default" : "unspecified" };
     return planResult(state, limit);
   }
   if (!state.plan) fail("LITERATURE_PLAN_REQUIRED");
@@ -193,13 +196,14 @@ function execute(state, name, args, limit) {
   state.remainingGaps = args.remaining_gaps;
   recovery.resolved(state);
   return { version: 1, status: "completed", shortlist: ranked, remaining_gaps: state.remainingGaps,
-    next_paper_refs: ranked.filter(item => !state.attemptedRefs.includes(item.paper_ref)).slice(0, Math.min(5, Math.max(0, (target(state, limit) || 5) - saved(state)))).map(item => item.paper_ref),
+    next_paper_refs: ranked.filter(item => !state.attemptedRefs.includes(item.paper_ref)).slice(0, Math.min(contract.DOWNLOAD_LIMITS.maxPapers, Math.max(0, (target(state, limit) || ranked.length) - saved(state)))).map(item => item.paper_ref),
     next: "Download only selected relevant handles when saving was requested and permitted. Stop when the requested suitable count is saved; use relevant reserves after failures. Selection reasons are model assessments, not independently verified relevance." };
 }
 function beforeTool(state, name, args, id, limit) {
   if (state.workflowVersion !== 2) return args; // Finish already-issued v1 continuations.
   if (!state.plan) fail("LITERATURE_PLAN_REQUIRED");
   const wanted = target(state, limit);
+  if (state.downloadStop) fail(state.downloadStop);
   if (wanted && saved(state) >= wanted) fail("REQUESTED_COUNT_SAVED");
   if (Date.now() - state.startedAt >= LIMITS.moveMs) fail("LITERATURE_TIME_BUDGET_EXHAUSTED");
   if (name === "search_academic_papers" || (name === "get_academic_paper" && args.query)) {
@@ -265,10 +269,14 @@ function progress(state, limit) {
   coverageTopics(state);
   return { plan: state.plan || null, shortlist: state.shortlist || [], remaining_gaps: state.remainingGaps || [],
     ...nextSteps(state, limit),
+    remaining: target(state, limit) ? Math.max(0, target(state, limit) - saved(state)) : null,
+    attempted_refs: state.attemptedRefs || [],
+    failures: state.downloads.filter(item => item.status === "failed").map(({ paper_ref, error, attempted }) => ({ paper_ref, error, ...(attempted === false ? { attempted: false } : {}) })),
+    unattempted_selected_refs: (state.shortlist || []).filter(item => !state.attemptedRefs.includes(item.paper_ref)).map(item => item.paper_ref),
     selected: state.shortlist?.length || 0, validation: state.validationRecovery || null,
     saved: saved(state), requested: target(state, limit), candidates: state.papers.length,
     pages_inspected: state.pagesInspected || 0, search_calls: state.discoveryCalls || 0,
-    search_ms: state.discoveryMs || 0, stop_reason: state.validationRecovery?.exhausted ? "validation_recovery_exhausted" : target(state, limit) && saved(state) >= target(state, limit) ? "requested_count_saved" : budgetReason(state) || state.selectionStop || (state.lowYieldStreak >= 2 ? "diminishing_returns" : null),
+    search_ms: state.discoveryMs || 0, stop_reason: state.downloadStop || (state.validationRecovery?.exhausted ? "validation_recovery_exhausted" : target(state, limit) && saved(state) >= target(state, limit) ? "requested_count_saved" : budgetReason(state) || state.selectionStop || (state.lowYieldStreak >= 2 ? "diminishing_returns" : null)),
     low_yield_streak: state.lowYieldStreak || 0, budgets: LIMITS };
 }
 function recordModel(state, turn, elapsedMs) {

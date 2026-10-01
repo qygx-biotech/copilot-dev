@@ -32,12 +32,51 @@ async function setup(t, respond) {
   const payload = { mode: "side_chat", originalRequest: question, model, messages: [{ role: "user", content: question }],
     localWorkspaceContext: local(), conversationTranscript: transcript.normalize(), callContext: { turnId: "context-turn", callRole: "answer", profile: "medium" } };
   const token = jwt.sign({ account: env.ADMIN_ACCOUNT, role: "admin" }, env.JWT_SECRET);
+  const sendRaw = (extra = {}, transport) => backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, ...extra }) }, {}, transport);
   const send = async (extra = {}, transport) => {
-    const response = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, ...extra }) }, {}, transport);
+    const response = await sendRaw(extra, transport);
     assert.equal(response.statusCode, 200, response.body); return JSON.parse(response.body);
   };
-  return { send, requests, logs, root };
+  return { send, sendRaw, requests, logs, root };
 }
+
+test("production transport cancellation interrupts the recovery cooldown before another provider call", { timeout: 2000 }, async t => {
+  const controller = new AbortController();
+  const f = await setup(t, (_body, number) => number === 1 ? reply({ tool_calls: [call(0)] })
+    : new Response(JSON.stringify({ error: { code: "input_token_quota_exceeded", retry_after_ms: 58000 } }), { status: 429 }));
+  const first = await f.send();
+  t.mock.method(console, "info", (label, event) => {
+    f.logs.push([label, event]);
+    if (label === "agent_context_recovery" && event.stage === "quota-wait") controller.abort();
+  });
+  await f.sendRaw({ desktopContinuation: first.desktopContinuation, desktopToolResults: [{ id: call(0).id, result: result(0) }] }, { signal: controller.signal });
+  assert.equal(controller.signal.aborted, true);
+  assert.equal(f.requests.length, 2);
+  const waited = f.logs.find(([label, event]) => label === "agent_context_recovery" && event.stage === "quota-wait-finished");
+  assert.equal(waited[1].cancelled, true); assert.ok(waited[1].quotaWaitMs < 1000);
+});
+
+test("failure telemetry retains the actual degraded checkpoint after summary timeout", async t => {
+  const f = await setup(t, () => reply("unused"));
+  let main = 0;
+  const outcome = await agent.runSideChatAgent({
+    conversationMessages: [{ role: "user", content: "Inspect P1" }, { role: "assistant", content: "Verified source P1. ".repeat(1200) }, { role: "user", content: question }],
+    originalRequest: question, model, systemPrompt: "Report only.", parseFinalAnswer: reply => ({ reply }),
+    workspaceContext: { localWorkspaceContext: local() },
+    contextOptions: { config: { root: f.root, providerCallMs: 20, debug: true } },
+    requestTurn: async request => {
+      if (request.stage === "context-summary") return new Promise(() => {});
+      main++; return { ok: false, status: 400, verifiedContextLengthError: true, attempts: 1 };
+    },
+  });
+  assert.equal(main, 1); assert.equal(outcome.ok, false); assert.equal(outcome.recoveryStopReason, "provider_call_timeout");
+  assert.equal(outcome.contextDegraded, true);
+  const recovery = outcome.semanticTelemetry.contextRecovery;
+  assert.equal(recovery.degraded, true); assert.ok(recovery.checkpointCount > 0);
+  assert.ok(recovery.compactions.some(event => event.degraded === true));
+  assert.equal(recovery.phase, "incomplete_result"); assert.equal(recovery.callsTimedOut, 1);
+  assert.match(outcome.data.reply, /没有安排自动重试或后台继续/);
+});
 for (const reject of [false, true]) test(`signed desktop dispatch: complete results above old limit, provider compaction=${reject}`, async t => {
   let rejected = false;
   const f = await setup(t, body => {
@@ -128,7 +167,7 @@ test("structural retry prioritizes fresh evidence and preserves corpus accountin
   }
 });
 
-test("learned budget survives signed handoffs, preserves saved evidence, and proactively fits fresh results", async t => {
+test("learned budget survives handoff but fresh tool results reach the provider intact", async t => {
   let round = 0;
   const f = await setup(t, body => {
     round++;
@@ -138,7 +177,7 @@ test("learned budget survives signed handoffs, preserves saved evidence, and pro
     if (round === 4) {
       const tools = body.messages.filter(message => message.role === "tool");
       assert.notEqual(tools[0].content, JSON.stringify(result(0)));
-      assert.ok(JSON.parse(tools[1].content).contextArchive, "learned budget proactively offloads fresh evidence");
+      assert.equal(tools[1].content, JSON.stringify(result(1)), "fresh evidence must not be proactively offloaded");
       return reply({ tool_calls: [call(2)] });
     }
     return reply("A general answer requires no project retrieval.");
@@ -147,7 +186,7 @@ test("learned budget survives signed handoffs, preserves saved evidence, and pro
   for (let i = 0; i < 3; i++) data = await f.send({ desktopContinuation: data.desktopContinuation, desktopToolResults: [{ id: call(i).id, result: result(i) }] });
   assert.equal(data.fallback, false); assert.equal(f.requests.length, 5);
   assert.deepEqual(data.conversationTurn.messages.filter(message => message.role === "tool").map(message => message.content), [0, 1, 2].map(i => JSON.stringify(result(i))));
-  assert.ok(f.logs.filter(entry => entry[0] === "agent_context_compacted").length >= 2);
+  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 1);
   const next = await f.send({ originalRequest: "What is Bayesian optimization?", messages: [{ role: "user", content: "What is Bayesian optimization?" }], callContext: { turnId: "new-turn", callRole: "answer", profile: "medium" } });
   assert.equal(next.fallback, false); assert.ok(!f.requests.at(-1).messages.some(message => message.role === "tool"));
   assert.equal(f.logs.filter(entry => entry[0] === "agent_context_send").at(-1)[1].retryCount, 0);
@@ -196,15 +235,16 @@ test("entering final-answer phase without new tool results does not renew consum
   assert.equal(outcome.semanticTelemetry.contextRecovery.recoveryStopReason, "fixed_context_exceeds_budget");
 });
 
-test("repeated quota does not compact or make a third attempt", async t => {
+test("repeated quota reduces once then stops when essential input cannot shrink further", async t => {
   const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] }) : count <= 3 ? quotaResponse()
     : new Response(JSON.stringify({ error: { code: "context_length_exceeded" } }), { status: 400 }));
   const data = await handoff(f, await f.send());
   assert.equal(f.requests.length, 3);
   assert.equal(data.fallback, true);
-  assert.equal(data.semanticTelemetry.contextRecovery.compactionCount, 0);
+  assert.equal(data.semanticTelemetry.contextRecovery.compactionCount, 1);
   assert.equal(data.semanticTelemetry.contextRecovery.attempts, 2);
-  assert.deepEqual(f.requests[1], f.requests[2]);
+  assert.ok(JSON.stringify(f.requests[2]).length < JSON.stringify(f.requests[1]).length);
+  assert.equal(data.error, "InputQuotaRecoveryIncomplete");
 });
 
 const quotaResponse = (metric = "generate_content_input_token_count", limit = 12000, delay = 0, code) =>
@@ -215,7 +255,7 @@ async function handoff(f, data, i = 0, transport) {
   assert.ok(data.desktopContinuation);
   return f.send({ desktopContinuation: data.desktopContinuation, desktopToolResults: [{ id: call(i).id, result: result(i) }] }, transport);
 }
-for (const ending of ["success", "quota", "network", "generic", "billing", "server"]) test(`repeated verified quota stops unchanged before hypothetical ${ending}`, async t => {
+for (const ending of ["success", "quota", "network", "generic", "billing", "server"]) test(`repeated verified quota stops after reduction before hypothetical ${ending}`, async t => {
   const times = [];
   const f = await setup(t, (body, count) => {
     times.push(performance.now());
@@ -229,17 +269,17 @@ for (const ending of ["success", "quota", "network", "generic", "billing", "serv
     return reply("找到当前证据，保留限制。");
   });
   const data = await handoff(f, await f.send());
-  assert.equal(f.requests.length, 3, "one tool-selection call and two unchanged quota attempts");
-  assert.deepEqual(f.requests[1], f.requests[2]);
+  assert.equal(f.requests.length, 3, "one tool-selection call and two progressively smaller quota attempts");
+  assert.ok(JSON.stringify(f.requests[2]).length < JSON.stringify(f.requests[1]).length);
   assert.ok(times[2] - times[1] >= 18, "provider cooldown honored");
   assert.equal(data.fallback, true);
-  assert.equal(data.error, "LlmHttpError");
-  assert.equal(data.semanticTelemetry.contextRecovery.compactionCount, 0);
+  assert.equal(data.error, "InputQuotaRecoveryIncomplete");
+  assert.equal(data.semanticTelemetry.contextRecovery.compactionCount, 1);
   assert.equal(data.conversationTurn.messages.find(message => message.role === "tool").content, JSON.stringify(result(0)));
   assert.doesNotMatch(JSON.stringify(f.logs), /PRIVATE_PROVIDER_CONTENT|TAIL-MARKER|FACET-|private-fixture-key/);
 });
 
-for (const metric of ["generic", "requests_per_minute", "output_token_count", "input_token_per_day", "billing_credit", "input_tokens_requests", "invalid input_token_count"])
+for (const metric of ["generic", "requests_per_minute", "output_token_count", "billing_credit", "input_tokens_requests", "invalid input_token_count"])
   test(`quota ${metric} never compacts`, async t => {
     const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] })
       : metric === "generic" ? new Response(JSON.stringify({ error: { message: "Rate limited. Retry in 0s." } }), { status: 429 }) : quotaResponse(metric));
@@ -249,61 +289,58 @@ for (const metric of ["generic", "requests_per_minute", "output_token_count", "i
     assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 0);
   });
 
-for (const change of ["metric", "limit", "first-generic"]) test(`a changed/unverified quota (${change}) is not repeated-quota evidence`, async t => {
-  const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] })
-    : quotaResponse(change === "first-generic" && count === 2 ? "request_count" : change === "metric" && count === 3 ? "other_input_token_count" : undefined,
-      change === "limit" && count === 3 ? 14000 : 12000));
+for (const metric of ["input_token_per_day", "other_input_token_count"]) test(`confirmed quota ${metric} reduces without needing repeated identical evidence`, async t => {
+  const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] }) : quotaResponse(metric));
   const data = await handoff(f, await f.send());
-  assert.equal(f.requests.length, 3); assert.equal(data.error, "LlmHttpError");
-  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 0);
+  assert.equal(f.requests.length, 3); assert.equal(data.error, "InputQuotaRecoveryIncomplete");
+  assert.ok(JSON.stringify(f.requests[2]).length < JSON.stringify(f.requests[1]).length);
+  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 1);
 });
 
-for (const first of ["quota", "context"]) test(`${first} recovery renews allowance only after new signed tool results, preserves evidence and resets next turn`, async t => {
+for (const first of ["quota", "context"]) test(`${first} recovery survives signed tool handoffs with separate budgets and original results`, async t => {
   const f = await setup(t, (body, count) => {
-    const contextError = () => new Response(JSON.stringify({ error: { code: "context_length_exceeded" } }), { status: 400 });
     if (count === 1) return reply({ tool_calls: [call(0)] });
-    if (first === "quota") {
-      if ([2, 3].includes(count)) return quotaResponse();
-      if (count === 4) return reply({ tool_calls: [call(1)] });
-      if (count === 5) return contextError();
-    } else {
-      if (count === 2) return contextError();
-      if (count === 3) return reply({ tool_calls: [call(1)] });
-      if ([4, 5].includes(count)) return quotaResponse();
-    }
-    return reply("General answer without local retrieval.");
+    if (count === 2) return first === "quota" ? quotaResponse() : new Response(JSON.stringify({ error: { code: "context_length_exceeded" } }), { status: 400 });
+    if (count === 3) return reply({ tool_calls: [call(1)] });
+    return quotaResponse();
   });
   const middle = await handoff(f, await f.send());
-  if (first === "quota") {
-    assert.equal(middle.fallback, true); assert.equal(f.requests.length, 3);
-    assert.equal(middle.semanticTelemetry.contextRecovery.compactionCount, 0);
-    return;
-  }
   const state = signedState(middle);
   assert.equal(state.reactiveCompactionRetries, 1);
   assert.ok(state.contextRecovery.accepted > 0);
-  assert.equal(state.contextCompaction.trigger, "context-recovery");
+  assert.equal(Boolean(state.contextRecovery.learned), first === "context");
+  assert.equal(state.contextRecovery.quotaRecords.length > 0, first === "quota");
   const data = await handoff(f, middle, 1);
-  assert.equal(f.requests.length, 5, JSON.stringify(f.logs.filter(entry => entry[0] === "agent_context_recovery"))); assert.equal(data.fallback, true);
-  assert.deepEqual(f.requests[3], f.requests[4], "quota retry preserves pending evidence");
+  assert.ok(f.requests.length <= 3 + 1 + 4 + 16); assert.equal(data.fallback, true);
+  const decisions = f.requests.slice(3).filter(r => !r.messages[0].content.startsWith("Create a factual working-state checkpoint"));
+  assert.equal(decisions[0].messages.at(-1).content, JSON.stringify(result(1)), "signed quota/context observations cannot gate fresh tool input");
+  for (let i = 1; i < decisions.length; i++) assert.ok(JSON.stringify(decisions[i]).length < JSON.stringify(decisions[i - 1]).length);
+  assert.equal(data.error, "InputQuotaRecoveryIncomplete");
   assert.deepEqual(data.conversationTurn.messages.filter(message => message.role === "tool").map(message => message.content), [JSON.stringify(result(0)), JSON.stringify(result(1))]);
 });
 
-test("no meaningful safe reduction stops after unchanged quota retry without spending allowance", async t => {
+test("no meaningful safe reduction stops immediately without resending unchanged input", async t => {
   const f = await setup(t, () => quotaResponse());
   const data = await f.send();
-  assert.equal(f.requests.length, 2); assert.equal(data.error, "LlmHttpError");
-  assert.equal(data.failure.recoveryStopReason, "adapter_attempts_exhausted");
+  assert.equal(f.requests.length, 1); assert.equal(data.error, "InputQuotaRecoveryIncomplete");
+  assert.equal(data.failure.recoveryStopReason, "quota_no_safe_reduction");
   assert.ok(!f.requests[0].messages.some(message => message.role === "tool"));
   assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 0);
 });
 
-test("remaining transport deadline prevents the third quota attempt without resetting the clock", async t => {
-  const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] }) : quotaResponse(undefined, undefined, count === 2 ? 0 : 3));
+test("remaining transport deadline prevents quota dispatch without resetting the clock", async t => {
+  const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] }) : quotaResponse(undefined, undefined, 3));
   const data = await handoff(f, await f.send(), 0, { deadlineAt: Date.now() + 2000 });
-  assert.equal(f.requests.length, 3); assert.equal(data.error, "LlmHttpError");
-  assert.equal(data.failure.recoveryStopReason, "adapter_attempts_exhausted");
-  assert.equal(data.failure.providerAttempts, 2);
+  assert.equal(f.requests.length, 2);
+  assert.equal(data.failure.recoveryStopReason, "hard_request_deadline_exhausted");
+  assert.equal(data.failure.providerAttempts, 1);
+  assert.equal(data.failure.category, "local_time_budget");
+  assert.equal(data.failure.automaticRetryScheduled, false);
+  assert.ok(data.failure.retryAfterMs > 2000);
+  assert.equal(data.failure.timing.quotaWaitMs, 0);
+  assert.match(data.reply, /HTTP\/后端请求硬截止时间/);
+  assert.match(data.reply, /没有安排自动重试或后台继续/);
+  assert.equal(data.conversationTurn.messages.filter(message => message.role === "tool").length, 1);
 });
 
 test("an expired time budget makes zero provider calls; a cooldown that cannot fit makes no unchanged retry", async t => {
@@ -334,13 +371,16 @@ for (const rejections of [0, 1, 2]) test(`added-paper follow-up with saved evide
       { role: "assistant", content: "早期综述；这不是新增文献的证据。" }] });
   const originalSaved = JSON.stringify(saved);
   const f = await setup(t, (body, count) => {
+    if (body.messages[0].content.startsWith("Create a factual working-state checkpoint")) return reply("Prior review, derived and incomplete. Next inspect newly added papers.");
     assert.ok(body.messages.some(message => message.content === followup));
-    assert.ok(body.messages.some(message => message.content === "帮我总结所有文献，写个综述。"));
+    if (count === 1) assert.ok(body.messages.some(message => message.content === "帮我总结所有文献，写个综述。"));
     const tool = body.messages.find(message => message.role === "tool");
-    assert.ok(tool); const view = JSON.parse(tool.content);
+    const view = tool ? JSON.parse(tool.content) : null;
+    if (count === 1) { assert.ok(view);
     assert.equal(view.evidenceBundle.items[0].contentHash, "hash-v1");
     assert.deepEqual(view.evidenceBundle.scope.sourceIds, ["P1"]);
     assert.equal(view.evidenceBundle.items[0].references[0].reference, "P1:p17:code");
+    }
     if (count <= rejections) return new Response(JSON.stringify({ error: { code: 429, status: "RESOURCE_EXHAUSTED",
       message: "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits.\n" +
         "Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_paid_tier_3_input_token_count, limit: 16000. Please retry in 0.002s.",
@@ -348,14 +388,17 @@ for (const rejections of [0, 1, 2]) test(`added-paper follow-up with saved evide
     return reply("保留先前综述；当前证据尚不能证明已完成新增文献的检查。");
   });
   const data = await f.send({ originalRequest: followup, messages: [{ role: "user", content: followup }], conversationTranscript: saved });
-  assert.equal(data.fallback, rejections === 2); assert.equal(f.requests.length, Math.min(2, rejections + 1));
+  assert.equal(data.fallback, false); assert.ok(f.requests.length <= 1 + 4 + 16);
+  const normalRequests = f.requests.filter(r => !r.messages[0].content.startsWith("Create a factual working-state checkpoint"));
+  assert.equal(normalRequests.length, rejections + 1);
+  for (let i = 1; i < normalRequests.length; i++) assert.ok(JSON.stringify(normalRequests[i]).length < JSON.stringify(normalRequests[i - 1]).length);
   assert.equal(data.semanticTelemetry.historicalReplay.toolResults, 1);
   assert.deepEqual(data.semanticTelemetry.modelToolCapabilities, [], "historical replay never reruns retrieval");
   assert.equal(JSON.stringify(saved), originalSaved);
   assert.equal(f.requests[0].messages.find(message => message.role === "tool").content, JSON.stringify(result(0)));
-  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 0);
-  if (rejections >= 1) assert.deepEqual(f.requests[0].messages, f.requests[1].messages);
-  if (rejections === 2) assert.equal(data.error, "LlmHttpError");
+  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, rejections ? 1 : 0);
+  if (rejections >= 1) assert.ok(JSON.stringify(f.requests[1].messages).length < JSON.stringify(f.requests[0].messages).length);
+  if (rejections === 2) assert.ok(f.requests.some(r => r.messages[0].content.startsWith("Create a factual working-state checkpoint")), "a second rejection escalates to accepted-history summary");
   assert.ok(f.logs.filter(entry => entry[0] === "requesty_provider_failure").every(entry => entry[1].quotaClassificationReason === "verified_input_token_quota"));
 });
 

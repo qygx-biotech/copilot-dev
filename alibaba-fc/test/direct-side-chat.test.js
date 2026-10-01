@@ -34,12 +34,12 @@ test("actual Requesty catalog tool/vision fields enable only the advertised sele
   assert.equal(requests, 1, "Configuration cache is distinct from inference calls");
 });
 
-test("ordinary requests reconcile/invalidate before context, reuse cards, preserve scope, and never invoke a semantic gate", async () => {
+test("ordinary requests reconcile/invalidate before context without preparing cards, preserve scope, and never invoke a semantic gate", async () => {
   const f = await host();
   assert.equal(f.context.semantic, undefined); assert.equal(f.context.agentLoop.answerLanguage, "zh");
-  assert.equal(f.context.files.length, 0); assert.equal(f.calls.cards, 2);
+  assert.equal(f.context.files.length, 0); assert.equal(f.calls.cards, 0);
   const next = await f.service.buildContext({ ...f.options, turnId: "next", question: "你好" });
-  assert.equal(f.calls.cards, 2); assert.equal(next.agentLoop.version, 1);
+  assert.equal(f.calls.cards, 0); assert.equal(next.agentLoop.version, 1);
   const id = next.sourceMap.paperSources[0].sourceId;
   const selected = await f.service.buildContext({ ...f.options, turnId: "selected", selectedPaperIds: [id] });
   assert.deepEqual(selected.sourceMap.paperSources.map(source => source.sourceId), [id]);
@@ -78,7 +78,7 @@ test("model-selected original evidence survives signed continuation, keeps citat
   assert.deepEqual(result, duplicate); assert.equal(f.service.agentTurns.get("direct-turn").calls, 1);
   assert.equal(result.result.ok, true, JSON.stringify(result));
   assert.match(result.result.files[0].content, /code availability/);
-  assert.equal(f.calls.cards, 2);
+  assert.equal(f.calls.cards, 0);
   const token = continuation.seal(first.continuationState, { project: "P" }, "fixture");
   const resumed = continuation.withResults(continuation.open(token, { project: "P" }, "fixture"), [result]);
   const reference = f.context.citationEvidence[0].reference;
@@ -108,7 +108,7 @@ test("corpus tool preserves both Chinese actions and reports real workflow cover
   const second = await run(f.context, async () => ({ ok: true, message: { content: "文献综述：根据已完成的逐篇分析讨论方法，并说明缺失证据。" } }), { resume: continuation.withResults(first.continuationState, [result]) });
   assert.equal(second.data.corpusCoverage.includedPaperIds.length, 2);
   assert.ok(second.data.reply.includes("本次文献覆盖"));
-  assert.equal(f.calls.cards, 2);
+  assert.equal(f.calls.cards, 0);
 });
 
 test("an unsupported corpus claim receives at most one correction and an explicit measured limitation", async () => {
@@ -164,7 +164,7 @@ test("successful corpus maps measure every selected source and reuse compatible 
   assert.equal(first.result.coverage.papersSuccessfullyAnalyzed, 2, JSON.stringify(first.result.failures));
   assert.equal(maps, 0, "Compatible Paper Cards avoid extra provider maps");
   const second = await f.service.executeAgentTool({ id: "repeat-corpus", name: "run_corpus_workflow", args: {} }, { turnId: "direct-turn" });
-  assert.equal(second.result.coverage.papersSuccessfullyAnalyzed, 2); assert.equal(maps, 0, "Compatible Paper Cards avoid extra provider maps"); assert.equal(f.calls.cards, 2);
+  assert.equal(second.result.coverage.papersSuccessfullyAnalyzed, 2); assert.equal(maps, 0, "Compatible Paper Cards avoid extra provider maps"); assert.equal(f.calls.cards, 0);
 });
 
 test("source changes during a selected tool prevent publishing stale findings", async () => {
