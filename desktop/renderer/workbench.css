@@ -227,7 +227,8 @@
 .copilot-workbench .side-chat-compose-actions, .copilot-workbench .agent-next-move {
   flex-shrink:0; min-height:49px; margin:0; gap:8px; align-items:flex-end;
 }
-.copilot-workbench .side-chat-model-control { display:grid; gap:3px; flex:1; min-width:0; color:var(--muted); font-size:10px; }
+.copilot-workbench .side-chat-compose-actions { flex-wrap:wrap; }
+.copilot-workbench .side-chat-model-control { display:grid; gap:3px; flex:1 1 90px; min-width:80px; color:var(--muted); font-size:10px; }
 .copilot-workbench .side-chat-model-control select { width:100%; min-width:0; max-width:220px; min-height:28px; padding:4px; background:var(--surface); }
 .copilot-workbench .agent-move-selectors { flex:1; flex-wrap:nowrap; min-width:0; gap:8px; }
 .copilot-workbench .agent-move-control { flex:1; }
@@ -252,3 +253,6 @@
 .copilot-workbench .message-bubble > strong { display:block; color:var(--muted); font-size:10px; margin-bottom:7px; }
 .copilot-workbench .side-message.user > .message-bubble { background:#e7f3ff; padding:12px 15px; border-radius:14px; }
 .copilot-workbench .message-actions > button { font-size:11px; }
+.runtime-navigation { display: grid; gap: 4px; padding: 8px 12px; }
+.runtime-navigation button { text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 9px 12px; color: inherit; cursor: pointer; }
+.runtime-navigation button:hover { background: rgba(100,110,120,.1); }

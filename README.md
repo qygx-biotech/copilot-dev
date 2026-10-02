@@ -317,6 +317,67 @@ Implementation entry points: `shared/runtime-extensions.js`,
 handler/renderer handoffs, child scope isolation, skill discovery, real MCP SDK
 handshakes and Electron queue/management interactions with fixture providers.
 
+### Nanobot workbench additions
+
+The `nanobot/combined` branch also adds these workbench behaviors with their
+underlying persistence and execution paths:
+
+- **Apps and Skills:** Sidebar entry points open searchable installed catalogs.
+  Skills can be imported from a selected Markdown file, enabled, edited and
+  removed. Project-local App manifests combine skills and MCP configurations;
+  a content-hash-bound preview precedes installation, collisions are rejected,
+  and imported members start disabled. The existing paper and browser MCP
+  integrations remain visible and keep their original execution paths. Transport
+  presets configure existing HTTP/SSE services or installed stdio programs;
+  they do not install or run arbitrary packages.
+- **Topics:** Project-local `.biodesign/runtime/topics.json` stores stable handles,
+  pins, archive flags and manual order. Search matches titles, previews and
+  handles. Archiving hides history without deleting it. Per-reply forks copy only
+  the visible history and retained transcript through that reply, including the
+  original turn's injected input and evidence receipts. Later turn diagnostics
+  and recommendations are not copied into an earlier fork.
+- **Composer references:** `@` offers same-project topics and enabled Apps;
+  `$` offers available enabled skills. Topic references capture bounded historical
+  text as unverified context. App references identify catalog entries without
+  connecting or enabling anything. Neither changes evidence scope or tool
+  permission. `/new`, `/apps`, `/skills`, `/settings` and `/help` are local
+  commands; selecting a suggestion edits the draft, and Send runs the command.
+- **Activity and usage:** Typed activity cards summarize actual tool receipts.
+  FC records provider-reported input, output and cached tokens per model request,
+  preserving the ledger across signed continuations. Recent-round charts show
+  reported totals and cache hit rates, with missing counters/retry coverage
+  explicitly marked incomplete. Context-window percentages are not invented.
+  Inline diffs compare bounded before/after text around successful existing
+  derived-Markdown writes; model claims cannot create an edit receipt. Saved
+  message details are independently bounded without changing context compaction.
+- **Attachments:** Agent Work now ingests text/code, PDF and Excel excerpts and
+  PNG/JPEG/WebP images. Up to four files, each at most 10 MB, are accepted. Text
+  excerpts are limited to 24,000 characters per file and 64,000 total; existing
+  PDF/page and spreadsheet/sheet extraction limits still apply. Prepared contents
+  are saved by SHA-256 under `.biodesign/chat/attachments/`; regeneration verifies
+  their hash. Text is untrusted user-supplied context, and images reach the same
+  selected model only when its image capability is confirmed. Attachments do not
+  become verified workspace citations or authorize additional file access.
+- **Voice:** Record up to 60 seconds (4 MiB) and receive editable composer text;
+  transcription never sends the chat automatically. Authenticated FC
+  `/api/chat/transcribe` forwards bounded audio to Requesty with the existing
+  account-scoped key. `REQUESTY_TRANSCRIPTION_MODEL` defaults to
+  `openai/gpt-4o-mini-transcribe`; `REQUESTY_TRANSCRIPTION_ENABLED=false` disables
+  it. No raw recording is persisted. Electron grants only trusted main-frame
+  microphone access; camera and unrelated media requests remain denied.
+- **Model presets:** Settings saves named selections from the existing Requesty
+  model configuration. Applying a preset affects the next move and cannot change
+  providers, credentials, permissions or source selection.
+
+Remaining conflicts for review: external messaging **Channels** need an explicit
+mapping from remote senders to BioDesign accounts, projects and source permission,
+plus a decision about execution when the local project is closed and outbound
+message authorization. Remote skill marketplaces/CLI installers would add network
+installation or shell execution policy; this branch provides reviewed local
+imports instead. Generic MCP OAuth and credential ownership remain as described
+above. Automations/tasks, compaction and worktree isolation remain deferred as
+requested. No deployment or installed-app update is performed by this change.
+
 The left column has one generic Workspace explorer beneath Project Context. Checkboxes provide multi-file selection, the current context is shown as removable chips above Side Chat, and no selection means **Entire Project**. Project scope uses the saved goal/state, processed paper summaries, and file inventory without pretending that unprocessed files were read.
 
 Side Chat sends bounded recent conversation history, the current question, a compact source map, and only the evidence prepared for that request to the existing authenticated `/chat` endpoint. The full registry, all Paper Cards, parsed PDFs, and experiment tables are never injected. Explicit paper and experiment IDs are hard scopes. With no selection, ordinary questions search already-ready metadata/indexes first and prepare only likely candidates; explicit corpus synthesis prepares the frozen full scope. Coverage records discovered, snapshot-included, prepared, analyzed, failed, and missing papers. The existing Context area shows prepare/map/synthesis/verification progress and the final answer is prefixed with exact analyzed coverage.

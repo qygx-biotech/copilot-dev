@@ -70,7 +70,7 @@ export function validateMcpUrl(value, { allowLocalhost = false, allowQuery = fal
   return url;
 }
 
-function normalizeConfig(name, input, previous = {}) {
+export function normalizeMcpConfig(name, input, previous = {}) {
   if (typeof name !== 'string' || !NAME.test(name) || RESERVED.test(name) || !object(input)) throw fail('MCP_INVALID_CONFIG');
   if (input.auth || input.oauth || input.authProvider) throw fail('MCP_OAUTH_UNSUPPORTED');
   const transport = input.transport || (input.command ? 'stdio' : 'streamableHttp');
@@ -94,6 +94,7 @@ function normalizeConfig(name, input, previous = {}) {
   } else config.url = validateMcpUrl(input.url, config).href;
   return config;
 }
+const normalizeConfig = normalizeMcpConfig;
 
 function redact(value, config) {
   const secrets = [...Object.values(config.env || {}), ...Object.values(config.headers || {}),
@@ -262,8 +263,9 @@ export class GenericMcpService {
     await this.filesystem.writeText(CONFIG_PATH, JSON.stringify({ version: 1, servers: [...this.configs].map(([name, config]) => ({ name, config })) }, null, 2));
   }
 
-  save({ name, config } = {}) {
+  save({ name, config, exclusive = false } = {}) {
     return this.mutate(async () => {
+      if (exclusive && this.configs.has(name)) throw fail('MCP_CONFIG_EXISTS');
       if (!this.configs.has(name) && this.configs.size >= 32) throw fail('MCP_INVALID_CONFIG');
       const normalized = normalizeConfig(name, config, this.configs.get(name));
       await this.disconnect(name);

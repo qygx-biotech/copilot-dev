@@ -3,11 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { ServiceView } from './components/ServiceView.jsx';
 import { ResizeHandle } from './components/ResizeHandle.jsx';
 import { RuntimeExtensions } from './components/RuntimeExtensions.jsx';
+import { TopicRows, TopicNavigationControls } from './components/TopicNavigation.jsx';
+import { TurnDetails, TurnUsagePopover, installTurnDetails } from './components/TurnDetails.jsx';
+import '../../shared/topic-navigation.js';
 import './workbench.css';
 
 // Adapted from nanobot's new-chat hero, project-grouped ChatList and PaneWorkbench.
 // Its gateway hooks are replaced by the BioDesign service contract.
 const adapter = window.BioDesignFrontend;
+installTurnDetails();
 const shell = document.getElementById('appShell');
 const views = Object.fromEntries(Object.entries({
   utilities: '.header-utility-row', status: '.header-status-row',
@@ -35,6 +39,7 @@ function usePreference(key, initial) {
 
 function Activity({ run, zh }) {
   if (!run) return null;
+  if (run.turnDetails) return <TurnDetails details={run.turnDetails} zh={zh} />;
   const label = { running: zh ? '进行中' : 'Working', completed: zh ? '已完成' : 'Completed', failed: zh ? '失败' : 'Failed', cancelled: zh ? '已停止' : 'Stopped' }[run.status];
   return <details className={`turn-activity is-${run.status}`}>
     <summary><span className="activity-dot" />{label}<span>{run.steps.length ? `${run.steps.length} ${zh ? '条活动' : 'activity events'}` : ''}</span></summary>
@@ -142,6 +147,8 @@ function Workbench() {
   const [focus, setFocus] = useState('agent_command');
   const [collapsed, setCollapsed] = useState({});
   const [search, setSearch] = useState('');
+  const [archived, setArchived] = useState(false);
+  const [topicSort, setTopicSort] = usePreference('topicSort', 'recent');
   const [picker, setPicker] = useState(null);
   const [library, setLibrary] = useState(false);
   const [extensions, setExtensions] = useState(false);
@@ -169,9 +176,14 @@ function Workbench() {
     for (const card of views.agent.querySelectorAll('.analysis-panel')) card.hidden = card.dataset.panelId !== state.activeAgentId;
   }, [state]);
   useEffect(() => { if (state.revealSource) setLibrary(true); }, [state.revealSource?.sequence]);
+  useEffect(() => {
+    const open = event => { if (['apps', 'skills', 'settings'].includes(event.detail?.tab)) setExtensions(event.detail.tab); };
+    window.addEventListener('biodesign:runtime-open', open);
+    return () => window.removeEventListener('biodesign:runtime-open', open);
+  }, []);
 
   const liveChats = state.agents.filter(chat => chat.messageCount > 0 || chat.sideChatCount > 0);
-  const groups = (state.projects || []).map(project => ({ ...project, conversations: project.id === state.catalogId ? liveChats : project.conversations || [] }));
+  const groups = (state.projects || []).map(project => ({ ...project, conversations: project.id === state.catalogId ? liveChats : project.conversations || [], topicNavigation: project.id === state.catalogId ? state.topicNavigation : project.topicNavigation }));
   const filtered = chats => chats.filter(chat => chat.role === 'agent_command' && (!search || chat.title?.toLowerCase().includes(search.toLowerCase()))).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const selectChat = (project, chat) => {
     setFocus(chat.role);
@@ -179,12 +191,9 @@ function Workbench() {
     void act('chat.open', { catalogId: project.id, role: chat.role, conversationId: chat.id });
     if (innerWidth < 1000) setSidebarOpen(false);
   };
-  const chatRows = project => filtered(project.conversations).map(chat => {
-    const selected = project.id === state.catalogId && chat.id === state.activeAgentId;
-    return <button key={`${chat.role}:${chat.id}`} className={`chat-row ${selected ? 'selected' : ''}`} disabled={state.projectBusy || state.sideBusy} title={chat.title} aria-current={selected ? 'page' : undefined} onClick={() => selectChat(project, chat)} onContextMenu={event => openChatMenu(event, chat, project.id)} onKeyDown={event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openChatMenu(event, chat, project.id); }}>
-      <span className="chat-icon">◌</span><span>{chat.title}</span>{chat.status === 'running' && <i className="activity-dot" />}
-    </button>;
-  });
+  const chatRows = project => <TopicRows project={project} currentCatalogId={state.catalogId} activeId={state.activeAgentId} query={search} archived={archived} sort={topicSort} zh={zh} disabled={state.projectBusy || state.sideBusy || state.agentBusy} select={selectChat} context={openChatMenu}
+    update={(project, chat, patch) => void act('topic.update', { catalogId: project.id, conversationId: chat.id, patch })}
+    reorder={(project, keys) => void act('topic.reorder', { catalogId: project.id, keys })} />;
   const newChat = (catalogId = 'default', role = 'agent_command') => {
     setFocus(role); setPicker(null);
     if (role === 'side_chat') setSplit(true);
@@ -227,7 +236,7 @@ function Workbench() {
       {empty && <div className="hero-heading"><div className="hero-mark">b<span>∙</span></div><h1>{side ? (zh ? '一起探索问题' : 'What would you like to explore?') : (zh ? '今天想研究什么？' : 'What would you like to work on?')}</h1></div>}
       <Activity run={run} zh={zh} />
       <ServiceView node={side ? views.side : views.agent} className={`thread-host ${side ? '' : 'agent-host'}`} />
-      <div className="thread-footer">{empty && !side ? projectControl(role) : <span title={activeProject?.path}>▱ {activeProject?.managed ? (zh ? '默认工作区' : 'Default workspace') : activeProject?.name}</span>}<span>{side ? (zh ? '讨论 · 只读' : 'Side Chat · Read only') : (zh ? '研究助手' : 'Agent Work')}</span></div>
+      <div className="thread-footer">{empty && !side ? projectControl(role) : <span title={activeProject?.path}>▱ {activeProject?.managed ? (zh ? '默认工作区' : 'Default workspace') : activeProject?.name}</span>}<TurnUsagePopover details={run?.turnDetails} turns={state.turnDetails?.[role] || []} zh={zh} /><span>{side ? (zh ? '讨论 · 只读' : 'Side Chat · Read only') : (zh ? '研究助手' : 'Agent Work')}</span></div>
     </section>;
   };
 
@@ -235,20 +244,21 @@ function Workbench() {
     <aside className="copilot-sidebar" id="copilot-sidebar" aria-label={zh ? '对话与项目' : 'Chats and projects'}>
       <div className="brand"><span className="brand-mark">b∙</span><strong>BioDesign</strong><button className="icon-button" aria-label="Collapse sidebar" onClick={() => setSidebarOpen(false)}>‹</button></div>
       <button className="new-conversation" disabled={state.projectBusy || state.sideBusy} onClick={() => newChat()}><span>＋</span>{zh ? '新对话' : 'New chat'}</button>
+      <nav className="runtime-navigation" aria-label="Runtime extensions"><button disabled={busy} onClick={() => setExtensions('apps')}>▦ {zh ? '应用' : 'Apps'}</button><button disabled={busy} onClick={() => setExtensions('skills')}>♧ {zh ? '技能' : 'Skills'}</button></nav>
       <label className="conversation-search"><span>⌕</span><input aria-label="Search conversations" placeholder={zh ? '搜索对话' : 'Search conversations'} value={search} onChange={event => setSearch(event.target.value)} /></label>
-      <div className="sidebar-scroll">
-        <nav aria-label="Chats"><div className="section-label">{zh ? '对话' : 'Chats'}</div>{groups.filter(project => project.managed).map(project => <div key={project.id}>{chatRows(project)}{!filtered(project.conversations).length && <p className="sidebar-empty">{zh ? '开始第一个对话' : 'Start your first conversation'}</p>}</div>)}</nav>
+      <TopicNavigationControls archived={archived} setArchived={setArchived} sort={topicSort} setSort={setTopicSort} zh={zh} /><div className="sidebar-scroll">
+        <nav aria-label="Chats"><div className="section-label">{zh ? '对话' : 'Chats'}</div>{groups.filter(project => project.managed).map(project => <div key={project.id}>{chatRows(project)}</div>)}</nav>
         <nav aria-label="Projects"><div className="section-label">{zh ? '项目' : 'Projects'}<button className="icon-button" aria-label="Add project" disabled={state.projectBusy} onClick={() => void act('project.choose')}>＋</button></div>
           {groups.filter(project => !project.managed).map(project => <div className="project-group" key={project.id}>
             <div className="project-group-heading" onContextMenu={event => openProjectMenu(event, project)} onKeyDown={event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openProjectMenu(event, project); }}><button className="project-disclosure" aria-expanded={!collapsed[project.id]} title={project.path} onClick={() => setCollapsed(current => ({ ...current, [project.id]: !current[project.id] }))}><span>{collapsed[project.id] ? '▸' : '▾'}</span><span>▱</span><strong>{project.name}</strong></button><button className="icon-button" aria-label={`New chat in ${project.name}`} disabled={state.projectBusy || state.sideBusy} onClick={() => newChat(project.id)}>＋</button></div>
-            {!collapsed[project.id] && <div className="project-chats">{chatRows(project)}{!filtered(project.conversations).length && <button className="empty-project" disabled={state.projectBusy || state.sideBusy} onClick={() => newChat(project.id)}>{zh ? '新对话' : 'New conversation'}</button>}</div>}
+            {!collapsed[project.id] && <div className="project-chats">{chatRows(project)}</div>}
           </div>)}
         </nav>
       </div>
       <div className="sidebar-footer">
         <details className="account-menu">
           <summary aria-label={zh ? '账号' : 'Account'}><span className="account-avatar" aria-hidden="true">{(state.account || 'A').slice(0, 1).toUpperCase()}</span><span><strong>{zh ? '账号' : 'Account'}</strong><small>{state.account || 'BioDesign Copilot'}</small></span><span aria-hidden="true">⌃</span></summary>
-          <div className="account-options"><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.library'); }}>Library URL</button><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.libraryJobs'); }}>{zh ? '图书馆任务' : 'Library jobs'}</button></div>
+          <div className="account-options"><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.library'); }}>Library URL</button><button type="button" onClick={event => { event.currentTarget.closest('details').open = false; void act('account.libraryJobs'); }}>{zh ? '图书馆任务' : 'Library jobs'}</button><button type="button" disabled={busy} onClick={() => setExtensions('settings')}>{zh ? '模型预设与扩展设置' : 'Model presets & extensions'}</button></div>
         </details>
       </div>
       <ResizeHandle value={sidebarWidth} min={230} max={420} onChange={setSidebarWidth} controls="copilot-sidebar" label="Resize sidebar" />
@@ -264,7 +274,7 @@ function Workbench() {
       </div>
     </div>
     {chatMenu && <ProjectMenu menu={chatMenu} close={() => setChatMenu(null)} zh={zh} rename={chatMenu.chat.role === 'agent_command' ? () => { setRenaming(chatMenu); setChatMenu(null); } : undefined} label={zh ? '删除对话' : 'Delete chat'} edit={() => { setDeletion(chatMenu); setChatMenu(null); }} />}
-    {extensions && <RuntimeExtensions close={() => setExtensions(false)} zh={zh} />}
+    {extensions && <RuntimeExtensions initialTab={typeof extensions === 'string' ? extensions : 'skills'} close={() => setExtensions(false)} zh={zh} />}
     {renaming && <RenameChat target={renaming} close={() => setRenaming(null)} zh={zh} />}
     {deletion && <Modal title={zh ? '删除对话？' : 'Delete chat?'} label="Delete chat" close={() => { if (!busy) setDeletion(null); }}>
       <p>{zh ? '确定要删除此对话吗？' : 'Are you sure you want to delete this chat?'}</p><p><strong>{deletion.chat.title}</strong></p>

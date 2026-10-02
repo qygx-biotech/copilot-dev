@@ -893,10 +893,13 @@ test("the agent loop keeps inspection private and returns only the final answer"
   });
 
   assert.equal(result.semanticTelemetry.cloudCalls.answer, 2);
+  assert.equal(result.data.turnUsage.coverage.requests, 2);
+  assert.equal(result.data.turnUsage.totals.inputTokens, null, 'Missing provider reports are not fabricated as zero');
   assert.deepEqual({ ok: result.ok, data: result.data }, {
     ok: true,
     data: {
-      reply: "Paper A reports that A163V increased catalytic activity."
+      reply: "Paper A reports that A163V increased catalytic activity.",
+      turnUsage: result.data.turnUsage
     }
   });
   assert.equal(requests.length, 2);
@@ -1142,9 +1145,10 @@ test("a provider context rejection summarizes accepted history before retry", as
   assert.equal(requests.filter(request => request.stage !== "context-summary").length, 2);
   assert.ok(requests.some(request => request.stage === "context-summary"));
   assert.equal(result.semanticTelemetry.cloudCalls.answer, requests.length);
+  assert.equal(result.data.turnUsage.coverage.requests, requests.length);
   assert.deepEqual({ ok: result.ok, data: result.data }, {
     ok: true,
-    data: { reply: "The compacted retry succeeded." }
+    data: { reply: "The compacted retry succeeded.", turnUsage: result.data.turnUsage }
   });
   assert.equal(
     requests.at(-1).messages.some(

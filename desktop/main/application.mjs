@@ -10,7 +10,8 @@ import {
 } from "electron";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { allowsMicrophone } from "./media-permissions.mjs";
 import { registerIpcHandlers } from "../ipc/register-handlers.mjs";
 import channels from "../ipc/channels.cjs";
 import { ProjectSessionManager } from "../services/project-session.mjs";
@@ -52,8 +53,9 @@ async function log(event, details = "") {
 }
 
 function installSecurityPolicy() {
-  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  const desktopUrl = pathToFileURL(path.join(applicationRoot, "docs", "desktop.html")).href;
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => callback(allowsMicrophone({ webContents, permission, details, mainWindow, desktopUrl, phase: "request" })));
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, _origin, details) => allowsMicrophone({ webContents, permission, details, mainWindow, desktopUrl, phase: "check" }));
   session.defaultSession.webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, (details, callback) => {
     let blocked = false;
     try {

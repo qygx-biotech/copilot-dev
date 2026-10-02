@@ -110,3 +110,25 @@ test("concurrent enable mutations retain both changes", async () => {
   await Promise.all([service.setEnabled("one", false), service.setEnabled("two", false)]);
   assert.deepEqual((await service.list()).skills.map(item => item.enabled), [false, false]);
 });
+
+test("skill imports require unique names and start disabled even with always metadata", async () => {
+  const { service } = await fixture();
+  const imported = await service.import({ name: "imported", content: skill("imported", "Imported instructions", "always: true\n") });
+  assert.equal(imported.enabled, false);
+  assert.equal(imported.removable, true);
+  assert.deepEqual((await service.context("$imported")).active, []);
+  await assert.rejects(() => service.import({ name: "imported", content: skill("imported", "Overwrite") }), { code: "SKILL_EXISTS" });
+  assert.equal((await service.read("imported")).body, "Imported instructions");
+});
+
+test("managed skill removal preserves repository files and disables inherited fallback", async () => {
+  const { filesystem, service } = await fixture();
+  await filesystem.writeText("skills/shared/SKILL.md", skill("shared", "Repository instructions", "always: true\n"));
+  assert.equal((await service.read("shared")).removable, false);
+  await assert.rejects(() => service.remove("shared"), { code: "SKILL_REMOVE_DENIED" });
+  await service.save({ name: "shared", content: skill("shared", "Override instructions") });
+  await service.remove("shared");
+  assert.equal((await service.read("shared")).body, "Repository instructions");
+  assert.equal((await service.read("shared")).enabled, false);
+  assert.deepEqual((await service.context()).active, []);
+});

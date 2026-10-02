@@ -1,0 +1,19 @@
+.topic-navigation-controls { display:flex; gap:8px; align-items:center; padding:0 16px 10px; }
+.topic-navigation-controls button, .topic-navigation-controls select { font:inherit; font-size:11px; background:transparent; color:var(--text-muted, #686b70); border:1px solid var(--border, #dfe1e4); border-radius:7px; padding:4px 6px; }
+.topic-navigation-controls button[aria-pressed=true] { background:#e7e9ef; color:#353b47; }
+.topic-navigation-controls select { max-width:112px; }
+.topic-row-group { position:relative; display:flex; align-items:center; border-radius:10px; }
+.topic-row-group .topic-chat-row { min-width:0; width:100%; padding-right:27px; gap:6px; }
+.topic-handle { flex:none; color:#7c8088; font:10px ui-monospace, monospace; border-bottom:2px solid #979faf; padding-bottom:2px; }
+.topic-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.topic-title small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#7b7f87; font-size:10px; font-weight:400; margin-top:3px; }
+.topic-pin { color:#6b7381; font-size:14px; }
+.topic-actions { position:absolute; right:2px; top:50%; transform:translateY(-50%); }
+.topic-actions summary { cursor:pointer; list-style:none; padding:4px 6px; color:#7b7f87; font-size:14px; }
+.topic-actions summary::-webkit-details-marker { display:none; }
+.topic-actions>div { position:absolute; right:0; top:100%; z-index:40; padding:5px; min-width:126px; background:var(--surface, #fff); border:1px solid var(--border, #ddd); border-radius:9px; box-shadow:0 5px 18px #0002; }
+.topic-actions button { display:block; width:100%; border:0; border-radius:5px; padding:7px 9px; text-align:left; background:transparent; color:inherit; font:inherit; font-size:12px; cursor:pointer; }
+.topic-actions button:hover { background:#eff1f4; }.topic-actions button:disabled { opacity:.4; cursor:default; }
+.topic-reference-picker { padding:14px; border:1px solid #ddd; border-radius:12px; background:#fff; box-shadow:0 8px 30px #0002; max-height:300px; overflow:auto; }
+.topic-reference-picker>div { display:flex; justify-content:space-between; gap:10px; }.topic-reference-picker p { color:#777; font-size:12px; }
+.topic-reference-picker>button { display:block; width:100%; text-align:left; padding:7px; border:0; border-radius:6px; background:transparent; }.topic-reference-picker>button:hover { background:#f0f2f6; }.topic-reference-picker>button span { color:#777; font-family:monospace; }

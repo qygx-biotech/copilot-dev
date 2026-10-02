@@ -2,11 +2,11 @@
 (function (root) {
   const permissions = ["read_only", "workspace_write", "full_access"];
   const statuses = ["idle", "running", "waiting", "completed", "failed"];
-  const attachmentMetadata = ({ id, name, type, size }) => ({ id, name, type, size });
+  const attachmentMetadata = ({ id, name, type, size, digest, kind, truncated }) => ({ id, name, type, size, digest, kind, truncated });
 
   function hydrate(chat, { resultContent }) {
     const hasHistory = Array.isArray(chat.messages);
-    const messages = hasHistory ? chat.messages : [];
+    const messages = hasHistory ? chat.messages.map(message => ({ ...message, ...(message.turnDetails ? { turnDetails: root.BioDesignTurnObservability?.normalizeDetails(message.turnDetails) || null } : {}) })) : [];
     // Migrate real legacy results, without turning the default placeholder into a reply.
     if (!hasHistory && chat.recommendation?.updatedAt) {
       if (chat.instruction) messages.push({ id: `${chat.id}-user`, role: "user", content: chat.instruction, createdAt: chat.createdAt });
@@ -60,7 +60,8 @@
   function finishTurn(chat, turn, { content, summary = content, citations = [], webSearchSources = [], webSearchMetadata = [], academicSources = [], isResult = false, status = "completed" }) {
     const now = new Date().toISOString();
     const elapsedMs = Number.isFinite(Date.parse(turn.createdAt)) ? Math.max(0, Date.parse(now) - Date.parse(turn.createdAt)) : 0;
-    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, academicSources, isResult, createdAt: now, elapsedMs });
+    turn.observer?.finish();
+    chat.messages.push({ id: `${turn.id}-reply`, turnId: turn.id, role: "assistant", content, citations, webSearchSources, webSearchMetadata, academicSources, isResult, createdAt: now, elapsedMs, ...(turn.observer ? { turnDetails: turn.observer.snapshot() } : {}) });
     chat.summary = String(summary || "").replace(/[#*`>]/g, "").replace(/\s+/g, " ").trim().slice(0, 360);
     chat.updatedAt = now;
     chat.taskStatus = status;
@@ -106,6 +107,7 @@
     const footer = element('div', 'message-actions');
     const copy = article.querySelector(':scope > .message-copy-button');
     const edit = article.querySelector(':scope > .side-message-edit-button');
+    const fork = article.querySelector(':scope > .message-fork-button');
     const date = new Date(createdAt || '');
     if (Number.isFinite(date.getTime())) {
       const time = element('time', 'message-time', date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -114,6 +116,7 @@
     for (const [button, label, path] of [
       [copy, copyLabel, 'M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2 M5 7h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z'],
       [edit, editLabel, 'm16 3 5 5 M3 21l5-1L21 7a2 2 0 0 0-5-5L3 15v6Z'],
+      [fork, fork?.textContent || 'Fork from this reply', 'M7 3v9a5 5 0 0 0 5 5h5 M17 3v18 M4 6l3-3 3 3 M14 6l3-3 3 3'],
     ]) {
       if (!button) continue;
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -219,6 +222,10 @@
         }));
       }
       article.append(body);
+      if (message.turnDetails && root.BioDesignTurnDetails) {
+        const details = element('div', 'message-turn-details'); article.append(details);
+        root.BioDesignTurnDetails.mount(details, { details: message.turnDetails, zh: document.documentElement.lang.startsWith('zh') });
+      }
       if (message.injection) {
         const labels = { queued: ['Queued for current turn', '已排队，等待当前任务接收'], received: ['Received by current turn', '当前任务已接收'], not_received: ['Not received — send again in a new turn', '未接收，请在新一轮重新发送'] };
         const badge = element('p', 'runtime-injection-status', (labels[message.injection.status] || labels.not_received)[document.documentElement.lang.startsWith('zh') ? 1 : 0]);
@@ -238,6 +245,10 @@
       const copy = action(chat, "copy-message", t("copyMessage"), "message-copy-button");
       copy.dataset.messageId = message.id;
       article.append(copy);
+      if (message.role === 'assistant' && root.BioDesignFrontend) {
+        const fork = action(chat, 'fork-message', document.documentElement.lang.startsWith('zh') ? '从此回复创建分支' : 'Fork from this reply', 'message-fork-button');
+        fork.dataset.messageId = message.id; fork.disabled = isBusy(); article.append(fork);
+      }
       decorateMessage(article, { createdAt: message.createdAt, copyLabel: t('copyMessage'), editLabel: t('editLastMessage') });
       if (message.role === 'assistant') article.prepend(createTurnClock({ elapsedMs: message.elapsedMs, label: t('turnElapsed') }).element);
       return article;
@@ -327,6 +338,7 @@
       run.disabled = isBusy() && chat.taskStatus !== "running";
       if (chat.taskStatus === "running") selectors.querySelectorAll("select").forEach(select => { select.disabled = true; });
       actions.append(createAttachmentPicker(chat), run);
+      root.BioDesignAttachVoice?.(input, actions);
       controls.append(selectors, actions);
       const hint = element("p", "agent-composer-hint", t("agentKeyboardHint"));
       hint.id = `agentKeyboardHint-${chat.id}`;

@@ -1,8 +1,10 @@
 import { mkdir, readFile, writeFile, rename, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { ProjectFilesystem } from './project-filesystem.mjs';
 import { ValidationError } from '../ipc/validation.mjs';
+const topicNavigation = createRequire(import.meta.url)('../../shared/topic-navigation.js');
 
 // Shell navigation only. Histories and research state are read from their
 // original project stores; this registry never writes a second copy of them.
@@ -60,8 +62,15 @@ export class ProjectCatalog {
         const files = await ProjectFilesystem.open(entry.path, { maxReadBytes: 16 * 1024 * 1024 });
         const json = async relative => await files.exists(relative) ? JSON.parse(await files.readText(relative)) : null;
         const state = await json('.biodesign/state.json');
-        const agents = (state?.agent?.workbench?.panels || []).filter(chat => chat.messages?.length || chat.sideChatCount > 0).map(chat => ({ id: chat.id, title: chat.title || 'Agent Work', updatedAt: chat.updatedAt, role: 'agent_command' }));
-        return { ...entry, hasGoal: Boolean(state?.project?.goal?.trim()), initialized: await files.exists('.biodesign/workspace.json'), conversations: agents.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))) };
+        const agents = (state?.agent?.workbench?.panels || []).filter(chat => chat.messages?.length || chat.sideChatCount > 0).map(chat => ({ id: chat.id, title: chat.title || 'Agent Work', preview: topicNavigation.preview(chat), updatedAt: chat.updatedAt, role: 'agent_command' }));
+        // Reading the sidebar never mutates an inactive project. Assignment is
+        // deterministic until the active project's TopicService persists it.
+        let navigation, topicNavigationError;
+        try { navigation = topicNavigation.syncTopics(await json('.biodesign/runtime/topics.json'), agents); }
+        catch (error) { navigation = topicNavigation.syncTopics(null, agents); topicNavigationError = error.code || 'INVALID_TOPIC_STATE'; }
+        return { ...entry, hasGoal: Boolean(state?.project?.goal?.trim()), initialized: await files.exists('.biodesign/workspace.json'),
+          topicNavigation: navigation, ...(topicNavigationError ? { topicNavigationError } : {}),
+          conversations: topicNavigation.decorateTopics(agents, navigation).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))) };
       } catch (error) {
         return { ...entry, conversations: [], unavailable: true, error: error.code || 'PROJECT_UNREADABLE' };
       }

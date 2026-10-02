@@ -6,6 +6,8 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const vendorRoot = path.join(repositoryRoot, "docs", "vendor");
 
 const assets = [
+  ["shared/topic-navigation.js", "topic-navigation.js"],
+  ["shared/turn-observability.js", "turn-observability.js"],
   ["shared/runtime-extensions.js", "runtime-extensions.js"],
   ["shared/generic-subagent.js", "generic-subagent.js"],
   ["shared/literature-agent.js", "literature-agent.js"],

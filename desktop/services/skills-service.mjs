@@ -30,7 +30,8 @@ function requirementList(value, kind) {
   return [...new Set(value)];
 }
 
-function parseSkill(name, content) {
+export function parseSkill(name, content) {
+  validateName(name);
   if (typeof content !== "string" || Buffer.byteLength(content) > MAX_SKILL_BYTES) {
     throw new ValidationError("SKILL_TOO_LARGE", "Each skill must be UTF-8 text of at most 64 KiB.");
   }
@@ -92,7 +93,7 @@ async function hasExecutable(name, env, platform) {
 
 function publicSkill(entry) {
   const { content, body, filesystem, ...info } = entry;
-  return info;
+  return { ...info, removable: info.path?.startsWith(`${EDITABLE_ROOT}/`) === true };
 }
 
 /** Prompt instructions only: loading a skill never changes tool authorization. */
@@ -207,14 +208,47 @@ export class SkillsService {
     return pending;
   }
 
-  async save({ name, content }) {
+  async save({ name, content, exclusive = false, enabled }) {
     validateName(name);
     parseSkill(name, content);
     return this.serialize(async () => {
       const { entries } = await this.discover();
+      if (exclusive && entries.some(entry => entry.name === name)) throw new ValidationError("SKILL_EXISTS", "A skill with this name already exists. Choose a different name or edit the existing skill.");
       if (!entries.some(entry => entry.name === name) && entries.length >= MAX_SKILLS) throw new ValidationError("TOO_MANY_SKILLS", "A project may expose at most 128 skills.");
-      await this.filesystem.writeText(`${EDITABLE_ROOT}/${name}/SKILL.md`, content);
+      if (enabled !== undefined && typeof enabled !== "boolean") throw new ValidationError("INVALID_SKILL_STATE", "Skill enabled must be a boolean.");
+      // Disable imports before creating their instructions, so even always:true
+      // cannot activate between the settings and file writes.
+      if (enabled === false) {
+        const state = await this.state();
+        const disabled = [...new Set([...state.disabled, name])].sort();
+        if (disabled.length > MAX_SKILLS) throw new ValidationError("INVALID_SKILL_STATE", "The disabled skill list is full.");
+        await this.filesystem.writeText(STATE_PATH, JSON.stringify({ version: 1, disabled }, null, 2));
+      }
+      await this.filesystem.writeText(`${EDITABLE_ROOT}/${name}/SKILL.md`, content, { exclusive });
       return this.read(name);
+    });
+  }
+
+  async import({ name, content }) {
+    // File selection is done by the user in the renderer. This method only
+    // writes a bounded instruction file; it never executes installation steps.
+    return this.save({ name, content, exclusive: true, enabled: false });
+  }
+
+  async remove(name) {
+    validateName(name);
+    return this.serialize(async () => {
+      const { entries } = await this.discover();
+      const entry = entries.find(item => item.name === name);
+      if (!entry || !entry.path.startsWith(`${EDITABLE_ROOT}/`)) throw new ValidationError("SKILL_REMOVE_DENIED", "Only project-managed skills can be removed here. Repository and bundled skills can be disabled.");
+      // Removing an override must not unexpectedly reactivate an inherited
+      // skill of the same name on the next model request.
+      const state = await this.state();
+      const disabled = [...new Set([...state.disabled, name])].sort();
+      if (disabled.length > MAX_SKILLS) throw new ValidationError("INVALID_SKILL_STATE", "The disabled skill list is full.");
+      await this.filesystem.writeText(STATE_PATH, JSON.stringify({ version: 1, disabled }, null, 2));
+      await this.filesystem.remove(`${EDITABLE_ROOT}/${name}`, { recursive: true });
+      return { removed: true, name, inheritedDisabled: true };
     });
   }
 

@@ -1999,6 +1999,24 @@ async function runSideChatAgent({
   runtimeExtensions = null,
   runtimeInjections = []
 }) {
+  const observability = (() => { try { return require('./shared/turn-observability.js'); } catch { return require('../shared/turn-observability.js'); } })();
+  const turnUsage = observability.createUsage(resume?.turnUsage, { turnId: turnId || contextOptions.requestId || 'turn', model });
+  let usageSequence = turnUsage.sequence;
+  const dispatchModel = requestTurn;
+  // Measure each actual dispatch, including search, specialist, and context
+  // summary calls. Provider retries may expose only the last usage report;
+  // attempts/coverage make this limitation visible instead of inventing totals.
+  requestTurn = async request => {
+    const sequence = ++usageSequence, startedAt = Date.now();
+    let result;
+    try { result = await dispatchModel(request); return result; }
+    finally {
+      observability.recordUsage(turnUsage, { id: `${turnUsage.turnId}:request:${sequence}`, sequence, model,
+        stage: request.stage || 'model', startedAt, endedAt: Date.now(), ok: result?.ok === true,
+        usage: result?.usage || result?.responseDiagnostics?.usage, attempts: result?.attempts });
+      await onProgress({ stage: 'usage', turnUsage: observability.usageSnapshot(turnUsage) });
+    }
+  };
   const runtimeApi = require("./shared/runtime-extensions.js");
   const subagentApi = require("./generic-subagent.js");
   const runtime = runtimeApi.normalize(runtimeExtensions);
@@ -2133,7 +2151,7 @@ async function runSideChatAgent({
   };
   let webSearchCalls = resume?.webSearchCalls || 0;
   let corpusRequested = directLoop && (resume?.corpusRequested === true || /所有(?:的)?(?:文献|论文)|全部(?:的)?(?:文献|论文)|(?:all|every|entire|whole)\s+(?:uploaded\s+)?(?:papers?|literature|corpus)/i.test(activeRequest));
-  const sourceData = () => ({ ...(runtime ? { runtimeAccepted: [...acceptedInjections] } : {}), ...(checkpoint ? { conversationTurn: checkpoint } : {}), ...(webSearchSources.length ? { webSearchSources } : {}), ...(webSearchMetadata.length ? { webSearchMetadata } : {}),
+  const sourceData = () => ({ turnUsage: observability.usageSnapshot(turnUsage), ...(runtime ? { runtimeAccepted: [...acceptedInjections] } : {}), ...(checkpoint ? { conversationTurn: checkpoint } : {}), ...(webSearchSources.length ? { webSearchSources } : {}), ...(webSearchMetadata.length ? { webSearchMetadata } : {}),
     ...(searchStage ? { webSearchStatus: { status: searchStage.status, sourceCount: webSearchSources.length, limitation: searchStageApi.limitation(searchStage, knowledgeBase.semanticIR?.answerLanguage) } } : {}) });
   const finalData = parsed => {
     const data = resolveSideChatAnswerCitations(parsed, knowledgeBase, surface, academicState);
@@ -2151,7 +2169,7 @@ async function runSideChatAgent({
     }
     // JSON answer fields are model prose, never provider citations or host
     // control messages. Only this harness may attach the reserved fields.
-    for (const key of ["conversationTurn", "conversationTranscript", "webSearchSources", "webSearchMetadata", "webSearchStatus", "agentCheckpoint", "runtimeAccepted", "desktopToolCalls", "desktopContinuation", "desktopToolResults", "agentContinuation", "taskOutcome", "downloadResults", "academicSources", "academicSearchStatus", "academicSelection"]) delete data[key];
+    for (const key of ["turnUsage", "turnDetails", "conversationTurn", "conversationTranscript", "webSearchSources", "webSearchMetadata", "webSearchStatus", "agentCheckpoint", "runtimeAccepted", "desktopToolCalls", "desktopContinuation", "desktopToolResults", "agentContinuation", "taskOutcome", "downloadResults", "academicSources", "academicSearchStatus", "academicSelection"]) delete data[key];
     delete data.literatureResults;
     if (desktopLiterature && literatureResults.length) {
       data.literatureResults = literatureResults;
@@ -2402,7 +2420,7 @@ async function runSideChatAgent({
   };
   const snapshot = (nextStep, pending = [], deferredRecovery = []) => ({
         ...(transcriptTurn ? { transcriptTurn, catalogNamespace } : {}), originalRequest: activeRequest, knowledgeIdentity, literatureResults, ...(specialist ? { specialist } : {}), projectToolState: projectLoop && projectToolsEnabled, corpusRequested, corpusCorrectionUsed, evidenceRefinementUsed, evidenceAttempts, webSearchCalls, downloadState, ...(academicMode ? { academicState } : {}), agentMessages, step: nextStep, totalToolCalls, reactiveCompactionRetries, contextCompaction, contextRecovery: contextManager.snapshot(), progressState, providerRecovery, emptySynthesisRetries, answerProviderAttempts, answerModelCalls,
-        capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending, deferredRecovery, runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections],
+        capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending, deferredRecovery, runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections], turnUsage: observability.usageSnapshot(turnUsage),
   });
   const normalizedToolCallIds = new Set(agentMessages.flatMap(message => (message.tool_calls || []).map(call => call.id)));
   logStage("local-tools");
@@ -2605,7 +2623,8 @@ async function runSideChatAgent({
       const repeated = !duplicate && !exhausted && !academicPlanning.isTool(toolCall.function.name) && !academicTools.isTool(toolCall.function.name)
         ? progressApi.duplicate(progressState, toolCall.function.name, parseToolArguments(toolCall)) : null;
       if (!duplicate && !exhausted && !repeated) totalToolCalls += 1;
-      await onProgress({ stage: "tool-running", capability: toolCall.function.name, step: answerModelCalls });
+      const toolStartedAt = Date.now();
+      await onProgress({ stage: "tool-running", capability: toolCall.function.name, callId: toolCall.id, step: answerModelCalls, timestamp: toolStartedAt });
       if ((!projectLoop || supportsTools) && totalToolCalls <= MAX_TOTAL_TOOL_CALLS && authorizeTool(surface, toolCall.function.name, downloadPermission).allowed) {
         capabilitiesUsed.add(toolCall.function.name);
       }
@@ -2756,6 +2775,13 @@ async function runSideChatAgent({
         name: toolCall.function.name,
         content: output
       });
+      let toolReceipt; try { toolReceipt = JSON.parse(output); } catch { toolReceipt = null; }
+      const pendingHost = desktopToolCalls.some(call => call.id === toolCall.id);
+      const toolError = toolReceipt?.error || toolReceipt?.ok === false;
+      await onProgress({ stage: pendingHost ? 'tool-pending' : toolError ? 'tool-failed' : 'tool-completed',
+        status: pendingHost ? 'pending' : toolError ? 'failed' : 'completed', capability: toolCall.function.name,
+        callId: toolCall.id, step: answerModelCalls, timestamp: Date.now(), durationMs: Date.now() - toolStartedAt,
+        ...(toolError ? { summary: { code: typeof toolReceipt.error === 'string' ? toolReceipt.error : toolReceipt.error?.code || 'TOOL_FAILED' } } : {}) });
       await saveTranscript();
     }
     if (currentSearchSources.length && !turn.providerMessage) {
@@ -2776,7 +2802,7 @@ async function runSideChatAgent({
         // Project-bound Side Chat keeps one transcript and budget across the
         // local evidence handoff, even when no web-search stage preceded it.
         ...(resume || searchStage || academicMode || (surface === "side_chat" && workspaceContext.localWorkspaceContext?.project?.workspaceId) ? { continuationState: { ...(transcriptTurn ? { transcriptTurn, catalogNamespace } : {}), originalRequest: activeRequest, knowledgeIdentity, literatureResults, ...(specialist ? { specialist } : {}), projectToolState: projectLoop && projectToolsEnabled, corpusRequested, corpusCorrectionUsed, evidenceRefinementUsed, evidenceAttempts, webSearchCalls, downloadState, ...(academicMode ? { academicState } : {}), agentMessages, step: step + 1, totalToolCalls, reactiveCompactionRetries, contextCompaction, contextRecovery: contextManager.snapshot(), progressState, providerRecovery, emptySynthesisRetries, answerProviderAttempts, answerModelCalls,
-          capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending: [], runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections] } } : {}),
+          capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending: [], runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections], turnUsage: observability.usageSnapshot(turnUsage) } } : {}),
         ...semanticTelemetry() };
     }
     if (runtime) return { ok: true, data: { agentCheckpoint: { version: 1, final: false }, ...sourceData() }, continuationState: snapshot(step + 1), ...semanticTelemetry() };

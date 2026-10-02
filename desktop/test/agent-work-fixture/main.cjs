@@ -19,6 +19,7 @@ const functions = [
   "findAnalysisPanel", "getCurrentRecommendation", "getAnalysisPanelStatus", "focusAnalysisPanelInstruction",
   "normalizeStoredAnalysisPanel", "normalizeRecommendation", "createDefaultRecommendation", "saveAnalysisPanels", "saveCurrentRecommendation", "loadAnalysisPanels", "loadSessionJson", "cloneValue",
   "normalizeSideChatModel", "normalizeAgentModel", "shortSideChatModelName", "createStreamingAnswer",
+  "handleComposerCommand", "composerReferenceMessages",
   "renderSideChatContext", "sideChatProgressText", "formatCorpusPaperProgress", "applyRequestCatalog", "syncWorkspaceSelectionToDocuments",
   "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
 ].map(actualFunction).join("\n");
@@ -45,6 +46,9 @@ const applyLiteratureScan = documents => { literatureModule.documents = document
 const applyPreparedContextToDocuments = () => {}, renderWorkspaceExplorer = () => {}, renderAllDocumentLists = () => {};
 let workspaceAbortController = null, requestGate = null, requestFailure = null, requestResult = null, requests = [], exports = [], copies = [];
 const makeId = () => crypto.randomUUID();
+const attachmentFiles = new Map();
+const workspaceManager = { workspace: { workspaceId: 'agent-fixture' }, writeFile: async (path, content) => attachmentFiles.set(path, content), readFile: async path => new Blob([attachmentFiles.get(path)]) };
+const extractPdfText = async () => { throw new Error('Unexpected PDF attachment'); }, extractSpreadsheetText = async () => { throw new Error('Unexpected spreadsheet attachment'); };
 const formatTimestamp = value => new Date(value).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
 const normalizeSemanticTelemetry = value => value, normalizeRetrievalMetadata = value => value;
 const getSideChatCitationContext = () => ({ sources: [] });
@@ -89,7 +93,7 @@ const check = (condition, name) => { ok(condition, name); passed.push(name); };
     const fixture = path.join(profile, "fixture.html");
     fs.writeFileSync(fixture, html.replace("</head>", `<style>${fs.readFileSync(path.join(root, "docs/styles.css"), "utf8")}</style></head>`));
     await win.loadFile(fixture);
-    for (const file of ["shared/source-citations.js", "shared/web-search.js", "docs/agent-work-area.js", "docs/runtime-turns.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
+    for (const file of ["shared/source-citations.js", "shared/web-search.js", "shared/chat-images.js", "docs/chat-image-composer.js", "docs/chat-attachments.js", "docs/agent-work-area.js", "docs/runtime-turns.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
     await win.webContents.executeJavaScript(`${translations}\n${setup}\n${functions}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("runAgentScenarios()");
     await win.webContents.executeJavaScript("checkAgentInjectionQueue()");

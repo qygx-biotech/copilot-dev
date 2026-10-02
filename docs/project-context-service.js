@@ -548,7 +548,9 @@
       .map((message) => ({
         id: message.id,
         role: message.role,
+        ...(typeof message.turnId === 'string' && /^[\w:-]{1,128}$/.test(message.turnId) ? { turnId: message.turnId } : {}),
         content: message.content.trim(),
+        ...(message.role === 'assistant' && message.turnDetails ? { turnDetails: (root.BioDesignTurnObservability || (typeof require === 'function' ? require('../shared/turn-observability.js') : {})).normalizeDetails?.(message.turnDetails) || null } : {}),
         ...(message.role === "user" && isPlainObject(message.injection) &&
           typeof message.injection.turnId === "string" && /^[\w:-]{1,128}$/.test(message.injection.turnId) &&
           ["queued", "received", "not_received"].includes(message.injection.status)
@@ -796,17 +798,18 @@
       });
     }
 
-    forkConversation(id) {
+    forkConversation(id, messageId = null) {
       return this.enqueue(async () => {
         const index = await this.readIndex();
         if (!index.conversations.some(record => record.id === id)) throw new Error("Chat is no longer available.");
         const source = await this.io("readJson", this.conversationPath(id));
         if (!source.messages?.length) throw new Error("There are no messages to fork.");
+        const topicApi = root.BioDesignTopicNavigation || (typeof require === 'function' ? require('../shared/topic-navigation.js') : null);
+        const selected = messageId ? topicApi.forkAtMessage(source, messageId) : { messages: structuredClone(source.messages), summary: source.summary, transcript: source.transcript };
         // The fork stays in the same panel's store. Retention protects shared
         // attachment references until no remaining conversation uses them.
         return this.saveConversationNow({ ...structuredClone(source), ...this.createConversation(),
-          title: `${source.title.slice(0, 110)} (fork)`, summary: source.summary,
-          messages: structuredClone(source.messages),
+          title: `${source.title.slice(0, 110)} (fork)`, ...selected,
         }, index);
       });
     }

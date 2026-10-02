@@ -27,6 +27,7 @@ const functions = [
   "runAgentInstruction", "setAgentBusy", "getAgentModelOptions",
   "initializeSideChatImages", "submitSideChat", "understandSideChatImages", "sendWorkbenchRequest",
   "queueSideChatInput", "runtimeInjectionLabel",
+  "handleComposerCommand", "composerReferenceMessages",
 ].map(actualFunction).join("\n");
 const modelEvents = source.match(/^sideChatModelSelect.addEventListener[\s\S]*?^\}\);/m)[0];
 const historyEvents = source.slice(source.indexOf('clearSideChatButton.addEventListener("click"'), source.indexOf("async function changeSideChatConversation"));
@@ -82,6 +83,7 @@ const renderBackendStatus = () => {};
 const buildAgentMessages = instruction => [{ role: "user", content: instruction }];
 const normalizeAgentResponse = response => ({ title: response.reply });
 const createLocalRecommendation = () => ({ title: "Local fallback" });
+const extractPdfText = async () => { throw new Error('Unexpected PDF attachment'); }, extractSpreadsheetText = async () => { throw new Error('Unexpected spreadsheet attachment'); };
 const sources = [{ sourceId: "paper-a", path: "literature/中文/酶活性.pdf", contentHash: "hash-a", catalogStatus: "ready" }];
 const workspaceManager = { state: { project: {}, ui: {} }, saveState: async state => { workspaceManager.state = state; }, workspace: { workspaceId: "w-1", name: "Project Folder" }, fileExists: async path => { fileChecks.push(path); if (existenceGate) await existenceGate; return exists; } };
 let workspaceTree = { type: "directory", relativePath: "", children: [{ type: "file", relativePath: sources[0].path }] };
@@ -142,6 +144,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     for (const script of ["shared/conversation-transcript.js", "shared/side-chat-tools.js", "shared/retrieval-contract.js", "shared/semantic-intent.js", "docs/project-context-service.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/chat-images.js"), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/chat-image-composer.js"), "utf8"));
+    await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/chat-attachments.js"), "utf8"));
     await win.webContents.executeJavaScript(`document.body.insertAdjacentHTML("beforeend", ${JSON.stringify('<button data-debug-open data-debug-label="open">Debug Console</button>' + debugMarkup)})`);
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/runtime-log.js"), "utf8"));
     await win.webContents.executeJavaScript("window.BioDesignRuntimeLog.installPanel()");

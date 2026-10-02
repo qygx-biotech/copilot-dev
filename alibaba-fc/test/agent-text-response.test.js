@@ -58,6 +58,11 @@ for (const mode of ['plain', 'returned-error', 'thrown-error', 'legacy-error']) 
         return mode === 'returned-error' ? { fallback: true, error: 'LlmHttpError', reply: 'LlmHttpError: HTTP 400' } : { reply: '```json\n{"answer": 42}\n```' };
       },
     });
+    sandbox.handleComposerCommand = async () => false;
+    sandbox.composerReferenceMessages = async () => [];
+    sandbox.extractPdfText = sandbox.extractSpreadsheetText = () => { throw new Error('Unexpected attachment extraction'); };
+    sandbox.window.BioDesignChatAttachments = { prepare: async () => ({ metadata: [], images: [], context: '' }) };
+    sandbox.window.BioDesignChatImageComposer = { prepareImage: () => { throw new Error('Unexpected image extraction'); } };
     vm.runInContext(source, sandbox); await sandbox.runAgentInstruction(panel.id);
     assert.equal(records.length, 1); assert.equal(sandbox.currentRecommendation, recommendation); assert.equal(panel.recommendation, undefined);
     assert.equal(records[0].content, mode === 'plain' ? '```json\n{"answer": 42}\n```' : mode === 'returned-error' ? 'LlmHttpError: HTTP 400' : 'STREAM_INTERRUPTED: Connection closed.');

@@ -40,7 +40,10 @@ async function runAgentScenarios() {
   check(first.selectedModel === geminiFlex && [...sideChatModelSelect.options].some(option => option.value === geminiFlex), "Gemini Flex is selectable in both panels");
   check(JSON.stringify(getAgentModelOptions().map(option => option.value)) === JSON.stringify([...sideChatModelSelect.options].map(option => option.value)), "Agent and Side Chat model options have identical values and order");
   setting(first, "selectedPermission", "workspace_write");
-  const files = new DataTransfer(); files.items.add(new File(["a,b"], "results.csv", { type: "text/csv" })); files.items.add(new File(["image"], "figure.png", { type: "image/png" }));
+  const imageCanvas = document.createElement('canvas'); imageCanvas.width = 8; imageCanvas.height = 8;
+  imageCanvas.getContext('2d').fillRect(0, 0, 8, 8);
+  const png = await new Promise(resolve => imageCanvas.toBlob(resolve, 'image/png'));
+  const files = new DataTransfer(); files.items.add(new File(["a,b"], "results.csv", { type: "text/csv" })); files.items.add(new File([png], "figure.png", { type: "image/png" }));
   const picker = card(first).querySelector('[data-agent-attachments="file"]'); picker.files = files.files; picker.dispatchEvent(new Event("change", { bubbles: true }));
   check(first.pendingAttachments.length === 2 && card(first).textContent.includes("figure.png"), "File and image selections produce removable chips");
   click(first, "remove-attachment");
@@ -65,7 +68,8 @@ async function runAgentScenarios() {
   check(temporary !== first && analysisPanels[2] === first, "A card's new-chat action inserts immediately below that card");
   click(temporary, "delete");
   check(!findAnalysisPanel(temporary.id) && activeAgentPanelId === first.id && first.taskStatus === "running", "Deleting a different task leaves the current run intact");
-  check(requests[0].model === geminiFlex && !requests[0].permission && !requests[0].attachments && requests[0].messages[0].content === "Review candidate evidence", "The captured Agent model reaches the request while attachments stay local");
+  check(requests[0].model === geminiFlex && !requests[0].permission && !requests[0].attachments && requests[0].messages[0].content === "Review candidate evidence" && requests[0].images.length === 1, "The captured Agent model and prepared image reach the request without widening permissions");
+  check(attachmentFiles.size === 1 && first.messages[0].attachments[0].digest, "Submitted image contents are stored for exact revision replay while chat state retains metadata only");
   check(contextRequests[0].callContext.model === geminiFlex && contextRequests[0].turnId === requests[0].callContext.turnId, "The captured Agent model reaches preparation before the answer under the same turn ID");
   check(first.messages[0].requestedModel === geminiFlex && first.messages[0].permission === "workspace_write" && first.messages[0].attachments[0].name === "figure.png", "Submitted turn captures requested model, permission and attachment metadata");
   setting(first, "selectedModel", "default");

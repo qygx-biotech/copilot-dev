@@ -24,4 +24,13 @@
 .runtime-extensions .runtime-error { color:var(--danger); overflow-wrap:anywhere; }
 .runtime-remove { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); }
 .runtime-remove button { margin-right:7px; }
+.runtime-tabs { flex-wrap:wrap; }
+.runtime-filters { display:flex; gap:10px; margin:16px 0; }
+.runtime-filters input, .runtime-filters select { border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--ink); padding:9px 11px; }
+.runtime-filters input { flex:1; min-width:0; }
+.runtime-preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+.runtime-extensions h3 { margin:24px 0 12px; font-size:14px; }
+.runtime-example { margin:14px 0; font-size:12px; }
+.runtime-example pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:12px; border:1px solid var(--line); border-radius:7px; background:var(--surface-muted); }
+.runtime-item-actions { flex-wrap:wrap; }
 @media(max-width:600px) { .runtime-item-heading, .runtime-section-heading { align-items:flex-start; flex-direction:column; } }

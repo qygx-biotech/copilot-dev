@@ -89,6 +89,43 @@
     experimentNotes: "experiment-notes",
     projectMemory: "project-memory",
   });
+  let artifactObservationSequence = 0;
+  async function writeDerivedArtifact(workspace, path, content, requestContext = {}) {
+    // Observe only the existing derived-knowledge writes. This helper grants
+    // no write capability and does not change readonly cache generation.
+    const workspaceIdentity = workspace.workspace;
+    const assertCurrent = () => {
+      if (requestContext.signal?.aborted || workspace.workspace !== workspaceIdentity ||
+          typeof requestContext.isCurrent === 'function' && !requestContext.isCurrent())
+        throw new SourceSystemError('OPERATION_ABORTED', 'The project changed before saving derived knowledge.');
+    };
+    assertCurrent();
+    const observe = typeof requestContext.onProgress === 'function' &&
+      typeof content === 'string' && path.startsWith(KNOWLEDGE_DIRECTORY + '/') && path.endsWith('.md');
+    const api = observe ? root?.BioDesignTurnObservability ||
+      (typeof require === 'function' ? require('../shared/turn-observability.js') : null) : null;
+    let before = null;
+    const startedAt = Date.now();
+    if (api) try {
+      if (!(await workspace.fileExists(path))) before = '';
+      else {
+        const file = await workspace.readFile(path);
+        const bounded = typeof file?.slice === 'function' ? file.slice(0, api.LIMITS.diffCharacters * 4 + 4) : file;
+        before = typeof bounded === 'string' ? bounded : await bounded.text();
+      }
+    } catch { /* A missing readable baseline must never become a false add. */ }
+    assertCurrent();
+    const result = await workspace.writeFile(path, content);
+    assertCurrent();
+    if (api && result?.ok !== false) {
+      const artifact = { id: `derived:${Date.now()}:${++artifactObservationSequence}`, origin: 'host-write', path,
+        timestamp: Date.now(), durationMs: Date.now() - startedAt,
+        ...(before !== null ? { diff: api.diffLines(before, content) } : { baselineUnavailable: true }) };
+      // UI notification failure cannot change an already committed write.
+      try { await requestContext.onProgress({ stage: 'artifact-written', kind: 'artifact', status: 'completed', artifact }); } catch {}
+    }
+    return result;
+  }
   const PAPER_EXTENSIONS = new Set(["pdf"]);
   const EXPERIMENT_EXTENSIONS = new Set(["csv", "tsv", "xlsx", "xls", "txt"]);
   const READINESS_CAPABILITIES = Object.freeze({
@@ -2968,7 +3005,7 @@
     async refreshPaperEvidenceKnowledge(source, paperArtifact, requestContext = {}) {
       if (typeof this.workspace.writeFile !== "function") return null;
       const path = `${KNOWLEDGE_PATHS.literatureEvidence}/${source.sourceId}.md`;
-      await this.workspace.writeFile(path, renderPaperEvidenceMarkdown(source, paperArtifact));
+      await writeDerivedArtifact(this.workspace, path, renderPaperEvidenceMarkdown(source, paperArtifact), requestContext);
       source.artifacts ||= {};
       source.artifacts.knowledgeMarkdown = {
         path,
@@ -2987,7 +3024,7 @@
     async refreshPaperCardKnowledge(source, card, requestContext = {}) {
       if (!card || typeof this.workspace.writeFile !== "function") return null;
       const path = `${KNOWLEDGE_PATHS.paperCards}/${source.sourceId}.md`;
-      await this.workspace.writeFile(path, renderPaperCardMarkdown(source, card));
+      await writeDerivedArtifact(this.workspace, path, renderPaperCardMarkdown(source, card), requestContext);
       source.artifacts ||= {};
       source.artifacts.paperCardMarkdown = {
         path,
@@ -3018,7 +3055,7 @@
     async refreshExperimentKnowledge(source, artifact, requestContext = {}) {
       if (typeof this.workspace.writeFile !== "function") return null;
       const path = `${KNOWLEDGE_PATHS.experimentNotes}/${source.sourceId}.md`;
-      await this.workspace.writeFile(path, renderExperimentNoteMarkdown(source, artifact));
+      await writeDerivedArtifact(this.workspace, path, renderExperimentNoteMarkdown(source, artifact), requestContext);
       source.artifacts ||= {};
       source.artifacts.experimentNote = {
         path,
@@ -4726,7 +4763,7 @@
           const synthesisPath =
             journal.synthesisArtifact?.path ||
             `${KNOWLEDGE_PATHS.syntheses}/${journal.workflowId}.md`;
-          await this.workspace.writeFile(synthesisPath, renderSynthesisMarkdown(journal));
+          await writeDerivedArtifact(this.workspace, synthesisPath, renderSynthesisMarkdown(journal), options);
         }
         staleWorkflowIds.push(workflowId);
       }
@@ -6762,7 +6799,7 @@
       });
       if (typeof this.workspace.writeFile === "function") {
         const synthesisPath = `${KNOWLEDGE_PATHS.syntheses}/${journal.workflowId}.md`;
-        await this.workspace.writeFile(synthesisPath, renderSynthesisMarkdown(journal));
+        await writeDerivedArtifact(this.workspace, synthesisPath, renderSynthesisMarkdown(journal), options);
         journal.synthesisArtifact = {
           path: synthesisPath,
           synthesisId: journal.workflowId,
@@ -6984,7 +7021,7 @@
       });
       if (typeof this.workspace.writeFile === "function") {
         const memoryPath = `${KNOWLEDGE_PATHS.projectMemory}/${record.memoryId}.md`;
-        await this.workspace.writeFile(memoryPath, renderMemoryMarkdown(record));
+        await writeDerivedArtifact(this.workspace, memoryPath, renderMemoryMarkdown(record), options);
         if (this.knowledgeService?.available) {
           try {
             await this.knowledgeService.indexDocuments(

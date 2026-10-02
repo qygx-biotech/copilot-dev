@@ -31,6 +31,11 @@ for (const { question, cancel } of [
       const scan = f.workspace.scanDirectoryTree.bind(f.workspace);
       f.workspace.scanDirectoryTree = async () => { const tree = await scan(); controller.abort(); return tree; };
     }
+    sandbox.handleComposerCommand = async () => false;
+    sandbox.composerReferenceMessages = async () => [];
+    sandbox.extractPdfText = sandbox.extractSpreadsheetText = () => { throw new Error('Unexpected attachment extraction'); };
+    sandbox.window.BioDesignChatAttachments = { prepare: async () => ({ metadata: [], images: [], context: '' }) };
+    sandbox.window.BioDesignChatImageComposer = { prepareImage: () => { throw new Error('Unexpected image extraction'); } };
     vm.runInContext(run, sandbox); await sandbox.runAgentInstruction(panel.id);
     assert.equal(requests, cancel ? 0 : 1); noPreparation(f);
     await new Promise(resolve => setImmediate(resolve)); noPreparation(f);

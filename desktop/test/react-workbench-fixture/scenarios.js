@@ -138,7 +138,9 @@ async function runWorkbenchScenarios() {
   document.querySelector('.account-menu summary').click();
   [...document.querySelectorAll('.account-options button')].find(button => button.textContent === 'Library jobs').click();
   await waitFor(() => [...document.querySelectorAll('dialog')].some(node => node.textContent.includes('No unfinished library jobs.')), 'account library jobs dialog');
-  [...document.querySelectorAll('dialog button')].find(button => button.textContent === 'Close').click();
+  const jobsDialog = [...document.querySelectorAll('dialog[open]')].find(node => node.textContent.includes('No unfinished library jobs.'));
+  [...jobsDialog.querySelectorAll('button')].find(button => button.textContent === 'Close').click();
+  await waitFor(() => !jobsDialog.isConnected || !jobsDialog.open, 'library jobs dialog closes before continuing');
   check(![...document.querySelectorAll('body > button')].some(node => node.textContent.includes('Library jobs')), 'library jobs remains inside the signed-in account menu');
   const account = document.querySelector('.account-menu summary');
   check(account.getBoundingClientRect().bottom > innerHeight - 90, 'account control is anchored at the lower left');
@@ -345,7 +347,7 @@ async function runWorkbenchScenarios() {
   check(JSON.stringify(forkedAgent.messages) === originalAgentMessages && forkedAgent.selectedPermission === 'read_only' && forkedAgent.selectedModel === findAnalysisPanel(runningAgentId).selectedModel, 'Agent fork copies history and model without transferring write permission');
   check(!sideChatMessages.length && snapshot().sideChatAgentId === forkedAgentId, 'Agent fork owns a fresh independent Side Chat store');
   const originalTitle = findAnalysisPanel(runningAgentId).title, originalRecency = findAnalysisPanel(runningAgentId).updatedAt;
-  const originalRow = () => [...document.querySelectorAll('.chat-row')].find(node => node.title === originalTitle);
+  const originalRow = () => [...document.querySelectorAll('.chat-row')].find(node => node.title.split('\n')[0] === originalTitle);
   await requestChatRename(originalRow());
   check(document.querySelector('[aria-label="Chat name"]').value === originalTitle, 'rename editor starts with the existing name');
   document.querySelector('[aria-label="Rename chat"] .secondary-button').click(); await tick();
@@ -357,7 +359,7 @@ async function runWorkbenchScenarios() {
   check(document.querySelector('[aria-label="Rename chat"] .primary-button').disabled, 'empty chat names cannot be saved');
   await enterName('  Enzyme evidence review  '); nameInput.closest('form').requestSubmit();
   await waitFor(() => !document.querySelector('[aria-label="Rename chat"]') && !snapshot().projectBusy, 'renamed chat saved'); await tick();
-  check(findAnalysisPanel(runningAgentId).title === 'Enzyme evidence review' && [...document.querySelectorAll('.chat-row')].some(node => node.title === 'Enzyme evidence review'), 'saved name updates the sidebar');
+  check(findAnalysisPanel(runningAgentId).title === 'Enzyme evidence review' && [...document.querySelectorAll('.chat-row')].some(node => node.title.split('\n')[0] === 'Enzyme evidence review'), 'saved name updates the sidebar while preserving its searchable preview');
   check(snapshot().activeAgentId === forkedAgentId && findAnalysisPanel(runningAgentId).updatedAt === originalRecency && JSON.stringify(findAnalysisPanel(runningAgentId).messages) === originalAgentMessages, 'renaming an inactive chat preserves selection, recency and messages');
   const revised = structuredClone(findAnalysisPanel(runningAgentId));
   window.BioDesignAgentWork.beginTurn(revised, { id: 'rename-revision-test', revision: { message: revised.messages[0], content: 'Revised first instruction' } });

@@ -2192,7 +2192,7 @@ textarea:focus {
 .message-actions { display:flex; align-items:center; gap:6px; margin-top:5px; min-height:28px; color:var(--muted); }
 .side-message.user > .message-actions { justify-content:flex-end; }
 .message-time { font-size:11px; font-weight:400; color:var(--muted); margin-right:4px; }
-.message-actions > .message-copy-button, .message-actions > .side-message-edit-button { position:static; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:28px; margin:0; padding:5px; border:0; border-radius:5px; background:transparent; color:var(--muted); }
+.message-actions > .message-copy-button, .message-actions > .side-message-edit-button, .message-actions > .message-fork-button { position:static; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:28px; margin:0; padding:5px; border:0; border-radius:5px; background:transparent; color:var(--muted); }
 .message-actions > button svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
 .message-actions > button:hover, .message-actions > button:focus-visible { background:var(--accent-soft); color:var(--accent-dark); }
 .message-actions > button:disabled { opacity:.45; }

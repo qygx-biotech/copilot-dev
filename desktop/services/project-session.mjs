@@ -13,6 +13,9 @@ import { PaperMcpClient } from "./paper-mcp-client.mjs";
 import { registerAcademicWorkflows } from "./academic-workflows.mjs";
 import { SkillsService } from "./skills-service.mjs";
 import { GenericMcpService } from "./generic-mcp-service.mjs";
+import { AppsService } from "./apps-service.mjs";
+import { WorkbenchSettings } from "./workbench-settings.mjs";
+import { TopicService } from "./topic-service.mjs";
 import { assertOnlyKeys, assertRecord, boundedString, ValidationError } from "../ipc/validation.mjs";
 
 export class ProjectSessionManager extends EventEmitter {
@@ -43,6 +46,9 @@ export class ProjectSessionManager extends EventEmitter {
     const active = this.active;
     active.skills = new SkillsService(filesystem, { bundledSkillsPath: this.bundledSkillsPath });
     active.genericMcp = new GenericMcpService({ filesystem });
+    active.apps = new AppsService({ filesystem, skills: active.skills, mcp: active.genericMcp });
+    active.workbenchSettings = new WorkbenchSettings(filesystem);
+    active.topics = new TopicService(filesystem);
     active.genericMcpCalls = new Map();
     const runtimeWorkflow = (id, keys, effect, runner) => active.execution.register({ id, effect }, async input => {
       assertOnlyKeys(input, keys, "input");
@@ -59,6 +65,18 @@ export class ProjectSessionManager extends EventEmitter {
     });
     runtimeWorkflow("runtime_skills_save", ["name", "content"], "runtime_configuration", input => active.skills.save(input));
     runtimeWorkflow("runtime_skills_enable", ["name", "enabled"], "runtime_configuration", input => active.skills.setEnabled(input.name, input.enabled));
+    runtimeWorkflow("runtime_skills_import", ["name", "content"], "runtime_configuration", input => active.skills.import(input));
+    runtimeWorkflow("runtime_skills_remove", ["name"], "runtime_configuration", input => active.skills.remove(input.name));
+    runtimeWorkflow("runtime_apps_list", [], "informational", () => active.apps.list());
+    runtimeWorkflow("runtime_apps_inspect", ["path"], "informational", input => active.apps.preview(input.path));
+    runtimeWorkflow("runtime_apps_install", ["path", "expectedDigest"], "runtime_configuration", input => active.apps.install(input));
+    runtimeWorkflow("runtime_settings_read", [], "informational", () => active.workbenchSettings.read());
+    runtimeWorkflow("runtime_settings_save", ["id", "name", "modelId"], "runtime_configuration", input => active.workbenchSettings.save(input));
+    runtimeWorkflow("runtime_settings_remove", ["id"], "runtime_configuration", input => active.workbenchSettings.remove(input.id));
+    runtimeWorkflow("runtime_topics_list", [], "informational", () => active.topics.list());
+    runtimeWorkflow("runtime_topics_sync", ["topics"], "runtime_configuration", input => active.topics.sync(input));
+    runtimeWorkflow("runtime_topics_update", ["role", "id", "pinned", "archived"], "runtime_configuration", input => active.topics.update(input));
+    runtimeWorkflow("runtime_topics_reorder", ["keys"], "runtime_configuration", input => active.topics.reorder(input));
     runtimeWorkflow("runtime_mcp_list", [], "informational", () => active.genericMcp.list());
     runtimeWorkflow("runtime_mcp_save", ["name", "config"], "runtime_configuration", input => active.genericMcp.save(input));
     for (const action of ["remove", "connect", "disconnect"]) {

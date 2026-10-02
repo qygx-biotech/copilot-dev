@@ -100,7 +100,7 @@ const errors = [];
       fs.writeFileSync(filename, (await win.webContents.capturePage()).toPNG()); screenshots.push(filename);
     }
     win.setSize(1540, 1020);
-    await win.webContents.executeJavaScript(`document.querySelector('[aria-label="Toggle sidebar"]').click(); document.querySelector('.agent-result-actions details').open = true; document.querySelector('.agent-result-actions details').scrollIntoView({ block: 'start' }); document.querySelector('.side-pane .turn-activity').open = true; tick();`);
+    await win.webContents.executeJavaScript(`document.querySelector('[aria-label="Toggle sidebar"]').click(); document.querySelector('.agent-result-actions details').open = true; document.querySelector('.agent-result-actions details').scrollIntoView({ block: 'start' }); const activity = document.querySelector('.side-pane > .turn-details'); check(Boolean(activity?.querySelector('.turn-activity-list')), 'structured activity details remain available in the Side Chat pane'); activity.open = true; tick();`);
     const reviewImage = path.join(profile, 'recommendation-and-activity.png');
     fs.writeFileSync(reviewImage, (await win.webContents.capturePage()).toPNG()); screenshots.push(reviewImage);
     await win.webContents.executeJavaScript(`document.querySelector('[aria-label="Side Chat history"]').click(); tick()`);

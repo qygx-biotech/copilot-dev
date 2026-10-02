@@ -56,6 +56,7 @@ module.exports = {
     name: "BioDesign",
     executableName: "BioDesign",
     appBundleId: "ai.biodesign.copilot",
+    extendInfo: { NSMicrophoneUsageDescription: "BioDesign records audio only when you choose voice input, then transcribes it through your authenticated Requesty account." },
     win32metadata: {
       CompanyName: "qygx-biotech",
       FileDescription: "BioDesign Copilot",

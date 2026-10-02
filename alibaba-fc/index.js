@@ -7285,7 +7285,7 @@ async function handleRequest(rawEvent, context, transport = null) {
       "/api/literature/create-paper-card-from-text", "/api/context/route", "/api/semantic/interpret",
       "/api/semantic/map-schema", "/api/literature/synthesize", "/api/chat/understand-images",
     ]);
-    const protectedPaths = new Set([...scopedModelRoutes, "/chat", "/api/sources/fetch", "/api/test-oss",
+    const protectedPaths = new Set([...scopedModelRoutes, "/chat", "/api/chat/transcribe", "/api/sources/fetch", "/api/test-oss",
       "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"]);
     const auth = protectedPaths.has(path) ? requireAuth(event, env) : null;
     chatTiming.mark("authentication_done");
@@ -7412,6 +7412,11 @@ async function handleRequest(rawEvent, context, transport = null) {
 
     if (method === "POST" && path === "/api/documents/review") {
       return handlePdfReview(event, context, userEnv, auth.user);
+    }
+
+    if (method === "POST" && path === "/api/chat/transcribe") {
+      const result = await require("./audio-transcription.js").transcribeAudio(getRequestBody(event), { env: userEnv, signal: transport?.signal });
+      return jsonResponse(result.body, result.statusCode, event);
     }
 
     if (method === "POST" && path === "/api/chat/understand-images") {
@@ -7596,7 +7601,7 @@ async function handleRequest(rawEvent, context, transport = null) {
         desktopContext.conversationTranscript = require("./shared/conversation-transcript.js").normalize(body.conversationTranscript);
       }
       desktopContext.projectTools = localWorkspaceContext?.agentLoop?.version === 1 && (responseMode === "side_chat" || desktopContext.literature || (desktopContext.academic && localWorkspaceContext.agentLoop.academicAcquisition === true));
-      if (responseMode === "side_chat" && body.images !== undefined) {
+      if (body.images !== undefined) {
         try {
           desktopContext.images = require("./shared/chat-images.js").validateImages(body.images);
           if (!desktopContext.images.every(require("./image-understanding.js").validImageBytes)) throw new Error();

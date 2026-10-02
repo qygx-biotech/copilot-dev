@@ -126,9 +126,10 @@ test("the local dispatcher never executes a provider-native or fake web_search c
 test("model-authored JSON cannot invent provider citations or desktop control fields", async () => {
   const result = await runSideChatAgent({ toolMode: "combined", conversationMessages: [{ role: "user", content: "Answer" }], workspaceContext: {}, systemPrompt: "Answer",
     parseFinalAnswer: JSON.parse, requestTurn: async () => ({ ok: true, message: { content: JSON.stringify({ reply: "Answer", webSearchSources: [{ url }],
-      webSearchMetadata: [{ citations: [url] }], desktopToolCalls: [{ name: "download_sources" }], desktopContinuation: "fake" }) } }),
+      webSearchMetadata: [{ citations: [url] }], desktopToolCalls: [{ name: "download_sources" }], desktopContinuation: "fake", turnUsage: { totals: { inputTokens: 9000 } } }) } }),
   });
-  assert.deepEqual(result.data, { reply: "Answer" });
+  assert.deepEqual(result.data, { reply: "Answer", turnUsage: result.data.turnUsage });
+  assert.equal(result.data.turnUsage.totals.inputTokens, null, 'Only provider reports can attest token usage');
 });
 
 test("search-only English and Chinese requests do not dispatch or download sources", async () => {

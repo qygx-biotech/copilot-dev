@@ -90,6 +90,7 @@
       const isCurrent = () => generation === epoch && service?.readSnapshot().project?.id === projectId && runs.get(key) === run;
       function event(value) {
         if (!isCurrent() || controller.signal.aborted) return;
+        if (value.type === 'turn-details' && value.details?.version === 1) run.state.turnDetails = value.details;
         if (value.type === "delta") run.state.outputCharacters += String(value.text || "").length;
         if (value.type === "status" || value.stage) {
           const step = { stage: String(value.stage || "working"), capability: String(value.capability || ""), message: String(value.message || "") };

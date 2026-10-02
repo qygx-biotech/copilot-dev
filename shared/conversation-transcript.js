@@ -137,8 +137,16 @@
     let legacy;
     for (const message of visible) {
       if (message.role === "user") {
-        if (legacy) transcript.turns.push(normalizeTurn(legacy));
-        legacy = !known.has(message.id) ? { turnId: message.id, legacy: true, status: "completed", startedAt: message.createdAt || "", messages: [], bindings: [] } : null;
+        const parentTurnId = id(message.injection?.turnId);
+        if (parentTurnId && !known.has(parentTurnId) && legacy?.turnId === parentTurnId) {
+          // Legacy migration keeps injected steering inside its original user
+          // exchange. It must not manufacture a second independently replayed
+          // turn containing the same request and final answer.
+        } else {
+          if (legacy) transcript.turns.push(normalizeTurn(legacy));
+          const turnId = parentTurnId || message.id;
+          legacy = !known.has(turnId) ? { turnId, legacy: true, status: "completed", startedAt: message.createdAt || "", messages: [], bindings: [] } : null;
+        }
       }
       if (legacy && ["user", "assistant"].includes(message.role)) legacy.messages.push({ role: message.role, content: message.content });
     }

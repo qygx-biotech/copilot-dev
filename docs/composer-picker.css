@@ -1,0 +1,6 @@
+.composer-reference-picker { position:fixed; z-index:1000; overflow:auto; box-sizing:border-box; padding:6px; border:1px solid #dcdfe6; border-radius:11px; background:#fff; box-shadow:0 8px 28px #0002; font:13px system-ui,sans-serif; }
+.composer-reference-picker[hidden] { display:none; }
+.composer-reference-option { cursor:pointer; border-radius:7px; padding:8px 10px; }
+.composer-reference-option[aria-selected=true] { background:#eff2f8; }
+.composer-reference-option strong { display:block; font-weight:500; color:#363e4d; }
+.composer-reference-option small { display:block; color:#78808f; font-size:11px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
