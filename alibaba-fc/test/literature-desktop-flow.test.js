@@ -7,8 +7,9 @@ const academic = require('../../shared/academic-tools.js'), literature = require
 const sourceDownload = require('../../shared/source-download.js'), webSearch = require('../../shared/web-search.js'), eventStream = require('../../shared/event-stream.js');
 const call = (name, args) => ({ id: name, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 
-for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'busy']) test(`production renderer → authenticated backend → specialist → local host → signed resume: ${scenario}`, async t => {
+for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'busy', 'input-quota', 'raw-finish']) test(`production renderer → authenticated backend → specialist → local host → signed resume: ${scenario}`, async t => {
   const providerFailure = scenario === 'failure', batch = scenario === 'batch';
+  const finishArguments = scenario === 'raw-finish' ? { candidates: Array.from({ length: 65 }, (_, i) => ({ title: `论文 ${i}`, url: `https://example.org/paper?id=${i}` })), notes: 'Unvalidated specialist findings', results: [{ status: 'downloaded', file: 'model-claim.pdf' }] } : { candidates: [], limitations: ['No corroborated records in this fixture.'] };
   const { ProjectFilesystem } = await import('../../desktop/services/project-filesystem.mjs');
   const { LiteratureWorkflows } = await import('../../desktop/services/literature-workflows.mjs');
   const root = await mkdtemp(path.join(os.tmpdir(), 'literature-e2e-')); t.after(() => rm(root, { recursive: true, force: true }));
@@ -30,20 +31,43 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
   const context = await f.service.buildContext({ ...f.options, question: query, turnId: 'literature-e2e', callContext: { model } });
   const noPreparation = () => { assert.equal(f.calls.cards, 0); assert.equal(f.calls.parses, 0); assert.equal(f.calls.indexing, 0); assert.equal(f.workspace.rawReads, 0); };
   noPreparation();
-  let models = 0; const stages = [];
+  let models = 0, specialistRequests = 0, beforeQuota; const stages = [];
   t.mock.method(globalThis, 'fetch', async (_url, options) => {
     const request = JSON.parse(options.body); noPreparation(); assert.equal(request.model, model); models++;
     let message;
     if (request.tools.some(tool => tool.function?.name === 'discover_papers')) {
       assert(!JSON.stringify(request.messages).includes('RAW_BROWSER_SNAPSHOT')); stages.push('main');
       if (models === 1) message = { tool_calls: [call('discover_papers', { objective: 'Find enzyme evidence', queries: ['enzyme'] })] };
-      else message = { content: 'Completed report with explicit coverage limits.' };
+      else {
+        if (scenario === 'raw-finish') {
+          const discovery = request.messages.find(message => message.role === 'tool' && message.tool_call_id === 'discover_papers');
+          assert.deepEqual(JSON.parse(discovery.content), finishArguments);
+        }
+        message = { content: 'Completed report with explicit coverage limits.' };
+      }
     } else {
       stages.push('specialist'); assert(JSON.stringify(request.messages).includes('RAW_BROWSER_SNAPSHOT'));
+      if (scenario === 'input-quota') {
+        specialistRequests++;
+        if (specialistRequests === 1) return new Response(JSON.stringify({ choices: [{ message: { tool_calls: [
+          { ...call('browser_snapshot', {}), id: 'quota_snapshot_1' }, { ...call('browser_snapshot', {}), id: 'quota_snapshot_2' },
+        ] } }] }));
+        if (specialistRequests === 2) {
+          beforeQuota = structuredClone(request.messages);
+          assert(beforeQuota.filter(message => message.role === 'tool').every(message => message.content.length > 120));
+          return new Response(JSON.stringify({ error: { code: 'input_token_quota_exceeded', message: 'Input token quota exceeded' } }), { status: 429, headers: { 'retry-after': '0' } });
+        }
+        assert.equal(specialistRequests, 3);
+        const results = request.messages.filter(message => message.role === 'tool');
+        assert.equal(results[0].content, '[Earlier tool result compacted. Re-run if needed.]');
+        assert.deepEqual(results[1], beforeQuota.filter(message => message.role === 'tool')[1]);
+        assert.deepEqual(request.messages.filter(message => message.role !== 'tool'), beforeQuota.filter(message => message.role !== 'tool'));
+        assert.equal(browser.owner, [...host.jobs.keys()][0]);
+      }
       if (providerFailure) return new Response(JSON.stringify({ error: { code: 'invalid_request_error', message: 'Unsupported provider parameter' } }), { status: 400, headers: { 'x-request-id': 'specialist-failure-fixture' } });
       message = { tool_calls: [...(batch ? [
         { ...call('browser_snapshot', {}), id: 'snapshot_1' }, { ...call('browser_snapshot', {}), id: 'snapshot_2' },
-      ] : []), call('finish_discovery', { candidates: [], limitations: ['No corroborated records in this fixture.'] })] };
+      ] : []), call('finish_discovery', finishArguments)] };
     }
     return new Response(JSON.stringify({ choices: [{ message }] }));
   });
@@ -105,12 +129,14 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
     assert(resumed.tools); assert.equal(browser.owner, job.id);
     return;
   }
-  assert.equal(result.reply, 'Completed report with explicit coverage limits.'); assert.deepEqual(stages, ['main', 'specialist', 'main']);
-  assert.equal(requests.length, batch ? 5 : 3); assert(requests[1].desktopContinuation);
-  assert.deepEqual(browserCalls, batch ? ['browser_navigate', 'browser_snapshot', 'browser_snapshot', 'browser_snapshot'] : ['browser_navigate', 'browser_snapshot']);
+  assert.equal(result.reply, 'Completed report with explicit coverage limits.'); assert.deepEqual(stages, scenario === 'input-quota' ? ['main', 'specialist', 'specialist', 'specialist', 'main'] : ['main', 'specialist', 'main']);
+  assert.equal(requests.length, batch || scenario === 'input-quota' ? 5 : 3); assert(requests[1].desktopContinuation);
+  assert.deepEqual(browserCalls, batch || scenario === 'input-quota' ? ['browser_navigate', 'browser_snapshot', 'browser_snapshot', 'browser_snapshot'] : ['browser_navigate', 'browser_snapshot']);
   if (batch) {
     const handoffIds = requests.slice(1).flatMap(request => request.desktopToolResults.map(result => result.id));
     assert.equal(new Set(handoffIds).size, 4);
   }
-  assert.equal(result.literatureResults[0].status, 'partial');
+  assert.equal(result.literatureResults[0].status, 'completed');
+  assert.deepEqual(result.literatureResults[0].discoveryArguments, finishArguments);
+  assert.deepEqual(result.downloadResults, []); // Discovery prose is never a host download receipt.
 });

@@ -188,3 +188,74 @@ test('retrieval batches execute requested papers in order before finalization', 
   }
   await specialist.advance(state, options); assert.equal(state.pending.name, 'finish_retrieval'); assert.equal(models, 1);
 });
+
+const inputLimit = () => ({ ok: false, status: 429, error: 'LlmHttpError', message: 'Input token quota exceeded', inputQuota: { retryAfterMs: 25, evidence: 'structured_input_quota_code' } });
+async function withToolHistory() {
+  let state = ready(); state.schemas.push(snapshotTool);
+  const contents = ['older '.repeat(80), 'x'.repeat(120), 'oldest large result '.repeat(50), 'newest result '.repeat(80)];
+  for (let index = 0; index < contents.length; index++) {
+    await specialist.advance(state, { requestTurn: async () => ({ ok: true, message: { tool_calls: contents.map((_, i) => call('browser_snapshot', {}, `history_${i}`)) } }) });
+    state = restoreWithReceipt(state, { result: contents[index] });
+  }
+  // The 120-character boundary is measured on actual serialized tool content.
+  state.messages.filter(message => message.role === 'tool')[1].content = 'x'.repeat(120);
+  return state;
+}
+test('only a confirmed input quota failure compacts old tool results, preserves the newest and retries the same specialist', async () => {
+  const state = await withToolHistory(), before = structuredClone(state.messages), events = [];
+  let requests = 0;
+  await specialist.advance(state, { onProgress: async event => events.push(event), requestTurn: async request => {
+    requests++;
+    if (requests === 1) { assert.deepEqual(request.messages, before); return inputLimit(); }
+    assert.equal(request.retryAfterMs, 25);
+    const results = request.messages.filter(message => message.role === 'tool');
+    assert.equal(results[0].content, '[Earlier tool result compacted. Re-run if needed.]');
+    assert.equal(results[2].content, results[0].content);
+    assert.equal(results[1].content.length, 120);
+    assert.deepEqual(results[3], before.filter(message => message.role === 'tool')[3]);
+    assert.deepEqual(request.messages.filter(message => message.role !== 'tool'), before.filter(message => message.role !== 'tool'));
+    assert.deepEqual(results.map(message => message.tool_call_id), ['history_0', 'history_1', 'history_2', 'history_3']);
+    return { ok: true, message: { tool_calls: [call('browser_snapshot', {}, 'retry_first'), call('finish_discovery', { candidates: [], limitations: ['Explicit model finish'] })] } };
+  } });
+  assert.equal(requests, 2); assert.equal(state.pending.name, 'browser_snapshot'); assert.equal(state.queuedCalls[0].call.function.name, 'finish_discovery');
+  assert.equal(events.filter(event => event.stage === 'literature-specialist-compacted')[0].replacedToolResults, 2);
+  const resumed = restoreWithReceipt(state, { result: 'fresh snapshot' });
+  await specialist.advance(resumed, { requestTurn: async () => assert.fail('Queued tool must not call the model') });
+  assert.equal(resumed.pending.name, 'finish_discovery');
+});
+for (const outcome of [
+  { ok: true, message: { tool_calls: [call('browser_snapshot', {})] } },
+  { ok: false, status: 429, error: 'LlmHttpError', message: 'Too many requests' },
+  { ok: false, status: 429, error: { code: 'output_token_rate_limit', message: 'Output token quota exceeded' } },
+  { ok: false, status: 401, error: 'UNAUTHORIZED' },
+]) test(`no preflight compaction or compaction for unrelated response ${JSON.stringify(outcome)}`, async t => {
+  const state = await withToolHistory(), before = structuredClone(state.messages); let requests = 0;
+  t.mock.method(console, 'error', () => {});
+  await specialist.advance(state, { requestTurn: async request => { requests++; assert.deepEqual(request.messages, before); return outcome; } });
+  assert.equal(requests, 1); assert.deepEqual(state.messages.slice(0, before.length), before);
+});
+test('a repeated input quota failure stops with the real error once nothing more can be compacted', async t => {
+  const state = await withToolHistory(); let requests = 0; t.mock.method(console, 'error', () => {});
+  const result = await specialist.advance(state, { requestTurn: async () => { requests++; return inputLimit(); } });
+  assert.equal(requests, 2); assert.equal(result.ok, false); assert.equal(result.error, 'LlmHttpError');
+  assert.equal(state.pending, null); assert.equal(state.final, undefined);
+  const single = ready(); single.messages.push({ role: 'tool', tool_call_id: 'only', content: 'Keep this newest result'.repeat(20) });
+  requests = 0;
+  await specialist.advance(single, { requestTurn: async () => { requests++; return inputLimit(); } });
+  assert.equal(requests, 1); assert.match(single.messages.at(-1).content, /Keep this newest result/);
+});
+test('thrown input quota errors recover, and cancellation after compaction prevents a retry', async t => {
+  t.mock.method(console, 'error', () => {});
+  const state = await withToolHistory(); let requests = 0;
+  await specialist.advance(state, { requestTurn: async () => {
+    if (++requests === 1) throw Object.assign(new Error('Input token quota exceeded'), { status: 429, code: 'input_token_quota_exceeded' });
+    return { ok: true, message: { tool_calls: [call('browser_snapshot', {})] } };
+  } });
+  assert.equal(requests, 2);
+  const cancelled = await withToolHistory(), controller = new AbortController(); requests = 0;
+  await assert.rejects(specialist.advance(cancelled, { signal: controller.signal,
+    onProgress: async event => { if (event.stage === 'literature-specialist-compacted') controller.abort(); },
+    requestTurn: async () => { requests++; return inputLimit(); },
+  }), { code: 'OPERATION_ABORTED' });
+  assert.equal(requests, 1); assert.equal(cancelled.pending, null);
+});

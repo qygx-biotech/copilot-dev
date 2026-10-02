@@ -2,6 +2,21 @@
 const contract = require('./shared/literature-agent.js');
 const prompts = require('./shared/agent-prompts.js');
 const crypto = require('node:crypto');
+const { inputQuota } = require('./input-quota.js');
+
+const KEEP_RECENT_TOOL_RESULTS = 1;
+const COMPACTED_TOOL_RESULT = '[Earlier tool result compacted. Re-run if needed.]';
+function microCompact(messages) {
+  const results = messages.filter(message => message.role === 'tool');
+  let replaced = 0;
+  for (const result of results.slice(0, Math.max(0, results.length - KEEP_RECENT_TOOL_RESULTS))) {
+    if (typeof result.content === 'string' && result.content.length > 120) {
+      result.content = COMPACTED_TOOL_RESULT;
+      replaced++;
+    }
+  }
+  return replaced;
+}
 
 const safeText = value => String(value || '').replace(/(?:authorization|cookie|api[_-]?key|token|password|secret)\s*[:=]\s*[^\r\n]*/gi, '[redacted credentials]').replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [redacted]').replace(/https?:\/\/[^\s<>"']+/gi, '[redacted URL]').slice(0, 1000);
 function failure(state, error, stage = 'provider') {
@@ -43,7 +58,12 @@ function accept(state, response) {
     return;
   }
   if (response.final) {
-    try { state.final = contract.validate(contract.results[state.kind], response.final); }
+    try {
+      if (state.kind === 'discover_papers' && state.pending?.name === 'finish_discovery' && Object.hasOwn(response.final, 'discoveryArguments')) {
+        state.discoveryHandoff = response.final;
+        state.final = response.final.discoveryArguments;
+      } else state.final = contract.validate(contract.results[state.kind], response.final);
+    }
     catch (error) { failure(state, error, 'finalization'); throw error; }
     state.pending = null; state.pendingModelCall = null; state.queuedCalls = [];
     delete state.pendingWebEvidence; delete state.pendingFingerprint; delete state.pendingId;
@@ -71,6 +91,7 @@ async function advance(state, { requestTurn, supportsWebSearch, search, onProgre
   if (state.blocked) return failure(state, state.blocked, 'browser');
   if (state.final || state.pending) return;
   const finish = state.kind === 'discover_papers' ? 'finish_discovery' : 'finish_retrieval';
+  let retryAfterMs;
   delete state.failure;
   while (true) {
     if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
@@ -83,14 +104,31 @@ async function advance(state, { requestTurn, supportsWebSearch, search, onProgre
       await onProgress({ stage: 'literature-specialist', capability: state.kind, step: state.turns });
       if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
       let turn;
-      try { turn = await requestTurn({ messages: state.messages, tools, temperature: 0.2, stage: 'literature-specialist', signal }); }
+      try { turn = await requestTurn({ messages: state.messages, tools, temperature: 0.2, stage: 'literature-specialist', signal, ...(retryAfterMs !== undefined ? { retryAfterMs } : {}) }); }
       catch (error) {
         if (signal?.aborted || error?.code === 'OPERATION_ABORTED') throw error;
-        return failure(state, error);
+        turn = error;
       }
+      retryAfterMs = undefined;
       if (signal?.aborted) throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
       if (!turn?.ok) {
         if (turn?.error === 'OPERATION_ABORTED') throw Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' });
+        // Temporary, reactive recovery for discovery only. Never compact on
+        // preflight, a generic 429, or a failure of the separate web-search call.
+        const quota = state.kind === 'discover_papers' && inputQuota(turn);
+        if (quota) {
+          const beforeCharacters = JSON.stringify(state.messages).length;
+          const replaced = microCompact(state.messages);
+          if (replaced) {
+            retryAfterMs = Math.max(quota.retryAfterMs || 0, (quota.resetAt || 0) - Date.now());
+            const event = { stage: 'literature-specialist-compacted', trigger: 'input-token-limit', jobId: state.jobId,
+              replacedToolResults: replaced, keptRecentToolResults: KEEP_RECENT_TOOL_RESULTS,
+              beforeCharacters, afterCharacters: JSON.stringify(state.messages).length, retryAfterMs };
+            console.info('literature.specialist.compacted', event);
+            await onProgress(event);
+            continue;
+          }
+        }
         return failure(state, turn);
       }
       const calls = (Array.isArray(turn.message?.tool_calls) ? turn.message.tool_calls : []).filter(call => call?.type === 'function');

@@ -2405,7 +2405,7 @@ async function runSideChatAgent({
       const message = agentMessages.find(m => m.role === 'tool' && m.tool_call_id === specialist.mainCallId);
       if (!message) return { ok: false, error: 'INVALID_TOOL_CONTINUATION' };
       message.content = JSON.stringify(specialist.final);
-      literatureResults.push(specialist.final);
+      literatureResults.push(specialist.discoveryHandoff || specialist.final);
       progressApi.ingest(progressState, agentMessages);
       specialist = null;
     } else {

@@ -61,7 +61,7 @@ export class LiteratureWorkflows {
     await this.browser.close(job.id); this.browser.release(job.id);
     await this.save(job); return { job_id: job.id, status: job.status };
   }
-  async save(job) { await this.active.filesystem.writeText(jobPath(job.id), JSON.stringify(clean(job))); }
+  async save(job) { await this.active.filesystem.writeText(jobPath(job.id), JSON.stringify({ ...clean(job), ...(Object.hasOwn(job, 'discoveryArguments') ? { discoveryArguments: job.discoveryArguments } : {}) })); }
   async load(id) {
     if (!/^lit_[a-f0-9]{24}$/.test(id || '')) throw fail('INVALID_JOB_ID');
     if (this.jobs.has(id)) return this.jobs.get(id);
@@ -84,7 +84,7 @@ export class LiteratureWorkflows {
     if (this.browser.owner === id) await this.browser.close(id); this.browser.release(id); await this.save(job); return this.result(job);
   }
   toolDefinitions(job) {
-    const host = job.kind === 'discover_papers' ? [contract.tool('finish_discovery', 'Return observed candidates and search limitations. Does not download.', schema({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(field(2000), 30) }))]
+    const host = job.kind === 'discover_papers' ? [contract.tool('finish_discovery', 'Hand off discovery findings to the main agent, including candidates and search limitations. Arguments are forwarded as supplied. Does not download.', { type: 'object', properties: {}, additionalProperties: true })]
       : [contract.tool('retrieve_next', 'Check local documents then existing open-access routes for one requested paper. Host verifies all bytes.', schema({ index: indexSchema })),
         contract.tool('capture_article', 'Transfer the observed article hyperlink using the local authenticated session; verify PDF identity and version. Landing pages are not saved as articles.', schema({ index: indexSchema, target: field(40) })),
         contract.tool('record_access', 'Record a concrete observed institutional access restriction or unresolved route. This does not claim a download.', schema({ index: indexSchema, status: contract.enumeration(['access_unavailable', 'unresolved']), reason: field(1000) })),
@@ -94,6 +94,7 @@ export class LiteratureWorkflows {
   }
   result(job) {
     const base = { version: 1, job_id: job.id, status: job.status === 'running' ? 'partial' : job.status, limitations: job.limitations || [] };
+    if (job.kind === 'discover_papers' && Object.hasOwn(job, 'discoveryArguments')) return { ...base, discoveryArguments: job.discoveryArguments };
     if (job.kind === 'discover_papers') return contract.validate(contract.results[job.kind], { ...base, candidates: job.candidates || [], searches: job.searches || [] });
     return contract.validate(contract.results[job.kind], { ...base, results: job.task.papers.map((paper, index) => job.results[index] || { requested: paper, status: job.status === 'cancelled' ? 'cancelled' : job.status === 'needs_login' ? 'needs_login' : 'unresolved', document_version: 'unknown', attempts: [], reason: 'No verified full text established on attempted routes.', job_id: job.id }) });
   }
@@ -112,7 +113,7 @@ export class LiteratureWorkflows {
           return previous.result;
         } catch (error) { if (error.code !== 'ENOENT') throw error; }
         const result = await this.execute(input);
-        await this.active.filesystem.writeText(cachedPath, JSON.stringify({ fingerprint, result: clean(result) }));
+        await this.active.filesystem.writeText(cachedPath, JSON.stringify({ fingerprint, result: result?.final && Object.hasOwn(result.final, 'discoveryArguments') ? result : clean(result) }));
         return result;
       }
       return this.execute(input);
@@ -186,6 +187,14 @@ export class LiteratureWorkflows {
       job.calls++;
       const tool = this.toolDefinitions(job).find(t => t.function.name === input.name);
       if (!tool) throw fail('SPECIALIST_TOOL_NOT_ALLOWED');
+      if (input.name === 'finish_discovery') {
+        // The main agent receives the specialist's arguments as authored.
+        // Completion here records a handoff, not verified candidate evidence.
+        job.discoveryArguments = input.args; job.status = 'completed'; delete job.lastError;
+        this.browser.release(job.id);
+        console.info('literature.discovery.handoff', { jobId: job.id });
+        return { final: this.result(job) };
+      }
       // Academic validation covers the provider schema; browser uses AJV over runtime schemas.
       if (!input.name.startsWith('browser_') && !academic.isTool(input.name)) contract.validate(tool.function.parameters, input.args);
       if (academic.isTool(input.name)) {
@@ -196,7 +205,7 @@ export class LiteratureWorkflows {
         job.known = job.known.slice(-120);
         if (input.name === 'search_academic_papers') for (const query of [input.args.query, ...(input.args.queries || [])]) job.searches.push({ query, source: 'local paper MCP' });
         for (const [provider, status] of Object.entries(result.provider_status || {})) if (status.status !== 'completed' && status.status !== 'success') job.limitations.push(`Provider ${provider}: ${status.status || 'unresolved'}; coverage may be incomplete.`);
-        return { result: clean(result) };
+        return { result: result?.final && Object.hasOwn(result.final, 'discoveryArguments') ? result : clean(result) };
       }
       if (input.name.startsWith('browser_')) {
         const changesPage = ['browser_navigate', 'browser_navigate_back', 'browser_click', 'browser_type', 'browser_tabs'].includes(input.name);
@@ -206,38 +215,6 @@ export class LiteratureWorkflows {
         job.observations = (job.observations + '\n' + (observation.snapshot || '')).slice(-60000);
         if (input.name === 'browser_type') job.searches.push({ query: input.args.text.slice(0, 1000), source: contract.safeUrl(job.libraryUrl || job.task.library_url) || 'institutional browser' });
         return { result: observation };
-      }
-      if (input.name === 'finish_discovery') {
-        const accepted = [];
-        for (const candidate of input.args.candidates) {
-          const identity = candidate.identity;
-          const known = job.known.find(p => identity.paper_ref ? p.paper_ref === identity.paper_ref : contract.doi(p.doi) && contract.doi(p.doi) === contract.doi(identity.doi) || p.title === identity.title);
-          if (known) {
-            if (job.openAccessOnly && !openAccessPaper(known)) continue;
-            const urls = [...new Set((known.locations || []).map(location => contract.safeUrl(location.url)).filter(Boolean))].slice(0, 12);
-            const year = Number(String(known.published_date || '').slice(0, 4));
-            accepted.push({ ...candidate, ...(job.openAccessOnly ? { availability: 'open_access' } : {}), evidence: known.abstract ? 'abstract' : 'metadata', identity: { title: known.title, authors: known.authors, paper_ref: known.paper_ref, source_urls: urls,
-              ...(known.doi ? { doi: known.doi } : {}), ...(year >= 1600 && year <= 2200 ? { year } : {}) }, provenance: urls.length ? urls : ['local paper MCP metadata'] });
-          } else if (!identity.paper_ref && job.observations.includes(identity.title)) {
-            const urls = identity.source_urls.map(contract.safeUrl).filter(url => url && (job.observations.includes(url) || !job.openAccessOnly && contract.safeUrl(job.libraryUrl || job.task.library_url) === url));
-            if (!urls.length) continue;
-            if (job.openAccessOnly && !openAccessPaper({ locations: urls.map(url => ({ url })) })) continue;
-            accepted.push({ ...candidate, evidence: 'metadata', identity: { title: identity.title, authors: identity.authors.filter(author => job.observations.includes(author)), source_urls: urls,
-              ...(identity.doi && job.observations.toLowerCase().includes(contract.doi(identity.doi)) ? { doi: identity.doi } : {}),
-              ...(identity.year && job.observations.includes(String(identity.year)) ? { year: identity.year } : {}), ...(identity.language ? { language: identity.language } : {}) }, provenance: urls });
-          }
-        }
-        const candidates = contract.deduplicate(clean(accepted)).slice(0, job.task.limit || 20);
-        const limitations = [...job.limitations, ...input.args.limitations];
-        if (!candidates.length) limitations.push('No corroborated candidates established on attempted routes.');
-        if (accepted.length !== input.args.candidates.length) limitations.push('Uncorroborated model candidates omitted.');
-        const update = { candidates, limitations: [...new Set(limitations)].slice(-30), status: limitations.length ? 'partial' : 'completed' };
-        // Validate before committing: rejected finalization must leave the job resumable.
-        const final = this.result({ ...job, ...update });
-        Object.assign(job, update); delete job.lastError;
-        console.info('literature.discovery.finalized', { jobId: job.id, submittedCandidates: input.args.candidates.length,
-          corroboratedCandidates: accepted.length, returnedCandidates: candidates.length, status: job.status });
-        this.browser.release(job.id); return { final };
       }
       if (input.name === 'finish_retrieval') { job.status = job.task.papers.every((_, i) => ['downloaded', 'already_present'].includes(job.results[i]?.status)) ? 'completed' : 'partial'; this.browser.release(job.id); return { final: this.result(job) }; }
       const index = input.args.index, paper = job.task.papers[index]; if (!paper) throw fail('UNKNOWN_REQUESTED_PAPER');
