@@ -3,6 +3,8 @@ const crypto = require("node:crypto");
 const zlib = require("node:zlib");
 const invalid = () => Object.assign(new Error("The desktop tool continuation is invalid or expired."), { code: "INVALID_TOOL_CONTINUATION" });
 const digest = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
+  ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 const academic = require("./shared/academic-tools.js");
 function seal(state, binding, secret) {
   if (!secret) throw invalid();
@@ -29,6 +31,13 @@ function withResults(state, results) {
   if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState || state.projectToolState || state.specialist ? 180000 : 60000)) throw invalid();
   for (const call of state.pending) {
     const matches = results.filter(item => item?.id === call.id);
+    if (state.runtimeVersion === 1 && (call.name === 'read_skill' || call.name === 'spawn' || /^mcp_/.test(call.name))) {
+      if (matches.length !== 1 || !matches[0].result || typeof matches[0].result.ok !== 'boolean' || matches[0].result.runtimeCall?.name !== call.name || canonical(matches[0].result.runtimeCall?.args) !== canonical(call.args)) throw invalid();
+      const message = state.agentMessages.find(item => item.role === 'tool' && item.tool_call_id === call.id);
+      if (!message) throw invalid();
+      message.content = JSON.stringify(matches[0].result);
+      continue;
+    }
     if (call.name === 'literature_worker') {
       if (!state.specialist || matches.length !== 1 || state.specialist.pendingId !== call.id) throw invalid();
       require('./literature-specialist.js').accept(state.specialist, matches[0].result);

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client';
 import { ServiceView } from './components/ServiceView.jsx';
 import { ResizeHandle } from './components/ResizeHandle.jsx';
+import { RuntimeExtensions } from './components/RuntimeExtensions.jsx';
 import './workbench.css';
 
 // Adapted from nanobot's new-chat hero, project-grouped ChatList and PaneWorkbench.
@@ -143,6 +144,7 @@ function Workbench() {
   const [search, setSearch] = useState('');
   const [picker, setPicker] = useState(null);
   const [library, setLibrary] = useState(false);
+  const [extensions, setExtensions] = useState(false);
   const [projectMenu, setProjectMenu] = useState(null);
   const [chatMenu, setChatMenu] = useState(null), [deletion, setDeletion] = useState(null);
   const [renaming, setRenaming] = useState(null);
@@ -162,7 +164,7 @@ function Workbench() {
     setFocus(state.surface || 'agent_command');
     if (state.surface === 'side_chat') setSplit(true);
   }, [state.surface, state.catalogId]);
-  useEffect(() => { setError(''); setLibrary(false); setProjectMenu(null); setChatMenu(null); setDeletion(null); }, [projectId]);
+  useEffect(() => { setError(''); setLibrary(false); setExtensions(false); setProjectMenu(null); setChatMenu(null); setDeletion(null); }, [projectId]);
   useEffect(() => {
     for (const card of views.agent.querySelectorAll('.analysis-panel')) card.hidden = card.dataset.panelId !== state.activeAgentId;
   }, [state]);
@@ -253,7 +255,7 @@ function Workbench() {
     </aside>
     <div className="copilot-main">
       <header className="copilot-topbar"><div className="topbar-title"><button className="icon-button" aria-label="Toggle sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button><strong>{(focus === 'side_chat' ? activeSide?.messageCount && activeSide.title : activeAgent?.title) || (zh ? '新对话' : 'New chat')}</strong></div><ServiceView node={views.utilities} className="utilities-host" /></header>
-      <div className="thread-toolbar"><ServiceView node={views.status} /><div><button aria-label="Open literature" disabled={busy} onClick={() => setLibrary(true)}>{zh ? '文献' : 'Literature'}{state.literature?.length ? ` (${state.literature.length})` : ''}</button><button aria-label="Toggle Side Chat" aria-pressed={split} onClick={() => { setSplit(!split); setFocus(split ? 'agent_command' : 'side_chat'); }}>Side Chat</button></div></div>
+      <div className="thread-toolbar"><ServiceView node={views.status} /><div><button aria-label="Open skills and MCP plugins" disabled={busy} onClick={() => setExtensions(true)}>{zh ? '技能与 MCP' : 'Skills & MCP'}</button><button aria-label="Open literature" disabled={busy} onClick={() => setLibrary(true)}>{zh ? '文献' : 'Literature'}{state.literature?.length ? ` (${state.literature.length})` : ''}</button><button aria-label="Toggle Side Chat" aria-pressed={split} onClick={() => { setSplit(!split); setFocus(split ? 'agent_command' : 'side_chat'); }}>Side Chat</button></div></div>
       {(error || state.projectError) && <div className="adapter-error" role="alert">{error || state.projectError}<button onClick={() => void act('project.retry')}>{zh ? '重试' : 'Retry'}</button></div>}
       {state.projectBusy && <div className="project-loading" role="status">{zh ? '正在打开对话…' : 'Opening conversation…'}</div>}
       <nav className="narrow-pane-tabs" aria-label="Workbench panes"><button aria-pressed={focus === 'agent_command'} onClick={() => setFocus('agent_command')}>Agent Work</button><button aria-pressed={focus === 'side_chat'} onClick={() => setFocus('side_chat')}>Side Chat</button></nav>
@@ -262,6 +264,7 @@ function Workbench() {
       </div>
     </div>
     {chatMenu && <ProjectMenu menu={chatMenu} close={() => setChatMenu(null)} zh={zh} rename={chatMenu.chat.role === 'agent_command' ? () => { setRenaming(chatMenu); setChatMenu(null); } : undefined} label={zh ? '删除对话' : 'Delete chat'} edit={() => { setDeletion(chatMenu); setChatMenu(null); }} />}
+    {extensions && <RuntimeExtensions close={() => setExtensions(false)} zh={zh} />}
     {renaming && <RenameChat target={renaming} close={() => setRenaming(null)} zh={zh} />}
     {deletion && <Modal title={zh ? '删除对话？' : 'Delete chat?'} label="Delete chat" close={() => { if (!busy) setDeletion(null); }}>
       <p>{zh ? '确定要删除此对话吗？' : 'Are you sure you want to delete this chat?'}</p><p><strong>{deletion.chat.title}</strong></p>

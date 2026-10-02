@@ -26,6 +26,7 @@ const functions = [
   "createStreamingAnswer", "normalizeSideChatModel", "shortSideChatModelName", "updateSideChatModelConfiguration", "renderSideChatModelControl", "saveWorkspaceStateNow",
   "runAgentInstruction", "setAgentBusy", "getAgentModelOptions",
   "initializeSideChatImages", "submitSideChat", "understandSideChatImages", "sendWorkbenchRequest",
+  "queueSideChatInput", "runtimeInjectionLabel",
 ].map(actualFunction).join("\n");
 const modelEvents = source.match(/^sideChatModelSelect.addEventListener[\s\S]*?^\}\);/m)[0];
 const historyEvents = source.slice(source.indexOf('clearSideChatButton.addEventListener("click"'), source.indexOf("async function changeSideChatConversation"));
@@ -43,6 +44,8 @@ const sideChatHistory = document.querySelector("#history"), sideChatInput = docu
 const translations = { editLastMessage: "Edit latest message", cancelEdit: "Cancel", saveAndRegenerate: "Save and regenerate", editMessageRequired: "Enter a message before saving.", chatPersistenceFailed: "Could not save. Please try again.", sideChatUserLabel: "You", sideChatAssistantLabel: "Copilot", citationUnavailable: "Source unavailable", backendFallbackMessage: "Request failed; local fallback", thinking: "Thinking..." };
 const t = key => translations[key] || key;
 let sideChatBusy = false, sideChatMessages = [], sideChatConversation, activeCorpusProgress = null, activeLiteratureOperations = 0, lastSourceUsage;
+let activeSideRuntime = null, activeAgentRuntime = null;
+let acknowledgeRuntimeInjections = false, injectedMessages = [];
 const sideChatModelSelect = document.getElementById("sideChatModelSelect"), sideChatModelDescription = document.getElementById("sideChatModelDescription");
 const projectContextInput = { value: "Test goal" };
 let sideChatModel = "default", defaultSideChatModel = "";
@@ -110,10 +113,14 @@ const showToast = text => toasts.push(text);
 class AuthRequiredError extends Error {}
 const getSelectedPaperIds = () => [];
 const sendWorkbenchRequestOnce = async request => {
-  const { onStream, onTranscript, signal, isCurrentRequest, ...payload } = request;
+  const { onStream, onTranscript, signal, isCurrentRequest, runtimeQueue, ...payload } = request;
   requests.push(structuredClone(payload)); lastStreamCallback = onStream;
   for (const event of streamEvents) onStream?.(event);
   if (pendingRequest) await pendingRequest;
+  if (acknowledgeRuntimeInjections && runtimeQueue && !signal?.aborted) {
+    const accepted = runtimeQueue.batch(); injectedMessages.push(...accepted);
+    runtimeQueue.acknowledge(accepted.map(message => message.id)); runtimeQueue.finish();
+  }
   if (streamFailure) throw Object.assign(new Error("Stream interrupted"), { code: "STREAM_INTERRUPTED" });
   if (requestFailure) throw new Error("request unavailable"); return recoveryReplies.shift() || { reply: "Regenerated answer" };
 };
@@ -139,6 +146,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/runtime-log.js"), "utf8"));
     await win.webContents.executeJavaScript("window.BioDesignRuntimeLog.installPanel()");
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/agent-work-area.js"), "utf8"));
+    await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/runtime-turns.js"), "utf8"));
     await win.webContents.executeJavaScript(`${setup}\n${functions}\n${scrollInspection}\n${modelEvents}\n${historyEvents}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("initializeSideChatImages()");
     const result = await win.webContents.executeJavaScript("runScenarios()");

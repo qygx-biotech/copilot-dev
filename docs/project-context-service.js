@@ -549,6 +549,10 @@
         id: message.id,
         role: message.role,
         content: message.content.trim(),
+        ...(message.role === "user" && isPlainObject(message.injection) &&
+          typeof message.injection.turnId === "string" && /^[\w:-]{1,128}$/.test(message.injection.turnId) &&
+          ["queued", "received", "not_received"].includes(message.injection.status)
+          ? { injection: { turnId: message.injection.turnId, status: message.injection.status } } : {}),
         ...(message.role === 'assistant' && Number.isFinite(message.elapsedMs) && message.elapsedMs >= 0 ? { elapsedMs: message.elapsedMs } : {}),
         ...(message.role === "user" && chatImages.normalizeAttachments(message.images).length ? {
           images: chatImages.normalizeAttachments(message.images),
@@ -1635,7 +1639,67 @@
         scopeUnresolved: hardSelection && (!selected.length || requestedSelection.some(id => !selected.includes(id))),
         paths, sourceStats: Object.fromEntries(papers.map(source => [source.sourceId, source.statSignature])),
         sourceVersions: Object.fromEntries(papers.map(source => [source.sourceId, source.hashStatus === "ready" ? source.contentHash : null])), calls: 0, receipts: new Map() });
-      if (this.agentTurns.size > 12) this.agentTurns.delete(this.agentTurns.keys().next().value);
+      this.pruneAgentTurns(options.turnId);
+      return context;
+    }
+
+    pruneAgentTurns(keepTurnId = "") {
+      if (!this.agentTurns || this.agentTurns.size <= 12) return;
+      for (const [id, turn] of this.agentTurns) {
+        if (this.agentTurns.size <= 12) break;
+        // Runtime sessions hold scope snapshots across FC handoffs. Queued
+        // children already have a scope, before acquiring their own session.
+        // Neither may be evicted when another chat captures a new context.
+        if (id === keepTurnId || turn.runtimeUsers > 0 ||
+            (turn.parentTurnId && this.agentTurns.get(turn.parentTurnId)?.runtimeUsers > 0)) continue;
+        this.agentTurns.delete(id);
+      }
+    }
+
+    forkAgentTurn(parentId, childId, question, signal) {
+      const parent = this.agentTurns?.get(parentId);
+      if (!parent || parent.project !== this.workspace.workspace || parent.options.signal?.aborted || signal?.aborted) {
+        throw Object.assign(new Error("The parent project request was stopped."), { code: "OPERATION_ABORTED" });
+      }
+      if (typeof childId !== "string" || !childId || childId.length > 300 || childId === parentId || this.agentTurns.has(childId) ||
+          typeof question !== "string" || !question.trim() || question.length > 24000) {
+        throw Object.assign(new Error("Invalid delegated project turn."), { code: "INVALID_SUBAGENT_CONTEXT" });
+      }
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const freeze = value => {
+        if (value && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
+        return value;
+      };
+      // Capture the existing host snapshot. Re-running preflight here could
+      // widen a project-wide parent's scope to newly added or selected papers.
+      const selected = parent.hardSelection ? [...parent.selected]
+        : [...new Set([...Object.keys(parent.sourceVersions || {}), ...(parent.context.agentLoop?.paperIds || [])])];
+      const paths = [...parent.paths];
+      const excluded = new Set(["signal", "conversation", "conversationMessages", "conversationTranscript", "messages", "onProgress", "onCatalogUpdated"]);
+      const inherited = clone(Object.fromEntries(Object.entries(parent.options).filter(([key, value]) => !excluded.has(key) && typeof value !== "function")));
+      const combinedSignal = signal && parent.options.signal ? AbortSignal.any([signal, parent.options.signal]) : signal || parent.options.signal;
+      const options = Object.freeze({ ...freeze({ ...inherited, turnId: childId, parentTurnId: parentId,
+        // Only the actual user's request can authorize explicit wiki retries.
+        // The delegated question is model-authored; it never replaces this.
+        question: parent.options.question, delegatedQuestion: question,
+        surface: "side_chat", permission: "read_only", forceHardSelection: true,
+        selectedPaperIds: [...selected], selectedPaths: [...paths],
+        callContext: { ...inherited.callContext, turnId: childId, parentTurnId: parentId },
+      }), signal: combinedSignal });
+      const context = clone(parent.context);
+      delete context.conversation; delete context.conversationMessages; delete context.conversationTranscript;
+      context.agentLoop = { ...context.agentLoop, hardSelection: true, paperIds: [...selected] };
+      delete context.agentLoop.academicAcquisition;
+      context.sourceMap = { ...context.sourceMap, selectedPaperIds: [...selected] };
+      context.literature = { ...context.literature, selectedPaperIds: [...selected] };
+      this.agentTurns.set(childId, { options, context, project: parent.project, parentTurnId: parentId,
+        hardSelection: true, selected: Object.freeze(selected), paths: Object.freeze(paths),
+        scopeUnresolved: parent.scopeUnresolved || !selected.length,
+        sourceStats: clone(parent.sourceStats), sourceVersions: clone(parent.sourceVersions),
+        calls: 0, receipts: new Map(),
+        parentSnapshot: freeze({ sourceStats: clone(parent.sourceStats), sourceVersions: clone(parent.sourceVersions),
+          hardSelection: parent.hardSelection, selected: [...selected], paths: [...paths] }),
+      });
       return context;
     }
 

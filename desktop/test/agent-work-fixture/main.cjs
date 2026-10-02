@@ -32,6 +32,7 @@ const sideChatContextChips = document.getElementById("sideChatContextChips");
 const ANALYSIS_PANELS_STORAGE_KEY = "fixture-panels", RECOMMENDATION_STORAGE_KEY = "fixture-recommendation";
 let currentLanguage = "en", defaultSideChatModel = "google/default-fixture", agentWorkArea = null;
 let analysisPanels = [], currentRecommendation, activeAgentRequest = false, activeAgentPanelId = "";
+let activeAgentRuntime = null;
 const USE_BACKEND = true, authToken = "fixture", runtimeLog = null, knowledgeService = null;
 const contextRequests = [];
 let workspaceTree = {}, selectedWorkspacePaths = new Set(), referenceDocuments = [];
@@ -60,6 +61,10 @@ const sendWorkbenchRequest = async request => {
   requests.push(request);
   request.onStream({ type: "delta", text: "Streaming task response" });
   if (requestGate) await requestGate;
+  if (request.runtimeQueue && !request.signal?.aborted) {
+    const accepted = request.runtimeQueue.batch();
+    request.runtimeQueue.acknowledge(accepted.map(message => message.id)); request.runtimeQueue.finish();
+  }
   if (requestFailure) throw requestFailure;
   if (requestResult) return requestResult;
   return { reply: "### Evidence review\\n\\nReviewed the task evidence.\\n\\n- Compare candidates\\n- Inspect the missing results\\n\\n1. Check the data\\n2. Review the summary\\n\\n\u0060\u0060\u0060js\\nconst result = 'ready';\\n\u0060\u0060\u0060\\n\\nFile: \u0060output/summary.md\u0060" };
@@ -84,9 +89,10 @@ const check = (condition, name) => { ok(condition, name); passed.push(name); };
     const fixture = path.join(profile, "fixture.html");
     fs.writeFileSync(fixture, html.replace("</head>", `<style>${fs.readFileSync(path.join(root, "docs/styles.css"), "utf8")}</style></head>`));
     await win.loadFile(fixture);
-    for (const file of ["shared/source-citations.js", "shared/web-search.js", "docs/agent-work-area.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
+    for (const file of ["shared/source-citations.js", "shared/web-search.js", "docs/agent-work-area.js", "docs/runtime-turns.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, file), "utf8"));
     await win.webContents.executeJavaScript(`${translations}\n${setup}\n${functions}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("runAgentScenarios()");
+    await win.webContents.executeJavaScript("checkAgentInjectionQueue()");
     await win.webContents.executeJavaScript("checkAcademicFinalReply()");
     await win.webContents.executeJavaScript("runAgentScopeIsolationChecks()");
     // Native input reproduces blur/change before a real pointer click; .click()

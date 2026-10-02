@@ -1,0 +1,27 @@
+.runtime-extensions { width:760px; }
+.runtime-tabs { display:flex; gap:6px; padding-bottom:15px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+.runtime-tabs button { padding:7px 18px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--muted); }
+.runtime-tabs button[aria-pressed="true"] { color:var(--accent-dark); background:var(--accent-soft); border-color:var(--accent); }
+.runtime-section-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.runtime-section-heading p { flex:1; margin:0; }
+.runtime-section-heading button { flex-shrink:0; }
+.runtime-items { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+.runtime-item { border:1px solid var(--line); border-radius:9px; padding:14px; min-width:0; }
+.runtime-item-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.runtime-item strong, .runtime-item small { overflow-wrap:anywhere; }
+.runtime-item p { margin:8px 0; }
+.runtime-item small { display:block; color:var(--muted); margin:8px 0; font-size:11px; }
+.runtime-item details { margin:10px 0; font-size:12px; }
+.runtime-item details li { margin:5px 0; overflow-wrap:anywhere; }
+.runtime-status { color:var(--muted); font-size:11px; }
+.runtime-item-actions { display:flex; gap:7px; margin-top:12px; }
+.runtime-editor { display:flex; flex-direction:column; gap:12px; margin-top:18px; }
+.runtime-editor label { display:flex; flex-direction:column; gap:7px; font-size:12px; }
+.runtime-editor input:not([type="checkbox"]), .runtime-editor textarea { width:100%; min-width:0; border:1px solid var(--line); border-radius:7px; padding:10px; background:var(--surface-muted); color:var(--ink); }
+.runtime-editor textarea { resize:vertical; min-height:150px; max-height:45dvh; }
+.runtime-code { font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; tab-size:2; }
+.runtime-toggle, .runtime-editor .runtime-toggle { display:flex; flex-direction:row; align-items:center; gap:7px; font-size:12px; }
+.runtime-extensions .runtime-error { color:var(--danger); overflow-wrap:anywhere; }
+.runtime-remove { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); }
+.runtime-remove button { margin-right:7px; }
+@media(max-width:600px) { .runtime-item-heading, .runtime-section-heading { align-items:flex-start; flex-direction:column; } }

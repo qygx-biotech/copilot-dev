@@ -9,6 +9,7 @@ function resetConversation() {
   exists = true; existenceGate = null; fileChecks = [];
   recoveryReplies = []; streamEvents = []; streamFailure = false; lastStreamCallback = null;
   sideChatBusy = false; sideChatModel = "default"; defaultSideChatModel = ""; renderSideChatModelControl();
+  activeSideRuntime = null; activeAgentRuntime = null; acknowledgeRuntimeInjections = false; injectedMessages = []; workspaceAbortController = null;
   sideChatImageComposer?.clear(); imageCalls = []; contextCalls = []; contextModels = []; imageModels = []; imageResponseStatus = 200; imageGate = null;
   sideChatMessages = structuredClone(oldMessages);
   sideChatConversation = { id: "chat", title: "Chat", messages: sideChatMessages };
@@ -69,6 +70,42 @@ function contrast(foreground, background) { const a = luminance(foreground), b =
 async function runScenarios() {
   const passed = [], failed = [];
   async function scenario(name, callback) { resetConversation(); try { await callback(); passed.push(name); } catch (error) { failed.push({ name, error: error.message }); } }
+  await scenario("A running Side Chat accepts queued text and updates its receipt without starting another request", async () => {
+    let release; pendingRequest = new Promise(resolve => { release = resolve; });
+    acknowledgeRuntimeInjections = true;
+    const pending = askSideChat("Review the selected evidence");
+    for (let index = 0; index < 100 && requests.length === 0; index++) await tick();
+    ok(sideChatBusy && activeSideRuntime, "The current runtime queue was not established");
+    ok(!sideChatInput.disabled && !sendSideChatButton.disabled, "The running composer must accept text");
+    equal(sendSideChatButton.textContent, "Add to current turn");
+    sideChatInput.value = "Also compare the reported yields";
+    await submitSideChat();
+    const queued = sideChatMessages.find(message => message.injection);
+    equal(queued.content, "Also compare the reported yields");
+    equal(queued.injection.status, "queued");
+    equal(sideChatInput.value, "");
+    equal(requests.length, 1, "Injection started a competing turn");
+    ok(sideChatHistory.querySelector('[data-injection-id]').textContent.includes("Queued"), "Queued status is not visible");
+    release(); await pending;
+    equal(injectedMessages.map(message => message.content), ["Also compare the reported yields"]);
+    equal(queued.injection.status, "received");
+    ok(sideChatHistory.querySelector('[data-injection-id]').textContent.includes("Received"), "Acknowledged status is not visible");
+    equal(savedConversations.get("chat").messages.find(message => message.id === queued.id).injection.status, "received");
+    equal(activeSideRuntime, null);
+  });
+  await scenario("Stopping before a checkpoint marks queued input as not received", async () => {
+    let release; pendingRequest = new Promise(resolve => { release = resolve; });
+    workspaceAbortController = new AbortController();
+    const pending = askSideChat("Wait for source analysis");
+    for (let index = 0; index < 100 && requests.length === 0; index++) await tick();
+    sideChatInput.value = "Include the new constraint"; await submitSideChat();
+    const queued = sideChatMessages.find(message => message.injection);
+    workspaceAbortController.abort(); release(); await pending;
+    equal(queued.injection.status, "not_received");
+    ok(sideChatHistory.querySelector('[data-injection-id]').textContent.includes("Not received"), "Unreceived input needs a visible retry status");
+    equal(requests.length, 1);
+    equal(activeSideRuntime, null);
+  });
   await scenario("New Chat preserves the previous conversation and history selection resumes its context", async () => {
     const recommendation = structuredClone(currentRecommendation);
     sideChatInput.value = "Unsent draft";
@@ -333,7 +370,8 @@ async function runScenarios() {
     edit(); input().value = "One submission"; const button = save(); button.click(); button.click();
     await reviseLatestSideChatMessage("user-2", "Duplicate");
     for (let i = 0; i < 20 && !requests.length; i++) await tick();
-    equal(requests.length, 1); ok(sideChatBusy && sendSideChatButton.disabled, "Busy controls not protected");
+    equal(requests.length, 1); ok(sideChatBusy && button.disabled, "Duplicate edit controls not protected");
+    ok(!sendSideChatButton.disabled, "The main composer should accept follow-up text");
     release(); await idle(); checkReplacement("One submission");
   });
   await scenario("Checkpoint failure restores original history and retains editable draft for retry", async () => {
@@ -517,7 +555,7 @@ async function runScenarios() {
     equal(sideChatMessages.at(-1).role, "user");
     ok(!saves.some(save => JSON.stringify(save).includes("Partial result")), "Incomplete result was persisted");
   });
-  await scenario("Agent Command previews a stream but replaces the recommendation only after a complete response", async () => {
+  await scenario("Agent Work previews a stream and records a result only after a complete response", async () => {
     const tree = workspaceTree; workspaceTree = null;
     let release; pendingRequest = new Promise(resolve => { release = resolve; });
     streamEvents = [{ type: "delta", text: "Provisional analysis" }];
@@ -530,13 +568,16 @@ async function runScenarios() {
       equal(currentRecommendation.title, "Existing recommendation");
       ok(!JSON.stringify(panelSaves).includes("Provisional analysis"), "A draft recommendation was saved");
       release(); await pending;
-      equal(currentRecommendation.title, "Regenerated answer");
+      equal(agentPanel.messages.at(-1).content, "Regenerated answer");
+      equal(agentPanel.messages.at(-1).isResult, true);
+      equal(currentRecommendation.title, "Existing recommendation", "The legacy recommendation remains independently owned");
       ok(!analysisPanelStack.querySelector(".streaming-answer"), "Preview remained after commit");
       streamFailure = true; pendingRequest = null;
       agentPanel.instruction = "Review the next result";
       await runAgentInstruction("agent-panel");
-      equal(currentRecommendation.title, "Regenerated answer", "Interrupted stream replaced the official recommendation");
-      equal(agentPanel.status, "streamInterrupted");
+      equal(agentPanel.messages.filter(message => message.isResult).map(message => message.content), ["Regenerated answer"], "Interrupted stream replaced the completed result");
+      equal(agentPanel.taskStatus, "failed");
+      ok(agentPanel.status.includes("STREAM_INTERRUPTED"), "The interrupted request needs a visible failure status");
     } finally { workspaceTree = tree; }
   });
   await scenario("Switching workspace during a stream cannot append the old answer to the new conversation", async () => {

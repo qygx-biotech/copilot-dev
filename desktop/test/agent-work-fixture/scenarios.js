@@ -1,3 +1,27 @@
+async function checkAgentInjectionQueue() {
+  const preserved = analysisPanels;
+  const queued = createAnalysisPanel({ instruction: 'Inspect the current evidence' });
+  analysisPanels = [queued]; renderAnalysisPanels();
+  let release; requestGate = new Promise(resolve => { release = resolve; });
+  try {
+    const requestCount = requests.length;
+    const pending = runAgentInstruction(queued.id); await tick();
+    const button = card(queued).querySelector('[type="submit"]');
+    check(!button.disabled && button.textContent === 'Add to current turn', 'The active Agent Work composer exposes Add to current turn');
+    draft(queued, 'Compare the reported yields too');
+    card(queued).querySelector('form').requestSubmit(); await tick();
+    const message = queued.messages.find(entry => entry.injection);
+    check(message?.injection.status === 'queued' && requests.length === requestCount + 1 && queued.instruction === '', 'Agent follow-up is queued within its current turn without another backend request');
+    check(card(queued).querySelector('.runtime-injection-status')?.textContent.includes('Queued'), 'Agent Work displays the queued receipt status');
+    release(); await pending;
+    check(message.injection.status === 'received' && card(queued).querySelector('.runtime-injection-status')?.textContent.includes('Received'), 'Agent Work displays the acknowledged receipt status');
+    check(!activeAgentRuntime && queued.taskStatus === 'completed', 'The Agent Work queue closes after a complete answer');
+  } finally {
+    release(); requestGate = null;
+    analysisPanels = preserved; saveAnalysisPanels(); renderAnalysisPanels();
+  }
+}
+
 async function runAgentScenarios() {
   document.getElementById("loginPanel").hidden = true;
   document.getElementById("loginPanel").classList.add("is-hidden");
@@ -55,7 +79,7 @@ async function runAgentScenarios() {
   card(first).querySelector(".agent-chat-summary").click();
   check(card(first).querySelector("pre code") && card(first).querySelector("ol") && card(first).querySelector("ul"), "Agent turns reuse formatted Markdown for lists, code, headings and file references");
   click(first, "review"); click(first, "export"); click(first, "copy"); await tick();
-  check(first.recommendation.reviewed && exports[0] === first.recommendation && copies[0].includes("Evidence review"), "Review, export and copy remain connected to the real recommendation state");
+  check(first.recommendation.reviewed && exports[0] === first.recommendation && copies[0] === buildMarkdownExport(first.recommendation), "Review, export and copy remain connected to the separately owned recommendation state");
   const committed = first.recommendation;
   setting(first, "selectedModel", "default");
   requestFailure = Object.assign(new Error("Interrupted"), { code: "STREAM_INTERRUPTED" });
@@ -261,8 +285,10 @@ async function checkAcademicFinalReply() {
       await runAgentInstruction(chat.id);
       const message = chat.messages.at(-1);
       check(message.content === reply, `Academic ${status} response keeps the assistant reply in conversation history`);
-      const body = card(chat).querySelectorAll(".agent-message.assistant .side-message-body");
-      const shown = body[body.length - 1];
+      const messages = card(chat).querySelectorAll(".agent-message.assistant");
+      // The result also contains a nested legacy recommendation preview. Inspect
+      // the actual reply body rather than the last descendant preview body.
+      const shown = messages[messages.length - 1].querySelector(".side-message-body");
       check(shown.textContent.includes("已筛选出5篇相关文献") && !shown.textContent.includes("PDFs saved"), `Academic ${status} display preserves the assistant language and wording`);
       check(shown.querySelector("a")?.href === "https://papers.example.org/study-1", `Academic ${status} citation is rendered as an online source link`);
       check(chat.taskStatus === (status === "completed" ? "completed" : "failed"), `Academic ${status} execution status remains separate from reply text`);

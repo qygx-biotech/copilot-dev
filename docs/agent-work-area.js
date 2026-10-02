@@ -219,11 +219,16 @@
         }));
       }
       article.append(body);
+      if (message.injection) {
+        const labels = { queued: ['Queued for current turn', '已排队，等待当前任务接收'], received: ['Received by current turn', '当前任务已接收'], not_received: ['Not received — send again in a new turn', '未接收，请在新一轮重新发送'] };
+        const badge = element('p', 'runtime-injection-status', (labels[message.injection.status] || labels.not_received)[document.documentElement.lang.startsWith('zh') ? 1 : 0]);
+        badge.setAttribute('role', 'status'); article.append(badge);
+      }
       if (message.attachments?.length) article.append(createAttachmentChips(chat, message.attachments, false));
       if (message.requestedModel) {
         article.append(element("p", "agent-turn-meta", t("agentMoveMetadata", { model: message.modelLabel || message.requestedModel, permission: t(`agentPermission_${message.permission}`) })));
       }
-      if (message === latestUser && message.id && !chat.messageEdit) {
+      if (message === latestUser && message.id && !message.injection && !chat.messageEdit) {
         const edit = action(chat, "edit", t("editLastMessage"), "side-message-edit-button");
         edit.dataset.messageId = message.id;
         edit.disabled = isBusy();
@@ -317,9 +322,10 @@
         createSelector(chat, "selectedPermission", t("agentPermission"), permissions.map(value => ({ value, label: t(`agentPermission_${value}`) }))),
       );
       const actions = element("div", "agent-composer-actions");
-      const run = element("button", "primary-button", chat.taskStatus === "running" ? t("agentStatus_running") : t("agentRun"));
+      const run = element("button", "primary-button", chat.taskStatus === "running" ? (document.documentElement.lang.startsWith("zh") ? "加入当前任务" : "Add to current turn") : t("agentRun"));
       run.type = "submit";
-      run.disabled = isBusy();
+      run.disabled = isBusy() && chat.taskStatus !== "running";
+      if (chat.taskStatus === "running") selectors.querySelectorAll("select").forEach(select => { select.disabled = true; });
       actions.append(createAttachmentPicker(chat), run);
       controls.append(selectors, actions);
       const hint = element("p", "agent-composer-hint", t("agentKeyboardHint"));

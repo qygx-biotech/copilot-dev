@@ -7148,6 +7148,7 @@ async function callRequesty(
       quotaEndpoint: REQUESTY_URL, quotaAccount: require("node:crypto").createHash("sha256").update(apiKey).digest("hex"),
       archiveAccount: JSON.stringify([desktopContext.account, workspaceContext.localWorkspaceContext?.project?.workspaceId || ""]), requestId: callContext?.turnId,
       measure: options => contextApi.estimateRequest(buildAgentRequest(options), contextConfig.imageTokens) },
+    runtimeExtensions: desktopContext.runtimeExtensions, runtimeInjections: desktopContext.runtimeInjections,
     conversationTranscript: desktopContext.conversationTranscript,
     turnId: callContext?.turnId,
     onTranscript: streaming ? async conversationTurn => {
@@ -7601,11 +7602,24 @@ async function handleRequest(rawEvent, context, transport = null) {
           if (!desktopContext.images.every(require("./image-understanding.js").validImageBytes)) throw new Error();
         } catch { return jsonResponse({ error: "IMAGE_INVALID", message: "Invalid or oversized image attachment." }, 400, event); }
       }
+      try {
+        desktopContext.runtimeExtensions = require('./shared/runtime-extensions.js').normalize(body.runtimeExtensions);
+        desktopContext.runtimeInjections = require('./shared/runtime-extensions.js').injections(body.runtimeInjections);
+        if (desktopContext.runtimeExtensions && !desktopContext.projectTools) throw new Error();
+        if (!desktopContext.runtimeExtensions && desktopContext.runtimeInjections.length) throw new Error();
+        if (desktopContext.runtimeExtensions?.child) {
+          const child = require('./generic-subagent.js').normalizeChild(desktopContext.runtimeExtensions.child, {
+            model: getEnvString(chatEnv, 'REQUESTY_MODEL'), projectId: localWorkspaceContext?.project?.workspaceId });
+          if (responseMode !== 'side_chat' || body.conversationTranscript || desktopContext.runtimeInjections.length || desktopContext.runtimeExtensions.genericSubagents || desktopContext.runtimeExtensions.mcpTools.length) throw new Error();
+          desktopContext.runtimeExtensions.child = child;
+        }
+      } catch { return jsonResponse({ error: 'INVALID_RUNTIME_EXTENSIONS' }, 400, event); }
       const continuationBinding = { ...(desktopContext.projectTools ? { projectTools: 1 } : {}),
         ...(desktopContext.images?.length ? { imageDigest: crypto.createHash("sha256").update(JSON.stringify(desktopContext.images)).digest("hex") } : {}), account: auth.user.account, turnId: callContext.turnId, messages, originalRequest,
         ...(desktopContext.conversationTranscript ? { conversationTranscript: desktopContext.conversationTranscript } : {}),
         ...(desktopContext.academic ? { academicVersion: 1 } : {}),
         ...(desktopContext.literature ? { literatureVersion: 1 } : {}),
+        ...(desktopContext.runtimeExtensions ? { runtimeExtensions: desktopContext.runtimeExtensions } : {}),
         model: getEnvString(chatEnv, "REQUESTY_MODEL"), permission: desktopContext.permission,
         projectId: body.desktopTools?.projectId || localWorkspaceContext?.project?.workspaceId || "", surface: responseMode,
         workspaceId: localWorkspaceContext?.project?.workspaceId || "",
@@ -7626,7 +7640,16 @@ async function handleRequest(rawEvent, context, transport = null) {
         try {
           if (!desktopContext.enabled && !desktopContext.projectTools) throw new Error();
           const state = agentContinuation.open(body.desktopContinuation, continuationBinding, env.JWT_SECRET);
-          if (desktopContext.literature && state.specialist) {
+          if (desktopContext.runtimeExtensions && state.runtimeVersion === 1) {
+            if (!Array.isArray(state.pending) || !state.projectToolState || state.pending.some(call => {
+              if (desktopContext.runtimeExtensions.child) return !desktopContext.runtimeExtensions.child.allowedTools.includes(call.name);
+              return !require('./shared/runtime-extensions.js').isTool(call.name, desktopContext.runtimeExtensions, responseMode === 'side_chat' ? 'side_chat' : 'agent_command', desktopContext.permission)
+                && !require('./shared/side-chat-tools.js').isTool(call.name)
+                && !(desktopContext.literature && state.specialist && call.name === 'literature_worker')
+                && !(desktopContext.academic && require('./shared/academic-tools.js').allowed(call.name, responseMode === 'side_chat' ? 'side_chat' : 'agent_command', desktopContext.permission))
+                && !(call.name === 'download_sources' && sourceDownload.allowed(responseMode === 'side_chat' ? 'side_chat' : 'agent_command', desktopContext.permission));
+            })) throw new Error();
+          } else if (desktopContext.literature && state.specialist) {
             if (!state.pending?.every(call => call.name === 'literature_worker' || require('./shared/side-chat-tools.js').isTool(call.name))) throw new Error();
           } else if (desktopContext.projectTools) {
             if (!state.projectToolState || state.pending?.some(call => !require("./shared/side-chat-tools.js").isTool(call.name) &&

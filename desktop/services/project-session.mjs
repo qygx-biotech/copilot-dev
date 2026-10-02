@@ -11,6 +11,9 @@ import { downloadSources } from "./source-downloader.mjs";
 import { QmdWorkerClient } from "../workers/qmd-worker-client.mjs";
 import { PaperMcpClient } from "./paper-mcp-client.mjs";
 import { registerAcademicWorkflows } from "./academic-workflows.mjs";
+import { SkillsService } from "./skills-service.mjs";
+import { GenericMcpService } from "./generic-mcp-service.mjs";
+import { assertOnlyKeys, assertRecord, boundedString, ValidationError } from "../ipc/validation.mjs";
 
 export class ProjectSessionManager extends EventEmitter {
   constructor(options) {
@@ -18,6 +21,7 @@ export class ProjectSessionManager extends EventEmitter {
     this.utilityProcess = options.utilityProcess;
     this.appPath = options.appPath;
     this.qmdCacheRoot = options.qmdCacheRoot;
+    this.bundledSkillsPath = options.bundledSkillsPath || null;
     this.paperOptions = { appPath: options.appPath, resourcesPath: options.resourcesPath, packaged: options.packaged };
     this.browserOptions = { profileRoot: options.browserProfileRoot || (options.qmdCacheRoot ? path.join(options.qmdCacheRoot, "library-browser") : path.join(os.tmpdir(), "biodesign-browser", crypto.randomUUID())), headless: options.browserHeadless === true };
     this.active = null;
@@ -37,6 +41,60 @@ export class ProjectSessionManager extends EventEmitter {
       sourceDownloads: new AbortController(),
     };
     const active = this.active;
+    active.skills = new SkillsService(filesystem, { bundledSkillsPath: this.bundledSkillsPath });
+    active.genericMcp = new GenericMcpService({ filesystem });
+    active.genericMcpCalls = new Map();
+    const runtimeWorkflow = (id, keys, effect, runner) => active.execution.register({ id, effect }, async input => {
+      assertOnlyKeys(input, keys, "input");
+      if (this.active !== active || active.sourceDownloads.signal.aborted) throw new ValidationError("PROJECT_MISMATCH", "The runtime request belongs to a closed project.");
+      const result = await runner(input);
+      if (this.active !== active || active.sourceDownloads.signal.aborted) throw new ValidationError("PROJECT_MISMATCH", "The active project changed during the runtime request.");
+      return result;
+    });
+    runtimeWorkflow("runtime_skills_list", [], "informational", () => active.skills.list());
+    runtimeWorkflow("runtime_skills_context", ["text"], "informational", input => active.skills.context(input.text ?? ""));
+    runtimeWorkflow("runtime_skills_read", ["name", "forAgent"], "informational", input => {
+      if (input.forAgent !== undefined && typeof input.forAgent !== "boolean") throw new ValidationError("INVALID_INPUT", "forAgent must be a boolean.");
+      return active.skills.read(input.name, { forAgent: input.forAgent === true });
+    });
+    runtimeWorkflow("runtime_skills_save", ["name", "content"], "runtime_configuration", input => active.skills.save(input));
+    runtimeWorkflow("runtime_skills_enable", ["name", "enabled"], "runtime_configuration", input => active.skills.setEnabled(input.name, input.enabled));
+    runtimeWorkflow("runtime_mcp_list", [], "informational", () => active.genericMcp.list());
+    runtimeWorkflow("runtime_mcp_save", ["name", "config"], "runtime_configuration", input => active.genericMcp.save(input));
+    for (const action of ["remove", "connect", "disconnect"]) {
+      runtimeWorkflow(`runtime_mcp_${action}`, ["name"], "runtime_configuration", async input => {
+        await active.genericMcp[action](boundedString(input.name, "name", 32));
+        return active.genericMcp.list();
+      });
+    }
+    runtimeWorkflow("runtime_mcp_definitions", [], "informational", async () => ({ tools: await active.genericMcp.definitions() }));
+    runtimeWorkflow("runtime_mcp_cancel", ["callId"], "runtime_control", input => {
+      const callId = boundedString(input.callId, "callId", 256);
+      const pending = active.genericMcpCalls.get(callId);
+      pending?.controller.abort();
+      return { callId, cancelled: Boolean(pending) };
+    });
+    runtimeWorkflow("runtime_mcp_call", ["call", "surface", "permission"], "external_mcp", async input => {
+      const call = assertOnlyKeys(assertRecord(input.call, "call"), ["id", "name", "args"], "call");
+      const callId = boundedString(call.id, "call.id", 256);
+      // Duplicate delivery shares both the receipt and cancellation lifetime.
+      // An early duplicate failure must not remove the original call's handle.
+      let pending = active.genericMcpCalls.get(callId);
+      if (!pending) {
+        pending = { controller: new AbortController(), count: 0 };
+        active.genericMcpCalls.set(callId, pending);
+      }
+      pending.count += 1;
+      try {
+        return await active.genericMcp.call(call, {
+          surface: input.surface, permission: input.permission, projectId: active.filesystem.id,
+          signal: AbortSignal.any([active.sourceDownloads.signal, pending.controller.signal]), isCurrent: () => this.active === active,
+        });
+      } finally {
+        pending.count -= 1;
+        if (!pending.count && active.genericMcpCalls.get(callId) === pending) active.genericMcpCalls.delete(callId);
+      }
+    });
     active.paperMcp = new PaperMcpClient(this.paperOptions);
     registerAcademicWorkflows(active, active.paperMcp, () => this.active === active);
     active.browserMcp = new PlaywrightMcpClient({ ...this.browserOptions, profileRoot: path.join(this.browserOptions.profileRoot, crypto.createHash('sha256').update(filesystem.root).digest('hex').slice(0, 24)) });
@@ -121,6 +179,7 @@ export class ProjectSessionManager extends EventEmitter {
     const active = this.active;
     this.active = null;
     active.sourceDownloads.abort();
+    await active.genericMcp?.close().catch(() => {});
     await active.browserMcp?.close().catch(() => {});
     await active.paperMcp?.close().catch(() => {});
     await active.jobs.close().catch(() => {});

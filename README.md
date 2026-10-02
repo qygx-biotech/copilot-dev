@@ -254,6 +254,69 @@ All require the existing JWT bearer token. Deployment instructions and legacy OS
 
 ## Workspace Side Chat
 
+### Nanobot runtime additions (`nanobot/combined`)
+
+The desktop now implements Nanobot-style input queues, skills, generic MCP
+connections and generic subagents in JavaScript. Electron remains the local
+host; authenticated Alibaba FC requests and Requesty remain the model path.
+The Python `nanobot/` checkout is a reference, not a packaged runtime dependency.
+
+- **Input during a turn:** Side Chat and Agent Work accept text through **Add to
+  current turn**. Delivery badges distinguish queued, received and undelivered
+  input. FC yields signed checkpoints after ordinary model/tool cycles and before
+  accepting a final answer. The host delivers new input at these boundaries;
+  it does not interrupt an in-flight provider request. The original request,
+  model, permissions, project and source selection remain bound to the turn.
+  Images and permission/scope changes require a new turn. Injection IDs are
+  deduplicated along the signed continuation chain; this is not a server-side
+  guarantee of exactly-once inference after replaying an older token.
+- **Skills:** **Skills & MCP → Skills** manages `.biodesign/skills/<name>/SKILL.md`.
+  Existing `skills/<name>/SKILL.md` files are discovered too. Managed project
+  skills override project skills, which override optional bundled skills.
+  YAML metadata supports descriptions, `always`, and binary/environment
+  requirements. Enabled skills expose metadata first; `always` and `$skill-name`
+  load instructions eagerly, and `read_skill` loads other instructions on demand.
+  Skills never grant tools or permission. Settings live in
+  `.biodesign/runtime/skills.json`.
+- **Generic MCP:** The MCP tab manages stdio, SSE and Streamable HTTP servers,
+  explicit enable/connect actions, tool allowlists, environment variables and
+  HTTP headers. Connected capabilities are exposed only to **Full Access Agent
+  Work**. Resource and prompt wrappers remain untrusted external content.
+  Calls retain project guards, schema checks, cancellation and durable receipts;
+  uncertain side effects are not automatically replayed. Configurations live in
+  `.biodesign/runtime/mcp.json`, and receipts in `.biodesign/runtime/mcp-receipts/`.
+  Existing paper and browser MCP services retain their original workflows.
+- **Generic subagents:** `spawn(task, label?, wait?)` runs a fresh child conversation
+  on the parent's resolved model, with up to four children active concurrently.
+  Children inherit a captured source snapshot and permitted domain reads plus
+  skills; they cannot spawn recursively, invoke generic MCP, download sources,
+  run corpus workflows or replace literature specialists. Results preserve
+  citations and coverage metadata as delegated analysis. Existing evidence tools
+  must verify findings before they count as source evidence. Background results
+  enter the parent's queue, and the parent waits for outstanding children before
+  finalizing. Stopping/closing the parent cancels children; they are not durable
+  restartable jobs.
+
+The existing compaction, task/job system, worktree behavior and scientific tool
+controls are unchanged. No unrestricted filesystem or shell tool was added.
+Receipt and capability size limits fail explicitly without silently truncating
+scientific evidence. Desktop and FC must both be updated to use the new protocol;
+building this branch does not deploy FC or update an installed desktop app.
+
+**Next review:** Generic MCP OAuth/account ownership and credential-storage policy
+need a product decision. Configured environment/header credentials currently use
+the local project configuration, not an OS keychain. MCP connections require an
+explicit reconnect after reopening a project. Public HTTP endpoints and explicitly
+enabled localhost endpoints are supported; private LAN endpoints are not enabled.
+These are not changes to the integrated literature/browser login flow.
+
+Implementation entry points: `shared/runtime-extensions.js`,
+`alibaba-fc/side-chat-agent.js`, `docs/runtime-session.js`,
+`docs/generic-subagents.js`, `desktop/services/skills-service.mjs` and
+`desktop/services/generic-mcp-service.mjs`. Regression coverage includes signed
+handler/renderer handoffs, child scope isolation, skill discovery, real MCP SDK
+handshakes and Electron queue/management interactions with fixture providers.
+
 The left column has one generic Workspace explorer beneath Project Context. Checkboxes provide multi-file selection, the current context is shown as removable chips above Side Chat, and no selection means **Entire Project**. Project scope uses the saved goal/state, processed paper summaries, and file inventory without pretending that unprocessed files were read.
 
 Side Chat sends bounded recent conversation history, the current question, a compact source map, and only the evidence prepared for that request to the existing authenticated `/chat` endpoint. The full registry, all Paper Cards, parsed PDFs, and experiment tables are never injected. Explicit paper and experiment IDs are hard scopes. With no selection, ordinary questions search already-ready metadata/indexes first and prepare only likely candidates; explicit corpus synthesis prepares the frozen full scope. Coverage records discovered, snapshot-included, prepared, analyzed, failed, and missing papers. The existing Context area shows prepare/map/synthesis/verification progress and the final answer is prefixed with exact analyzed coverage.

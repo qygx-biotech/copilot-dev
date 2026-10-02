@@ -98,7 +98,9 @@ test("desktop and renderer sources contain no direct Requesty host or credential
   ].filter((file) => !file.includes(`${path.sep}vendor${path.sep}`));
   for (const file of checked) {
     const text = await readFile(file, "utf8");
-    assert.doesNotMatch(text, /https?:\/\/[^\s"']*requesty\.ai/i, path.relative(repositoryRoot, file));
+    // Architecture notes may cite provider documentation. Executable desktop
+    // and renderer sources must still use the authenticated FC boundary.
+    if (!file.endsWith('.md')) assert.doesNotMatch(text, /https?:\/\/[^\s"']*requesty\.ai/i, path.relative(repositoryRoot, file));
     assert.doesNotMatch(text, /REQUESTY_API_KEY\s*[:=]/, path.relative(repositoryRoot, file));
   }
   assert.match(await source("forge.config.cjs"), /"alibaba-fc"/);
