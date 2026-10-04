@@ -20,6 +20,9 @@ desktop/paper-search/*.spec
 __pycache__/
 nanobot/
 playwright-mcp/
+codex/
+deepseek-harness/
+claude-code/
 
 docs/desktop.html
 docs/desktop-assets/

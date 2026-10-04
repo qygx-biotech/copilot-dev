@@ -26,6 +26,8 @@ test('signed handoffs keep browser snapshots in the specialist and main complete
   state = continuation.withResults(state, [{ id: state.pending[0].id, result: { job_id, tools: [contract.tool('finish_discovery', 'Finish', contract.object({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(contract.text(2000), 30) }))], observation: 'RAW_SNAPSHOT_ONLY_IN_SPECIALIST [ref=e1]' } }]);
   const second = await run(async request => {
     assert.equal(request.stage, 'literature-specialist'); assert(JSON.stringify(request.messages).includes('RAW_SNAPSHOT_ONLY_IN_SPECIALIST'));
+    assert.deepEqual(JSON.parse(request.messages.filter(message => message.role === 'user')[1].content), { observation: 'RAW_SNAPSHOT_ONLY_IN_SPECIALIST [ref=e1]' });
+    assert.equal(request.tools[0].function.name, 'finish_discovery');
     return { ok: true, message: { tool_calls: [call('finish_discovery', { candidates: [], limitations: ['No match in attempted query.'] })] } };
   }, { resume: state });
   assert(!JSON.stringify(second.continuationState.agentMessages).includes('RAW_SNAPSHOT_ONLY_IN_SPECIALIST'));
@@ -47,6 +49,23 @@ const ready = () => {
   specialist.accept(state, { job_id: 'lit_' + 'b'.repeat(24), tools: [contract.tool('finish_discovery', 'Finish', contract.object({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(contract.text(2000), 30) }))] });
   return state;
 };
+test('specialist handoff keeps schemas and access rules outside the observation-only user message', () => {
+  const state = ready();
+  assert.deepEqual(JSON.parse(state.messages.at(-1).content), { observation: '' });
+  const tools = state.schemas;
+  specialist.accept(state, {
+    job_id: state.jobId, tools, observation: 'Refreshed library snapshot [ref=e2]',
+    checkpoint: { status: 'partial' }, access: { open_access_only: true }
+  });
+  assert.equal(state.schemas, tools);
+  assert.equal(state.openAccessOnly, true);
+  assert.match(state.messages.at(-2).content, /search only open-access papers/);
+  assert.deepEqual(JSON.parse(state.messages.at(-1).content), { observation: 'Refreshed library snapshot [ref=e2]' });
+  state.pendingModelCall = { id: 'click' };
+  const receipt = { status: 'stale_reference', snapshot: 'Updated snapshot [ref=e3]', generation: 2 };
+  specialist.accept(state, { result: receipt });
+  assert.deepEqual(state.messages.at(-1), { role: 'tool', tool_call_id: 'click', content: JSON.stringify(receipt) });
+});
 for (const limit of ['turns', 'calls', 'time', 'characters']) test(`specialist continues past former ${limit} cutoff and only uses model-selected finalization`, async () => {
   const state = ready();
   if (limit === 'turns') state.turns = 100;

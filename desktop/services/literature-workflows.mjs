@@ -6,6 +6,7 @@ import { acquirePaperPdf } from './paper-acquisition.mjs';
 import { downloadSources } from './source-downloader.mjs';
 import { verifyPaper } from './paper-verification.mjs';
 import { redactBrowserText } from './playwright-mcp-client.mjs';
+import { normalizeSnapshotReference, referenceSchema, restrictBrowserTool, skippedReference } from './browser-references.mjs';
 
 const fail = code => Object.assign(new Error(code), { code });
 const code = error => /^[A-Z_]{1,80}$/.test(error?.code || '') ? error.code : 'LITERATURE_OPERATION_FAILED';
@@ -86,11 +87,11 @@ export class LiteratureWorkflows {
   toolDefinitions(job) {
     const host = job.kind === 'discover_papers' ? [contract.tool('finish_discovery', 'Hand off discovery findings to the main agent, including candidates and search limitations. Arguments are forwarded as supplied. Does not download.', { type: 'object', properties: {}, additionalProperties: true })]
       : [contract.tool('retrieve_next', 'Check local documents then existing open-access routes for one requested paper. Host verifies all bytes.', schema({ index: indexSchema })),
-        contract.tool('capture_article', 'Transfer the observed article hyperlink using the local authenticated session; verify PDF identity and version. Landing pages are not saved as articles.', schema({ index: indexSchema, target: field(40) })),
+        contract.tool('capture_article', 'Transfer the observed article hyperlink using the local authenticated session; verify PDF identity and version. Landing pages are not saved as articles.', schema({ index: indexSchema, target: referenceSchema({ allowLatestDownload: true }) })),
         contract.tool('record_access', 'Record a concrete observed institutional access restriction or unresolved route. This does not claim a download.', schema({ index: indexSchema, status: contract.enumeration(['access_unavailable', 'unresolved']), reason: field(1000) })),
         contract.tool('finish_retrieval', 'Return host-generated per-paper receipts. No model-supplied success claims.', schema({}))];
     return [...(job.paperTools || []).map(tool => ({ type: "function", function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } })),
-      ...(job.browserTools || []).map(tool => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } })), ...host.filter(tool => !job.openAccessOnly || !['capture_article', 'record_access'].includes(tool.function.name))];
+      ...(job.browserTools || []).map(restrictBrowserTool).map(tool => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema } })), ...host.filter(tool => !job.openAccessOnly || !['capture_article', 'record_access'].includes(tool.function.name))];
   }
   result(job) {
     const base = { version: 1, job_id: job.id, status: job.status === 'running' ? 'partial' : job.status, limitations: job.limitations || [] };
@@ -196,6 +197,11 @@ export class LiteratureWorkflows {
         return { final: this.result(job) };
       }
       // Academic validation covers the provider schema; browser uses AJV over runtime schemas.
+      if (input.name === 'capture_article') {
+        const target = normalizeSnapshotReference(input.args?.target, { allowLatestDownload: true });
+        if (target === null) return { result: skippedReference('invalid_reference') };
+        input = { ...input, args: { ...input.args, target } };
+      }
       if (!input.name.startsWith('browser_') && !academic.isTool(input.name)) contract.validate(tool.function.parameters, input.args);
       if (academic.isTool(input.name)) {
         const args = job.openAccessOnly && input.name === 'search_academic_papers' ? { ...input.args, prefer_open_access: true } : input.args;
@@ -209,11 +215,16 @@ export class LiteratureWorkflows {
       }
       if (input.name.startsWith('browser_')) {
         const changesPage = ['browser_navigate', 'browser_navigate_back', 'browser_click', 'browser_type', 'browser_tabs'].includes(input.name);
-        job.navigations += changesPage ? 1 : 0;
         const observation = await this.browser.call(job.id, input.name, input.args, signal);
-        if (observation.status === 'needs_login') { job.status = 'needs_login'; return { job_id: job.id, needs_login: true, final: this.result(job) }; }
+        if (observation.status === 'needs_login') {
+          job.status = 'needs_login';
+          return { job_id: job.id, needs_login: true, ...(observation.action_skipped ? { action_skipped: true, message: observation.message } : {}), final: this.result(job) };
+        }
         job.observations = (job.observations + '\n' + (observation.snapshot || '')).slice(-60000);
-        if (input.name === 'browser_type') job.searches.push({ query: input.args.text.slice(0, 1000), source: contract.safeUrl(job.libraryUrl || job.task.library_url) || 'institutional browser' });
+        if (observation.status === 'observed' && !observation.action_skipped) {
+          job.navigations += changesPage ? 1 : 0;
+          if (input.name === 'browser_type') job.searches.push({ query: input.args.text.slice(0, 1000), source: contract.safeUrl(job.libraryUrl || job.task.library_url) || 'institutional browser' });
+        }
         return { result: observation };
       }
       if (input.name === 'finish_retrieval') { job.status = job.task.papers.every((_, i) => ['downloaded', 'already_present'].includes(job.results[i]?.status)) ? 'completed' : 'partial'; this.browser.release(job.id); return { final: this.result(job) }; }
@@ -244,8 +255,16 @@ export class LiteratureWorkflows {
       }
       if (input.name === 'capture_article') {
         if (job.openAccessOnly) throw fail('INSTITUTIONAL_ACCESS_DISABLED');
-        job.downloads++;
-        try { const fetched = await this.browser.captureArticle(job.id, input.args.target, signal); return { result: await this.saveFetched(job, index, fetched, 'institutional', attempts, signal) }; }
+        try {
+          const fetched = await this.browser.captureArticle(job.id, input.args.target, signal);
+          if (fetched.action_skipped) {
+            job.observations = (job.observations + '\n' + (fetched.snapshot || '')).slice(-60000);
+            if (fetched.status === 'needs_login') { job.status = 'needs_login'; outcome('needs_login', fetched.message, 'institutional'); return { job_id: job.id, needs_login: true, action_skipped: true, message: fetched.message, final: this.result(job) }; }
+            return { result: fetched };
+          }
+          job.downloads++;
+          return { result: await this.saveFetched(job, index, fetched, 'institutional', attempts, signal) };
+        }
         catch (error) {
           if (/^BROWSER_/.test(error.code || '')) throw error;
           if (job.status === 'blocked') return this.blockedResult(job);

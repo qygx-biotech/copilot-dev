@@ -81,7 +81,12 @@ function accept(state, response) {
     state.messages.push({ role: 'tool', tool_call_id: state.pendingModelCall.id, content: JSON.stringify(state.pendingWebEvidence !== undefined ? { evidence: state.pendingWebEvidence, receipt } : receipt) });
     state.pendingModelCall = null;
     delete state.pendingWebEvidence;
-  } else state.messages.push({ role: 'user', content: JSON.stringify(response) });
+  } else {
+    // Schemas are supplied through native tools; only observations belong in
+    // the initial/resumed handoff message. Access rules are recorded above.
+    const content = response.tools ? { observation: response.observation ?? '' } : response;
+    state.messages.push({ role: 'user', content: JSON.stringify(content) });
+  }
   state.pending = null;
   // Retries of one pending handoff reuse its ID, but consecutive identical
   // model calls are distinct executions and must not reuse a cached receipt.

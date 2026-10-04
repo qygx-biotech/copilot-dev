@@ -9,6 +9,7 @@ import { verifyPaper, parsePdf } from '../services/paper-verification.mjs';
 import { PlaywrightMcpClient, redactBrowserText } from '../services/playwright-mcp-client.mjs';
 import contract from '../../shared/literature-agent.js';
 import academic from '../../shared/academic-tools.js';
+import { referenceSchema, skippedReference } from '../services/browser-references.mjs';
 
 const paper = { title: 'Multilingual enzyme engineering', authors: ['Alice Smith'], year: 2024, doi: '10.1234/enzyme', source_urls: ['https://example.org/paper.pdf'] };
 const bytes = Buffer.from('%PDF-1.7\nfixture');
@@ -68,6 +69,72 @@ test('browser owner excludes competing workers and rejects stale refs', async ()
   await browser.exclusive('first', async () => {}); await assert.rejects(browser.exclusive('second', async () => {}), { code: 'BROWSER_BUSY' });
   await assert.rejects(browser.locator('e1'), { code: 'STALE_REFERENCE' }); browser.release('first'); await browser.exclusive('second', async () => {});
   assert(!redactBrowserText('https://example.org/paper?access_token=secret password=secret').includes('secret'));
+});
+test('skipped browser typing preserves feedback without recording searches or successful navigation', async t => {
+  const f = await fixture(t);
+  f.browser.tools.push({ name: 'browser_type', inputSchema: { type: 'object', properties: { target: referenceSchema(), text: { type: 'string' } } } });
+  const started = await f.begin('discover_papers', { objective: 'enzyme', queries: ['enzyme'] });
+  assert.match(started.tools.find(tool => tool.function.name === 'browser_type').function.parameters.properties.target.description, /\[ref=e45\] means target: "e45"/);
+  const job = f.service.jobs.get(started.job_id), navigations = job.navigations;
+  for (const status of ['invalid_reference', 'stale_reference']) {
+    f.browser.call = async () => skippedReference(status, status === 'stale_reference' ? { status: 'observed', snapshot: 'Refreshed evidence [ref=e2]' } : {});
+    const response = await f.step(job.id, 'browser_type', { target: 'e999', text: 'unexecuted query' });
+    assert.equal(response.result.status, status); assert.equal(response.result.action_skipped, true);
+    assert.deepEqual(job.searches, []); assert.equal(job.navigations, navigations);
+  }
+  assert.match(job.observations, /Refreshed evidence/);
+  const saved = JSON.parse(await f.filesystem.readText(`.biodesign/literature-jobs/${job.id}.json`));
+  assert.deepEqual(saved.searches, []); assert.equal(saved.navigations, navigations);
+  f.browser.call = async () => ({ status: 'observed', snapshot: 'Search completed' });
+  await f.step(job.id, 'browser_type', { target: 'e2', text: 'executed query' });
+  assert.equal(job.searches.length, 1); assert.equal(job.searches[0].query, 'executed query');
+  assert.equal(job.navigations, navigations + 1);
+  f.browser.call = async () => skippedReference('needs_login', { status: 'needs_login' });
+  const login = await f.step(job.id, 'browser_type', { target: 'e2', text: 'not entered' });
+  assert.equal(login.needs_login, true); assert.equal(login.action_skipped, true);
+  assert.equal(job.searches.length, 1); assert.equal(job.navigations, navigations + 1);
+});
+test('capture normalizes before contract validation, preserves skipped feedback and only verifies executed transfers', async t => {
+  const f = await fixture(t), started = await f.begin(), job = f.service.jobs.get(started.job_id);
+  const definition = started.tools.find(tool => tool.function.name === 'capture_article').function.parameters;
+  assert.match(definition.properties.target.description, /\[ref=e45\] means target: "e45"/);
+  contract.validate(definition, { index: 0, target: ' [ref=f1e45] ' });
+  const seen = [];
+  f.browser.captureArticle = async (_id, target) => { seen.push(target); return skippedReference('stale_reference', { status: 'observed', snapshot: 'Updated article [ref=e2]' }); };
+  const malformed = await f.step(job.id, 'capture_article', { index: 0, target: 'click [ref=e45]' });
+  assert.equal(malformed.result.status, 'invalid_reference'); assert.deepEqual(seen, []);
+  const stale = await f.step(job.id, 'capture_article', { index: 0, target: ' \n[ref=f1e45]\t' });
+  assert.deepEqual(seen, ['f1e45']); assert.equal(stale.result.status, 'stale_reference');
+  assert.equal(stale.result.action_skipped, true); assert.equal(job.downloads, 0);
+  assert.equal(job.results[0], undefined); assert.match(job.observations, /Updated article/);
+  f.browser.captureArticle = async (_id, target) => { seen.push(target); return { bytes, contentType: 'application/pdf', resolvedUrl: paper.source_urls[0] }; };
+  const success = await f.step(job.id, 'capture_article', { index: 0, target: '[ref=e2]' });
+  assert.deepEqual(seen, ['f1e45', 'e2']); assert.equal(job.downloads, 1);
+  assert.equal(success.result.status, 'downloaded'); assert.equal(success.result.verification.identity, 'doi');
+  assert.match(success.result.verification.sha256, /^[a-f0-9]{64}$/);
+});
+test('capture login feedback pauses retrieval without counting a download', async t => {
+  const f = await fixture(t), started = await f.begin(), job = f.service.jobs.get(started.job_id);
+  f.browser.captureArticle = async () => skippedReference('stale_reference', { status: 'needs_login' });
+  const result = await f.step(job.id, 'capture_article', { index: 0, target: '[ref=e45]' });
+  assert.equal(result.needs_login, true); assert.equal(job.status, 'needs_login');
+  assert.equal(result.action_skipped, true);
+  assert.equal(job.downloads, 0); assert.equal(job.results[0].status, 'needs_login');
+  assert.match(job.results[0].reason, /action was skipped/);
+});
+test('skipped-action receipts replay diagnostic evidence without re-executing or recording success', async t => {
+  const f = await fixture(t);
+  f.browser.tools.push({ name: 'browser_type', inputSchema: { type: 'object', properties: { target: referenceSchema(), text: { type: 'string' } } } });
+  const started = await f.begin('discover_papers', { objective: 'enzyme', queries: ['enzyme'] });
+  const job = f.service.jobs.get(started.job_id), navigations = job.navigations;
+  let calls = 0;
+  const diagnostics = { reason: 'target_document_navigated', snapshot_id: 3, page_id: 1, frame_id: 2, documents: [{ frame_id: 2, document_version: 1 }] };
+  f.browser.call = async () => { calls++; return skippedReference('stale_reference', { status: 'observed', snapshot: 'Articles+ [ref=e45]', snapshot_metadata: { snapshot_id: 4 } }, diagnostics); };
+  const input = { ...f.policy, action: 'step', job_id: job.id, name: 'browser_type', args: { target: '[ref=e45]', text: 'skipped query' }, execution_id: 'literature_' + 'c'.repeat(16) };
+  const first = await f.service.run(input), replay = await f.service.run(input);
+  assert.deepEqual(replay, first); assert.deepEqual(replay.result.diagnostics, diagnostics);
+  assert.equal(calls, 1); assert.deepEqual(job.searches, []); assert.equal(job.navigations, navigations);
+  assert.equal(job.downloads, 0); assert.match(job.observations, /Articles\+/);
 });
 test('dedup preserves original multilingual titles and normalizes DOI identities', () => {
   const a = { identity: { ...paper, title: '酶工程研究', doi: 'https://doi.org/10.1234/ENZYME' }, provenance: ['https://a.org/'] };

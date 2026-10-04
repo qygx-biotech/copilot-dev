@@ -68,7 +68,7 @@ test('workspace cancellation between handoffs releases idle browser ownership', 
 test('a terminal MCP exception retains its original diagnostic and releases only its own browser', async t => {
   const f = await fixture(t), first = await f.begin();
   t.mock.method(f.browser.client, 'callTool', async () => { throw new Error('Chrome transport disconnected unexpectedly'); });
-  const result = await f.act(first.job_id, 'step', { name: 'browser_snapshot', args: {} });
+  const result = await f.act(first.job_id, 'step', { name: 'browser_navigate', args: { url: 'https://example.org/library' } });
   assert.equal(result.blocked, true); assert.equal(result.error, 'BROWSER_OPERATION_FAILED');
   assert.match(result.diagnostics.message, /Chrome transport disconnected unexpectedly/);
   assert.equal(f.browser.owner, null);

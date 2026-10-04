@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { referencePage } from './reference-browser-fixture.mjs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { PlaywrightMcpClient } from '../../services/playwright-mcp-client.mjs';
@@ -11,9 +12,11 @@ export function browserFixture(t, profileRoot) {
   t.mock.method(sourceFetch, 'resolvePublicTarget', async () => ({ address: '93.184.216.34', family: 4 }));
   const browser = new PlaywrightMcpClient({ profileRoot,
     launch: async () => {
-      const context = new EventEmitter(), connection = new EventEmitter(), page = new EventEmitter();
+      const context = new EventEmitter(), connection = new EventEmitter(), { page } = referencePage();
+      page.addElement('e1');
+      page.ariaSnapshot = async () => { calls.push('browser_snapshot'); return `- heading "RAW_BROWSER_SNAPSHOT Observed enzyme ${contexts.length}" [ref=e1]`; };
       page.closed = false; page.isClosed = () => page.closed;
-      page.url = () => 'https://example.org/library'; page.frames = () => [];
+      page.url = () => 'https://example.org/library';
       page.close = async () => { page.closed = true; page.emit('close'); };
       context.pages = () => page.closed ? [] : [page]; context.browser = () => connection;
       context.route = async () => {}; context.close = async () => { page.closed = true; context.emit('close'); };

@@ -9,6 +9,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { PlaywrightMcpClient } from '../services/playwright-mcp-client.mjs';
 import { verifyPaper } from '../services/paper-verification.mjs';
+import { restrictBrowserTool, normalizeSnapshotReference } from '../services/browser-references.mjs';
+import prompts from '../../shared/agent-prompts.js';
 
 test('pinned MCP schemas use target, validate with draft 2020-12, and expose unsafe code only upstream', async () => {
   const server = await createConnection({ webmcp: false });
@@ -19,6 +21,17 @@ test('pinned MCP schemas use target, validate with draft 2020-12, and expose uns
     const tools = (await client.listTools()).tools;
     const ajv = new Ajv({ strict: false }); tools.forEach(tool => ajv.compile(tool.inputSchema));
     const click = tools.find(tool => tool.name === 'browser_click'); assert(click.inputSchema.properties.target); assert(!click.inputSchema.properties.ref);
+    for (const tool of tools.filter(tool => ['browser_click', 'browser_type', 'browser_select_option'].includes(tool.name))) {
+      const restricted = restrictBrowserTool(tool);
+      const target = restricted.inputSchema.properties.target;
+      assert.match(target.description, /\[ref=e45\] means target: "e45"/);
+      assert.doesNotMatch(target.description, /or a unique element selector/);
+      const validate = ajv.compile(target);
+      for (const value of ['e45', '[ref=e45]', ' f1e45 ', '\n[ref=f1e45]\t', '#e45', 'click e45', '[ref=e45] text', 'latest_download']) {
+        assert.equal(validate(value), normalizeSnapshotReference(value) !== null, value);
+      }
+    }
+    assert.match(prompts.browser, /\[ref=e45\] means target: "e45"/);
     assert(tools.some(tool => tool.name === 'browser_run_code_unsafe'));
   } finally { await client.close(); await server.close(); }
 });
@@ -74,5 +87,30 @@ test('real Chrome window closure releases ownership and a subsequent job can acq
     assert.notEqual(browser.context, context);
     await browser.close('first-job'); assert.equal(browser.owner, 'next-job');
     await browser.close('next-job'); assert.equal(browser.owner, null);
+  } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test('real Chrome retains Articles+ across unrelated frame navigation and rejects a replaced target document', { skip: process.env.PLAYWRIGHT_MCP_SMOKE !== '1' }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'browser-reference-documents-'));
+  const browser = new PlaywrightMcpClient({ profileRoot: root, headless: true });
+  try {
+    await browser.start();
+    const page = browser.currentPage;
+    await page.setContent('<a href="#" onclick="window.articleClicks=(window.articleClicks||0)+1;return false">Articles+</a><iframe srcdoc="<p>Loading results</p>"></iframe>');
+    const initial = await browser.call('job', 'browser_snapshot', {});
+    assert.equal(initial.status, 'observed');
+    const target = initial.snapshot.match(/link "Articles\+" \[ref=([^\]]+)\]/)[1];
+    const frame = page.frames().find(frame => frame !== page.mainFrame());
+    await frame.goto('about:blank');
+    const clicked = await browser.call('job', 'browser_click', { target: ` [ref=${target}] ` });
+    assert.equal(clicked.status, 'observed'); assert.equal(await page.evaluate(() => window.articleClicks), 1);
+    await frame.setContent('<a href="#">Frame article</a>');
+    const nested = await browser.call('job', 'browser_snapshot', {});
+    const nestedTarget = nested.snapshot.match(/link "Frame article" \[ref=([^\]]+)\]/)[1];
+    assert.equal(browser.referenceState.latest.entries.get(nestedTarget).frame, frame);
+    await frame.goto('about:blank');
+    const skipped = await browser.call('job', 'browser_click', { target: nestedTarget });
+    assert.equal(skipped.reason, 'target_document_navigated'); assert.equal(skipped.action_skipped, true);
+    assert.equal(await page.evaluate(() => window.articleClicks), 1);
   } finally { await browser.close(); await rm(root, { recursive: true, force: true }); }
 });
