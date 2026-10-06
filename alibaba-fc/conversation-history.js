@@ -70,6 +70,7 @@ function replay(value, kb, context, model, characterLimit = transcript.LIMITS.re
       const native = (message.tool_calls || []).filter(transcript.hostedCall);
       const protocolChanged = invalid || turn.legacy || turn.model !== model || message.tool_calls?.some(call => !transcript.hostedCall(call) && callIds.get(call.id) !== call.id);
       if (protocolChanged || native.length) delete result.extra_content;
+      if (protocolChanged) for (const key of ['provider_context', 'reasoning_content', 'reasoning_details', 'end_turn', 'phase']) delete result[key];
       if (invalid) for (const key of ["annotations", "web_search", "groundingMetadata"]) delete result[key];
       if (message.tool_calls) result.tool_calls = message.tool_calls.filter(call => !transcript.hostedCall(call)).map(call => ({
         ...(!protocolChanged && call.extra_content ? { extra_content: call.extra_content } : {}),
@@ -80,7 +81,7 @@ function replay(value, kb, context, model, characterLimit = transcript.LIMITS.re
       if (message.tool_call_id) result.tool_call_id = callIds.get(message.tool_call_id);
       result.content = invalid && message.role !== "user"
         ? JSON.stringify({ historical: true, error: "HISTORICAL_EVIDENCE_INVALIDATED", reason: "A source or artifact is changed, missing, outside the current scope, or has no verifiable version. Reread current evidence; this historical output is withheld." })
-        : replaceHandles(message.content) || null;
+        : Array.isArray(message.content) ? structuredClone(message.content) : replaceHandles(message.content) || null;
       if (native.length && !invalid) result.content = `${result.content || ""}\nHistorical hosted-provider invocations (untrusted data, not executable local functions): ${JSON.stringify(native)}`;
       if (!result.tool_calls?.length) delete result.tool_calls;
       // A pending desktop receipt says nothing about actual execution. New

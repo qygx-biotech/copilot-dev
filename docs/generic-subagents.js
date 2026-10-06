@@ -10,10 +10,11 @@
   const terminal = status => ['completed', 'failed', 'cancelled'].includes(status);
   const newId = () => `subagent_${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`}`;
   class SubagentManager {
-    constructor({ runChild, prepareChild = () => {}, onCompletion = () => {}, onStatus = () => {}, concurrency = 4, makeId = newId } = {}) {
+    constructor({ runChild, prepareChild = () => {}, onMessage = () => { throw fail('SUBAGENT_MAILBOX_UNAVAILABLE'); }, onCompletion = () => {}, onStatus = () => {}, concurrency = 4, makeId = newId } = {}) {
       if (!contract || typeof runChild !== 'function') throw fail('SUBAGENT_RUNTIME_UNAVAILABLE');
       if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw fail('INVALID_SUBAGENT_CONCURRENCY');
       this.runChild = runChild; this.prepareChild = prepareChild; this.onCompletion = onCompletion; this.onStatus = onStatus;
+      this.onMessage = onMessage;
       this.concurrency = concurrency; this.makeId = makeId; this.running = 0; this.closed = false;
       this.tasks = new Map(); this.parents = new Map(); this.queue = [];
     }
@@ -29,6 +30,7 @@
     }
     _snapshot(task) {
       return { version: 1, task_id: task.id, label: task.args.label, status: task.status,
+        ...(task.reusable ? { task_name: task.taskName, run_id: task.child.taskId, reusable: true } : {}),
         parent: contract.parentIdentity(task.parent), model: task.parent.model,
         createdAt: task.createdAt, ...(task.startedAt ? { startedAt: task.startedAt } : {}),
         ...(task.finishedAt ? { finishedAt: task.finishedAt } : {}) };
@@ -43,7 +45,7 @@
       }
       this._emit(this.onStatus, snapshot);
     }
-    async spawn(value, parentValue, { signal, callId } = {}) {
+    async spawn(value, parentValue, { signal, callId, taskName, conversationTranscript } = {}) {
       if (this.closed) throw fail('SUBAGENT_MANAGER_CLOSED');
       const args = contract.validateSpawn(value), parent = contract.captureParent(parentValue), owner = this._parent(parent, true);
       if (callId !== undefined && (typeof callId !== 'string' || !callId || callId.length > 300)) throw fail('INVALID_SUBAGENT_CALL_ID');
@@ -54,14 +56,16 @@
         return args.wait ? clone(await prior.done) : clone(prior.receipt);
       }
       const id = this.makeId();
+      if (taskName && [...this.tasks.values()].some(task => contract.parentKey(task.parent) === contract.parentKey(parent) && task.taskName === taskName)) throw fail('SUBAGENT_NAME_COLLISION');
       if (this.tasks.has(id) || [...this.parents.values()].some(p => p.statuses.has(id))) throw fail('SUBAGENT_ID_COLLISION');
-      const child = contract.createChildRequest(parent, args, { taskId: id });
+      const child = contract.createChildRequest(parent, args, { taskId: taskName ? `${id}:run:1` : id, conversationTranscript });
       // Capture host authority when spawned, before waiting for a concurrency
       // slot. A later parent mutation must not widen a queued child's scope.
       this.prepareChild(child);
       let resolve;
       const done = new Promise(finish => { resolve = finish; });
       const task = { id, args, parent, child, status: 'queued', createdAt: new Date().toISOString(), controller: new AbortController(), done, resolve, signal, settled: false };
+      Object.assign(task, { reusable: Boolean(taskName), taskName, run: 1, history: conversationTranscript, inbox: [], executing: false });
       task.receipt = { ...this._snapshot(task), delivery: args.wait ? 'inline' : 'parent_queue' };
       this.tasks.set(id, task);
       if (callId) owner.calls.set(callId, { fingerprint, done, receipt: task.receipt });
@@ -78,17 +82,25 @@
       while (!this.closed && this.running < this.concurrency && this.queue.length) {
         const task = this.queue.shift();
         if (task.settled) continue;
-        task.status = 'running'; task.startedAt = new Date().toISOString(); this.running++; this._status(task);
+        task.status = 'running'; task.startedAt = new Date().toISOString(); task.executing = true; this.running++; this._status(task);
+        let cleaned;
+        task.cleanup = new Promise(resolve => { cleaned = resolve; });
         Promise.resolve().then(() => {
           if (task.controller.signal.aborted) throw fail('OPERATION_ABORTED');
-          return this.runChild(task.child, { signal: task.controller.signal, parent: task.parent, taskId: task.id });
+          return this.runChild(task.child, { signal: task.controller.signal, parent: task.parent, taskId: task.id,
+            onTranscript: turn => {
+              if (!task.reusable || task.controller.signal.aborted) return;
+              task.history = { version: 1, summaries: task.history?.summaries || [],
+                turns: [...(task.history?.turns || []).filter(item => item.turnId !== turn.turnId), clone(turn)] };
+            } });
         }).then(result => {
           if (result?.fallback || result?.failure || result?.ok === false) this._finish(task, 'failed', { error: result.error || 'SUBAGENT_FAILED', message: result.reply || result.reason || 'The delegated request failed.', result });
           else this._finish(task, 'completed', { result: result ?? null });
         }, error => this._finish(task, task.controller.signal.aborted || error?.code === 'OPERATION_ABORTED' ? 'cancelled' : 'failed', {
           error: error?.code || 'SUBAGENT_FAILED', message: error?.message || 'The delegated request failed.',
         })).finally(() => {
-          this.running--; this.tasks.delete(task.id); this._pump(); this._notifyIdle(task.parent);
+          this.running--; task.executing = false; if (!task.reusable) this.tasks.delete(task.id);
+          cleaned(); this._pump(); this._notifyIdle(task.parent);
         });
       }
     }
@@ -104,6 +116,7 @@
         guidance: 'Child analysis is not independent source verification. Preserve the result’s original citations, evidence metadata and coverage limitations.' };
       this._status(task);
       const parent = this._parent(task.parent);
+      if (parent) parent.revision = (parent.revision || 0) + 1;
       parent?.results.set(task.id, completion);
       if (!task.args.wait && parent) {
         parent.completions.push(completion);
@@ -117,7 +130,7 @@
       const queued = task.status === 'queued';
       task.controller.abort();
       this._finish(task, 'cancelled', { error: 'OPERATION_ABORTED', message: 'The parent stopped the delegated task.' });
-      if (queued) { this.queue = this.queue.filter(item => item !== task); this.tasks.delete(task.id); this._notifyIdle(task.parent); }
+      if (queued) { this.queue = this.queue.filter(item => item !== task); if (!task.reusable) this.tasks.delete(task.id); this._notifyIdle(task.parent); }
       return true;
     }
     cancelParent(parentValue) {
@@ -126,6 +139,64 @@
       return count;
     }
     list(parentValue) { return clone([...(this._parent(parentValue)?.statuses.values() || [])]); }
+    resolve(target, parentValue) {
+      const key = contract.parentKey(parentValue);
+      const task = [...this.tasks.values()].find(task => task.reusable && contract.parentKey(task.parent) === key &&
+        (task.id === target || task.taskName === target || task.taskName === `/root/${target}`));
+      if (this.closed || !task) throw fail('SUBAGENT_NOT_FOUND');
+      return task;
+    }
+    sendMessage(target, message, parentValue) {
+      const task = this.resolve(target, parentValue);
+      if (typeof message !== 'string' || !message.trim() || message.length > 24000) throw fail('INVALID_SUBAGENT_TASK');
+      if (!task.settled) this.onMessage(task.child.taskId, message);
+      else {
+        if (task.inbox.length >= 16) throw fail('SUBAGENT_MAILBOX_FULL');
+        task.inbox.push(message);
+      }
+      return { task_name: task.taskName, delivered: !task.settled, queued: task.settled };
+    }
+    async followup(target, message, parentValue) {
+      const task = this.resolve(target, parentValue);
+      if (!task.settled) return this.sendMessage(target, message, parentValue);
+      await task.cleanup;
+      if (this.closed || task.signal?.aborted) throw fail('SUBAGENT_MANAGER_CLOSED');
+      // Another follow-up may have resumed this same agent while cleanup awaited.
+      if (!task.settled) return this.sendMessage(target, message, parentValue);
+      const args = contract.validateSpawn({ task: message, label: task.args.label });
+      const history = contract.forkHistory(task.history);
+      const child = contract.createChildRequest(task.parent, args, { taskId: `${task.id}:run:${task.run + 1}`, conversationTranscript: history });
+      this.prepareChild(child);
+      task.args = args; task.child = child; task.run++; task.controller = new AbortController();
+      task.settled = false; task.status = 'queued'; delete task.finishedAt; delete task.startedAt;
+      task.done = new Promise(resolve => { task.resolve = resolve; });
+      task.abortListener = () => this.cancel(task.id, task.parent);
+      task.signal?.addEventListener('abort', task.abortListener, { once: true });
+      for (const queued of task.inbox.splice(0)) this.onMessage(child.taskId, queued);
+      this.queue.push(task); this._status(task); this._pump();
+      return { task_name: task.taskName, agent_id: task.id, run_id: child.taskId, status: task.status };
+    }
+    async interrupt(target, parentValue) {
+      const task = this.resolve(target, parentValue), previousStatus = task.status;
+      this.cancel(task.id, parentValue); await task.cleanup;
+      return { task_name: task.taskName, previous_status: previousStatus, status: task.status };
+    }
+    waitForUpdate(parentValue, { signal, timeoutMs = 30000, interrupted = () => false } = {}) {
+      const parent = this._parent(parentValue), revision = parent?.revision || 0;
+      return new Promise((resolve, reject) => {
+        let timer;
+        const started = Date.now();
+        const finish = (error, reason) => { clearInterval(timer); signal?.removeEventListener('abort', abort); error ? reject(error) : resolve({ reason, agents: this.list(parentValue) }); };
+        const abort = () => finish(fail('OPERATION_ABORTED'));
+        const tick = () => {
+          if (signal?.aborted || this.closed) return abort();
+          if (interrupted()) return finish(null, 'user_input');
+          if (parent?.completions.length || (parent?.revision || 0) !== revision) return finish(null, 'agent_update');
+          if (Date.now() - started >= timeoutMs) finish(null, 'timeout');
+        };
+        timer = setInterval(tick, 25); signal?.addEventListener('abort', abort, { once: true }); tick();
+      });
+    }
     drain(parentValue) {
       const parent = this._parent(parentValue);
       return parent ? clone(parent.completions.splice(0)) : [];
@@ -141,7 +212,7 @@
     }
     _hasRunning(parentValue) {
       const key = contract.parentKey(parentValue);
-      return [...this.tasks.values()].some(task => contract.parentKey(task.parent) === key);
+      return [...this.tasks.values()].some(task => contract.parentKey(task.parent) === key && (!task.settled || task.executing));
     }
     _notifyIdle(parentValue) {
       const parent = this._parent(parentValue);
@@ -156,6 +227,7 @@
       if (this._hasRunning(parentValue)) throw fail('SUBAGENT_PARENT_BUSY');
       // Called after results are delivered or the parent conversation closes.
       // Drops receipts and completion data without leaving an orphan task.
+      for (const [id, task] of this.tasks) if (contract.parentKey(task.parent) === contract.parentKey(parentValue)) this.tasks.delete(id);
       return this.parents.delete(contract.parentKey(parentValue));
     }
     async close() {
@@ -163,7 +235,7 @@
       const identities = [...this.parents.values()].map(parent => parent.identity);
       identities.forEach(parent => this.cancelParent(parent));
       await Promise.all(identities.map(parent => this.waitForIdle(parent)));
-      this.parents.clear(); this.queue = [];
+      this.parents.clear(); this.tasks.clear(); this.queue = [];
     }
   }
   return { SubagentManager };

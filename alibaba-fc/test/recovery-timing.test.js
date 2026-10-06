@@ -109,11 +109,11 @@ test("summary exceeding its per-call timeout retains a degraded checkpoint and r
   const { manager, clock } = await fixture(t, { providerCallMs: 1000 }); manager.seed(history(), 2);
   let main = 0, summary = 0;
   const result = await manager.run({ messages: [...history(), ...pending(false)], deadlineAt: clock.wall() + 300000 }, async r => {
-    if (r.stage === "context-summary") { summary++; clock.advance(1001); return ok("Checkpoint"); }
+    if (r.stage === "context-summary") { summary++; clock.advance(180001); return ok("Checkpoint"); }
     main++; return quota(58000);
   });
   assert.equal(main, 1); assert.equal(summary, 1); assert.equal(result.recoveryStopReason, "provider_call_timeout");
-  assert.equal(result.timing.quotaWaitMs, 58000); assert.equal(result.timing.activeRecoveryMs, 1001);
+  assert.equal(result.timing.quotaWaitMs, 58000); assert.equal(result.timing.activeRecoveryMs, 180001);
   assert.ok(manager.state.checkpoints.length); assert.equal(result.contextDegraded, true); assert.equal(result.checkpointCount, manager.state.checkpoints.length); assert.deepEqual(result.contextMessages.slice(-3), pending(false));
 });
 
@@ -123,11 +123,11 @@ test("provider latency and generic backoff consume the per-call timeout across a
   const result = await manager.run({ messages: [...history(), ...pending(true)], deadlineAt: clock.wall() + 300000 }, async r => {
     if (r.stage === "context-summary") return ok("Checkpoint");
     if (++main === 1) return quota(58000);
-    clock.advance(1001); // Represents provider latency plus its generic backoff, not a quota sleep.
+    clock.advance(180001); // Represents provider latency plus its generic backoff, not a quota sleep.
     return overflow();
   });
   assert.equal(main, 2); assert.equal(result.recoveryStopReason, "provider_call_timeout");
-  assert.equal(result.timing.activeRecoveryMs, 1001); assert.equal(result.timing.quotaWaitMs, 58000);
+  assert.equal(result.timing.activeRecoveryMs, 180001); assert.equal(result.timing.quotaWaitMs, 58000);
   assert.equal(manager.recoverySteps, 1); assert.equal(manager.dispatches, 2);
 });
 
@@ -227,4 +227,66 @@ test("exhausted summary allowance is reported precisely when fallback cannot red
   assert.equal(result.recoveryStopReason, "summary_call_limit_exhausted");
   assert.equal(result.contextDegraded, true); assert.equal(result.automaticRetryScheduled, false);
   assert.match(result.partialReply, /summary-call limit/);
+});
+
+test('sequential generic summaries each receive 180s after preparation and quota waiting',async t=>{
+ const {manager,clock,logs}=await fixture(t);
+ manager.recoveryStarted=clock.mono();manager.signal=new AbortController().signal;
+ manager.hardDeadlineAt=clock.wall()+1000000;
+ manager.quota.record(inputQuota(quota(58000),clock.wall()));
+ for(let i=0;i<2;i++){
+  const result=await manager.dispatch(async request=>{
+   assert.equal(request.providerCallTimeoutMs,180000);
+   assert.equal(request.deadlineAt-clock.wall(),180000);
+   clock.advance(170000);return ok('Useful summary');
+  },{stage:'context-summary',messages:history()},async options=>{clock.advance(40000);return options;});
+  assert(result.ok);
+ }
+ assert.equal(manager.timingFields().quotaWaitMs,58000);
+ assert.equal(manager.callCounts().callsCompleted,2);
+ assert.deepEqual(logs.filter(e=>e.stage==='provider-call'&&e.callStatus==='dispatched').map(e=>e.timeoutMs),[180000,180000]);
+});
+
+for(const transport of ['responses-json','responses-sse','requesty-json','requesty-sse'])test(`${transport} full response body remains inside the recovery timer`,async t=>{
+ const {manager,clock}=await fixture(t);
+ manager.recoveryStarted=clock.mono();manager.signal=new AbortController().signal;
+ manager.hardDeadlineAt=clock.wall()+1000000;
+ let aborted=false,bodyStarted=false;
+ const sse=transport.endsWith('sse');
+ const fetchImpl=async (_url,options)=>{
+  options.signal.addEventListener('abort',()=>{aborted=true;});
+  // Headers arrive immediately, but reading the response stalls.
+  if(!sse)return {ok:true,status:200,headers:new Headers({'content-type':'application/json'}),json:async()=>{bodyStarted=true;queueMicrotask(()=>clock.advance(180000));return new Promise(()=>{});},text:async()=>{bodyStarted=true;queueMicrotask(()=>clock.advance(180000));return new Promise(()=>{});}};
+  return new Response(new ReadableStream({pull(){bodyStarted=true;queueMicrotask(()=>clock.advance(180000));return new Promise(()=>{});}}),{headers:{'content-type':'text/event-stream'}});
+ };
+ if(transport.startsWith('requesty'))t.mock.method(globalThis,'fetch',fetchImpl);
+ const result=await manager.dispatch(request=>transport.startsWith('responses')
+  ?require('../provider-lifecycle.js').responses({api:'responses',endpoint:'https://offline.invalid/v1/responses',apiKey:'fixture',model:'fixture'},request,{signal:request.signal,fetchImpl})
+  :require('../index.js')._test.requestRequestyMessage({model:'fixture',messages:request.messages},'fixture',false,sse?{signal:request.signal}:null,{signal:request.signal,deadlineAt:request.deadlineAt,maxAttempts:1}),
+ {stage:'context-summary',messages:history()});
+ assert(bodyStarted);assert(aborted);assert.equal(result.recoveryStopReason,'provider_call_timeout');
+ assert.equal(manager.callCounts().callsTimedOut,1);
+ const event=manager.corpusDiagnostics().events.find(e=>e.event==='recovery-provider-call');
+ assert.equal(event.timeoutMs,180000);assert.equal(event.reason,'provider_call_timeout');
+});
+
+test('a shorter call-specific outer deadline is never classified as provider timeout',async t=>{
+ const {manager,clock}=await fixture(t);manager.recoveryStarted=clock.mono();
+ const result=await manager.dispatch(async r=>{assert.equal(r.providerCallTimeoutMs,180000);queueMicrotask(()=>clock.advance(60000));return new Promise(()=>{});},
+ {stage:'context-summary',messages:history(),deadlineAt:clock.wall()+60000});
+ assert.equal(result.recoveryStopReason,'hard_request_deadline_exhausted');
+ assert.equal(manager.corpusDiagnostics().events.at(-1).outerDeadlineLimited,true);
+});
+
+test('outer transport abort at its deadline reports hard deadline rather than cancellation or call timeout',async t=>{
+ const {manager,clock}=await fixture(t);const controller=new AbortController();
+ manager.recoveryStarted=clock.mono();manager.hardDeadlineAt=clock.wall()+60000;manager.signal=controller.signal;
+ const result=await manager.dispatch(async()=>{clock.advance(60000);controller.abort();return new Promise(()=>{});},{stage:'context-summary',messages:history()});
+ assert.equal(result.recoveryStopReason,'hard_request_deadline_exhausted');assert.equal(manager.callCounts().callsTimedOut,1);
+});
+
+test('delayed scheduling past both deadlines retains the earlier individual timeout cause',async t=>{
+ const {manager,clock}=await fixture(t);manager.recoveryStarted=clock.mono();manager.hardDeadlineAt=clock.wall()+200000;
+ const result=await manager.dispatch(async()=>{clock.advance(210000);return ok('Too late');},{stage:'context-summary',messages:history()});
+ assert.equal(result.recoveryStopReason,'provider_call_timeout');
 });

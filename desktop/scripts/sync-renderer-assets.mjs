@@ -6,9 +6,13 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const vendorRoot = path.join(repositoryRoot, "docs", "vendor");
 
 const assets = [
+  ["shared/corpus-result-service.js", "corpus-result-service.js"],
+  ["shared/advanced-tools.js", "advanced-tools.js"],
+  ["shared/runtime-concurrency.js", "runtime-concurrency.js"],
   ["shared/topic-navigation.js", "topic-navigation.js"],
   ["shared/turn-observability.js", "turn-observability.js"],
   ["shared/runtime-extensions.js", "runtime-extensions.js"],
+  ["shared/runtime-tools.js", "runtime-tools.js"],
   ["shared/generic-subagent.js", "generic-subagent.js"],
   ["shared/literature-agent.js", "literature-agent.js"],
   ["shared/side-chat-tools.js", "side-chat-tools.js"],

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { AdvancedRuntimeService, loadAdvancedConfig } from "./advanced-runtime-service.mjs";
 import os from "node:os";
 import crypto from "node:crypto";
 import { PlaywrightMcpClient } from "./playwright-mcp-client.mjs";
@@ -27,6 +28,7 @@ export class ProjectSessionManager extends EventEmitter {
     this.bundledSkillsPath = options.bundledSkillsPath || null;
     this.paperOptions = { appPath: options.appPath, resourcesPath: options.resourcesPath, packaged: options.packaged };
     this.browserOptions = { profileRoot: options.browserProfileRoot || (options.qmdCacheRoot ? path.join(options.qmdCacheRoot, "library-browser") : path.join(os.tmpdir(), "biodesign-browser", crypto.randomUUID())), headless: options.browserHeadless === true };
+    this.advancedOptions = options.advancedRuntime || {};
     this.active = null;
   }
 
@@ -58,7 +60,7 @@ export class ProjectSessionManager extends EventEmitter {
       return result;
     });
     runtimeWorkflow("runtime_skills_list", [], "informational", () => active.skills.list());
-    runtimeWorkflow("runtime_skills_context", ["text"], "informational", input => active.skills.context(input.text ?? ""));
+    runtimeWorkflow("runtime_skills_context", ["text"], "informational", async input => ({ ...await active.skills.context(input.text ?? ""), advancedRuntimeVersion: 1 }));
     runtimeWorkflow("runtime_skills_read", ["name", "forAgent"], "informational", input => {
       if (input.forAgent !== undefined && typeof input.forAgent !== "boolean") throw new ValidationError("INVALID_INPUT", "forAgent must be a boolean.");
       return active.skills.read(input.name, { forAgent: input.forAgent === true });
@@ -85,7 +87,9 @@ export class ProjectSessionManager extends EventEmitter {
         return active.genericMcp.list();
       });
     }
-    runtimeWorkflow("runtime_mcp_definitions", [], "informational", async () => ({ tools: await active.genericMcp.definitions() }));
+    runtimeWorkflow("runtime_mcp_definitions", [], "informational", async () => ({ tools: await active.genericMcp.definitions(),
+      resourcesAvailable: true, resources: await active.genericMcp.resourceDefinitions(),
+      resourceTemplateServers: await active.genericMcp.resourceTemplateDefinitions() }));
     runtimeWorkflow("runtime_mcp_cancel", ["callId"], "runtime_control", input => {
       const callId = boundedString(input.callId, "callId", 256);
       const pending = active.genericMcpCalls.get(callId);
@@ -113,6 +117,22 @@ export class ProjectSessionManager extends EventEmitter {
         if (!pending.count && active.genericMcpCalls.get(callId) === pending) active.genericMcpCalls.delete(callId);
       }
     });
+    let advancedConfig = this.advancedOptions.config;
+    if (!advancedConfig) {
+      try { advancedConfig = await loadAdvancedConfig(); }
+      catch { advancedConfig = { unavailable: 'INVALID_RUNTIME_PROVIDER_CONFIG' }; }
+    }
+    active.advancedRuntime = new AdvancedRuntimeService({ filesystem, apps: active.apps,
+      config: advancedConfig, imagePreview: this.advancedOptions.imagePreview, signal: active.sourceDownloads.signal,
+      dynamicTools: [{ definition: { type: 'function', function: { name: 'host_project_status', description: 'Read the active host project descriptor and whether its knowledge worker is initialized. Does not attest scientific evidence readiness.', parameters: { type: 'object', properties: {}, additionalProperties: false } } },
+        validate: args => { if (!args || Object.keys(args).length) throw new ValidationError('INVALID_INPUT', 'No arguments accepted.'); },
+        execute: async () => ({ project: filesystem.descriptor(), knowledgeWorkerInitialized: Boolean(active.qmd), projectOpen: this.active === active }) }, ...(this.advancedOptions.dynamicTools || [])] });
+    runtimeWorkflow('runtime_advanced_open', ['owner', 'surface', 'permission'], 'runtime_control', input => active.advancedRuntime.open(input));
+    runtimeWorkflow('runtime_advanced_grant', ['owner'], 'runtime_control', input => active.advancedRuntime.grant(input.owner));
+    runtimeWorkflow('runtime_advanced_call', ['owner', 'call'], 'runtime_execution', input => active.advancedRuntime.call(input));
+    runtimeWorkflow('runtime_advanced_reply', ['owner', 'cell_id', 'results'], 'runtime_execution', input => active.advancedRuntime.reply(input));
+    runtimeWorkflow('runtime_advanced_install', ['owner', 'plugin_id', 'digest', 'call_id'], 'runtime_configuration', input => active.advancedRuntime.install(input));
+    runtimeWorkflow('runtime_advanced_close', ['owner'], 'runtime_control', async input => { await active.advancedRuntime.closeOwner(input.owner); return { closed: true }; });
     active.paperMcp = new PaperMcpClient(this.paperOptions);
     registerAcademicWorkflows(active, active.paperMcp, () => this.active === active);
     active.browserMcp = new PlaywrightMcpClient({ ...this.browserOptions, profileRoot: path.join(this.browserOptions.profileRoot, crypto.createHash('sha256').update(filesystem.root).digest('hex').slice(0, 24)) });
@@ -197,6 +217,7 @@ export class ProjectSessionManager extends EventEmitter {
     const active = this.active;
     this.active = null;
     active.sourceDownloads.abort();
+    await active.advancedRuntime?.close().catch(() => {});
     await active.genericMcp?.close().catch(() => {});
     await active.browserMcp?.close().catch(() => {});
     await active.paperMcp?.close().catch(() => {});

@@ -43,10 +43,20 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
   t.mock.method(globalThis, "fetch", async (url, options) => {
     if (url.endsWith("/models")) { configurationRequests++; return new Response(JSON.stringify({ data: [] })); }
     const request = JSON.parse(options.body); requests.push(request);
-    assert.equal(request.model, model); assert.equal(request.response_format, undefined);
+    assert.equal(request.model, model); assert.deepEqual(request.response_format, request.messages[0].content.startsWith('You are compressing derived Paper Cards') ? {type:'json_object'} : undefined);
     if (request.messages[0].content.startsWith("Create a factual working-state checkpoint")) {
       assert.ok(!request.tools?.length);
       return respond ? respond(requests.length, request, () => reply("Historical review; exact source detail remains archived. Next: answer the pending request.")) : reply("Historical review checkpoint.");
+    }
+    if (request.messages[0].content.startsWith("You are compressing derived Paper Cards")) {
+      assert.ok(!request.tools?.length); assert([2,3].includes(request.messages.length));
+      if(request.messages.length===3)assert.match(request.messages[2].content,/Previous output failed validation/);
+      const data = JSON.parse(request.messages[1].content);
+      assert.equal(data.task, question);
+      const final = () => reply(JSON.stringify({ papers: data.units.map(unit => ({ handle: unit.handle, part: unit.part,
+        summary: "Qualified methane and salinity finding.", omissions: ["Fine experimental detail omitted."] })),
+        synthesis: [], omissions: ["Exact values omitted."], limitations: ["Derived cards; original evidence not read."] }));
+      return respond ? respond(requests.length, request, final) : final();
     }
     assert.ok(request.messages.some(message => message.role === "user" && message.content.includes(question)));
     if (quotaBeforeTool && requests.length === 1) return new Response(JSON.stringify({ error: { message:
@@ -56,6 +66,15 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
     assert.equal(tool.tool_call_id, call.id);
     assert.ok(request.messages.some(message => message.tool_calls?.some(item => item.id === tool.tool_call_id)));
     const view = JSON.parse(tool.content);
+    if (['compatible-paper-cards', 'compressed-derived-paper-cards'].includes(view.basis)) {
+      const papers = view.paperCards || view.paperSummaries;
+      assert.equal(papers.length, 3); assert.equal(view.coverage.withCurrentCompatibleCards, 3);
+      assert.equal(view.coverage.exhaustiveContentCoverage, false);
+      assert(papers.every(p => p.sourceId && p.contentHash && p.cardIdentity));
+      assert.equal(view.findings, undefined); assert.match(view.guidance, /derived.*Paper Cards|derived.*summaries/i);
+      const final = () => reply("逐篇总结与综述：根据衍生 Paper Cards 概括主题；原文细节和精确数据尚需核实。");
+      return respond ? respond(requests.length, request, final) : final();
+    }
     if (!view.contextArchive) originalEvidence = view;
     else { assert.ok(view.omitted); assert.match(view.contextArchive, /^[a-f0-9]{64}$/); }
     const evidence = view.contextArchive ? originalEvidence : view;
@@ -121,7 +140,7 @@ test("three-paper Chinese review sends collected evidence to the same model and 
 test("quota recovery before handoff does not synthetically block fresh collection results", async t => {
   const f = await run(t, () => new Response(JSON.stringify({ error: { message:
     "Quota exceeded for metric: generate_content_input_token_count, limit: 16000. Retry in 0s." } }), { status: 429 }), { quotaBeforeTool: true });
-  assert.ok(f.requests.length > 2 && f.requests.length <= 2 + 1 + 4 + 16);
+  assert.ok(f.requests.length > 2 && f.requests.length <= 2 + 1 + 4 + 16 + 16);
   assert.equal(JSON.parse(f.requests[2].messages.at(-1).content).coverage.papersSuccessfullyAnalyzed, 3,
     "fresh evidence reaches the provider despite cached capacity and previous requests");
   assert.equal(f.result.fallback, true); assert.equal(f.result.error, "InputQuotaRecoveryIncomplete");
@@ -131,7 +150,7 @@ test("quota recovery before handoff does not synthetically block fresh collectio
   assert.ok(saved.findings.papers.every(p => p.originalEvidence.length));
 });
 
-for (const kind of ["context"]) test(`${kind}: resumed persisted transcript actually shrinks on one bounded retry`, async t => {
+for (const kind of ["context"]) test(`${kind}: complete-card retry shrinks model context while preserving the persisted transcript`, async t => {
   const f = await run(t, (count, request, final) => count === 2
     ? new Response(JSON.stringify({ error: { message: kind === "context" ? "context_length_exceeded" :
       "Quota exceeded for metric: generate_content_input_token_count, limit: 12000. Please retry in 0s." } }), { status: kind === "context" ? 400 : 429 }) : final());
@@ -139,8 +158,8 @@ for (const kind of ["context"]) test(`${kind}: resumed persisted transcript actu
   const before = JSON.stringify(f.requests[1].messages).length, after = JSON.stringify(f.requests[2].messages).length;
   assert.ok(after < before * 0.9, `${after} must be smaller than ${before}`);
   const compacted = JSON.parse(f.requests[2].messages.find(message => message.role === "tool").content);
-  assert.ok(compacted.contextArchive); assert.equal(compacted.omitted, true);
-  assert.match(compacted.preview, /coverage/);
+  assert.equal(compacted.basis, "compatible-paper-cards");
+  assert.equal(compacted.coverage.withCurrentCompatibleCards, 3); assert.equal(compacted.contextArchive, undefined);
   const saved = f.checkpoints.at(-1).messages.find(message => message.role === "tool");
   assert.ok(saved.content.length > f.requests[2].messages.find(message => message.role === "tool").content.length);
 });
@@ -156,7 +175,8 @@ for (const kind of ["empty", "quota", "rejected", "context", "network"]) test(`$
     return kind === "empty" ? reply(null) : new Response(JSON.stringify({ error: { message: `${kind === "context" ? "context_length_exceeded " : ""}PRIVATE_EVIDENCE_SENTINEL`, code: kind === "quota" ? "insufficient_quota" : "invalid_request" } }),
       { status: kind === "quota" ? 429 : 400, headers: { "x-request-id": "fixture-upstream-id" } });
   });
-  assert.equal(f.requests.length, ["empty", "context", "network"].includes(kind) ? 3 : 2);
+  if (kind === "context") assert(f.requests.length >= 3 && f.requests.length <= 37);
+  else assert.equal(f.requests.length, ["empty", "network"].includes(kind) ? 3 : 2);
   assert.equal(f.result.fallback, true); assert.equal(f.result.taskOutcome.status, "incomplete");
   assert.match(f.result.reply, /未能完成本次回答/); assert.doesNotMatch(f.result.reply, /safe fallback|成功分析|PRIVATE_EVIDENCE_SENTINEL/);
   assert.equal(f.result.failure.category, kind === "empty" ? "provider_content" : kind === "network" ? "provider_fetch_exception" : "provider_rejection");
@@ -207,10 +227,49 @@ test("corpus compaction preserves complete JSON, all sources/versions/references
 
 test("repeated input-token quota stops after reduction and preserves actual measured corpus coverage", async t => {
   const f = await run(t, () => new Response(JSON.stringify({ error: { message: "Quota exceeded for metric: generate_content_input_token_count, limit: 12000. Please retry in 0s." } }), { status: 429 }));
-  assert.equal(f.requests.length, 3); assert.equal(f.result.fallback, true);
+  assert(f.requests.length >= 3 && f.requests.length <= 37); assert.equal(f.result.fallback, true);
   assert.ok(JSON.stringify(f.requests[2].messages).length < JSON.stringify(f.requests[1].messages).length);
   const before = JSON.parse(f.requests[1].messages.find(message => message.role === "tool").content);
   assert.equal(before.coverage.papersSuccessfullyAnalyzed, 3);
-  assert.equal(f.result.semanticTelemetry.providerAttempts, 3);
+  assert.equal(f.result.semanticTelemetry.providerAttempts, f.requests.length);
   assert.equal(f.checkpoints.at(-1).messages.find(message => message.role === "tool").content, JSON.stringify(before));
+});
+
+test('authenticated Chat Completions handoff performs mixed, complete-card, isolated summary, then compressed answer', async t => {
+  const f = await run(t, (count, request, final) => [2,3].includes(count)
+    ? new Response(JSON.stringify({ error: { code: 'context_length_exceeded', details: { max_input_tokens: 100000 } } }), { status: 400 }) : final());
+  assert.equal(f.result.fallback, false); assert.equal(f.requests.length, 5);
+  assert.equal(JSON.parse(f.requests[2].messages.find(m=>m.tool_call_id===call.id).content).basis,'compatible-paper-cards');
+  const internal=f.requests[3];assert.equal(internal.messages.length,2);assert(!internal.tools?.length);
+  assert.match(internal.messages[0].content,/You are compressing derived Paper Cards/);
+  const data=JSON.parse(internal.messages[1].content);assert.equal(data.units.length,3);assert.equal(data.task,question);
+  assert(data.units.every(u=>u.identity.sourceId&&u.identity.contentHash&&u.identity.cardIdentity));
+  const result=JSON.parse(f.requests[4].messages.find(m=>m.tool_call_id===call.id).content);
+  assert.equal(result.basis,'compressed-derived-paper-cards');assert.equal(result.paperSummaries.length,3);
+  assert.equal(result.coverage.exhaustiveContentCoverage,false);
+  const saved=f.checkpoints.at(-1).messages.find(m=>m.tool_call_id===call.id);
+  assert.equal(saved.content,f.requests[1].messages.find(m=>m.tool_call_id===call.id).content);
+  assert.equal(f.result.semanticTelemetry.providerAttempts,5);
+  const diagnostics=f.result.semanticTelemetry.corpusRecovery;
+  assert(diagnostics.events.some(e=>e.event==='corpus-summary-batch-start'&&e.purpose==='corpus-summary'&&e.estimatedInputTokens>0));
+  assert(diagnostics.events.some(e=>e.event==='corpus-provider-rejection'&&e.category==='input_size'));
+  assert(diagnostics.events.some(e=>e.event==='corpus-summary-stage-completed'&&e.reductionStage===1));
+  assert(!JSON.stringify(diagnostics).includes('Qualified methane'));
+  const logged=f.log.entries().filter(row=>row.event==='backend.corpus-recovery').map(row=>row.details);
+  assert(logged.some(e=>e.event==='corpus-summary-stage-completed'&&e.targetTokens>0&&e.actualSummaryTokens>0&&e.estimatedAfterTokens<e.estimatedBeforeTokens));
+  assert(logged.some(e=>e.purpose==='corpus-summary'));
+  assert(f.log.entries().some(row=>row.event==='backend.corpus-projection'&&row.details.actualSummaryTokens>0));
+  assert(!f.log.exportText().includes('Qualified methane'));
+});
+
+
+test('buffered console reports validation and underlying corpus cause with the final error',async t=>{
+ const f=await run(t,(count,request,final)=>[2,3].includes(count)
+  ?new Response(JSON.stringify({error:{code:'context_length_exceeded'}}),{status:400})
+  :request.messages[0].content.startsWith('You are compressing derived Paper Cards')?reply('PRIVATE_INVALID_SUMMARY'):final());
+ assert(f.result.fallback);
+ const logs=f.log.entries();
+ assert(logs.some(row=>row.event==='backend.corpus-recovery'&&row.details.event==='corpus-summary-validation-failure'&&row.details.reason==='malformed_summary'));
+ assert(logs.some(row=>row.event==='main-agent.failure'&&row.details.code===f.result.error&&row.details.corpusStopReason==='malformed_summary'),JSON.stringify({error:f.result.error,corpus:f.result.semanticTelemetry?.corpusRecovery?.stopReason,logs:logs.filter(row=>row.event==='main-agent.failure')}));
+ assert(!f.log.exportText().includes('PRIVATE_INVALID_SUMMARY'));
 });

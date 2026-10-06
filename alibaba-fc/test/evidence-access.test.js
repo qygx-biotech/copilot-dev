@@ -307,3 +307,127 @@ test('invalid, oversized, conflicting or permission-bearing requirements fail lo
     { query: 'pH', requirement: { permissions: 'write' } }, { query: 'pH', requirement: { scope: { sourceIds: ['A', 'A'] } } },
   ]) assert.throws(() => contract.validate('retrieve_project_evidence', args));
 });
+
+for (const rejectionStatus of [400, 429]) test(`corpus desktop handoff uses full cached cards after HTTP ${rejectionStatus}, without rerunning collection or consuming a step`, async t => {
+  const fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path');
+  const archiveRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'corpus-host-fallback-')); t.after(() => fs.rm(archiveRoot, { recursive: true, force: true }));
+  const f = await fixture('Summarize all current papers.');
+  const source = f.system.registry.get(f.ids[0]);
+  const cardPath = source.artifacts.paperCard.path;
+  const fullCard = await f.workspace.readJson(cardPath);
+  fullCard.shortSummary = 'Derived detailed finding. '.repeat(600) + 'FULL_CARD_TAIL_AFTER_OLD_CUTOFF';
+  await f.workspace.writeJson(cardPath, fullCard);
+  // The old orientation may not stand in for either missing or incompatible cards.
+  const missing = f.system.registry.get(f.ids[1]); await f.workspace.removeFile(missing.artifacts.paperCard.path);
+  const stale = f.system.registry.get(f.ids[2]), staleCard = await f.workspace.readJson(stale.artifacts.paperCard.path);
+  staleCard.cacheKey = 'incompatible'; await f.workspace.writeJson(stale.artifacts.paperCard.path, staleCard);
+  let collections = 0; const collect = f.system.corpusWorkflows.run.bind(f.system.corpusWorkflows);
+  f.system.corpusWorkflows.run = async (...args) => { collections++; return collect(...args); };
+  f.system.corpusWorkflows.mapWorker = () => assert.fail('No per-paper worker');
+  const beforeCards = f.calls.cards, bodies = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const body = JSON.parse(init.body); bodies.push(body);
+    if (bodies.length === 2) return new Response(JSON.stringify({ error: rejectionStatus === 400
+      ? { code: 'context_length_exceeded', message: 'maximum context length exceeded' }
+      : { code: 'input_token_quota_exceeded', message: 'Input token quota exceeded', details: { input_token_limit: 16000, retry_after_ms: 0 } } }), { status: rejectionStatus });
+    const message = bodies.length === 1 ? { tool_calls: [toolCall('run_corpus_workflow', {}, 'collect-full')] }
+      : bodies.length === 3 ? { tool_calls: [toolCall('retrieve_project_evidence', { query: 'Reactor pH', paper_ids: [f.ids[0]] }, 'precise')] }
+      : { content: 'This overview is based on derived cards; original evidence supports exact details.' };
+    return new Response(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 100, completion_tokens: 10 } }));
+  });
+  const run = resume => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, f.options.question) },
+    originalRequest: f.options.question, conversationMessages: [{ role: 'user', content: f.options.question }],
+    conversationTranscript: transcript.normalize(), turnId: f.options.turnId, model, systemPrompt: 'Preserve authorized source scope.',
+    contextOptions: { config: { root: archiveRoot } }, parseFinalAnswer: reply => ({ reply }), projectToolsEnabled: true, supportsTools: true, resume,
+    requestTurn: request => backend._test.requestRequestyMessage({ model, messages: request.messages, tools: request.tools, max_tokens: 200 }, 'offline', false, null, { maxAttempts: 1, signal: request.signal }) });
+  const first = await run();
+  const receipt = await f.tool('run_corpus_workflow', {}, 'collect-full');
+  const canonical = structuredClone(receipt);
+  assert.equal(receipt.corpusCardFallback.cards.length, 1);
+  assert.equal(receipt.corpusCardFallback.missingCards.length, 2);
+  assert.deepEqual(receipt.corpusCardFallback.cards[0].card, fullCard);
+  const resumed = continuation.withResults(first.continuationState, [receipt]);
+  const second = await run(resumed);
+  assert(second.ok, JSON.stringify(second));
+  assert.equal(bodies.length, 3); assert.equal(second.continuationState.step, 2);
+  assert.equal(second.continuationState.totalToolCalls, 2);
+  assert.equal(second.continuationState.reactiveCompactionRetries, 0);
+  const mixedMessage = bodies[1].messages.find(m => m.tool_call_id === 'collect-full');
+  assert.equal(mixedMessage.content, JSON.stringify(receipt.result));
+  assert(!JSON.stringify(bodies[1]).includes('FULL_CARD_TAIL_AFTER_OLD_CUTOFF'));
+  const projected = JSON.parse(bodies[2].messages.find(m => m.tool_call_id === 'collect-full').content);
+  assert.equal(projected.paperCards.length, 1, JSON.stringify({ projected, sources: f.context.sourceMap.paperSources, cacheKey: fullCard.cacheKey }));
+  assert.deepEqual(projected.paperCards[0].card, fullCard);
+  assert.equal(projected.paperCards[0].sourceId, source.sourceId);
+  assert.equal(projected.paperCards[0].contentHash, source.contentHash);
+  assert.equal(projected.coverage.withCurrentCompatibleCards, 1);
+  assert.equal(projected.coverage.exhaustiveContentCoverage, false);
+  assert.equal(projected.missingCards.length, 2);
+  for (const key of ['files', 'findings', 'knowledge', 'evidenceBundle']) assert.equal(projected[key], undefined);
+  assert.deepEqual(receipt, canonical);
+  assert.equal(second.continuationState.transcriptTurn.messages.find(m => m.tool_call_id === 'collect-full').content, JSON.stringify(canonical.result));
+  const signed = continuation.seal(second.continuationState, { turn: f.options.turnId }, 'offline');
+  const cold = continuation.open(signed, { turn: f.options.turnId }, 'offline');
+  const precise = await f.tool('retrieve_project_evidence', { query: 'Reactor pH', paper_ids: [f.ids[0]] }, 'precise');
+  const final = await run(continuation.withResults(cold, [precise]));
+  assert(final.ok, JSON.stringify(final)); assert.equal(bodies.length, 4);
+  assert(JSON.parse(bodies[3].messages.find(m => m.tool_call_id === 'collect-full').content).corpusCardProjection);
+  assert.equal(final.data.turnUsage.coverage.requests, 4, "The card retry counts as a real provider request");
+  assert.equal(collections, 1); assert.equal(f.calls.cards, beforeCards);
+});
+
+test('actual native main adapter compresses corpus in a tool-free context, hides summary streaming and resumes canonical receipts', async t => {
+  const fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(),'corpus-native-loop-')); t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const f = await fixture('Summarize all current papers.');
+  for (const id of f.ids) {
+    const source=f.system.registry.get(id), card=await f.workspace.readJson(source.artifacts.paperCard.path);
+    card.shortSummary='Qualified original derived finding. '.repeat(600)+'COMPLETE_NATIVE_CARD_TAIL';
+    await f.workspace.writeJson(source.artifacts.paperCard.path,card);
+  }
+  let collections=0;const collect=f.system.corpusWorkflows.run.bind(f.system.corpusWorkflows);
+  f.system.corpusWorkflows.run=async(...args)=>{collections++;return collect(...args);};
+  f.system.corpusWorkflows.mapWorker=()=>assert.fail('No corpus map reasoning');
+  const beforeCards=f.calls.cards, bodies=[],events=[], alias='fixture/native';
+  const env={ REQUESTY_MODEL:alias,NATIVE_KEY:'offline',CONTEXT_ARCHIVE_DIR:root,CONTEXT_PROVIDER_CALL_TIMEOUT_MS:'100',
+    AGENT_PROVIDER_ADAPTERS_JSON:JSON.stringify({[alias]:{api:'responses',endpoint:'https://offline.invalid/responses',model:'native-model',apiKeyEnv:'NATIVE_KEY',supportsTools:true,supportsImages:true,reasoning:{effort:'high'}}}) };
+  const textResponse=text=>new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text}]}],usage:{input_tokens:100,output_tokens:10}}));
+  t.mock.method(globalThis,'fetch',async(_url,init)=>{
+    const body=JSON.parse(init.body);bodies.push(body);
+    if(bodies.length===1)return new Response(JSON.stringify({status:'completed',output:[{type:'function_call',id:'item_collect',call_id:'collect',name:'run_corpus_workflow',arguments:'{}',status:'completed'}],usage:{input_tokens:100,output_tokens:10}}));
+    if(bodies.length===2||bodies.length===3)return new Response(JSON.stringify({error:{code:'context_length_exceeded',details:{max_input_tokens:100000}},usage:{input_tokens:15,output_tokens:0}}),{status:400});
+    if(body.input[0]?.content?.startsWith('You are compressing derived Paper Cards')){
+      assert.equal(body.input.length,bodies.length===5?3:2);assert.equal(body.tools,undefined);assert.deepEqual(body.text,{format:{type:'json_object'}});assert.equal(body.response_format,undefined);assert.equal(body.previous_response_id,undefined);
+      assert.equal(body.model,'native-model');assert.deepEqual(body.reasoning,{effort:'high'});assert(!JSON.stringify(body).includes('input_image'));
+      assert(JSON.stringify(body).includes('COMPLETE_NATIVE_CARD_TAIL'));
+      if(bodies.length===4)return textResponse('PRIVATE_INVALID_SUMMARY');
+      const data=JSON.parse(body.input[1].content);
+      const summary={papers:data.units.map(u=>({handle:u.handle,part:u.part,summary:'INTERNAL_SUMMARY_NOT_UI: qualified paper finding.',omissions:['Numeric details omitted.']})),synthesis:[],omissions:['Fine details omitted.'],limitations:['Derived cards only.']};
+      const response={id:'summary',status:'completed',output:[{type:'reasoning',id:'private',encrypted_content:'PRIVATE_SUMMARY_REASONING'},{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(summary)}]}],usage:{input_tokens:100,output_tokens:10}};
+      const frames=[{type:'response.created',response:{id:'summary'}},{type:'response.output_text.delta',delta:JSON.stringify(summary)},{type:'response.completed',response}];
+      return new Response(frames.map(frame=>'data: '+JSON.stringify(frame)+'\n\n').join(''),{headers:{'content-type':'text/event-stream'}});
+    }
+    const view=JSON.parse(body.input.find(item=>item.type==='function_call_output'&&item.call_id==='collect').output);
+    assert.equal(view.basis,'compressed-derived-paper-cards');assert.equal(view.paperSummaries.length,3);
+    assert(JSON.stringify(body).includes('input_image'),'Original attachments retained for the MAIN request');
+    return textResponse('{"reply":"This is a derived overview, not exhaustive evidence coverage."}');
+  });
+  const run=resume=>backend._test.callRequesty([{role:'user',content:f.options.question}],env,
+    {localWorkspaceContext:backend._test.sanitizeLocalWorkspaceContext(f.context,f.options.question)},'side_chat',{turnId:f.options.turnId},
+    {emit:async(kind,data)=>events.push({kind,data})}, {enabled:true,projectTools:true,originalRequest:f.options.question,resume,
+      conversationTranscript:transcript.normalize(),images:[{dataUrl:'data:image/png;base64,aGVsbG8='}]});
+  const first=await run();assert(first.ok,JSON.stringify(first));assert(first.continuationState);
+  const receipt=await f.tool('run_corpus_workflow',{},'collect'), canonical=structuredClone(receipt);
+  const second=await run(continuation.withResults(first.continuationState,[receipt]));
+  assert(second.ok,JSON.stringify(second));assert.equal(bodies.length,6);assert.equal(collections,1);assert.equal(f.calls.cards,beforeCards);
+  assert.equal(second.data.turnUsage.coverage.requests,6);assert.equal(second.data.turnUsage.coverage.inputTokens,6,'Failed native requests keep provider-supplied usage');
+  assert.equal(second.data.turnUsage.totals.inputTokens,430);
+  assert(!JSON.stringify(events.filter(e=>e.kind==='delta')).includes('INTERNAL_SUMMARY_NOT_UI'));
+  assert(!JSON.stringify(events).includes('PRIVATE_SUMMARY_REASONING'));
+  assert.deepEqual(receipt,canonical);
+  assert(events.some(e=>e.data?.event==='corpus-summary-main-retry'));
+  const failure=events.find(e=>e.data?.event==='corpus-summary-validation-failure');
+  assert.equal(failure.data.reason,'malformed_summary');assert(!JSON.stringify(events).includes('PRIVATE_INVALID_SUMMARY'));
+  assert(second.semanticTelemetry.corpusRecovery.events.some(e=>e.event==='corpus-summary-validation-failure'&&e.reason==='malformed_summary'));
+  assert(events.filter(e=>e.data?.event==='recovery-provider-call').every(e=>e.data.providerCallTimeoutMs===180000));
+});

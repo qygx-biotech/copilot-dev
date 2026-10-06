@@ -8,6 +8,22 @@ import sourceFetch from '../../shared/source-fetch.js';
 const equivalents = ['e45', '[ref=e45]', ' \te45\n', ' \n[ref=e45]\t', 'f1e45', '[ref=f1e45]', ' \tf1e45\n', ' \n[ref=f1e45]\t'];
 const malformed = ['', ' ', '#e45', 'aria-ref=e45', '//button', 'button[ref=e45]', 'click e45', 'e45 please', '[ref=e45] extra', '[ref= e45]', '[ref=e45][ref=e46]', '[ref=latest_download]', 'E45', 'e45\ne46', null, 45, {}];
 
+test('large snapshots retain redacted content and actionable references beyond 24000 characters', async () => {
+  const f = await referenceBrowserFixture();
+  const prefix = '- paragraph "Library result details"\n'.repeat(1000);
+  const tail = '- link "Final paper" [ref=e45]';
+  f.page.ariaSnapshot = async () => prefix + 'Bearer private-credential\n' + tail;
+  const observation = await f.browser.call('job', 'browser_snapshot', {});
+  assert.equal(observation.status, 'observed');
+  assert.equal(observation.truncated, false);
+  assert(observation.snapshot.indexOf(tail) > 24000);
+  assert(observation.snapshot.endsWith(tail));
+  assert.doesNotMatch(observation.snapshot, /private-credential/);
+  const result = await f.browser.call('job', 'browser_click', { target: 'e45' });
+  assert.equal(result.status, 'observed');
+  assert.deepEqual(f.actions.map(({ name, ref }) => ({ name, ref })), [{ name: 'click', ref: 'e45' }]);
+});
+
 test('reference parser matches the whole input and limits the download sentinel to capture', () => {
   for (const value of equivalents) assert.equal(normalizeSnapshotReference(value), value.includes('f1') ? 'f1e45' : 'e45');
   for (const value of malformed) assert.equal(normalizeSnapshotReference(value), null);

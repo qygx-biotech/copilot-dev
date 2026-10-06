@@ -32,6 +32,7 @@ async function fixture(t, options = {}) {
         getServerCapabilities: () => options.capabilities || { tools: {} },
         async listTools() { return { tools: options.tools || [tool()] }; },
         async listResources() { return { resources: [{ uri: 'resource://workspace/readme', name: 'Readme' }] }; },
+        async listResourceTemplates(args) { calls.push({ templates: args }); return { resourceTemplates: [{ uriTemplate: 'resource://workspace/{name}', name: 'Workspace' }], nextCursor: 'next-template-page' }; },
         async readResource(args) { return { contents: [{ uri: args.uri, text: 'resource' }] }; },
         async listPrompts() { return { prompts: [{ name: 'research', arguments: [{ name: 'topic', required: true }] }] }; },
         async getPrompt(args) { return { messages: [{ role: 'user', content: { type: 'text', text: args.arguments.topic } }] }; },
@@ -173,6 +174,23 @@ test('raw or namespaced allowlist restricts tools and excludes all resources and
   await assert.rejects(service.call({ id: 'hidden', name: 'mcp_example_hidden', args: { value: 'x' } }, context()), { code: 'MCP_TOOL_NOT_ALLOWED' });
   await service.save({ name: 'example', config: config({ enabledTools: [] }) }); await service.connect('example');
   assert.deepEqual(await service.definitions(), []);
+});
+
+test('resource discovery adapters retain wildcard authority and journal template pagination through the existing host path', async t => {
+  const { service, calls } = await fixture(t, { capabilities: { resources: {} } });
+  await service.save({ name: 'example', config: config() }); await service.connect('example');
+  assert.equal((await service.resourceDefinitions())[0].uri, 'resource://workspace/readme');
+  const adapter = (await service.resourceTemplateDefinitions())[0];
+  assert.equal(adapter.server, 'example');
+  const request = { id: 'templates', name: adapter.tool, args: { cursor: 'previous-page' } };
+  await assert.rejects(service.call(request, context({ surface: 'side_chat' })), { code: 'MCP_SCOPE_DENIED' });
+  const first = await service.call(request, context());
+  assert.equal(first.result.resourceTemplates[0].uriTemplate, 'resource://workspace/{name}');
+  assert.equal(first.result.nextCursor, 'next-template-page'); assert.equal(first.evidence.verified, false);
+  await service.call(request, context()); assert.equal(calls.filter(call => call.templates).length, 1);
+  await service.save({ name: 'example', config: config({ enabledTools: ['echo'] }) }); await service.connect('example');
+  assert.deepEqual(await service.resourceDefinitions(), []); assert.deepEqual(await service.resourceTemplateDefinitions(), []);
+  await assert.rejects(service.call({ ...request, id: 'new-call' }, context()), { code: 'MCP_TOOL_NOT_ALLOWED' });
 });
 
 test('wildcard includes discovered resource and prompt wrappers with input validation', async t => {

@@ -2182,7 +2182,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
         const hasText = Boolean(content.trim());
         const hasToolCalls =
           require("./requesty-response.js").hasAssistantOutput({ tool_calls: message?.tool_calls });
-        if (!hasText && !hasToolCalls && !(requestOptions.stage === "web-search" && normalizedSearch.webSearchSources.length)) {
+        if (!hasText && !hasToolCalls && message?.end_turn !== false && !(requestOptions.stage === "web-search" && normalizedSearch.webSearchSources.length)) {
           return {
             ok: false,
             error: "EmptyLlmResponse",
@@ -2195,6 +2195,7 @@ async function requestRequestyMessage(requestBody, apiKey, deferRateLimit = fals
           ok: true,
           message: {
             ...message,
+            ...(typeof responseJson.end_turn === "boolean" ? { end_turn: responseJson.end_turn } : {}),
             content: hasText ? content.trim() : null
           },
           providerMessage: responseJson.providerMessage || message,
@@ -5694,6 +5695,11 @@ function userEnvironment(env, user, authConfig) {
   const beta = authConfig.betaUsers.find(candidate => candidate.id === user.id && candidate.account === user.account && candidate.active);
   const apiKey = beta && Object.hasOwn(env, beta.requestyKeyEnv) ? env[beta.requestyKeyEnv] : "";
   if (typeof apiKey !== "string" || !apiKey || /\s/.test(apiKey)) {
+    // Authentication is independent of the selected provider. Native adapters
+    // use their own server-owned credentials; never inherit the admin Requesty key.
+    let native = false;
+    try { native = Boolean(beta) && Object.values(JSON.parse(env.AGENT_PROVIDER_ADAPTERS_JSON || '{}')).some(entry => entry.api === 'responses' && env[entry.apiKeyEnv]); } catch { /* Invalid provider configuration cannot authorize a route. */ }
+    if (native) return { env: { ...env, REQUESTY_API_KEY: '' } };
     return { error: "BETA_REQUESTY_KEY_MISSING", message: "Requesty is not configured for this user." };
   }
   // Only this invocation sees the selected credential; all provider paths keep
@@ -6362,6 +6368,7 @@ function sanitizeLocalWorkspaceContext(value, semanticQuery = "") {
         indexStatus: String(source.indexStatus || "not_started").slice(0, 40),
         qmdLexStatus: String(source.qmdLexStatus || "not_started").slice(0, 40),
         qmdVectorStatus: String(source.qmdVectorStatus || "not_started").slice(0, 40),
+        paperCardCacheKey: typeof source.paperCardCacheKey === "string" && source.paperCardCacheKey.length <= 8000 ? source.paperCardCacheKey : null,
         paperCardStatus: String(source.paperCardStatus || "absent").slice(0, 40)
       })),
     availableSourceTools: rawSourceMap.availableSourceTools === true
@@ -7088,20 +7095,22 @@ async function callRequesty(
   streaming = null,
   desktopContext = {}
 ) {
-  const apiKey = getEnvString(env, "REQUESTY_API_KEY");
   const model = getEnvString(env, "REQUESTY_MODEL");
+  const lifecycle = require("./provider-lifecycle.js");
+  const providerConfig = lifecycle.configuration(env, model);
+  const apiKey = providerConfig.api === "responses" ? providerConfig.apiKey : getEnvString(env, "REQUESTY_API_KEY");
 
   if (!apiKey || !model) {
     return {
       ok: false,
       reason:
-        "Missing REQUESTY_API_KEY or REQUESTY_MODEL environment variable."
+        "Missing credentials for the selected provider or selected model configuration."
     };
   }
 
   // Capture task identity before consecutive user messages are serialized.
   const lastUserContent = (Array.isArray(messages) ? messages : []).findLast(message => message?.role === "user")?.content;
-  const originalRequest = desktopContext.originalRequest ?? (typeof lastUserContent === "string" ? lastUserContent.trim() : "");
+  const originalRequest = desktopContext.originalRequest ?? (typeof lastUserContent === "string" ? lastUserContent.trim() : Array.isArray(lastUserContent) ? lastUserContent.filter(part => ["text", "input_text"].includes(part?.type)).map(part => part.text || "").join("\n").trim() : "");
   // The request governor owns context fitting. Keep permitted conversation
   // content intact here; the HTTP body guard remains the transport boundary.
   const cleanedMessages = require("./shared/conversation-transcript.js").messages(messages, { preserveContent: true });
@@ -7113,9 +7122,9 @@ async function callRequesty(
     };
   }
 
-  const selection = selectRequestyModel(env);
+  const selection = providerConfig.api === "responses" ? { provider: "responses", capabilities: providerConfig } : selectRequestyModel(env);
   const toolMode = require("./requesty-models.js").toolMode(env);
-  const agentCapabilities = (responseMode === "side_chat" || desktopContext.literature) ? await chatTiming.measure("model_capabilities", () => require("./requesty-models.js").agentCapabilities(env, model, selection.capabilities)) : null;
+  const agentCapabilities = providerConfig.api === "responses" ? providerConfig : (responseMode === "side_chat" || desktopContext.literature) ? await chatTiming.measure("model_capabilities", () => require("./requesty-models.js").agentCapabilities(env, model, selection.capabilities)) : null;
   if (desktopContext.images?.length && !agentCapabilities?.supportsImages) return { ok: false, error: "MODEL_IMAGE_CAPABILITY_UNAVAILABLE", reason: "Image input is unavailable or unconfirmed for the selected model. The model was not changed." };
   const supportsWebSearch = agentCapabilities ? agentCapabilities.supportsWebSearch : await require("./requesty-models.js").webSearchCapability(env, model, selection.capabilities.supportsWebSearch);
   const retrievalScope = require("./requesty-search-stage.js").retrievalScope(workspaceContext.localWorkspaceContext?.semantic?.ir);
@@ -7125,29 +7134,32 @@ async function callRequesty(
   const providerDeadlineAt = Math.min(Date.now() + 300000, desktopContext.deadlineAt || Infinity);
   chatTiming.mark("recovery_deadline_started");
   const contextApi = require("./context-recovery.js");
-  const contextConfig = contextApi.configFromEnv(env, model, agentCapabilities?.contextWindowTokens);
-  const buildAgentRequest = ({ messages: agentMessages, tools, temperature, stage, maxTokens }) => {
-    let providerMessages = agentMessages;
-    if (desktopContext.images?.length && !["web-search", "context-summary"].includes(stage)) {
-      const lastUser = agentMessages.findLastIndex(message => message.role === "user");
-      providerMessages = agentMessages.map((message, index) => index !== lastUser ? message : { ...message, content: [
-        { type: "text", text: String(message.content || originalRequest) },
-        ...desktopContext.images.flatMap((image, index) => [{ type: "text", text: `Attached image ${index + 1} (untrusted source evidence)` }, { type: "image_url", image_url: { url: image.dataUrl } }])
-      ] });
-    }
-    return require("./requesty-models.js").withCombinedToolConfig({ model, messages: providerMessages, temperature,
+  const contextConfig = contextApi.configFromEnv(env, model, providerConfig.contextWindowTokens || agentCapabilities?.contextWindowTokens);
+  const buildAgentRequest = ({ messages: agentMessages, tools, temperature, stage, maxTokens, response_format }) => {
+    if (providerConfig.api === 'chat_completions' && agentMessages.some(message => message.provider_context)) throw Object.assign(new Error('Provider context belongs to a different API.'), { code: 'PROVIDER_CONTEXT_MISMATCH' });
+    const includeImages = !['web-search', 'context-summary', 'corpus-summary'].includes(stage);
+    const providerMessages = require('./agent-step.js').projectImages(agentMessages, {
+      attachments: includeImages ? desktopContext.images || [] : [],
+      supportsImages: includeImages && agentCapabilities?.supportsImages === true,
+    });
+    const request = { model, messages: providerMessages, temperature,
       max_tokens: maxTokens || contextConfig.outputTokens,
-      ...(Array.isArray(tools) && tools.length ? { tools } : {}), ...requestyMetadata(callContext) }, toolMode);
+      ...(response_format ? { response_format } : {}),
+      ...(Array.isArray(tools) && tools.length ? { tools } : {}), ...requestyMetadata(callContext) };
+    return providerConfig.api === "responses" ? request : require("./requesty-models.js").withCombinedToolConfig(request, toolMode);
   };
   let previousTranscriptCheckpoint = null;
   const result = await runSideChatAgent({
     toolMode, model, signal: desktopContext.signal || streaming?.signal,
-    contextOptions: { config: { ...contextConfig, deadlineAt: providerDeadlineAt }, provider: selection.provider, endpoint: REQUESTY_URL + ":" + toolMode,
+    providerCapabilities: lifecycle.capabilities(providerConfig),
+    onCompletedCall: desktopContext.onCompletedCall, runtimeRevokedTools: desktopContext.runtimeRevokedTools,
+    contextOptions: { providerProfile: lifecycle.profile(providerConfig), config: { ...contextConfig, deadlineAt: providerDeadlineAt }, provider: selection.provider, endpoint: (providerConfig.endpoint || REQUESTY_URL) + ":" + toolMode,
       signal: AbortSignal.any([desktopContext.signal, streaming?.signal].filter(Boolean)),
       account: require("node:crypto").createHash("sha256").update(JSON.stringify([apiKey, desktopContext.account])).digest("hex"),
-      quotaEndpoint: REQUESTY_URL, quotaAccount: require("node:crypto").createHash("sha256").update(apiKey).digest("hex"),
+      quotaEndpoint: providerConfig.endpoint || REQUESTY_URL, quotaAccount: require("node:crypto").createHash("sha256").update(apiKey).digest("hex"),
+      archiveStorage: desktopContext.archiveStorage,
       archiveAccount: JSON.stringify([desktopContext.account, workspaceContext.localWorkspaceContext?.project?.workspaceId || ""]), requestId: callContext?.turnId,
-      measure: options => contextApi.estimateRequest(buildAgentRequest(options), contextConfig.imageTokens) },
+      measure: options => { const body = buildAgentRequest(options); return contextApi.estimateRequest(providerConfig.api === "responses" ? lifecycle.requestBody(body, providerConfig) : body, contextConfig.imageTokens); } },
     runtimeExtensions: desktopContext.runtimeExtensions, runtimeInjections: desktopContext.runtimeInjections,
     conversationTranscript: desktopContext.conversationTranscript,
     turnId: callContext?.turnId,
@@ -7156,7 +7168,8 @@ async function callRequesty(
       previousTranscriptCheckpoint = conversationTurn;
     } : undefined,
     supportsWebSearch,
-    ...(agentCapabilities ? { supportsTools: agentCapabilities.supportsTools } : {}),
+    ...(agentCapabilities ? { supportsTools: agentCapabilities.supportsTools, supportsImages: agentCapabilities.supportsImages === true } : {}),
+    ...(providerConfig.api === "responses" ? { supportsTools: providerConfig.supportsTools, supportsImages: providerConfig.supportsImages } : {}),
     projectToolsEnabled: desktopContext.projectTools === true,
     imageCount: desktopContext.images?.length || 0,
     desktopDownloads: desktopContext.enabled === true,
@@ -7177,15 +7190,22 @@ async function callRequesty(
       if (event.webSearchSources?.length) await streaming.emit("sources", { webSearchSources: event.webSearchSources });
       await streaming.emit("status", event);
     } : undefined,
-    requestTurn: async ({ messages: agentMessages, tools, temperature, stage, retryAfterMs, maxAttempts, attemptOffset, maxTokens, signal, deadlineAt }) => {
+    requestTurn: async ({ messages: agentMessages, tools, temperature, stage, retryAfterMs, maxAttempts, attemptOffset, maxTokens, response_format, signal, deadlineAt, providerCallTimeoutMs, onCompletedCall }) => {
       let accumulated = "", visible = "";
       const requestSignal = [signal, desktopContext.signal, streaming?.signal].filter(Boolean);
       const combinedSignal = requestSignal.length ? AbortSignal.any(requestSignal) : undefined;
+      if (providerConfig.api === 'responses') return lifecycle.responses(providerConfig,
+        buildAgentRequest({ messages: agentMessages, tools, temperature, stage, maxTokens, response_format }), {
+          // ContextRecovery owns the timer through body/stream completion. A
+          // second ordinary timeout would prematurely cancel recovery calls.
+          signal: providerCallTimeoutMs && combinedSignal ? combinedSignal : AbortSignal.any([...(combinedSignal ? [combinedSignal] : []), AbortSignal.timeout(Math.max(1, Math.min(contextConfig.providerCallMs, providerDeadlineAt - Date.now(), (deadlineAt || providerDeadlineAt) - Date.now())))]), onCompletedCall,
+          onText: async text => { if (streaming && !['context-summary','corpus-summary','literature-specialist'].includes(stage)) await streaming.emit('delta', { text }); }
+        });
       const turn = await requestRequestyMessage(
-        buildAgentRequest({ messages: agentMessages, tools, temperature, stage, maxTokens }),
+        buildAgentRequest({ messages: agentMessages, tools, temperature, stage, maxTokens, response_format }),
         apiKey,
         false,
-        streaming && !["context-summary", "literature-specialist"].includes(stage) ? { signal: combinedSignal, onSources: async sources => streaming.emit("sources", { webSearchSources: sources }), onText: async delta => {
+        streaming && !["context-summary", "corpus-summary", "literature-specialist"].includes(stage) ? { signal: combinedSignal, onSources: async sources => streaming.emit("sources", { webSearchSources: sources }), onText: async delta => {
           accumulated += delta;
           const preview = responseMode !== "side_chat" || stage === "web-search" ? accumulated : require("./shared/event-stream.js").previewReply(accumulated);
           if (preview === visible) return;
@@ -7285,12 +7305,19 @@ async function handleRequest(rawEvent, context, transport = null) {
       "/api/literature/create-paper-card-from-text", "/api/context/route", "/api/semantic/interpret",
       "/api/semantic/map-schema", "/api/literature/synthesize", "/api/chat/understand-images",
     ]);
-    const protectedPaths = new Set([...scopedModelRoutes, "/chat", "/api/chat/transcribe", "/api/sources/fetch", "/api/test-oss",
+    const protectedPaths = new Set([...scopedModelRoutes, "/chat", "/api/runtime/verify-stream-call", "/api/chat/transcribe", "/api/sources/fetch", "/api/test-oss",
       "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"]);
     const auth = protectedPaths.has(path) ? requireAuth(event, env) : null;
     chatTiming.mark("authentication_done");
     if (auth && !auth.ok) return auth.response;
     const userEnv = auth?.env || env;
+    if (method === 'POST' && path === '/api/runtime/verify-stream-call') {
+      try {
+        const body = getRequestBody(event);
+        return jsonResponse(require('./stream-call-ticket.js').verify(body.ticket, body.scope, auth.user.account, env.JWT_SECRET), 200, event);
+      } catch { return jsonResponse({ error: 'INVALID_STREAM_CALL' }, 400, event); }
+    }
+
 
     if (method === "POST" && path === "/api/sources/fetch") {
       const body = getRequestBody(event);
@@ -7435,7 +7462,7 @@ async function handleRequest(rawEvent, context, transport = null) {
       chatTiming.mark("body_parsed", { imageCount: Array.isArray(body.images) ? body.images.length : 0 });
       const messages = body.messages;
       const lastUserContent = (Array.isArray(messages) ? messages : []).findLast(message => message?.role === "user")?.content;
-      const originalRequest = body.originalRequest ?? (typeof lastUserContent === "string" ? lastUserContent.trim() : "");
+      const originalRequest = body.originalRequest ?? (typeof lastUserContent === "string" ? lastUserContent.trim() : Array.isArray(lastUserContent) ? lastUserContent.filter(part => ["text", "input_text"].includes(part?.type)).map(part => part.text || "").join("\n").trim() : "");
       if (typeof originalRequest !== "string" || !originalRequest.trim() || originalRequest.length > MAX_CHAT_MESSAGE_CHARACTERS) {
         return jsonResponse({ error: "INVALID_ORIGINAL_REQUEST", message: "A bounded original user request is required." }, 400, event);
       }
@@ -7610,16 +7637,21 @@ async function handleRequest(rawEvent, context, transport = null) {
       try {
         desktopContext.runtimeExtensions = require('./shared/runtime-extensions.js').normalize(body.runtimeExtensions);
         desktopContext.runtimeInjections = require('./shared/runtime-extensions.js').injections(body.runtimeInjections);
+        if (body.runtimeRevokedTools !== undefined && (!Array.isArray(body.runtimeRevokedTools) || body.runtimeRevokedTools.length > 128 || body.runtimeRevokedTools.some(name => typeof name !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(name)))) throw new Error();
+        desktopContext.runtimeRevokedTools = body.runtimeRevokedTools || [];
+
         if (desktopContext.runtimeExtensions && !desktopContext.projectTools) throw new Error();
         if (!desktopContext.runtimeExtensions && desktopContext.runtimeInjections.length) throw new Error();
         if (desktopContext.runtimeExtensions?.child) {
           const child = require('./generic-subagent.js').normalizeChild(desktopContext.runtimeExtensions.child, {
             model: getEnvString(chatEnv, 'REQUESTY_MODEL'), projectId: localWorkspaceContext?.project?.workspaceId });
-          if (responseMode !== 'side_chat' || body.conversationTranscript || desktopContext.runtimeInjections.length || desktopContext.runtimeExtensions.genericSubagents || desktopContext.runtimeExtensions.mcpTools.length) throw new Error();
+          if (responseMode !== 'side_chat' || desktopContext.runtimeInjections.some(item => item.kind !== 'subagent') || desktopContext.runtimeExtensions.genericSubagents || desktopContext.runtimeExtensions.mcpTools.length) throw new Error();
           desktopContext.runtimeExtensions.child = child;
         }
       } catch { return jsonResponse({ error: 'INVALID_RUNTIME_EXTENSIONS' }, 400, event); }
+      const lifecycleConfig = require('./provider-lifecycle.js').configuration(chatEnv, getEnvString(chatEnv, 'REQUESTY_MODEL'));
       const continuationBinding = { ...(desktopContext.projectTools ? { projectTools: 1 } : {}),
+        ...(lifecycleConfig.api === 'responses' ? { providerProfile: require('./provider-lifecycle.js').profile(lifecycleConfig), providerAccount: crypto.createHash('sha256').update(lifecycleConfig.apiKey).digest('hex') } : {}),
         ...(desktopContext.images?.length ? { imageDigest: crypto.createHash("sha256").update(JSON.stringify(desktopContext.images)).digest("hex") } : {}), account: auth.user.account, turnId: callContext.turnId, messages, originalRequest,
         ...(desktopContext.conversationTranscript ? { conversationTranscript: desktopContext.conversationTranscript } : {}),
         ...(desktopContext.academic ? { academicVersion: 1 } : {}),
@@ -7663,9 +7695,16 @@ async function handleRequest(rawEvent, context, transport = null) {
           desktopContext.resume = agentContinuation.withResults(state, body.desktopToolResults);
         } catch { return jsonResponse({ error: "INVALID_TOOL_CONTINUATION", message: "Invalid or expired desktop tool continuation." }, 400, event); }
       }
+      const archiveConfig = getOssConfig(env), archiveCredentials = getFunctionCredentials(context, env);
+      if (archiveConfig.ok && archiveCredentials) desktopContext.archiveStorage = require('./context-archive-store.js').ossStore(createOssClient(archiveConfig, archiveCredentials));
       const streaming = body.stream === true && typeof transport?.start === "function" ? transport : null;
       chatTiming.mark("agent_ready", { transport: streaming ? "sse" : "json" });
       if (streaming) await streaming.start(getApiHeaders(event));
+      if (streaming && desktopContext.runtimeExtensions && !desktopContext.runtimeExtensions.child) {
+        desktopContext.onCompletedCall = (call, identity) => streaming.emit('tool-ready', require('./stream-call-ticket.js').seal(call, identity,
+          { turnId: callContext.turnId, projectId: continuationBinding.projectId, model: continuationBinding.model }, auth.user.account, env.JWT_SECRET));
+      }
+
       const result = await chatTiming.measure("agent_loop", () => callRequesty(
         messages,
         chatEnv,
@@ -7780,6 +7819,7 @@ exports.handler = async function handler(rawEvent, context, transport = null) {
 };
 
 exports._test = {
+  callRequesty,
   requestRequestyMessage,
   coreSystemPrompt, systemPrompt, sideChatSystemPrompt,
   SCHEMA_MAPPING_SCHEMA,

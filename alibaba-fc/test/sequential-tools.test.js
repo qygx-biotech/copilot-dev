@@ -78,7 +78,7 @@ for (const [query, scope] of [
   assert.equal(result.data.webSearchStatus.status, "completed");
   assert.equal(result.data.desktopToolCalls, undefined, "Search alone never invokes a download");
   assert.equal(result.semanticTelemetry.cloudCalls.answer, 2);
-  assert.deepEqual(progress.map(event => event.stage), ["web-search", "usage", "search-completed", "model-request", "usage"]);
+  assert.deepEqual(progress.map(event => event.stage), ["web-search", "usage", "search-completed", "model-request", "model-step-started", "usage"]);
   assert.equal(progress.at(-1).turnUsage.coverage.requests, 2);
 });
 

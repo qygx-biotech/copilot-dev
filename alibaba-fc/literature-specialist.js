@@ -137,7 +137,7 @@ async function advance(state, { requestTurn, supportsWebSearch, search, onProgre
         return failure(state, turn);
       }
       const calls = (Array.isArray(turn.message?.tool_calls) ? turn.message.tool_calls : []).filter(call => call?.type === 'function');
-      if (!calls.length) { failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL_COUNT', message: `Expected tool calls; received none. Finish with ${finish}.` }, 'tool-selection'); state.messages.push({ role: 'user', content: `Choose exposed functions; they execute in the supplied order. Finish through ${finish}; prose cannot establish retrieval.` }); continue; }
+      if (!calls.length) { state.messages.push(require('./requesty-tool-context.js').assistantMessage(turn, [])); failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL_COUNT', message: `Expected tool calls; received none. Finish with ${finish}.` }, 'tool-selection'); state.messages.push({ role: 'user', content: `Choose exposed functions; they execute in the supplied order. Finish through ${finish}; prose cannot establish retrieval.` }); continue; }
       const queued = calls.map(call => {
         let args;
         try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = null; }
@@ -149,7 +149,7 @@ async function advance(state, { requestTurn, supportsWebSearch, search, onProgre
         ids.add(call.id); return false;
       });
       if (invalid) { failure(state, { code: 'INVALID_SPECIALIST_TOOL_CALL', message: 'Tool names must be exposed, arguments must be JSON objects, and call IDs must be unique.' }, 'tool-validation'); state.messages.push({ role: 'user', content: 'Invalid tool name, arguments, or call ID. Use the current schemas and unique call IDs.' }); continue; }
-      state.messages.push({ role: 'assistant', content: turn.message.content || '', tool_calls: calls });
+      state.messages.push(require('./requesty-tool-context.js').assistantMessage(turn, calls));
       state.queuedCalls = queued;
     }
     const { call, args } = state.queuedCalls.shift();

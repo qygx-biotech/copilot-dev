@@ -234,3 +234,14 @@ test('section refinement without section boundaries returns only matched passage
   assert.equal(result.result.evidenceBundle.items[0].evidenceKind, 'original_passage');
   assert.ok(result.result.evidenceBundle.gaps.some(gap => /Section boundaries unavailable/.test(gap)));
 });
+
+test('runtime history/memory projection verifies current source bytes without warming knowledge layers', async () => {
+  const f = await fixture();
+  const before = f.calls.cards;
+  const valid = await f.service.runtimeStateContext(f.options.turnId);
+  assert.ok(valid.sourceMap.paperSources.some(source => source.sourceId === f.paper.sourceId));
+  f.workspace.set('literature/SurfDock.pdf', 'Changed bytes invalidate prior historical findings.');
+  const changed = await f.service.runtimeStateContext(f.options.turnId);
+  assert.ok(!changed.sourceMap.paperSources.some(source => source.sourceId === f.paper.sourceId));
+  assert.equal(f.calls.cards, before, 'Historical reads must not regenerate paper cards');
+});

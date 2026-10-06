@@ -1983,6 +1983,7 @@ async function runSideChatAgent({
   signal,
   supportsWebSearch = false,
   supportsTools = true,
+  supportsImages = false,
   projectToolsEnabled = false,
   imageCount = 0,
   desktopDownloads = false,
@@ -1997,7 +1998,10 @@ async function runSideChatAgent({
   turnId = "",
   onTranscript = async () => {},
   runtimeExtensions = null,
-  runtimeInjections = []
+  runtimeInjections = [],
+  providerCapabilities = null,
+  onCompletedCall = async () => {},
+  runtimeRevokedTools = []
 }) {
   const observability = (() => { try { return require('./shared/turn-observability.js'); } catch { return require('../shared/turn-observability.js'); } })();
   const turnUsage = observability.createUsage(resume?.turnUsage, { turnId: turnId || contextOptions.requestId || 'turn', model });
@@ -2009,7 +2013,7 @@ async function runSideChatAgent({
   requestTurn = async request => {
     const sequence = ++usageSequence, startedAt = Date.now();
     let result;
-    try { result = await dispatchModel(request); return result; }
+    try { result = await dispatchModel(request); if (result?.providerCapabilities) providerCapabilities = result.providerCapabilities; return result; }
     finally {
       observability.recordUsage(turnUsage, { id: `${turnUsage.turnId}:request:${sequence}`, sequence, model,
         stage: request.stage || 'model', startedAt, endedAt: Date.now(), ok: result?.ok === true,
@@ -2020,6 +2024,7 @@ async function runSideChatAgent({
   const runtimeApi = require("./shared/runtime-extensions.js");
   const subagentApi = require("./generic-subagent.js");
   const runtime = runtimeApi.normalize(runtimeExtensions);
+  runtimeRevokedTools = [...new Set([...(resume?.runtimeRevokedTools || []), ...runtimeRevokedTools])];
   const child = runtime?.child ? subagentApi.normalizeChild(runtime.child, { model, projectId: workspaceContext.localWorkspaceContext?.project?.workspaceId }) : null;
   const acceptedInjections = new Set(resume?.runtimeAccepted || []);
   const incomingInjections = runtimeApi.injections(runtimeInjections).filter(item => !acceptedInjections.has(item.id));
@@ -2030,7 +2035,7 @@ async function runSideChatAgent({
   const contextManager = new ContextRecovery({ ...contextOptions, model, requestId: contextOptions.requestId || turnId,
     language: workspaceContext.localWorkspaceContext?.agentLoop?.answerLanguage || semanticIntent.requestAnswerLanguage(originalRequest || latestUserRequest(conversationMessages)),
     state: resume?.contextRecovery });
-  const persistTranscript = !child && surface === "side_chat" && (conversationTranscript !== undefined || resume?.transcriptTurn);
+  const persistTranscript = surface === "side_chat" && (conversationTranscript !== undefined || resume?.transcriptTurn || Boolean(child));
   const catalogNamespace = resume?.catalogNamespace || resume?.knowledgeIdentity?.namespace || (persistTranscript || (surface === "side_chat" && projectToolsEnabled) ? `turn_${require("node:crypto").createHash("sha256").update(turnId || require("node:crypto").randomUUID()).digest("hex").slice(0, 20)}` : "");
   const knowledgeBase = createSideChatKnowledgeBase(workspaceContext, catalogNamespace);
   // Retain handle/version bindings across the signed handoff. A refreshed
@@ -2056,7 +2061,9 @@ async function runSideChatAgent({
   const replay = persistTranscript ? history.replay(conversationTranscript, knowledgeBase, workspaceContext, model, Infinity) : { messages: [], stats: {} };
   contextManager.importArchives(replay.archives);
   if (persistTranscript) conversationMessages = [...replay.messages, ...currentMessages];
-  let transcriptTurn = persistTranscript ? resume?.transcriptTurn || {
+  // Runtime journals also support scoped history forks in Agent Work. The
+  // renderer keeps these ephemeral unless its existing transcript owner saves them.
+  let transcriptTurn = (persistTranscript || runtime?.genericSubagents) ? resume?.transcriptTurn || {
     turnId: turnId || catalogNamespace, model, workspaceId: workspaceContext?.localWorkspaceContext?.project?.workspaceId || "",
     status: "running", startedAt: new Date().toISOString(), sequence: 0, messages: currentMessages,
   } : null;
@@ -2151,7 +2158,15 @@ async function runSideChatAgent({
   };
   let webSearchCalls = resume?.webSearchCalls || 0;
   let corpusRequested = directLoop && (resume?.corpusRequested === true || /所有(?:的)?(?:文献|论文)|全部(?:的)?(?:文献|论文)|(?:all|every|entire|whole)\s+(?:uploaded\s+)?(?:papers?|literature|corpus)/i.test(activeRequest));
-  const sourceData = () => ({ turnUsage: observability.usageSnapshot(turnUsage), ...(runtime ? { runtimeAccepted: [...acceptedInjections] } : {}), ...(checkpoint ? { conversationTurn: checkpoint } : {}), ...(webSearchSources.length ? { webSearchSources } : {}), ...(webSearchMetadata.length ? { webSearchMetadata } : {}),
+  let runtimeContextSnapshot = null;
+  const stepApi = require('./agent-step.js');
+  let activeStep = null, stepSequence = resume?.requestStep?.sequence || 0;
+  const stepAuthority = { model, surface, permission: downloadPermission, originalRequest: activeRequest,
+    workspaceId: workspaceContext.localWorkspaceContext?.project?.workspaceId || '',
+    scope: workspaceContext.localWorkspaceContext?.scope || null,
+    selectedSources: workspaceContext.localWorkspaceContext?.sourceMap?.selectedPaperIds || [],
+    child: child || null };
+  const sourceData = () => ({ ...(providerCapabilities ? { providerCapabilities } : {}), turnUsage: observability.usageSnapshot(turnUsage), ...(runtime ? { runtimeAccepted: [...acceptedInjections], runtimeContext: runtimeContextSnapshot, runtimeToolCatalog: activeStep?.request.tools || [], runtimeToolBudget: Math.max(0, MAX_TOTAL_TOOL_CALLS - totalToolCalls) } : {}), ...(checkpoint ? { conversationTurn: checkpoint } : {}), ...(webSearchSources.length ? { webSearchSources } : {}), ...(webSearchMetadata.length ? { webSearchMetadata } : {}),
     ...(searchStage ? { webSearchStatus: { status: searchStage.status, sourceCount: webSearchSources.length, limitation: searchStageApi.limitation(searchStage, knowledgeBase.semanticIR?.answerLanguage) } } : {}) });
   const finalData = parsed => {
     const data = resolveSideChatAnswerCitations(parsed, knowledgeBase, surface, academicState);
@@ -2246,6 +2261,7 @@ async function runSideChatAgent({
   };
   const semanticTelemetry = () => directLoop || semanticContext || knowledgeBase.evidenceRecovery || searchStage || persistTranscript
     ? { semanticTelemetry: { capabilitiesUsed: [...capabilitiesUsed], modelToolCapabilities: [...capabilitiesUsed], historicalReplay: replay.stats, cloudCalls: { answer: answerModelCalls }, providerAttempts: answerProviderAttempts,
+      corpusRecovery: contextManager.corpusDiagnostics(),
       contextRecovery: { compactionCount: reactiveCompactionRetries, compactions: contextCompactionEvents,
         degraded: Boolean(contextManager.degraded || contextManager.state.degraded), checkpointCount: contextManager.state.checkpoints.length,
         checkpointBoundary: contextManager.state.checkpoints.at(-1)?.boundary, ...contextManager.callCounts(), ...contextManager.timingFields(),
@@ -2353,25 +2369,48 @@ async function runSideChatAgent({
   let answerProviderAttempts = resume?.answerProviderAttempts || 0;
   let emptySynthesisRetries = resume?.emptySynthesisRetries || 0;
   const requestWithRecoveryState = async options => {
+    options = { ...options, tools: (options.tools || []).filter(tool => !runtimeRevokedTools.includes(tool.function?.name)),
+      ...(runtimeRevokedTools.length ? { messages: [...options.messages.filter(message => !(message.role === 'system' && typeof message.content === 'string' && message.content.startsWith('Host checkpoint capability update:'))), { role: "system", content: "Host checkpoint capability update: these tools have been revoked for this turn: " + JSON.stringify(runtimeRevokedTools) + ". Queued messages cannot restore them." }] } : {}) };
     if (child) options = { ...options, tools: subagentApi.filterToolSchemas(options.tools, child.allowedTools) };
+    if (!supportsImages) options = { ...options, tools: (options.tools || []).filter(tool => !['view_image', 'image_gen_imagegen'].includes(tool.function?.name)) };
     providerRecovery = { sequence: (providerRecovery?.sequence || 0) + 1, phase: "initial", attempts: 0 };
     const beforeCharacters = estimateMessageCharacters(options.messages);
     let mainDispatches = 0;
-    const turn = await contextManager.run(options, async request => {
-      if (request.stage === "context-summary" || mainDispatches++ > 0) answerModelCalls++;
+    const getCorpusSourceBindings = () => history.snapshot(knowledgeBase, workspaceContext, [], true).map(binding => {
+      const source = knowledgeBase.sourceMap?.paperSources?.find(source => source.sourceId === binding.sourceId);
+      return { ...binding, cardStatus: source?.paperCardStatus, cardCacheKey: source?.paperCardCacheKey };
+    });
+    contextManager.onEvent = event => onProgress(event);
+    const turn = await contextManager.run({ ...options, corpusTask: activeRequest, getCorpusSourceBindings,
+      corpusSourceBindings: getCorpusSourceBindings() }, async request => {
+      const captured = stepApi.capture(request, stepAuthority, ++stepSequence);
+      request = captured.request;
+      if (!['context-summary', 'corpus-summary'].includes(request.stage)) activeStep = captured;
+      await onProgress({ stage: 'model-step-started', sequence: captured.metadata.sequence,
+        model, toolCount: captured.metadata.toolNames.length });
+      if (runtime && !['context-summary', 'corpus-summary'].includes(request.stage)) runtimeContextSnapshot = { ...contextManager.remainingContext(request), archiveDurability: contextManager.state.archiveDurability, providerCapabilities };
+      if (["context-summary", "corpus-summary"].includes(request.stage) || mainDispatches++ > 0) answerModelCalls++;
       let response;
-      try { response = await requestTurn(request); }
+      try { response = await requestTurn({ ...request, onCompletedCall: async (call, identity) => {
+        // Early execution is deliberately limited to this audited, durable,
+        // independent host read. Domain tools still require the full handoff.
+        if (request.stage !== 'local-tools' || child || call.name !== 'host_project_status' ||
+            !captured.allows(call.name) || identity.index > 1 || totalToolCalls + identity.index + 1 > MAX_TOTAL_TOOL_CALLS || normalizedToolCallIds.has(call.id)) return;
+        if (Object.keys(call.args).length) throw Object.assign(new Error('Invalid early call'), { code: 'INVALID_RUNTIME_TOOL_INPUT' });
+        await onCompletedCall(call, { ...identity, step: captured.metadata, authority: captured.authority });
+      } }); }
       catch (error) {
         if (request.signal?.aborted || require("./context-recovery.js").overflow(error) || require("./input-quota.js").inputQuota(error)) throw error;
         response = { ok: false, error: "LlmRequestFailed", ...require("./requesty-response.js").fetchException(error) };
       }
       if (!request.signal?.aborted) providerRecovery.attempts += Number(response.attempts) || 1;
+      if (runtimeContextSnapshot && !['context-summary', 'corpus-summary'].includes(request.stage) && response.providerCapabilities) runtimeContextSnapshot.providerCapabilities = response.providerCapabilities;
       return response;
     });
     if (turn.contextMessages) agentMessages = turn.contextMessages;
     delete turn.contextMessages;
     const afterCharacters = estimateMessageCharacters(agentMessages);
-    if (afterCharacters < beforeCharacters) {
+    if (afterCharacters < beforeCharacters && contextManager.recoverySteps > 0) {
       reactiveCompactionRetries++;
       contextCompaction = { trigger: "context-recovery", beforeCharacters, afterCharacters,
         retryCount: reactiveCompactionRetries, checkpointBoundary: contextManager.state.checkpoints.at(-1)?.boundary,
@@ -2420,7 +2459,7 @@ async function runSideChatAgent({
   };
   const snapshot = (nextStep, pending = [], deferredRecovery = []) => ({
         ...(transcriptTurn ? { transcriptTurn, catalogNamespace } : {}), originalRequest: activeRequest, knowledgeIdentity, literatureResults, ...(specialist ? { specialist } : {}), projectToolState: projectLoop && projectToolsEnabled, corpusRequested, corpusCorrectionUsed, evidenceRefinementUsed, evidenceAttempts, webSearchCalls, downloadState, ...(academicMode ? { academicState } : {}), agentMessages, step: nextStep, totalToolCalls, reactiveCompactionRetries, contextCompaction, contextRecovery: contextManager.snapshot(), progressState, providerRecovery, emptySynthesisRetries, answerProviderAttempts, answerModelCalls,
-        capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending, deferredRecovery, runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections], turnUsage: observability.usageSnapshot(turnUsage),
+        capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending, deferredRecovery, runtimeRevokedTools, requestStep: activeStep?.metadata || resume?.requestStep, runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections], turnUsage: observability.usageSnapshot(turnUsage),
   });
   const normalizedToolCallIds = new Set(agentMessages.flatMap(message => (message.tool_calls || []).map(call => call.id)));
   logStage("local-tools");
@@ -2540,8 +2579,14 @@ async function runSideChatAgent({
     const currentSearchSources = collectSearch(turn);
     const toolCalls = normalizeToolCalls(turn.message, normalizedToolCallIds);
     if (!toolCalls.length) {
+      if (stepApi.needsFollowUp(turn)) {
+        appendMessages({ ...turn.message, role: 'assistant', content: turn.message.content || '' });
+        await saveTranscript();
+        if (runtime) return { ok: true, data: { agentCheckpoint: { version: 1, final: false }, ...sourceData() }, continuationState: snapshot(step + 1), ...semanticTelemetry() };
+        continue;
+      }
       if (academicMode && academicRecovery.blocker(academicState)) {
-        appendMessages({ role: "assistant", content: turn.message?.content || "" });
+        appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []));
         continue; // The next bounded turn receives the actual validation error.
       }
       const parsed = parseAnswer(turn.message?.content);
@@ -2556,28 +2601,28 @@ async function runSideChatAgent({
       if (academicMode && !academicState.downloadStop && downloadRequested && downloadPermitted && academicState.shortlist?.length && !academicState.attemptedRefs.length &&
           !academicState.downloadContinuationUsed && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS) {
         academicState.downloadContinuationUsed = true;
-        appendMessages({ role: "assistant", content: turn.message.content }, { role: "system", content:
+        appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []), { role: "system", content:
           "The host accepted the literature shortlist. The original request already authorizes saving and workspace write permission is available. Continue with download_papers for the accepted ranked handles; do not request user confirmation for the internal selection step. Preserve the requested destination and report actual saved files or concrete access failures.\n" + JSON.stringify(academicPlanning.progress(academicState, requestedPaperLimit)) });
         continue;
       }
       if (academicMode && !academicState.downloadStop && !academicState.correctionUsed && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS &&
           (!academicState.searchCalls || (!academicState.shortlist && academicState.papers.length))) {
         academicState.correctionUsed = true;
-        appendMessages({ role: "assistant", content: turn.message.content }, { role: "system", content: "The original request remains pending. Record plan_literature_search if missing, collect complementary queries as a bounded candidate pool, then select_literature_papers with relevance/coverage reasons. Search further only for insufficient relevance, evidence, count or coverage; a cursor alone never requires pagination. If saving was requested and permitted, download_papers with shortlisted handles. Report actual results or concrete blockers. This is the one corrective continuation within the existing budget.\nOriginal request:\n" + activeRequest });
+        appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []), { role: "system", content: "The original request remains pending. Record plan_literature_search if missing, collect complementary queries as a bounded candidate pool, then select_literature_papers with relevance/coverage reasons. Search further only for insufficient relevance, evidence, count or coverage; a cursor alone never requires pagination. If saving was requested and permitted, download_papers with shortlisted handles. Report actual results or concrete blockers. This is the one corrective continuation within the existing budget.\nOriginal request:\n" + activeRequest });
         continue;
       }
       if (academicMode && step < MAX_AGENT_STEPS - 2 && totalToolCalls < MAX_TOTAL_TOOL_CALLS - 1) {
         const recovery = academicAgent.recoveryMessage(academicState, downloadRequested, downloadPermitted, requestedPaperLimit);
         if (recovery) {
           academicState.downloadRecoveryUsed = true;
-          appendMessages({ role: "assistant", content: turn.message.content }, { role: "system", content: recovery + "\nOriginal request:\n" + activeRequest });
+          appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []), { role: "system", content: recovery + "\nOriginal request:\n" + activeRequest });
           continue;
         }
       }
       if (!academicMode && !acquisitionLoop && !desktopLiterature && downloadRequested && downloadExposed && !downloadState.attempts && (webSearchSources.length || scope === "none") &&
           !downloadState.correctionUsed && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS) {
         downloadState.correctionUsed = true;
-        appendMessages({ role: "assistant", content: turn.message.content }, { role: "system", content:
+        appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []), { role: "system", content:
           "Completion check: the original request still has a pending source-saving operation. No download has been attempted. This is the one permitted corrective continuation, within the existing budget. Select relevant candidates using the user's criteria and the research evidence, then use download_sources, or explain the concrete selection/access blocker. URL presence alone proves neither relevance nor PDF availability. Do not download every source automatically. Do not substitute a project review or claim completion.\nOriginal user request:\n" + activeRequest });
         logStage("completion-correction");
         await onProgress({ stage: "completion-correction", correctiveContinuation: true, downloadRequested, downloadExposed, downloadPermitted, downloadAttemptCount: 0 });
@@ -2585,19 +2630,19 @@ async function runSideChatAgent({
       }
       if (corpusRequested && projectToolsEnabled && supportsTools && !knowledgeBase.corpusWorkflowStatus && !corpusCorrectionUsed && step < MAX_AGENT_STEPS - 1) {
         corpusCorrectionUsed = true;
-        appendMessages({ role: "assistant", content: turn.message.content }, { role: "system", content: "Full-corpus coverage has not been established. The current request or evidence requirement calls for exhaustive coverage. Call run_corpus_workflow, then write the requested review using its measured coverage, or explain the concrete blocker. This is one bounded completion check." });
+        appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []), { role: "system", content: "Full-corpus coverage has not been established. The current request or evidence requirement calls for exhaustive coverage. Call run_corpus_workflow, then write the requested review using its measured coverage, or explain the concrete blocker. This is one bounded completion check." });
         continue;
       }
       if (unresolvedEvidence() && !evidenceRefinementUsed && projectToolsEnabled && supportsTools && step < MAX_AGENT_STEPS - 1 && totalToolCalls < MAX_TOTAL_TOOL_CALLS) {
         evidenceRefinementUsed = true;
-        appendMessages({ role: 'assistant', content: turn.message.content }, { role: 'system', content:
+        appendMessages(require('./requesty-tool-context.js').assistantMessage(turn, []), { role: 'system', content:
           'One bounded evidence completion check: the current-turn original-evidence result reports an unresolved detail. Use its observable gaps to refine the query/page/section within the same authorized sources, or explain the searched material and limitation. Do not repeat an identical unsuccessful read or substitute a corpus workflow for a single-paper lookup. Repository mentions for other methods are not this paper’s repository. Not located is not proof of nonexistence; citation resolution is not claim verification.' });
         await onProgress({ stage: 'evidence-refinement', correctiveContinuation: true });
         continue;
       }
       if (turn.contextLimitation) parsed.reply = (parsed.reply || "") + "\n\n" + turn.contextLimitation;
       const evidenceLimited = annotateEvidenceLimitation(parsed);
-      appendMessages({ role: "assistant", content: evidenceLimited || turn.contextLimitation ? parsed.reply : turn.message.content });
+      appendMessages({ ...require('./requesty-tool-context.js').assistantMessage(turn, []), content: evidenceLimited || turn.contextLimitation ? parsed.reply : turn.message.content });
       await saveTranscript("completed");
       triggerSideChatHooks("Stop", agentMessages, parsed);
       const data = finalData(parsed);
@@ -2631,12 +2676,18 @@ async function runSideChatAgent({
       let output;
       if (projectLoop && !supportsTools) output = JSON.stringify({ error: "MODEL_TOOL_CAPABILITY_UNAVAILABLE", message: "Tool calling is unavailable or unconfirmed for the selected model. No tool executed." });
       else if (child && !child.allowedTools.includes(toolCall.function.name)) output = JSON.stringify({ error: 'SUBAGENT_TOOL_DENIED' });
+      else if (AGENT_TOOL_EFFECTS[toolCall.function.name] && !authorizeTool(surface, toolCall.function.name, downloadPermission).allowed) output = JSON.stringify(authorizeTool(surface, toolCall.function.name, downloadPermission));
+      else if (academicTools.isTool(toolCall.function.name) && (!academicAvailable || !academicTools.allowed(toolCall.function.name, surface, downloadPermission) || (academicTools.isWrite(toolCall.function.name) && !academicTools.savingRequested(activeRequest)))) output = JSON.stringify(academicTools.failure('PERMISSION_DENIED'));
+      else if (!activeStep?.allows(toolCall.function.name)) output = JSON.stringify({ error: 'STEP_TOOL_NOT_ADVERTISED', message: 'Blocked: this tool was not available in the originating model request. No tool executed.' });
       else if (runtimeApi.isTool(toolCall.function.name, runtime, surface, downloadPermission)) {
         try {
           if (totalToolCalls > MAX_TOTAL_TOOL_CALLS || desktopToolCalls.length >= 2) throw Object.assign(new Error(), { code: 'TOOL_BUDGET_EXCEEDED' });
           const args = parseToolArguments(toolCall);
           if (JSON.stringify(args).length > 32000) throw Object.assign(new Error(), { code: 'RUNTIME_CALL_TOO_LARGE' });
+          const runtimeTools = require('./shared/runtime-tools.js');
+          if (runtimeTools.has(toolCall.function.name)) runtimeTools.validate(toolCall.function.name, args);
           if (toolCall.function.name === 'spawn') subagentApi.validateSpawn(args);
+          if (subagentApi.isAgentTool(toolCall.function.name)) subagentApi.validateAgentCall(toolCall.function.name, args);
           if (toolCall.function.name === 'read_skill' && (typeof args.name !== 'string' || !args.name || args.name.length > 128 || Object.keys(args).some(key => key !== 'name'))) throw Object.assign(new Error(), { code: 'INVALID_SKILL_NAME' });
           desktopToolCalls.push({ id: toolCall.id, name: toolCall.function.name, args });
           capabilitiesUsed.add(toolCall.function.name);
@@ -2802,7 +2853,7 @@ async function runSideChatAgent({
         // Project-bound Side Chat keeps one transcript and budget across the
         // local evidence handoff, even when no web-search stage preceded it.
         ...(resume || searchStage || academicMode || (surface === "side_chat" && workspaceContext.localWorkspaceContext?.project?.workspaceId) ? { continuationState: { ...(transcriptTurn ? { transcriptTurn, catalogNamespace } : {}), originalRequest: activeRequest, knowledgeIdentity, literatureResults, ...(specialist ? { specialist } : {}), projectToolState: projectLoop && projectToolsEnabled, corpusRequested, corpusCorrectionUsed, evidenceRefinementUsed, evidenceAttempts, webSearchCalls, downloadState, ...(academicMode ? { academicState } : {}), agentMessages, step: step + 1, totalToolCalls, reactiveCompactionRetries, contextCompaction, contextRecovery: contextManager.snapshot(), progressState, providerRecovery, emptySynthesisRetries, answerProviderAttempts, answerModelCalls,
-          capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, pending: [], runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections], turnUsage: observability.usageSnapshot(turnUsage) } } : {}),
+          capabilitiesUsed: [...capabilitiesUsed], webSearchSources, webSearchMetadata, searchStage, requestStep: activeStep?.metadata || resume?.requestStep, pending: [], runtimeVersion: runtime?.version, runtimeAccepted: [...acceptedInjections], turnUsage: observability.usageSnapshot(turnUsage) } } : {}),
         ...semanticTelemetry() };
     }
     if (runtime) return { ok: true, data: { agentCheckpoint: { version: 1, final: false }, ...sourceData() }, continuationState: snapshot(step + 1), ...semanticTelemetry() };
@@ -2852,7 +2903,7 @@ async function runSideChatAgent({
     if (literatureDownloadRecovery() && academicState.emptyResponseRecovery?.retryUsed) academicState.emptyResponseRecovery.status = "responded";
     if (finalTurn.contextLimitation) parsed.reply = (parsed.reply || "") + "\n\n" + finalTurn.contextLimitation;
     const evidenceLimited = annotateEvidenceLimitation(parsed);
-    appendMessages({ role: "assistant", content: evidenceLimited || finalTurn.contextLimitation ? parsed.reply : finalTurn.message.content });
+    appendMessages({ ...require('./requesty-tool-context.js').assistantMessage(finalTurn, []), content: evidenceLimited || finalTurn.contextLimitation ? parsed.reply : finalTurn.message.content });
     await saveTranscript("completed");
     const data = finalData(parsed);
     if (runtime) data.agentCheckpoint = { version: 1, final: true };

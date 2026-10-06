@@ -171,3 +171,27 @@ test("Paper Card normalization diagnostics allow only descriptive field names an
     await assert.rejects(api.synthesize({ chunkSummaries: [{}] }), error => error.failureStage === failureStage && error.validationReason === validationReason);
   }
 });
+
+test('corpus console metadata retains sizing, validation and stop causes without payloads',()=>{
+ const log=createRuntimeLogger({sink:null,heartbeatMs:0});
+ const details={event:'corpus-summary-validation-failure',purpose:'corpus-summary',reductionStage:2,targetTokens:500,actualSummaryTokens:750,
+  previousTargetTokens:2000,previousActualSummaryTokens:1000,estimatedBeforeTokens:4000,estimatedAfterTokens:4100,
+  reason:'summary_no_measurable_reduction',code:'ContextRecoveryIncomplete',corpusStopReason:'minimum_summary_size'};
+ assert.deepEqual(log.record('backend.corpus-recovery',{...details,summary:'PRIVATE_SUMMARY',paperCards:['PRIVATE_CARDS'],content:'PRIVATE_CONTENT'}).details,details);
+ assert(!log.exportText().includes('PRIVATE_'));
+ assert.equal(log.record('backend.corpus-recovery',{purpose:'context-summary'}).details.purpose,'context-summary');
+});
+
+
+test('streaming corpus events use the same sanitized console fields as buffered events',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');
+ const source=fs.readFileSync(require.resolve('../../docs/app.js'),'utf8');
+ const statement=source.split('\n').find(line=>line.includes('if (event.stage === "corpus-recovery") runtimeLog'));
+ assert(statement);
+ const log=createRuntimeLogger({sink:null,heartbeatMs:0});
+ const event={stage:'corpus-recovery',event:'corpus-summary-validation-failure',reason:'oversized_summary',purpose:'corpus-summary',targetTokens:512,actualSummaryTokens:800,content:'PRIVATE'};
+ vm.runInNewContext(statement,{event,runtimeLog:log,callContext:{turnId:'fixture'}});
+ const streamed=log.entries().at(-1).details;
+ const buffered=log.record('backend.corpus-recovery',{turnId:'fixture',...event}).details;
+ const {transport,...fields}=streamed;assert.equal(transport,'stream');assert.deepEqual(fields,buffered);assert(!log.exportText().includes('PRIVATE'));
+});

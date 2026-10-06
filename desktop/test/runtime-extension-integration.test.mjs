@@ -22,7 +22,7 @@ test('project extension workflows retain scope and skill availability across lif
     assert.equal((await active.execution.run('runtime_skills_read', { name: 'research' })).enabled, false);
     await assert.rejects(() => active.execution.run('runtime_skills_read', { name: 'research', forAgent: true }), { code: 'SKILL_UNAVAILABLE' });
     await assert.rejects(() => active.execution.run('runtime_skills_context', { text: '$research', bypass: true }), { code: 'UNKNOWN_FIELD' });
-    assert.deepEqual(await active.execution.run('runtime_mcp_definitions', {}), { tools: [] });
+    assert.deepEqual(await active.execution.run('runtime_mcp_definitions', {}), { tools: [], resources: [], resourcesAvailable: true, resourceTemplateServers: [] });
     await assert.rejects(() => active.execution.run('runtime_mcp_call', { call: { id: 'call-1', name: 'mcp_example_read', args: {} }, surface: 'side_chat', permission: 'full_access' }), { code: 'MCP_SCOPE_DENIED' });
     let closed = false;
     const close = active.genericMcp.close.bind(active.genericMcp);

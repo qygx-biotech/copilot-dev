@@ -1,14 +1,14 @@
 "use strict";
 const crypto = require("node:crypto");
 const zlib = require("node:zlib");
-const invalid = () => Object.assign(new Error("The desktop tool continuation is invalid or expired."), { code: "INVALID_TOOL_CONTINUATION" });
+const invalid = () => Object.assign(new Error("The desktop tool continuation is invalid."), { code: "INVALID_TOOL_CONTINUATION" });
 const digest = value => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 const academic = require("./shared/academic-tools.js");
 function seal(state, binding, secret) {
   if (!secret) throw invalid();
-  const data = Buffer.from(JSON.stringify({ state, binding: digest(binding), expires: Date.now() + 15 * 60000 }));
+  const data = Buffer.from(JSON.stringify({ state, binding: digest(binding) }));
   if (data.length > 700000) throw Object.assign(new Error("Local signed-continuation payload limit exceeded."),
     { code: "LOCAL_CONTEXT_TRANSPORT_LIMIT", byteLimit: 700000, inputBytes: data.length });
   const payload = zlib.deflateSync(data).toString("base64url");
@@ -23,16 +23,28 @@ function open(token, binding, secret) {
   if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) throw invalid();
   try {
     const value = JSON.parse(zlib.inflateSync(Buffer.from(payload, "base64url"), { maxOutputLength: 700000 }));
-    if (value.expires < Date.now() || value.binding !== digest(binding)) throw invalid();
+    // No wall-clock expiry, including for previously issued signed tokens.
+    // The original request binding and signature still govern admission.
+    if (value.binding !== digest(binding)) throw invalid();
     return value.state;
   } catch { throw invalid(); }
 }
 function withResults(state, results) {
-  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > (state.academicState || state.projectToolState || state.specialist ? 180000 : 60000)) throw invalid();
+  if (!Array.isArray(results) || results.length !== state.pending?.length || JSON.stringify(results).length > 32 * 1024 * 1024) throw invalid();
+  // Complete corpus cards are a host-only sidecar, archived before model dispatch.
+  // Canonical receipts retain the existing batch limit and validation.
+  const receipts = results.map(({ corpusCardFallback, ...receipt }) => receipt);
+  if (JSON.stringify(receipts).length > (state.runtimeVersion === 1 || state.academicState || state.projectToolState || state.specialist ? 180000 : 60000)) throw invalid();
+  if (results.some(item => item.corpusCardFallback && !state.pending.some(call => call.id === item.id && call.name === 'run_corpus_workflow'))) throw invalid();
   for (const call of state.pending) {
     const matches = results.filter(item => item?.id === call.id);
-    if (state.runtimeVersion === 1 && (call.name === 'read_skill' || call.name === 'spawn' || /^mcp_/.test(call.name))) {
+    if (state.runtimeVersion === 1 && (call.name === 'read_skill' || call.name === 'spawn' || require('./generic-subagent.js').isAgentTool(call.name) || /^(mcp_|host_)/.test(call.name) || require('./shared/runtime-tools.js').has(call.name))) {
       if (matches.length !== 1 || !matches[0].result || typeof matches[0].result.ok !== 'boolean' || matches[0].result.runtimeCall?.name !== call.name || canonical(matches[0].result.runtimeCall?.args) !== canonical(call.args)) throw invalid();
+      const nested = matches[0].result.nestedToolCalls;
+      if (nested !== undefined) {
+        if (!['run_code', 'wait_code'].includes(call.name) || !Number.isInteger(nested) || nested < 0 || nested > 24 || (state.totalToolCalls || 0) + nested > 24) throw invalid();
+        state.totalToolCalls = (state.totalToolCalls || 0) + nested;
+      }
       const message = state.agentMessages.find(item => item.role === 'tool' && item.tool_call_id === call.id);
       if (!message) throw invalid();
       message.content = JSON.stringify(matches[0].result);
@@ -48,6 +60,9 @@ function withResults(state, results) {
       const message = state.agentMessages.find(item => item.role === "tool" && item.tool_call_id === call.id);
       if (!message) throw invalid();
       message.content = JSON.stringify(matches[0].result);
+      if (call.name === 'run_corpus_workflow' && matches[0].result.ok && matches[0].corpusCardFallback?.version === 1) {
+        message.corpus_card_fallback = matches[0].corpusCardFallback;
+      }
       continue;
     }
     if (academic.isTool(call.name)) {

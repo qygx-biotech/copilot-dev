@@ -56,16 +56,17 @@ test("production transport cancellation interrupts the recovery cooldown before 
   assert.equal(waited[1].cancelled, true); assert.ok(waited[1].quotaWaitMs < 1000);
 });
 
-test("failure telemetry retains the actual degraded checkpoint after summary timeout", async t => {
+for (const child of [false,true]) test(`failure telemetry retains the actual degraded checkpoint after summary timeout, child=${child}`, async t => {
   const f = await setup(t, () => reply("unused"));
-  let main = 0;
+  let main = 0, time = 1800000000000;
   const outcome = await agent.runSideChatAgent({
     conversationMessages: [{ role: "user", content: "Inspect P1" }, { role: "assistant", content: "Verified source P1. ".repeat(1200) }, { role: "user", content: question }],
     originalRequest: question, model, systemPrompt: "Report only.", parseFinalAnswer: reply => ({ reply }),
     workspaceContext: { localWorkspaceContext: local() },
-    contextOptions: { config: { root: f.root, providerCallMs: 20, debug: true } },
+    contextOptions: { now:()=>time, monotonic:()=>time, config: { root: f.root, providerCallMs: 20, debug: true } },
+    ...(child ? {runtimeExtensions:{version:1, child:{version:1,taskId:'child-timeout',parentSessionId:'parent',parentRequestId:'turn',projectId:'context-fixture',model,allowedTools:['read_paper_evidence']}}} : {}),
     requestTurn: async request => {
-      if (request.stage === "context-summary") return new Promise(() => {});
+      if (request.stage === "context-summary") { assert.equal(request.providerCallTimeoutMs,180000); time+=180001; return {ok:true,message:{content:"Late summary"},attempts:1}; }
       main++; return { ok: false, status: 400, verifiedContextLengthError: true, attempts: 1 };
     },
   });

@@ -4199,6 +4199,7 @@ async function runAgentInstruction(panelId, revision = null) {
     if (previewContainer) streamingPreview = createStreamingAnswer(previewContainer, agentWorkArea?.getConversation(panelId) || previewContainer.closest(".agent-conversation"));
     response = await sendWorkbenchRequest({
       mode: "agent_instruction", runtimeQueue, turnObserver,
+      livePermission: () => panel.selectedPermission,
       originalRequest: instruction,
       model: turn.requestedModel,
       ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: turn.permission, projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
@@ -4300,16 +4301,19 @@ async function sendWorkbenchRequest(options) {
     const queue = options.runtimeQueue || new window.BioDesignRuntimeTurns.InjectionQueue();
     const session = await window.BioDesignRuntimeSession.create({ options: captured, queue, service, isCurrent: current,
       workflow: (workflowId, input) => window.biodesignDesktop.execution.runWorkflow({ workflowId, input }),
-      onStatus: status => captured.onStream?.({ type: 'status', stage: 'subagent-' + status.status, capability: status.label || 'subagent', taskId: status.task_id }),
-      requestChild: async (child, { context, signal }) => sendWorkbenchRequest({
+      interaction: window.BioDesignRuntimeInteraction?.create({ document, title: captured.originalRequest || 'Agent work', isCurrent: current, readArtifact: path => window.biodesignDesktop.files.readBinary({ relativePath: path }) }),
+      onStatus: status => captured.onStream?.({ type: 'status', stage: `${status.type}-${status.status}`, capability: status.label || status.type, taskId: status.task_id }),
+      requestChild: async (child, { context, signal, queue: childQueue, onTranscript: childTranscript, board }) => sendWorkbenchRequest({
         mode: 'side_chat', model: child.model, originalRequest: child.originalRequest, messages: child.messages,
+        conversationTranscript: child.conversationTranscript, runtimeQueue: childQueue, onTranscript: childTranscript, runtimeBoard: board,
         localWorkspaceContext: context, projectGoal: captured.projectGoal, signal,
         callContext: { ...captured.callContext, turnId: child.taskId, callRole: 'answer' },
         runtimeChild: child.genericSubagent, isCurrentRequest: current,
+        livePermission: captured.livePermission,
         onStream: event => { if (event.turnUsage) captured.turnObserver?.childUsage(event.turnUsage); if (event.type === 'status') captured.onStream?.({ type: 'status', stage: 'subagent-running', taskId: child.taskId, capability: child.label }); },
       }),
     });
-    try { return await sendWorkbenchRequestOnce({ ...captured, runtimeSession: session, runtimeExtensions: session.extensions, runtimeInjections: queue.batch() }); }
+    try { return await sendWorkbenchRequestOnce({ ...captured, signal: session.signal, runtimeSession: session, runtimeExtensions: session.extensions, runtimeInjections: queue.batch() }); }
     finally { await session.close(); }
   }
   if (captured.mode === "side_chat" && captured.localWorkspaceContext?.agentLoop?.version === 1) {
@@ -4379,6 +4383,7 @@ async function sendWorkbenchRequestOnce({
   runtimeSession = null,
   runtimeExtensions = null,
   runtimeInjections = [],
+  runtimeRevokedTools = [],
 }) {
   const ownsLiteratureSession = !literatureSession;
   literatureSession ||= { jobs: new Map() };
@@ -4395,7 +4400,7 @@ async function sendWorkbenchRequestOnce({
   const chatTrace = runtimeLog?.chatTiming?.({ turnId: callContext?.turnId, endpoint: "/chat", model: model || "default" });
   const saveTranscript = async turn => {
     const end = chatTrace?.start("transcript_save");
-    try { await onTranscript(turn); end?.({ outcome: "completed" }); }
+    try { runtimeSession?.observeTranscript(turn); await onTranscript(turn); end?.({ outcome: "completed" }); }
     catch (error) { end?.({ outcome: "failed" }); throw error; }
   };
   const turnAuth = authToken;
@@ -4423,7 +4428,7 @@ async function sendWorkbenchRequestOnce({
     ...(chatTrace ? { timingRequestId: chatTrace.requestId } : {}),
     ...(model ? { model } : {}),
     stream: true,
-    ...(runtimeExtensions ? { runtimeExtensions, runtimeInjections } : {}),
+    ...(runtimeExtensions ? { runtimeExtensions, runtimeInjections, runtimeRevokedTools } : {}),
     ...(desktopTools && !isSideChat ? { desktopTools } : {}),
     ...(desktopContinuation && (!isSideChat || localWorkspaceContext?.agentLoop?.version === 1) ? { desktopContinuation, desktopToolResults } : {}),
     ...(images.length ? { images } : {}),
@@ -4487,10 +4492,21 @@ async function sendWorkbenchRequestOnce({
       ...(chatTrace ? { onTiming: stage => chatTrace.mark(stage) } : {}), onEvent: async event => {
       chatTrace?.event(event.type);
       assertCurrentResponse();
+      if (event.type === 'tool-ready') {
+        if (!runtimeSession) throw Object.assign(new Error('Runtime unavailable'), { code: 'INVALID_STREAM_CALL' });
+        runtimeSession.executeEarly(event, async envelope => {
+          const verified = await fetch(backendUrl('/api/runtime/verify-stream-call'), { method: 'POST', signal,
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ ticket: envelope.ticket, scope: envelope.scope }) });
+          if (!verified.ok) throw Object.assign(new Error('Invalid stream call'), { code: 'INVALID_STREAM_CALL' });
+          return verified.json();
+        });
+        return;
+      }
       if (event.type === "transcript") {
         receivedCheckpoint = window.BioDesignConversationTranscript.applyCheckpoint(receivedCheckpoint, event);
         await saveTranscript(receivedCheckpoint); return;
       }
+      if (event.stage === "corpus-recovery") runtimeLog?.record("backend.corpus-recovery", { turnId: callContext?.turnId, ...event, transport: "stream" });
       if (event.stage === "historical-replay") runtimeLog?.record("backend.historical-replay", { turnId: callContext?.turnId,
         turns: event.turns, toolCalls: event.toolCalls, toolResults: event.toolResults, invalidatedTurns: event.invalidatedTurns,
         compactedTurns: event.compactedTurns, providerCalls: 0, toolExecutions: 0 });
@@ -4531,14 +4547,24 @@ async function sendWorkbenchRequestOnce({
       runtimeLog?.record("backend.context-recovery", { turnId: callContext?.turnId, ...contextRecovery,
         providerAttempts: data.semanticTelemetry.providerAttempts });
     }
+    const corpusRecovery = data.semanticTelemetry?.corpusRecovery;
+    if (corpusRecovery) {
+      for (const event of corpusRecovery.events || []) runtimeLog?.record("backend.corpus-recovery", { turnId: callContext?.turnId, ...event });
+      for (const [projectionId, projection] of Object.entries(corpusRecovery.projections || {})) runtimeLog?.record("backend.corpus-projection", { turnId: callContext?.turnId, ...projection, reductionStage: projection.stage, projectionId });
+      runtimeLog?.record("backend.corpus-recovery-outcome", { turnId: callContext?.turnId,
+        code: data.error || data.failure?.code, recoveryStopReason: data.recoveryStopReason || data.failure?.recoveryStopReason,
+        corpusStopReason: corpusRecovery.stopReason, providerRequests: corpusRecovery.providerRequests });
+    }
     if (data.fallback || data.failure) runtimeLog?.record("main-agent.failure", { turnId: callContext?.turnId,
-      code: data.error, ...data.failure, providerAttempts: data.semanticTelemetry?.providerAttempts ?? data.failure?.providerAttempts }, "error");
+      code: data.error, ...data.failure, corpusStopReason: corpusRecovery?.stopReason, providerAttempts: data.semanticTelemetry?.providerAttempts ?? data.failure?.providerAttempts }, "error");
     const responseOutcome = runtimeLog?.responseOutcome?.(data) || { status: "partial", stage: "response_received" };
     chatTrace?.finish(responseOutcome.stage);
     finish?.(responseOutcome.status, { ...data.taskOutcome, status: response.status, stage: responseOutcome.stage, model: data.model || null, outputLength,
       taskStatus: data.taskOutcome?.status });
     if (data.turnUsage) onStream.observer?.usage(data.turnUsage);
     if (runtimeExtensions) {
+      runtimeSession?.observeContext(data.runtimeContext);
+      runtimeSession?.observeTools(data.runtimeToolCatalog, data.runtimeToolBudget);
       runtimeSession?.acknowledge(data.runtimeAccepted || []);
       if (typeof data.model === 'string') runtimeSession?.bindModel(data.model);
       if (data.agentCheckpoint && !data.failure && !data.fallback) {
@@ -4549,7 +4575,7 @@ async function sendWorkbenchRequestOnce({
           onStream({ type: 'reset' });
           return await sendWorkbenchRequestOnce({ mode, model, messages, conversationTranscript, images, onTranscript, originalRequest, projectGoal,
             localWorkspaceContext, callContext, onStream, signal, desktopTools, libraryChoice, literatureSession,
-            runtimeSession, runtimeExtensions, runtimeInjections: checkpoint.injections,
+            runtimeSession, runtimeExtensions, runtimeInjections: checkpoint.injections, runtimeRevokedTools: checkpoint.revokedTools || [],
             desktopContinuation: data.desktopContinuation, desktopToolResults: [], desktopRound: desktopRound + 1 });
         }
         return data;
@@ -4572,15 +4598,24 @@ async function sendWorkbenchRequestOnce({
       ensureCurrent();
       const results = [];
       const toolStarts = new Map();
-      for (const call of data.desktopToolCalls) {
+      for (let callIndex = 0; callIndex < data.desktopToolCalls.length; callIndex++) {
+        const call = data.desktopToolCalls[callIndex];
         toolStarts.set(call.id, Date.now());
         ensureCurrent();
         if (runtimeExtensions?.child && !runtimeExtensions.child.allowedTools.includes(call.name)) throw Object.assign(new Error('Child capability denied.'), { code: 'SUBAGENT_TOOL_DENIED' });
         if (runtimeSession && window.BioDesignRuntimeExtensions.isTool(call.name, runtimeExtensions, isSideChat ? 'side_chat' : 'agent_command', desktopTools?.permission || 'read_only')) {
           onStream({ type: 'reset' }); onStream({ type: 'status', stage: 'tool-running', capability: call.name });
-          results.push(await runtimeSession.execute(call));
+          const group = [call];
+          while (callIndex + 1 < data.desktopToolCalls.length) {
+            const next = data.desktopToolCalls[callIndex + 1];
+            if (!window.BioDesignRuntimeExtensions.isTool(next.name, runtimeExtensions, isSideChat ? 'side_chat' : 'agent_command', desktopTools?.permission || 'read_only')) break;
+            if (runtimeExtensions?.child && !runtimeExtensions.child.allowedTools.includes(next.name)) break;
+            group.push(next); callIndex++; toolStarts.set(next.id, Date.now());
+          }
+          results.push(...await runtimeSession.executeBatch(group));
           ensureCurrent(); continue;
         }
+        const domainHandler = async call => {
         if (call.name === 'literature_worker') {
           if (desktopTools.literatureVersion !== 1) throw Object.assign(new Error('Literature workers unavailable.'), { code: 'PERMISSION_DENIED' });
           if (call.args.action === 'begin' && !call.args.task?.job_id && !libraryChoice.value) {
@@ -4593,7 +4628,7 @@ async function sendWorkbenchRequestOnce({
             scopePaths: localWorkspaceContext?.agentLoop?.hardSelection ? [...new Set([...(localWorkspaceContext.sourceMap?.paperSources || []).map(f => f.path), ...(localWorkspaceContext.files || []).map(f => f.path)].filter(Boolean))] : null };
           const knownJobId = input.job_id || input.task?.job_id;
           if (knownJobId) literatureSession.jobs.set(knownJobId, input);
-          const cancel = () => { if (input.job_id) void window.biodesignDesktop.execution.runWorkflow({ workflowId: 'literature_worker', input: { ...input, action: 'cancel' } }).catch(() => {}); };
+          const cancel = () => { if (input.job_id) void window.biodesignDesktop.execution.runWorkflow({ workflowId: 'literature_worker', input: { ...input, execution_id: undefined, action: 'cancel' } }).catch(() => {}); };
           signal?.addEventListener('abort', cancel, { once: true });
           let result;
           try {
@@ -4609,14 +4644,14 @@ async function sendWorkbenchRequestOnce({
             }
           } finally { signal?.removeEventListener('abort', cancel); }
           if (result.final && !result.needs_login) literatureSession.jobs.delete(input.job_id);
-          ensureCurrent(); results.push({ id: call.id, result }); continue;
+          ensureCurrent(); return { id: call.id, result };
         }
         if ((runtimeExtensions || desktopTools?.literatureVersion === 1 || localWorkspaceContext?.agentLoop?.academicAcquisition === true) && window.BioDesignSideChatTools?.isTool(call.name)) {
           if (!projectContextService?.executeAgentTool) throw Object.assign(new Error("Project evidence tools unavailable."), { code: "PERMISSION_DENIED" });
-          results.push(await projectContextService.executeAgentTool(call, { turnId: callContext?.turnId, signal,
-            isCurrent: () => { ensureCurrent(); return true; }, onProgress: event => { onStream.observer?.hostEvent(event); onStream({ type: "status", ...event }); } }));
+          const receipt = await projectContextService.executeAgentTool(call, { turnId: callContext?.turnId, signal,
+            isCurrent: () => { ensureCurrent(); return true; }, onProgress: event => { onStream.observer?.hostEvent(event); onStream({ type: "status", ...event }); } });
           ensureCurrent();
-          continue;
+          return receipt;
         }
         if (academic?.isTool(call.name)) {
           if (desktopTools.academicVersion !== 1 || !academic.allowed(call.name, "agent_command", desktopTools.permission)) throw Object.assign(new Error("Academic tool unavailable on this move."), { code: "PERMISSION_DENIED" });
@@ -4630,8 +4665,7 @@ async function sendWorkbenchRequestOnce({
             result = academic.failure(error.code);
           }
           ensureCurrent();
-          results.push({ id: call.id, result });
-          continue;
+          return { id: call.id, result };
         }
         if (call.name !== "download_sources") throw Object.assign(new Error("Unknown desktop tool."), { code: "TOOL_NOT_ALLOWED" });
         if (!api.allowed("agent_command", desktopTools.permission)) throw Object.assign(new Error("Source writing is not allowed."), { code: "PERMISSION_DENIED" });
@@ -4648,7 +4682,9 @@ async function sendWorkbenchRequestOnce({
           downloaded = args.sources.map(source => ({ url: source.url, status: "failed", error: { code: error.code || "DOWNLOAD_FAILED" } }));
         }
         ensureCurrent();
-        results.push({ id: call.id, results: downloaded });
+        return { id: call.id, results: downloaded };
+        };
+        results.push(runtimeSession ? await runtimeSession.executeDomain(call, domainHandler) : await domainHandler(call));
       }
       for (const result of results) onStream.observer?.receipt(data.desktopToolCalls.find(call => call.id === result.id), result, { startedAt: toolStarts.get(result.id) });
       if (window.BioDesignFrontend) {
@@ -4662,7 +4698,7 @@ async function sendWorkbenchRequestOnce({
       // files are picked up by normal source preflight on the next user request.
       const checkpoint = runtimeSession ? await runtimeSession.atCheckpoint(data) : { injections: [] };
       return await sendWorkbenchRequestOnce({ mode, model, messages, conversationTranscript, images, onTranscript, originalRequest, projectGoal, localWorkspaceContext, callContext, onStream, signal, desktopTools,
-        runtimeSession, runtimeExtensions, runtimeInjections: checkpoint.injections, libraryChoice, literatureSession,
+        runtimeSession, runtimeExtensions, runtimeInjections: checkpoint.injections, runtimeRevokedTools: checkpoint.revokedTools || [], libraryChoice, literatureSession,
         desktopContinuation: data.desktopContinuation, desktopToolResults: results, desktopRound: desktopRound + 1 });
     }
     return data;

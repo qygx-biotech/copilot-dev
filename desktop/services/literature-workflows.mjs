@@ -11,6 +11,12 @@ import { normalizeSnapshotReference, referenceSchema, restrictBrowserTool, skipp
 const fail = code => Object.assign(new Error(code), { code });
 const code = error => /^[A-Z_]{1,80}$/.test(error?.code || '') ? error.code : 'LITERATURE_OPERATION_FAILED';
 const jobPath = id => `.biodesign/literature-jobs/${id}.json`;
+const receiptPath = id => `.biodesign/literature-jobs/receipts/${id}.json`;
+const uncertainPath = id => `.biodesign/literature-jobs/receipts/${id}.uncertain.json`;
+const digest = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object'
+  ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
+const storedResult = result => JSON.parse(JSON.stringify(result?.final && Object.hasOwn(result.final, 'discoveryArguments') ? result : clean(result)));
 const field = contract.text;
 const schema = contract.object;
 const indexSchema = { type: 'integer', minimum: 0, maximum: 4 };
@@ -62,7 +68,8 @@ export class LiteratureWorkflows {
     await this.browser.close(job.id); this.browser.release(job.id);
     await this.save(job); return { job_id: job.id, status: job.status };
   }
-  async save(job) { await this.active.filesystem.writeText(jobPath(job.id), JSON.stringify({ ...clean(job), ...(Object.hasOwn(job, 'discoveryArguments') ? { discoveryArguments: job.discoveryArguments } : {}) })); }
+  async save(job) { await this.active.filesystem.writeText(jobPath(job.id), JSON.stringify({ ...clean(job), ...(Object.hasOwn(job, 'discoveryArguments') ? { discoveryArguments: job.discoveryArguments } : {}),
+    ...(job.executionCheckpoint ? { executionCheckpoint: job.executionCheckpoint } : {}) })); }
   async load(id) {
     if (!/^lit_[a-f0-9]{24}$/.test(id || '')) throw fail('INVALID_JOB_ID');
     if (this.jobs.has(id)) return this.jobs.get(id);
@@ -101,28 +108,82 @@ export class LiteratureWorkflows {
   }
   async run(input) {
     assertOnlyKeys(input, ['action', 'job_id', 'kind', 'task', 'name', 'args', 'permission', 'authorization', 'model', 'scopePaths', 'execution_id', 'libraryAccess']);
-    if (input.action === 'cancel') return this.cancel(input.job_id);
-    if (input.action === 'suspend') return this.suspend(input);
+    // Bind the queued action to an immutable snapshot, including its captured authority.
+    input = structuredClone(input);
     if (input.execution_id !== undefined && !/^literature_[a-f0-9]{16}$/.test(input.execution_id)) throw fail('INVALID_EXECUTION_ID');
     const operation = async () => {
-      const fingerprint = crypto.createHash('sha256').update(JSON.stringify({ ...input, execution_id: undefined })).digest('hex');
-      if (input.execution_id) {
-        const cachedPath = `.biodesign/literature-jobs/receipts/${input.execution_id}.json`;
-        try {
-          const previous = JSON.parse(await this.active.filesystem.readText(cachedPath));
-          if (previous.fingerprint !== fingerprint) throw fail('EXECUTION_BINDING_CHANGED');
-          return previous.result;
-        } catch (error) { if (error.code !== 'ENOENT') throw error; }
-        const result = await this.execute(input);
-        await this.active.filesystem.writeText(cachedPath, JSON.stringify({ fingerprint, result: result?.final && Object.hasOwn(result.final, 'discoveryArguments') ? result : clean(result) }));
-        return result;
-      }
-      return this.execute(input);
+      if (!this.isCurrent()) throw fail('OPERATION_ABORTED');
+      return input.execution_id ? this.runRecorded(input) : this.execute(input);
     };
+    // Out-of-band interruption must not wait for the action it is cancelling.
+    if (['cancel', 'suspend'].includes(input.action)) return operation();
     const pending = this.queue.then(operation, operation); this.queue = pending.catch(() => {}); return pending;
   }
-  async execute(input) {
+  async readReceipt(id) {
+    let receipt;
+    try { receipt = JSON.parse(await this.active.filesystem.readText(receiptPath(id))); }
+    catch (error) { if (error.code === 'ENOENT') return null; if (error instanceof SyntaxError) throw fail('EXECUTION_OUTCOME_UNKNOWN'); throw error; }
+    if (receipt?.version === 2 && receipt.status === 'pending') {
+      try {
+        const uncertain = JSON.parse(await this.active.filesystem.readText(uncertainPath(id)));
+        if (uncertain.status !== 'uncertain' || uncertain.execution_id !== receipt.execution_id || uncertain.fingerprint !== receipt.fingerprint) throw fail('EXECUTION_OUTCOME_UNKNOWN');
+        return { ...receipt, status: 'uncertain', error: uncertain.error, failed_at: uncertain.failed_at };
+      } catch (error) { if (error instanceof SyntaxError) throw fail('EXECUTION_OUTCOME_UNKNOWN'); if (error.code !== 'ENOENT') throw error; }
+    }
+    return receipt;
+  }
+  async recoverReceipt(previous, input, fingerprint) {
+    // Legacy receipts were completed records. Keep their original binding algorithm.
+    if (!previous || typeof previous !== 'object') throw fail('EXECUTION_OUTCOME_UNKNOWN');
+    if (previous.version === 2 && previous.execution_id !== input.execution_id) throw fail('EXECUTION_BINDING_CHANGED');
+    if (previous.fingerprint !== (previous.version === undefined ? digest({ ...input, execution_id: undefined }) : fingerprint)) throw fail('EXECUTION_BINDING_CHANGED');
+    if ((previous.version === undefined || previous.version === 2 && previous.status === 'completed') && Object.hasOwn(previous, 'result')) return previous.result;
+    if (previous.version !== 2 || previous.execution_id !== input.execution_id || !['pending', 'uncertain'].includes(previous.status)) throw fail('EXECUTION_OUTCOME_UNKNOWN');
+    // Read persisted domain state, never the in-memory job or load()'s restart projection.
+    // Only an exact result saved with this admission proves completion; files/counters alone do not.
+    let checkpoint;
+    if (/^lit_[a-f0-9]{24}$/.test(previous.job_id || '')) {
+      try { checkpoint = JSON.parse(await this.active.filesystem.readText(jobPath(previous.job_id))).executionCheckpoint; }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    if (checkpoint?.execution_id !== input.execution_id || checkpoint?.fingerprint !== fingerprint || !Object.hasOwn(checkpoint, 'result')) throw fail('EXECUTION_OUTCOME_UNKNOWN');
+    await this.active.filesystem.writeText(receiptPath(input.execution_id), JSON.stringify({ ...previous, status: 'completed', result: checkpoint.result, completed_at: Date.now(), reconciled: true }));
+    return checkpoint.result;
+  }
+  async runRecorded(input) {
+    const fingerprint = digest(canonical({ project: this.active.filesystem.root, input: { ...input, execution_id: undefined } }));
+    const previous = await this.readReceipt(input.execution_id);
+    if (previous) return this.recoverReceipt(previous, input, fingerprint);
+    const record = { version: 2, execution_id: input.execution_id, fingerprint, status: 'pending', started_at: Date.now(),
+      job_id: input.action === 'begin' ? input.task?.job_id || `lit_${crypto.randomBytes(12).toString('hex')}` : input.job_id };
+    // Exclusive creation arbitrates duplicate delivery across service instances. A partial or
+    // unreadable reservation fails closed. No effect starts until persistence acknowledges it.
+    try { await this.active.filesystem.writeText(receiptPath(input.execution_id), JSON.stringify(record), { exclusive: true }); }
+    catch (error) {
+      if (error.code === 'EEXIST') return this.recoverReceipt(await this.readReceipt(input.execution_id) || {}, input, fingerprint);
+      throw error;
+    }
+    try {
+      const result = await this.execute(input, record);
+      const saved = storedResult(result);
+      await this.active.filesystem.writeText(receiptPath(input.execution_id), JSON.stringify({ ...record, status: 'completed', result: saved, completed_at: Date.now() }));
+      return saved;
+    } catch (error) {
+      // A write can commit before its acknowledgement fails. Never erase a completed receipt.
+      try {
+        const persisted = await this.readReceipt(input.execution_id);
+        if (persisted?.status === 'completed') return await this.recoverReceipt(persisted, input, fingerprint);
+        // Separate failure marker: a racing recovery may already be publishing completion.
+        // Completed receipts always win; uncertainty can never overwrite their saved result.
+        await this.active.filesystem.writeText(uncertainPath(input.execution_id), JSON.stringify({ ...record, status: 'uncertain', error: code(error), failed_at: Date.now() }), { exclusive: true });
+      } catch { /* The durable pending reservation still prevents replay if storage is unavailable. */ }
+      throw error;
+    }
+  }
+  async execute(input, execution) {
     if (!this.isCurrent()) throw fail('OPERATION_ABORTED');
+    if (input.action === 'cancel') return this.cancel(input.job_id);
+    if (input.action === 'suspend') return this.suspend(input);
     let job;
     if (input.action === 'begin' && input.task?.job_id) {
       const saved = await this.load(input.task.job_id);
@@ -141,7 +202,7 @@ export class LiteratureWorkflows {
       if (input.task.destination) assertRelativePath(input.task.destination);
       const scopePaths = input.scopePaths ?? null; if (scopePaths !== null && (!Array.isArray(scopePaths) || scopePaths.length > 500)) throw fail('INVALID_SCOPE');
       scopePaths?.forEach(value => assertRelativePath(value));
-      job = { id: `lit_${crypto.randomBytes(12).toString('hex')}`, kind: input.kind, task: input.task, status: 'running', permission: input.permission,
+      job = { id: execution?.job_id || `lit_${crypto.randomBytes(12).toString('hex')}`, kind: input.kind, task: input.task, status: 'running', permission: input.permission,
         model: input.model, authorized: authorized(input), scopePaths, libraryUrl, openAccessOnly: !libraryUrl, created: Date.now(), elapsed: 0, calls: 0, navigations: 0, downloads: 0, results: {}, candidates: [], searches: [], limitations: [], observations: '', position: 0, known: [] };
       if (job.openAccessOnly) job.limitations.push('No library URL provided: discovery is limited to open-access papers; institutional browsing is disabled. Provider records without open-access evidence are omitted.');
       this.jobs.set(job.id, job); await this.save(job);
@@ -152,8 +213,22 @@ export class LiteratureWorkflows {
     if (job.kind === 'retrieve_papers' && (!job.authorized || !authorized(input))) throw fail('DOWNLOAD_NOT_AUTHORIZED');
     const controller = this.controllers.get(job.id) || new AbortController(); this.controllers.set(job.id, controller);
     const signal = AbortSignal.any([controller.signal, this.active.sourceDownloads.signal]);
-    const ensureCurrent = () => { if (signal.aborted || !this.isCurrent()) throw fail('OPERATION_ABORTED'); };
     const started = Date.now();
+    try {
+      const result = await this.executeAction(job, input, signal);
+      // One bounded checkpoint in the existing job store permits receipt repair after a
+      // completed domain save. It does not infer success or resume browser/download effects.
+      if (execution) job.executionCheckpoint = { execution_id: execution.execution_id, fingerprint: execution.fingerprint, result: storedResult(result) };
+      return result;
+    } finally {
+      if (signal.aborted && this.browser.owner === job.id) { await this.browser.close(job.id); this.browser.release(job.id); }
+      job.elapsed += Date.now() - started; job.searches = job.searches.slice(-30); job.limitations = [...new Set(job.limitations)].slice(-30);
+      try { await this.save(job); }
+      catch (error) { await this.browser.close(job.id); throw error; }
+    }
+  }
+  async executeAction(job, input, signal) {
+    const ensureCurrent = () => { if (signal.aborted || !this.isCurrent()) throw fail('OPERATION_ABORTED'); };
     try {
       ensureCurrent();
       if (['begin', 'resume'].includes(input.action)) {
@@ -284,11 +359,6 @@ export class LiteratureWorkflows {
       }
       const diagnostics = this.diagnose(job, error, input.name === 'finish_discovery' ? 'discovery-finalization' : 'literature-host');
       return { error: diagnostics.code, message: diagnostics.message, diagnostics, job_id: job.id };
-    } finally {
-      if (signal.aborted && this.browser.owner === job.id) { await this.browser.close(job.id); this.browser.release(job.id); }
-      job.elapsed += Date.now() - started; job.searches = job.searches.slice(-30); job.limitations = [...new Set(job.limitations)].slice(-30);
-      try { await this.save(job); }
-      catch (error) { await this.browser.close(job.id); throw error; }
     }
   }
   async findLocal(job, paper, signal) {

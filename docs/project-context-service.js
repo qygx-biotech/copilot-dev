@@ -27,11 +27,13 @@
   const savedArtifactApi = root?.BioDesignRetrievalContract || (typeof require === "function" ? require("../shared/retrieval-contract.js") : {});
   const wikiContract = root?.BioDesignLiteratureWiki || (typeof require === "function" ? require("../shared/literature-wiki.js") : {});
   const sourceArtifactApi = root?.renderSynthesisMarkdown ? root : (typeof require === "function" ? require("./source-system.js") : {});
+  const corpusResultApi = root?.BioDesignCorpusResults || (typeof require === 'function' ? require('../shared/corpus-result-service.js') : null);
+  const corpusResultService = new corpusResultApi.CorpusResultService();
   const CHAT_SCHEMA_VERSION = 1;
   const transcriptApi = root?.BioDesignConversationTranscript ||
     (typeof require === "function" ? require("../shared/conversation-transcript.js") : {});
   const MAX_SAVED_CHATS = 5;
-  const ORIGINAL_EVIDENCE_BUDGET = Object.freeze({ perPaper: 30000, serializedPassages: 48000, serializedResult: 64000 });
+  const ORIGINAL_EVIDENCE_BUDGET = Object.freeze({ perPaper: 30000, serializedPassages: 48000 });
   // Bound JSON-encoded passages before assembling results. Escapes consume
   // transport space too; never cut a citation marker or surrogate pair.
   const encodedTextLength = text => JSON.stringify(text).length - 2;
@@ -1626,7 +1628,7 @@
       context.inventory = context.inventory.filter(item => !hardSelection || paths.includes(item.relativePath) || selected.includes(item.paperId));
       context.sourceMap = { selectedPaperIds: selected, activePaperIds: [], selectedExperimentIds: [], activeExperimentIds: [],
         paperSources: papers.map(source => ({ sourceId: source.sourceId, sourceKind: "paper", path: source.path, displayName: source.displayName,
-          contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardStatus: source.hashStatus === "dirty" ? "stale" : source.paperCardStatus })),
+          contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardCacheKey: source.artifacts?.paperCard?.cacheKey || null, paperCardStatus: source.hashStatus === "dirty" ? "stale" : source.paperCardStatus })),
         availableSourceTools: Boolean(this.sourceSystem), sourceCounts: { papers: papers.length } };
       context.literature = { ...context.literature, selectedPaperIds: selected, explicitPaperIds: [], relevantPaperIds: [], retrievalProfile: "medium",
         index: this.buildLiteratureIndex(selected).filter(paper => papers.some(source => source.sourceId === paper.paperId)),
@@ -1659,7 +1661,32 @@
       }
     }
 
-    forkAgentTurn(parentId, childId, question, signal) {
+    async runtimeStateContext(turnId) {
+      const turn = this.agentTurns?.get(turnId);
+      const check = () => { if (!turn || turn.options.signal?.aborted || turn.project !== this.workspace.workspace) throw Object.assign(new Error('The captured request ended.'), { code: 'OPERATION_ABORTED' }); };
+      check();
+      const tree = await this.workspace.scanDirectoryTree(); check();
+      await this.sourceRegistry.reconcile(tree, { legacyDocuments: this.literature.documents }); check();
+      const valid = [];
+      for (const old of turn.context.sourceMap?.paperSources || []) {
+        const source = this.sourceRegistry.get(old.sourceId);
+        if (!source || !turn.sourceVersions[old.sourceId] || source.statSignature !== turn.sourceStats[old.sourceId] || ['missing', 'deleted', 'removed'].includes(source.catalogStatus)) continue;
+        await this.preparation.ensureSourceReady([old.sourceId], 'stable_snapshot', { ...turn.options, workspaceTree: tree, deferKnowledgeIndex: true }); check();
+        const current = this.sourceRegistry.get(old.sourceId);
+        if (current?.contentHash === turn.sourceVersions[old.sourceId] && current.statSignature === turn.sourceStats[old.sourceId]) valid.push({ ...old, contentHash: current.contentHash, catalogStatus: current.catalogStatus });
+      }
+      return { ...turn.context, sourceMap: { ...turn.context.sourceMap, paperSources: valid } };
+    }
+
+    async saveExplicitMemory(note, { turnId }) {
+      const turn = this.agentTurns?.get(turnId);
+      if (!turn || turn.parentTurnId || turn.options.signal?.aborted || turn.project !== this.workspace.workspace) throw Object.assign(new Error('The captured project request is unavailable.'), { code: 'OPERATION_ABORTED' });
+      const requested = extractExplicitMemory(turn.options.question);
+      if (!requested || requested.text !== note || !this.projectState) throw Object.assign(new Error('Only the exact memory statement explicitly requested by the user can be saved.'), { code: 'MEMORY_AUTHORIZATION_REQUIRED' });
+      return this.projectState.updateMemory({ ...requested, sourceIds: turn.selected || [], experimentIds: [] }, { surface: turn.options.surface });
+    }
+
+    forkAgentTurn(parentId, childId, question, signal, capturedSourceIds) {
       const parent = this.agentTurns?.get(parentId);
       if (!parent || parent.project !== this.workspace.workspace || parent.options.signal?.aborted || signal?.aborted) {
         throw Object.assign(new Error("The parent project request was stopped."), { code: "OPERATION_ABORTED" });
@@ -1675,8 +1702,12 @@
       };
       // Capture the existing host snapshot. Re-running preflight here could
       // widen a project-wide parent's scope to newly added or selected papers.
-      const selected = parent.hardSelection ? [...parent.selected]
+      let selected = parent.hardSelection ? [...parent.selected]
         : [...new Set([...Object.keys(parent.sourceVersions || {}), ...(parent.context.agentLoop?.paperIds || [])])];
+      if (capturedSourceIds !== undefined) {
+        if (!Array.isArray(capturedSourceIds) || new Set(capturedSourceIds).size !== selected.length || capturedSourceIds.some(id => !selected.includes(id))) throw Object.assign(new Error('The captured child scope is no longer available.'), { code: 'SUBAGENT_SCOPE_CHANGED' });
+        selected = [...capturedSourceIds];
+      }
       const paths = [...parent.paths];
       const excluded = new Set(["signal", "conversation", "conversationMessages", "conversationTranscript", "messages", "onProgress", "onCatalogUpdated"]);
       const inherited = clone(Object.fromEntries(Object.entries(parent.options).filter(([key, value]) => !excluded.has(key) && typeof value !== "function")));
@@ -1694,6 +1725,7 @@
       context.agentLoop = { ...context.agentLoop, hardSelection: true, paperIds: [...selected] };
       delete context.agentLoop.academicAcquisition;
       context.sourceMap = { ...context.sourceMap, selectedPaperIds: [...selected] };
+      context.sourceMap.paperSources = (context.sourceMap.paperSources || []).filter(source => selected.includes(source.sourceId));
       context.literature = { ...context.literature, selectedPaperIds: [...selected] };
       this.agentTurns.set(childId, { options, context, project: parent.project, parentTurnId: parentId,
         hardSelection: true, selected: Object.freeze(selected), paths: Object.freeze(paths),
@@ -1740,6 +1772,7 @@
           const scopeResolution = corpus ? contract.corpusScopeResolution(args, requirement, turn.hardSelection) : null;
           const scopedIds = requirement.scope.sourceIds;
           const gaps = [];
+          let corpusCardFallback;
           let searchedIds = [...scopedIds];
           // Empty selection is a closed scope, not a request for project-wide
           // retrieval. Some legacy knowledge helpers interpret [] as all papers.
@@ -1836,6 +1869,16 @@
               hit.artifact.verificationStatus !== 'unverified').slice(0, 4).map(hit => ({ ...hit, snippet: String(hit.snippet || '').slice(0, 1000),
                 artifact: { ...hit.artifact, content: hit.artifact.content.slice(0, 2000), truncated: true } }));
             const papers = [], files = [], cards = [];
+            corpusCardFallback = corpusResultService.prepareResult({ workflowId: value.workflowId, failures: (status.failures || []).map(item => ({ sourceId: item.sourceId || item.paperId, code: item.code || item.error?.code || "COLLECTION_FAILED" })) });
+            const completeCards = new Map();
+            for (const id of scopedIds) {
+              const source = this.sourceRegistry.get(id, { includeMissing: true });
+              const cached = await this.corpusWorkflows.readValidPaperCardForCorpusMap(source, null, { complete: true }); check();
+              if (cached) {
+                completeCards.set(id, cached);
+                corpusCardFallback.cards.push({ sourceId: id, contentHash: source.contentHash, cardIdentity: cached.contentIdentity, card: cached.completeCard });
+              } else corpusCardFallback.missingCards.push({ sourceId: id, contentHash: source?.contentHash || null, reason: "CURRENT_COMPATIBLE_CARD_UNAVAILABLE" });
+            }
             const deliveredIds = scopedIds.slice(0, 100);
             const passageBudget = Math.max(100, Math.floor(22000 / Math.max(1, deliveredIds.length)));
             const cardBudget = Math.max(80, Math.floor(6000 / Math.max(1, deliveredIds.length)));
@@ -1847,7 +1890,7 @@
               if (!mapped || mapped.contentHash !== source.contentHash) {
                 paper.status = 'unavailable'; paper.gaps.push('Current evidence was not collected.'); continue;
               }
-              const cached = await this.corpusWorkflows.readValidPaperCardForCorpusMap(source); check();
+              const cached = completeCards.get(id); check();
               if (cached) {
                 const content = [cached.card.shortSummary || cached.card.summary,
                   cached.card.researchQuestion, ...(cached.card.mainFindings || []), ...(cached.card.methods || [])]
@@ -1903,15 +1946,13 @@
             const files = [], refs = [], failures = [], retrievalDetails = [];
             const legacyRead = call.name === 'read_paper_evidence';
             const requestedBudget = args.max_characters || (legacyRead ? 12000 : ORIGINAL_EVIDENCE_BUDGET.perPaper);
-            // Reserve envelope, preview and provenance space before allocating text.
-            const aggregatePassageBudget = Math.min(ORIGINAL_EVIDENCE_BUDGET.serializedPassages,
-              ORIGINAL_EVIDENCE_BUDGET.serializedResult - 4000 - 3000 * ids.length);
+            // Passage selection remains bounded; metadata does not impose a result-size cutoff.
+            const aggregatePassageBudget = ORIGINAL_EVIDENCE_BUDGET.serializedPassages;
             const allocatedBudget = Math.floor(aggregatePassageBudget / Math.max(1, ids.length) / (legacyRead ? 2 : 1));
             const evidenceBudget = { requestedCharactersPerPaper: requestedBudget,
               effectiveCharactersPerPaper: Math.min(requestedBudget, allocatedBudget),
               aggregateSerializedPassageCharacters: aggregatePassageBudget,
               aggregateSerializedPassageCeiling: ORIGINAL_EVIDENCE_BUDGET.serializedPassages,
-              serializedResultCharacters: ORIGINAL_EVIDENCE_BUDGET.serializedResult,
               allocation: 'Equal shares across selected papers; unused shares are not reassigned. JSON escaping and the legacy content copy count against each share.',
               previewCharactersPerItem: 1000, fullEvidenceLocation: 'files[].content' };
             if (allocatedBudget < requestedBudget) gaps.push(`Aggregate evidence budget allocates at most ${allocatedBudget} characters per paper across ${ids.length} papers, below the requested ${requestedBudget}.`);
@@ -2016,7 +2057,7 @@
           await this.sourceRegistry.reconcile(await this.workspace.scanDirectoryTree(), { legacyDocuments: this.literature.documents }); check();
           const nowSources = this.sourceRegistry.list({ sourceKind: "paper" }).filter(source => !["missing", "deleted", "removed"].includes(source.catalogStatus) && (!turn.hardSelection || turn.selected.includes(source.sourceId)));
           if (nowSources.length !== sources.length || versions.some(([id, hash, size, mtime]) => { const source = this.sourceRegistry.get(id); return !source || ["missing", "deleted", "removed"].includes(source.catalogStatus) || source.hashStatus === "dirty" || source.contentHash !== hash || source.sizeBytes !== size || source.mtimeNs !== mtime; })) throw Object.assign(new Error("Source changed during tool execution."), { code: "SOURCE_VERSION_CHANGED" });
-          turn.context.sourceMap.paperSources = sources.map(source => ({ sourceId: source.sourceId, sourceKind: "paper", path: source.path, displayName: source.displayName, contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardStatus: source.paperCardStatus }));
+          turn.context.sourceMap.paperSources = sources.map(source => ({ sourceId: source.sourceId, sourceKind: "paper", path: source.path, displayName: source.displayName, contentHash: source.hashStatus === "ready" ? source.contentHash : null, statSignature: source.statSignature, metadataVersion: source.statSignature, catalogStatus: source.catalogStatus, parseStatus: source.parseStatus, indexStatus: source.indexStatus, paperCardCacheKey: source.artifacts?.paperCard?.cacheKey || null, paperCardStatus: source.paperCardStatus }));
           turn.context.sourceMap.sourceCounts = { ...turn.context.sourceMap.sourceCounts, papers: sources.length };
           if (preparationReport) result.preparation = preparationReport;
           const knowledgeArtifacts = result.knowledge?.hits || [];
@@ -2076,13 +2117,7 @@
             delete result.files;
             delete result.paperCards;
           }
-          // Reserve protocol/provenance space independently of passage text.
-          // Exceptional metadata growth fails explicitly, never slices evidence.
-          if (result.evidenceBudget && JSON.stringify({ ok: true, ...result }).length > ORIGINAL_EVIDENCE_BUDGET.serializedResult) {
-            throw Object.assign(new Error('Original-evidence result exceeds the local serialized limit. Request fewer papers or a smaller explicit read bound.'),
-              { code: 'LOCAL_EVIDENCE_RESULT_LIMIT', limit: ORIGINAL_EVIDENCE_BUDGET.serializedResult });
-          }
-          return { id: call.id, result: { ok: true, ...result } };
+          return { id: call.id, result: { ok: true, ...result }, ...(corpusCardFallback ? { corpusCardFallback } : {}) };
         } catch (error) {
           Object.assign(turn.context, previousContext);
           if (["SOURCE_VERSION_CHANGED", "SOURCE_DELETED"].includes(error.code)) {
@@ -2095,8 +2130,6 @@
           root.BioDesignRuntimeLog?.record('knowledge.tool-failed', { turnId, tool: call.name, code,
             stage: code === 'SOURCE_OUTSIDE_SCOPE' ? 'scope-denial' : contract.identityMessages[code] ? 'identity-resolution' : 'local-evidence', providerAttempts: 0 });
           return { id: call.id, result: { ok: false, error: code,
-            ...(code === 'LOCAL_EVIDENCE_RESULT_LIMIT' ? { category: 'local_limit', characterLimit: error.limit,
-              message: 'Evidence metadata exceeds the local result limit. Request fewer papers or a smaller explicit read bound.' } : {}),
             ...(contract.identityMessages[code] ? { message: contract.identityMessages[code] } : {}) } };
         }
       })();

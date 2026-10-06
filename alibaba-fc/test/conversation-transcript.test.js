@@ -88,6 +88,25 @@ test("changed, deleted, out-of-scope and unverifiable versions withhold historic
   }
 });
 
+test("forked child history revalidates source versions and never replays parent tool effects", async () => {
+  const first = await firstTurn(), saved = transcript.upsert(null, first.data.conversationTurn);
+  const current = context(); current.localWorkspaceContext.sourceMap.paperSources[0].contentHash = "changed";
+  let requests = 0;
+  const child = await run(async request => {
+    requests++;
+    const tool = request.messages.find(message => message.role === "tool");
+    assert.match(tool.content, /HISTORICAL_EVIDENCE_INVALIDATED/);
+    assert.ok(!request.messages.filter(message => message.role !== "system").some(message => String(message.content).includes("example.invalid")));
+    assert.deepEqual(request.tools.map(tool => tool.function?.name), ["read_paper_evidence"]);
+    assertPairs(request.messages);
+    return { ok: true, message: { content: "Current evidence needs verification." } };
+  }, { workspaceContext: current, conversationTranscript: saved, turnId: "child:run:1",
+    runtimeExtensions: { version: 1, child: { version: 1, taskId: "child:run:1", parentSessionId: "session", parentRequestId: "parent", projectId: "project-A", model, allowedTools: ["read_paper_evidence"] } } });
+  assert.equal(requests, 1);
+  assert.deepEqual(child.semanticTelemetry.modelToolCapabilities, []);
+  assert.equal(child.data.conversationTurn.turnId, "child:run:1");
+});
+
 test("catalog IDs survive reordering within a turn and cannot identify a different item in another turn", () => {
   const current = context();
   const first = agent.createSideChatKnowledgeBase(current, "turn_one"), handle = first.items[0].id;

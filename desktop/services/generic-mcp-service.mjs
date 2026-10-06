@@ -326,6 +326,13 @@ export class GenericMcpService {
     const capabilities = client.getServerCapabilities?.();
     const ajv = new Ajv({ strict: false, validateFormats: false });
     const all = config.enabledTools.length === 1 && config.enabledTools[0] === '*';
+    // Host-only adapter: no additional model names, connection-time requests,
+    // or implicit resource access for restrictive tool allowlists.
+    if (all && capabilities?.resources && typeof client.listResourceTemplates === 'function') {
+      state.resourceTemplateTool = { kind: 'resource_templates', rawName: 'resources/templates/list',
+        validate: ajv.compile({ type: 'object', properties: { cursor: { type: 'string', minLength: 1, maxLength: 4096 } }, additionalProperties: false }),
+        invoke: (args, options) => client.listResourceTemplates(args, options) };
+    }
     const listAll = async (method, key) => {
       const items = [], cursors = new Set();
       let cursor;
@@ -396,6 +403,20 @@ export class GenericMcpService {
       .flatMap(([, state]) => [...state.tools.values()].map(tool => clone(tool.definition)));
   }
 
+  async resourceDefinitions() {
+    await this.load();
+    return [...this.connections].filter(([name, state]) => this.configs.get(name)?.enabled && state.status === 'connected')
+      .flatMap(([server, state]) => [...state.tools.values()].filter(tool => tool.kind === 'resource')
+        .map(tool => redact({ server, uri: tool.rawName, tool: tool.definition.function.name,
+          description: tool.definition.function.description }, this.configs.get(server))));
+  }
+
+  async resourceTemplateDefinitions() {
+    await this.load();
+    return [...this.connections].filter(([name, state]) => this.configs.get(name)?.enabled && state.status === 'connected' && state.resourceTemplateTool)
+      .map(([server]) => ({ server, tool: `@mcp-resource-templates:${server}` }));
+  }
+
   assertScope({ surface, permission, signal, isCurrent, projectId } = {}) {
     if (this.closed || signal?.aborted) throw fail('OPERATION_ABORTED');
     if (surface !== 'agent_command' || permission !== 'full_access') throw fail('MCP_SCOPE_DENIED');
@@ -428,11 +449,12 @@ export class GenericMcpService {
         if (saved.status === 'completed') return saved.result;
         throw fail('MCP_OUTCOME_UNKNOWN');
       }
-      const entry = [...this.connections].find(([server, state]) => this.configs.get(server)?.enabled && state.status === 'connected' && state.tools.has(name));
+      const entry = [...this.connections].find(([server, state]) => this.configs.get(server)?.enabled && state.status === 'connected' &&
+        (state.tools.has(name) || (state.resourceTemplateTool && name === `@mcp-resource-templates:${server}`)));
       if (!entry) throw fail('MCP_TOOL_NOT_ALLOWED');
       const [server, state] = entry;
       const config = this.configs.get(server);
-      const tool = state.tools.get(name);
+      const tool = state.tools.get(name) || state.resourceTemplateTool;
       if (!tool.validate(args)) throw fail('MCP_INVALID_ARGUMENTS');
       const run = async () => {
         this.assertScope(context);

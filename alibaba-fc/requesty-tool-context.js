@@ -28,7 +28,17 @@ function assistantMessage(turn, localCalls) {
   const calls = (original.tool_calls || []).map(call =>
     call?.type === "function" && !webSearch.isHostedTool(call) ? localCalls[index++] : call
   );
-  return checkContextSize({ ...original, role: "assistant", content: original.content ?? null,
+  let provider_context = original.provider_context;
+  if (provider_context?.items) {
+    let localIndex = 0;
+    provider_context = { ...provider_context, items: provider_context.items.map(item => {
+      if (item.type !== 'function_call') return item;
+      const call = localCalls[localIndex++];
+      if (!call) throw Object.assign(new Error('Native call association was lost.'), { code: 'PROVIDER_CALL_INVALID' });
+      return { ...item, call_id: call.id, name: call.function.name, arguments: call.function.arguments };
+    }) };
+  }
+  return checkContextSize({ ...original, ...(provider_context ? { provider_context } : {}), role: "assistant", content: original.content ?? null,
     tool_calls: calls.length ? calls : localCalls });
 }
 

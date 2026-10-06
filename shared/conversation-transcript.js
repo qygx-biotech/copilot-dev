@@ -26,12 +26,12 @@
         const call = pending.get(raw.tool_call_id);
         if (!call) continue;
         out.push({ role: "tool", tool_call_id: call.id, name: call.function.name,
-          content: text(raw.content, preserveContent ? Infinity : LIMITS.messageCharacters) + (!preserveContent && typeof raw.content === "string" && raw.content.length > LIMITS.messageCharacters ? "\n[Historical result truncated; reread current evidence for omitted detail.]" : "") });
+          content: Array.isArray(raw.content) ? copy(raw.content) : text(raw.content, preserveContent ? Infinity : LIMITS.messageCharacters) + (!preserveContent && typeof raw.content === "string" && raw.content.length > LIMITS.messageCharacters ? "\n[Historical result truncated; reread current evidence for omitted detail.]" : "") });
         pending.delete(call.id);
         continue;
       }
       close();
-      const content = text(raw.content, preserveContent ? Infinity : LIMITS.messageCharacters);
+      const content = Array.isArray(raw.content) ? copy(raw.content) : text(raw.content, preserveContent ? Infinity : LIMITS.messageCharacters);
       const calls = raw.role === "assistant" && Array.isArray(raw.tool_calls) ? raw.tool_calls.flatMap(call => {
         if (hostedCall(call)) return JSON.stringify(call).length <= LIMITS.messageCharacters ? [copy(call)] : [];
         if (call?.type !== "function" || !callId(call.id) || !id(call.function?.name) || used.has(call.id) ||
@@ -42,8 +42,29 @@
         if (call.extra_content && JSON.stringify(call.extra_content).length <= 16000) result.extra_content = copy(call.extra_content);
         return [result];
       }).slice(0, 64) : [];
-      if (!content && !calls.length) continue;
+      if (!content && !calls.length && raw.end_turn !== false && !raw.provider_context?.items?.length) continue;
       const message = { role: raw.role, content: content || null, ...(calls.length ? { tool_calls: calls } : {}) };
+      if (raw.role === 'assistant') {
+        if (typeof raw.end_turn === 'boolean') message.end_turn = raw.end_turn;
+        if (typeof raw.phase === 'string') message.phase = raw.phase;
+        // Protocol state is not UI content. Never flatten reasoning into the
+        // display text or summaries. Preserve ordered native items atomically.
+        if (raw.provider_context?.api === 'responses' && /^[a-f0-9]{64}$/.test(raw.provider_context.profile || '')) {
+          const context = copy(raw.provider_context);
+          if (JSON.stringify(context).length > 512000) throw Object.assign(new Error('Provider context exceeds lossless transcript limit.'), { code: 'PROVIDER_CONTEXT_LIMIT' });
+          if (Array.isArray(context.items)) {
+            if (context.items.some(item => !['message', 'reasoning', 'function_call', 'web_search_call'].includes(item?.type) || item.type === 'message' && item.role && item.role !== 'assistant')) {
+              throw Object.assign(new Error('Unsupported native transcript item.'), { code: 'PROVIDER_CONTEXT_INVALID' });
+            }
+            const nativeCalls = context.items.filter(item => item.type === 'function_call');
+            if (nativeCalls.length !== calls.filter(call => !hostedCall(call)).length || nativeCalls.some((item, i) =>
+              item.call_id !== calls[i]?.id || item.name !== calls[i]?.function.name || item.arguments !== calls[i]?.function.arguments)) {
+              throw Object.assign(new Error('Native call associations cannot be truncated.'), { code: 'PROVIDER_CONTEXT_LIMIT' });
+            }
+            message.provider_context = context;
+          } else if (Array.isArray(context.reasoning)) message.provider_context = context; // Earlier persisted format.
+        }
+      }
       if (calls.length && raw.extra_content && JSON.stringify(raw.extra_content).length <= 16000) message.extra_content = copy(raw.extra_content);
       if (raw.role === "assistant") for (const key of ["annotations", "web_search", "groundingMetadata"]) {
         if (raw[key] && JSON.stringify(raw[key]).length <= 16000) message[key] = copy(raw[key]);

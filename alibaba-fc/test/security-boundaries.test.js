@@ -188,7 +188,10 @@ test("schema capability fallback keeps its classification without exposing provi
   assert.equal(calls, 1); assertClean(result); assertClean(logs);
 });
 
-test("unreducible context fails without leaking content; successful answers retain scientific text", async () => {
+test("unreducible context fails without leaking content; successful answers retain scientific text", async t => {
+  // Archive writes now reuse the configured OSS client. Keep this security
+  // fixture offline while exercising successful private archive persistence.
+  t.mock.method(OSS.prototype, 'put', async () => ({ res: { status: 200 } }));
   let calls = 0;
   global.fetch = async () => ++calls === 1
     ? new Response(JSON.stringify({ error: { message: `context_length_exceeded ${privateText}` } }), { status: 400 })

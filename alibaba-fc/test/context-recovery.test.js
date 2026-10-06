@@ -24,6 +24,28 @@ test("normal requests retain available context and raw transcript unchanged", as
   assert.equal(result.ok, true); assert.equal(calls, 1); assert.deepEqual(messages, original); assert.equal(manager.state.checkpoints.length, 0);
 });
 
+test('reactive summary reconstructs canonical instructions, recent user input and the pending tool group', async t => {
+  const { manager } = await fixture(t, { window: 6000 });
+  const recent = 'Use only the selected paper and preserve its limitations.';
+  const messages = [{ role: 'system', content: 'Canonical source permissions.' }, { role: 'user', content: recent },
+    { role: 'assistant', content: 'Historical reasoning. '.repeat(3000) }, call('pending'), tool('pending', 'Current exact receipt')];
+  manager.seed(messages, 2);
+  const original = structuredClone(messages);
+  let normal = 0;
+  const result = await manager.run({ messages, tools: [] }, async request => {
+    if (request.stage === 'context-summary') return ok('Derived summary: inspect selected evidence; no actions verified.');
+    if (++normal === 1) return tooLong({ maximum_context_length: 6000 });
+    return ok('Recovered.');
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.contextMessages[0].content, 'Canonical source permissions.');
+  assert(result.contextMessages.some(message => message.role === 'user' && message.content === recent));
+  assert.deepEqual(result.contextMessages.slice(-2), messages.slice(-2));
+  assert.deepEqual(messages, original);
+  const checkpoint = manager.state.checkpoints.at(-1);
+  assert(checkpoint); assert.match(await manager.archive.original(checkpoint.archiveRef), /Historical reasoning/);
+});
+
 test("full request counting includes schemas, signatures and bounded multimodal cost", () => {
   const base = { messages: [{ role: "system", content: "a" }, { role: "user", content: "b" }] };
   const withSchema = { ...base, tools: [{ name: "a", description: "tool ".repeat(1000) }] };
@@ -32,6 +54,19 @@ test("full request counting includes schemas, signatures and bounded multimodal 
   const picture = n => ({ messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: "data:image/png;base64," + "a".repeat(n) } }] }] });
   assert.equal(estimateRequest(picture(100)), estimateRequest(picture(100000)));
   assert.ok(estimateRequest(picture(1)) >= 4096);
+});
+
+test('context introspection measures full requests without changing recovery state or inventing an unknown limit', async t => {
+  const { manager } = await fixture(t, { window: 100000 });
+  const request = { messages: history(), tools: [{ name: 'read', description: 'Schema text '.repeat(50) }], maxTokens: 2000 };
+  const before = structuredClone(manager.state);
+  const result = manager.remainingContext(request);
+  assert.equal(result.estimated, true); assert.equal(result.output_reserve_tokens, 2000);
+  assert.equal(result.tokens_left, Math.max(0, manager.budget(2000) - manager.tokens(request)));
+  assert.deepEqual(manager.state, before);
+  manager.config.window = null; manager.state.learned = null;
+  assert.equal(manager.remainingContext(request).tokens_left, null);
+  assert.equal(manager.remainingContext(request).input_budget_tokens, null);
 });
 
 test("structured overflow normalizes input-only versus total limits and ignores other failures", () => {
@@ -174,10 +209,18 @@ test("non-overflow errors bypass recovery, including output truncation", async t
 });
 
 test("per-call timeout bounds a stalled summarizer", async t => {
-  const { manager } = await fixture(t, { window: 4000, providerCallMs: 30 }); manager.seed(history(), 2);
+  let time=1800000000000,expire;
+  const { manager } = await fixture(t, { window: 4000, providerCallMs: 30 }, {now:()=>time,monotonic:()=>time,
+    setTimer:fn=>{expire=fn;return 1;},clearTimer:()=>{expire=null;}}); manager.seed(history(), 2);
   let aborted = false, main = 0;
-  const result = await manager.run({ messages: history() }, async request => ++main === 1 ? tooLong({ max_input_tokens: 4000 }) : new Promise(resolve => request.signal.addEventListener("abort", () => { aborted = true; resolve({ ok: false }); })));
+  const result = await manager.run({ messages: history() }, async request => {
+    if(++main===1)return tooLong({ max_input_tokens: 4000 });
+    assert.equal(request.providerCallTimeoutMs,180000);
+    queueMicrotask(()=>{time+=180000;expire();});
+    return new Promise(resolve=>request.signal.addEventListener("abort",()=>{aborted=true;resolve({ok:false});}));
+  });
   assert.equal(result.error, "ContextRecoveryIncomplete"); assert.equal(aborted, true);
+  assert.equal(result.recoveryStopReason,"provider_call_timeout");
 });
 
 test("archive denies path traversal and reports missing host data without fabricating results", async t => {

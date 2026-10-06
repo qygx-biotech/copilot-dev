@@ -49,6 +49,26 @@ const ready = () => {
   specialist.accept(state, { job_id: 'lit_' + 'b'.repeat(24), tools: [contract.tool('finish_discovery', 'Finish', contract.object({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(contract.text(2000), 30) }))] });
   return state;
 };
+test('specialist model receives full large observations on resume and after browser calls', async () => {
+  const snapshot = '- paragraph "Library result details"\n'.repeat(1000) + '- link "Final paper" [ref=e45]';
+  for (const resumed of [true, false]) {
+    const state = ready();
+    if (resumed) specialist.accept(state, { job_id: state.jobId, tools: state.schemas, observation: snapshot });
+    else {
+      state.pendingModelCall = { id: 'snapshot' };
+      specialist.accept(state, { result: { status: 'observed', snapshot, truncated: false } });
+    }
+    let requested = false;
+    await specialist.advance(state, { requestTurn: async request => {
+      requested = true;
+      const content = JSON.parse(request.messages.at(-1).content);
+      assert.equal(resumed ? content.observation : content.snapshot, snapshot);
+      return { ok: true, message: { tool_calls: [call('finish_discovery', { candidates: [], limitations: ['Fixture result'] })] } };
+    } });
+    assert.equal(requested, true);
+  }
+});
+
 test('specialist handoff keeps schemas and access rules outside the observation-only user message', () => {
   const state = ready();
   assert.deepEqual(JSON.parse(state.messages.at(-1).content), { observation: '' });

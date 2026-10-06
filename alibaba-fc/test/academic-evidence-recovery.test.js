@@ -92,6 +92,11 @@ for (const mode of ["batch_correction", "incremental_correction"]) test(`product
     assert.equal(receipt.record_type, "accepted_plan"); assert.doesNotMatch(JSON.stringify(receipt), /ABSTRACT_NOT_AVAILABLE/);
     if (calls === 1) return actions(call("select_literature_papers", selection()));
     const error = lastError(request);
+    if (error === "STEP_TOOL_NOT_ADVERTISED") {
+      assert.ok(request.tools.some(tool => tool.function.name === "download_papers"));
+      assert.equal(progress(request).shortlist.length, 5);
+      return actions(call("download_papers", { paper_refs: refs, destination: "literature/AI" }));
+    }
     assert.equal(error.code, "ABSTRACT_NOT_AVAILABLE");
     const previouslyCorrected = mode === "batch_correction" ? 0 : calls - 2;
     assert.deepEqual(error.violations.map(item => item.paper_ref), refs.slice(2 + previouslyCorrected));
@@ -101,13 +106,13 @@ for (const mode of ["batch_correction", "incremental_correction"]) test(`product
     if (corrected === 3) return actions(call("select_literature_papers", selection(3)), call("download_papers", { paper_refs: refs, destination: "literature/AI" }));
     return actions(call("select_literature_papers", selection(corrected)));
   } });
-  assert.equal(calls, mode === "batch_correction" ? 2 : 4);
+  assert.equal(calls, mode === "batch_correction" ? 3 : 5);
   assert.equal(pending.data.desktopToolCalls[0].name, "download_papers");
   const final = await finishWithLocalDownloads(t, pending);
   assert.equal(final.data.taskOutcome.candidateCount, 6);
   assert.equal(final.data.academicSelection.validation.failures, mode === "batch_correction" ? 2 : 4);
   assert.equal(final.data.academicSelection.validation.pending, false);
-  assert.ok(final.data.academicSearchStatus.model.calls <= 8, "The global agent-step budget was not increased");
+  assert.ok(final.data.academicSearchStatus.model.calls <= 9, "At most eight existing academic exploration steps plus the existing tool-free final synthesis");
 });
 
 test("fresh metadata permits the same previously rejected shortlist, without pretending a missing abstract exists", async t => {
@@ -120,7 +125,13 @@ test("fresh metadata permits the same previously rejected shortlist, without pre
   } });
   const refreshed = resumed(metadata, [{ version: 1, status: "completed", papers: [paper(2, "Newly retrieved abstract about AI protein design.")] }]);
   assert.equal(refreshed.academicState.validationRecovery.evidence_updated, true);
+  let selectionCalls = 0;
   const pending = await run({ resume: refreshed, requestTurn: async request => {
+    if (++selectionCalls === 2) {
+      assert.equal(lastError(request), "STEP_TOOL_NOT_ADVERTISED");
+      assert.ok(request.tools.some(tool => tool.function.name === "download_papers"));
+      return actions(call("download_papers", { paper_refs: refs }));
+    }
     assert.match(request.messages.find(message => message.content?.startsWith("Literature validation correction")).content, /New metadata repaired/);
     return actions(call("select_literature_papers", selection()), call("download_papers", { paper_refs: refs }));
   } });

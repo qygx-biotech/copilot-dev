@@ -127,10 +127,10 @@ export class PlaywrightMcpClient extends EventEmitter {
         cancelled();
         if (context !== this.context || session !== this.referenceState.session) return { status: 'observation_unavailable', reason: 'reference_session_changed' };
         if (await this.loginState()) { this.referenceState.forget(); this.refs.clear(); return { status: 'needs_login' }; }
-        const snapshot = redactBrowserText(raw).slice(0, 24000);
+        const snapshot = redactBrowserText(raw);
         if (await this.referenceState.register(page, snapshot, before, revision, this.owner, signal)) {
           this.refs = new Set(this.referenceState.latest.entries.keys()); this.referencePage = page;
-          return { status: 'observed', snapshot, generation: ++this.generation, truncated: raw.length > 24000, snapshot_metadata: this.referenceState.metadata() };
+          return { status: 'observed', snapshot, generation: ++this.generation, truncated: false, snapshot_metadata: this.referenceState.metadata() };
         }
         failureReason = 'snapshot_changed_during_capture';
       } catch (error) {

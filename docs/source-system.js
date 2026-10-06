@@ -5352,7 +5352,7 @@
       }
     }
 
-    async readValidPaperCardForCorpusMap(source, paperCardContract = null) {
+    async readValidPaperCardForCorpusMap(source, paperCardContract = null, { complete = false } = {}) {
       const artifact = source?.artifacts?.paperCard;
       if (
         !source ||
@@ -5392,6 +5392,7 @@
         return {
           card,
           contentIdentity,
+          ...(complete ? { completeCard: rawCard } : {}),
         };
       } catch {
         return null;

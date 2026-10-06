@@ -4,6 +4,7 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  nativeImage,
   session,
   shell,
   utilityProcess,
@@ -14,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { allowsMicrophone } from "./media-permissions.mjs";
 import { registerIpcHandlers } from "../ipc/register-handlers.mjs";
 import channels from "../ipc/channels.cjs";
+import { imagePreview } from "../services/runtime-image.mjs";
 import { ProjectSessionManager } from "../services/project-session.mjs";
 import { ProjectCatalog } from "../services/project-catalog.mjs";
 import {
@@ -273,6 +275,7 @@ app.whenReady().then(async () => {
   installSecurityPolicy();
   sessionManager = new ProjectSessionManager({
     utilityProcess,
+    advancedRuntime: { imagePreview: bytes => imagePreview(nativeImage, bytes) },
     resourcesPath: process.resourcesPath,
     packaged: app.isPackaged,
     appPath: applicationRoot,
@@ -311,6 +314,7 @@ app.whenReady().then(async () => {
     projectCatalog: new ProjectCatalog(path.join(app.getPath('userData'), 'projects')),
     openExternal: url => shell.openExternal(url),
     ipcMain,
+  nativeImage,
     dialog,
     sessionManager,
     getWindow: () => mainWindow,

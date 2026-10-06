@@ -41,7 +41,6 @@ async function dispatch(t, f, args, { name = 'retrieve_project_evidence', parall
   assert.ok(JSON.stringify(receipts).length < 180000);
   for (const receipt of receipts) {
     assert.equal(receipt.result.ok, true, JSON.stringify(receipt));
-    assert.ok(JSON.stringify(receipt.result).length <= 64000);
   }
   const final = await send({ desktopContinuation: first.desktopContinuation, desktopToolResults: receipts });
   assert.equal(final.fallback, false); assert.equal(requests.length, 2);
@@ -51,7 +50,8 @@ async function dispatch(t, f, args, { name = 'retrieve_project_evidence', parall
   for (const [i, message] of visible.entries()) {
     assert.equal(message.content, JSON.stringify(receipts[i].result), 'No backend/history prefix shrinking on the initial provider attempt');
     assert.ok(requests[1].messages.some(item => item.tool_calls?.some(call => call.id === message.tool_call_id)));
-    assert.equal(final.conversationTurn.messages.find(item => item.tool_call_id === message.tool_call_id).content, message.content);
+    // Persisted history has its own bounded replay policy; active model delivery above is intact.
+    if (message.content.length <= transcript.LIMITS.messageCharacters) assert.equal(final.conversationTurn.messages.find(item => item.tool_call_id === message.tool_call_id).content, message.content);
   }
   assert.equal(f.calls.cards, cards); assert.ok(f.workspace.writes.every(path => path.startsWith('.biodesign/')));
   assert.deepEqual(f.workspace.state.agent.currentRecommendation, { id: 'R1' });
@@ -63,7 +63,7 @@ for (const count of [1, 2, 8]) test(`original evidence budget reaches selected m
   const f = await fixture(count);
   const result = await dispatch(t, f, { query: 'code availability', paper_ids: f.ids }, { parallel: count === 8 });
   assert.equal(result.files.length, count);
-  const limit = Math.min(30000, Math.floor(Math.min(48000, 64000 - 4000 - 3000 * count) / count));
+  const limit = Math.min(30000, Math.floor(48000 / count));
   assert.equal(result.evidenceBudget.requestedCharactersPerPaper, 30000);
   assert.equal(result.evidenceBudget.effectiveCharactersPerPaper, limit);
   assert.ok(result.files.reduce((sum, file) => sum + JSON.stringify(file.content).length - 2, 0) <= 48000);
@@ -114,7 +114,7 @@ test('retrieval bounds and signed transport limits remain enforced', () => {
     [{ id: 'read', result: { ok: true, content: 'x'.repeat(180000) } }]), { code: 'INVALID_TOOL_CONTINUATION' });
 });
 
-test('exceptional metadata overflow returns an explicit local limit instead of slicing original evidence', async () => {
+test('evidence results exceeding 64000 characters reach the provider intact with metadata and citations', async t => {
   const f = await fixture();
   const originalRead = f.system.preparation.readPaperArtifact.bind(f.system.preparation);
   f.system.preparation.readPaperArtifact = async id => {
@@ -122,11 +122,11 @@ test('exceptional metadata overflow returns an explicit local limit instead of s
     f.system.registry.get(id).displayName = 'large-metadata-'.repeat(5000);
     return artifact;
   };
-  const response = await f.service.executeAgentTool({ id: 'oversize', name: 'retrieve_project_evidence',
-    args: { query: 'code availability', paper_ids: f.ids } }, { turnId: f.options.turnId });
-  assert.equal(response.result.error, 'LOCAL_EVIDENCE_RESULT_LIMIT');
-  assert.equal(response.result.category, 'local_limit');
-  assert.equal(response.result.characterLimit, 64000);
-  assert.equal(response.result.files, undefined);
-  assert.doesNotMatch(JSON.stringify(response), /BEYOND_12000|large-metadata-/);
+  const result = await dispatch(t, f, { query: 'code availability', paper_ids: f.ids });
+  assert(JSON.stringify(result).length > 64000);
+  assert.equal(result.ok, true);
+  assert(JSON.stringify(result).includes('large-metadata-'.repeat(5000)));
+  assert.match(result.files[0].content, /BEYOND_12000/);
+  assert(result.evidenceBundle.items[0].references.length > 0);
+  assert.equal(Object.hasOwn(result.evidenceBudget, 'serializedResultCharacters'), false);
 });

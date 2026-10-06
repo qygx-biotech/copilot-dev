@@ -195,7 +195,8 @@ test("a new concrete pagination blocker replaces a corrected coverage error", as
   let turns = 0;
   const page = await run({ resume, requestTurn: async request => {
     if (++turns === 1) return actions(call("select_literature_papers", selection(true)));
-    if (turns === 2) return actions(call("search_academic_papers", { ...resume.academicState.searches[0].args, cursor: "pool:3", queries: ["changed query"] }));
+    if (turns === 2) return actions(call("select_literature_papers", selection()));
+    if (turns === 3) return actions(call("search_academic_papers", { ...resume.academicState.searches[0].args, cursor: "pool:3", queries: ["changed query"] }));
     const error = lastError(request);
     assert.equal(error.code, "INVALID_SEARCH_PAGINATION");
     const correction = request.messages.findLast(message => message.content?.startsWith("Literature validation correction (host state):"));

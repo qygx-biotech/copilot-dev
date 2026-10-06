@@ -33,7 +33,9 @@ async function readRequestyStream(response, { signal, onText = () => {}, onSourc
     if (choice.message) completedMessage = checkContextSize(choice.message);
     const delta = choice.delta || {};
     const { content: rawContent, tool_calls: _calls, role: _role, ...extra } = delta;
+    const priorReasoning = context.reasoning_content;
     context = mergeContext(context, extra);
+    if (typeof extra.reasoning_content === 'string') context.reasoning_content = (priorReasoning || '') + extra.reasoning_content;
     if (Array.isArray(rawContent)) contentParts = [...(contentParts || []), ...rawContent];
     const deltaText = webSearch.textContent(delta.content);
     if (deltaText) {

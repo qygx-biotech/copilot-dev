@@ -75,6 +75,10 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
     assert.deepEqual(body.tools.find(x=>x.function.name==='select_literature_papers').function.parameters.properties.shortlist.items.properties.covers.items.enum,['subtopic_1']);
    }
    message={tool_calls:[tool('select_literature_papers',selection),tool('download_papers',{paper_refs:[ref]})]};
+  } else if(mode==='corrected'&&requests.length===4) {
+   assert.equal(JSON.parse(body.messages.findLast(m=>m.role==='tool').content).error,'STEP_TOOL_NOT_ADVERTISED');
+   assert.ok(body.tools.some(x=>x.function.name==='download_papers'));
+   message={tool_calls:[tool('download_papers',{paper_refs:[ref]})]};
   } else message={content:'Saved selected paper.'};
   return new Response(JSON.stringify({choices:[{message}]}));
  });
@@ -94,7 +98,7 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
  const result=await sandbox.sendWorkbenchRequest({mode:'agent_instruction',model,messages:[{role:'user',content:query}],originalRequest:query,
   localWorkspaceContext,
   desktopTools:{version:1,academicVersion:1,permission:'workspace_write',projectId:'project-1'},callContext:{turnId:'academic-turn',callRole:'answer',profile:'medium'}});
- const expectedCalls=recover||(searchRecovery&&!exhausted)?4:3;
+ const expectedCalls=mode==='corrected'?5:recover||(searchRecovery&&!exhausted)?4:3;
  assert.equal(requests.length,expectedCalls);assert.equal(host.length,exhausted?searchRecovery?1:2:3);
  assert.deepEqual(providerRoles,Array(expectedCalls).fill('acquisition'));
  assert.equal(localWorkspaceContext.semantic,undefined);

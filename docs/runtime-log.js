@@ -8,6 +8,8 @@
   // Only operational metadata belongs here. Never collect prompts, paper text,
   // response bodies, headers, tokens, arbitrary errors, or absolute file paths.
   const fields = new Set([
+    "event", "purpose", "projectionId", "contract", "reductionStage", "targetTokens", "previousTargetTokens", "actualSummaryTokens", "previousActualSummaryTokens",
+    "estimatedInputTokens", "estimatedOutputTokens", "estimatedOriginalTokens", "estimatedBeforeTokens", "estimatedAfterTokens", "corpusStopReason", "providerRequests", "outerDeadlineLimited", "timeoutScope",
     "transportPhase", "exceptionName", "transportCode", "transportCauseCode",
     "pageId", "admissionMs", "eligibilityOutcome", "remainingMaintenanceMs", "providerAttemptsKnown", "initialGenerationMs", "repairMs", "retryEligibility",
     "topicCandidateCount", "totalReservedPageCount", "rejectedCandidateCount", "deadlineReached", "executionMode", "knownProviderAttempts", "unknownProviderAttempts",

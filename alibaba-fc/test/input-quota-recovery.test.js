@@ -239,7 +239,7 @@ test("all quota-recovery summaries failing use a labeled deterministic checkpoin
     return ++normal === 1 ? rejection({ capacity: 5000 }) : ok("Partial findings only");
   });
   assert.equal(result.ok, true); assert.equal(result.contextDegraded, true); assert.ok(summaries > 0);
-  assert.match(result.contextMessages[1].content, /Incomplete extractive checkpoint/);
+  assert(result.contextMessages.some(message => /Working-state checkpoint.*\nIncomplete extractive checkpoint/.test(message.content)));
   assert.deepEqual(result.contextMessages.slice(-3), pending());
 });
 
