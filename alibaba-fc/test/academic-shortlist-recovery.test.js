@@ -1,8 +1,8 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const semantic = require("../../shared/semantic-intent.js");
-const { runSideChatAgent } = require("../side-chat-agent.js");
-const academic = require("../academic-agent.js"), planning = require("../academic-planning.js"), continuation = require("../agent-continuation.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js");
+const academic = require("../../shared/agent/academic-agent.js"), planning = require("../../shared/agent/academic-planning.js"), { withResults } = require("../../shared/agent/receipt-admission.js");
 const query = "Find AI and synthetic biology papers and download two relevant papers.";
 const invalidLabel = "AI-driven synthetic biology applications";
 const plan = { request_kind: "topic", subtopics: ["AI-assisted biological design", "Experimental validation"], synonyms: ["machine learning"],
@@ -24,7 +24,7 @@ const lastError = request => request.messages.filter(message => message.role ===
 function resumeWith(result, outputs) {
   const binding = { account: "test", project: "local-project" };
   // Exercise the same signed continuation transport as production resumes.
-  return continuation.withResults(continuation.open(continuation.seal(result.continuationState, binding, "secret"), binding, "secret"), outputs);
+  return withResults(result.continuationState, outputs);
 }
 async function searched(nextCursor = null, complementary = true) {
   const first = await run({ requestTurn: async () => actions(call("plan_literature_search", plan), call("search_academic_papers", {

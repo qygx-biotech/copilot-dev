@@ -1,9 +1,9 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const { access, mkdtemp, rm } = require("node:fs/promises"), path = require("node:path"), os = require("node:os");
-const { runSideChatAgent } = require("../side-chat-agent.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js");
 const semantic = require("../../shared/semantic-intent.js"), contract = require("../../shared/academic-tools.js");
-const planning = require("../academic-planning.js"), recovery = require("../academic-recovery.js"), continuation = require("../agent-continuation.js");
+const planning = require("../../shared/agent/academic-planning.js"), recovery = require("../../shared/agent/academic-recovery.js"), { withResults } = require("../../shared/agent/receipt-admission.js");
 const query = "Find design and validation literature and download two relevant papers.";
 const plan = { request_kind: "topic", subtopics: ["design", "validation"], synonyms: [], queries: ["design", "validation"], requested_count: 2, year_from: 2023, year_to: 2025 };
 const search = { query: "design", queries: ["validation"], providers: ["arxiv", "crossref"], limit: 5, per_source_limit: 20,
@@ -15,13 +15,13 @@ const actions = (...tool_calls) => ({ ok: true, message: { tool_calls } });
 const answer = () => ({ ok: true, message: { content: "Saved the two selected papers." } });
 const select = papers => ({ shortlist: papers.map((paper, i) => ({ paper_ref: paper.paper_ref, relevance: 5, covers: [`subtopic_${i + 1}`],
   reason: "Direct evidence for the requested design and validation topics.", evidence: "title_abstract" })), stop_reason: "sufficient_candidates", remaining_gaps: [] });
-const run = options => runSideChatAgent({ surface: "agent_command", desktopAcademic: true, desktopDownloads: true, downloadPermission: "workspace_write",
+const run = options => runSideChatAgent({ loopBudget: { maxSteps: 8, maxToolCalls: 24 }, surface: "agent_command", desktopAcademic: true, desktopDownloads: true, downloadPermission: "workspace_write",
   systemPrompt: "Complete the authorized literature request.", originalRequest: query, conversationMessages: [{ role: "user", content: query }],
   workspaceContext: { localWorkspaceContext: { semantic: { ir } } }, parseFinalAnswer: reply => ({ reply }), ...options });
 const stateMessage = request => JSON.parse(request.messages.findLast(message => message.content?.startsWith("Literature workflow progress (host state): ")).content.split("\n")[0].slice("Literature workflow progress (host state): ".length));
 function resumeWith(pending, results) {
   const binding = { project: "candidate-pool", account: "test" };
-  return continuation.withResults(continuation.open(continuation.seal(pending.continuationState, binding, "secret"), binding, "secret"),
+  return withResults(pending.continuationState,
     pending.data.desktopToolCalls.map((tool, i) => ({ id: tool.id, result: results[i] })));
 }
 async function local(t, large = false) {

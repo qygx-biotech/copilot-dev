@@ -165,12 +165,48 @@ function WorkbenchSettings({ zh, close }) {
   </section>;
 }
 
+// Memory across this project's conversations (docs/project-memory.js), after
+// Codex's memories settings: off by default, viewable, and forgettable.
+const memoryCommand = (name, payload = {}) => window.BioDesignFrontend.command(name, { projectId: window.BioDesignFrontend.getSnapshot().project?.id, ...payload });
+function MemorySettings({ zh }) {
+  const [view, setView] = useState(null), [busy, setBusy] = useState(true), [error, setError] = useState('');
+  const [showing, setShowing] = useState(false), [confirmForget, setConfirmForget] = useState(false);
+  const refresh = async () => setView(await memoryCommand('memory.view'));
+  const act = async operation => { setBusy(true); setError(''); try { await operation(); } catch (failure) { setError(failure.message || String(failure)); } finally { setBusy(false); } };
+  useEffect(() => { void act(refresh); }, []);
+  const status = view?.status, when = value => value ? new Date(value).toLocaleString() : (zh ? '从未' : 'never');
+  return <section aria-label={zh ? '项目记忆' : 'Project memory'} className="memory-settings">
+    <div className="runtime-section-heading"><p>{zh
+      ? '开启后，BioDesign 会总结本项目中已结束的对话，并把值得记住的内容（你的偏好、项目约定、决定和经验）保存在 .biodesign/memory/。新对话会带上一份简短摘要，并可以搜索记忆。记忆是以往对话的上下文，不是证据。开启后会再次把以往对话发送给模型，这会消耗 token。'
+      : 'When this is on, BioDesign summarizes finished conversations in this project and keeps what is worth remembering — your preferences, project conventions, decisions and lessons — in .biodesign/memory/. New conversations start with a short summary and can search the rest. Memories are earlier conversation context, not evidence. Turning this on sends past conversations to the model again, which uses tokens.'}</p></div>
+    {!view ? <p>{busy ? (zh ? '加载中…' : 'Loading…') : (zh ? '请先打开项目。' : 'Open a project first.')}</p> : <>
+      <label className="memory-toggle"><input type="checkbox" checked={status?.enabled === true} disabled={busy}
+        onChange={event => { const enabled = event.target.checked; void act(async () => { await memoryCommand('memory.setEnabled', { enabled }); await refresh(); }); }} /> {zh ? '在本项目的对话之间记忆' : 'Remember across conversations in this project'}</label>
+      <p className="memory-status" role="status">{zh
+        ? `已处理 ${status?.conversationsProcessed || 0} 个对话 · 上次运行：${when(status?.lastRunAt)} · 记忆更新：${when(status?.memoryUpdatedAt)}${status?.lastError ? ` · 上次错误：${status.lastError}` : ''}`
+        : `${status?.conversationsProcessed || 0} conversations processed · last run: ${when(status?.lastRunAt)} · memory updated: ${when(status?.memoryUpdatedAt)}${status?.lastError ? ` · last error: ${status.lastError}` : ''}`}</p>
+      <div className="runtime-item-actions">
+        <button className="secondary-button" disabled={busy || !status?.enabled} onClick={() => void act(async () => { await memoryCommand('memory.run'); await refresh(); })}>{zh ? '立即更新' : 'Update now'}</button>
+        <button className="secondary-button" disabled={!status?.hasMemory} aria-expanded={showing} onClick={() => setShowing(!showing)}>{showing ? (zh ? '隐藏记忆' : 'Hide memory') : (zh ? '查看记忆' : 'View memory')}</button>
+        <button className="text-button" disabled={busy || (!status?.hasMemory && !status?.conversationsProcessed)} onClick={() => setConfirmForget(true)}>{zh ? '全部忘记' : 'Forget all'}</button>
+      </div>
+      {confirmForget && <div className="memory-forget" role="alertdialog" aria-label={zh ? '忘记全部记忆' : 'Forget all memory'}>
+        <p>{zh ? '删除本项目记住的所有内容？此操作无法撤销；开关设置保持不变。' : 'Delete everything remembered for this project? This cannot be undone; the on/off setting stays.'}</p>
+        <button className="primary-button" disabled={busy} onClick={() => void act(async () => { await memoryCommand('memory.forget'); setConfirmForget(false); setShowing(false); await refresh(); })}>{zh ? '忘记' : 'Forget'}</button>
+        <button className="secondary-button" onClick={() => setConfirmForget(false)}>{zh ? '取消' : 'Cancel'}</button>
+      </div>}
+      {showing && <div className="memory-view"><h3>memory_summary.md</h3><pre>{view.summary || '—'}</pre><h3>MEMORY.md</h3><pre>{view.memory || '—'}</pre></div>}
+    </>}
+    {error && <p role="alert">{error}</p>}
+  </section>;
+}
+
 export function RuntimeExtensions({ close, zh = false, initialTab = 'skills' }) {
   const dialog = useRef(null), [tab, setTab] = useState(initialTab), [mcpPreset, setMcpPreset] = useState(null);
   useEffect(() => { const element = dialog.current; element.showModal(); return () => element.close(); }, []);
   return <dialog ref={dialog} className="shell-modal runtime-extensions" aria-label={zh ? '技能与 MCP 插件' : 'Skills and MCP plugins'} onCancel={event => { event.preventDefault(); close(); }}>
     <header><h2>{zh ? '应用、技能与设置' : 'Apps, skills and settings'}</h2><button className="icon-button" aria-label={zh ? '关闭' : 'Close dialog'} onClick={close}>×</button></header>
-    <nav className="runtime-tabs" aria-label={zh ? '扩展类型' : 'Extension type'}>{[['apps', zh ? '应用' : 'Apps'], ['skills', zh ? '技能' : 'Skills'], ['mcp', 'MCP'], ['settings', zh ? '设置' : 'Settings']].map(([id, label]) => <button key={id} type="button" aria-pressed={tab === id} onClick={() => { setMcpPreset(null); setTab(id); }}>{label}</button>)}</nav>
-    {tab === 'apps' ? <AppsSettings zh={zh} configureMcp={preset => { setMcpPreset(preset); setTab('mcp'); }} selectTab={setTab} /> : tab === 'skills' ? <SkillSettings zh={zh} /> : tab === 'settings' ? <WorkbenchSettings zh={zh} close={close} /> : <McpSettings zh={zh} initialPreset={mcpPreset} />}
+    <nav className="runtime-tabs" aria-label={zh ? '扩展类型' : 'Extension type'}>{[['apps', zh ? '应用' : 'Apps'], ['skills', zh ? '技能' : 'Skills'], ['mcp', 'MCP'], ['memory', zh ? '记忆' : 'Memory'], ['settings', zh ? '设置' : 'Settings']].map(([id, label]) => <button key={id} type="button" aria-pressed={tab === id} onClick={() => { setMcpPreset(null); setTab(id); }}>{label}</button>)}</nav>
+    {tab === 'apps' ? <AppsSettings zh={zh} configureMcp={preset => { setMcpPreset(preset); setTab('mcp'); }} selectTab={setTab} /> : tab === 'skills' ? <SkillSettings zh={zh} /> : tab === 'settings' ? <WorkbenchSettings zh={zh} close={close} /> : tab === 'memory' ? <MemorySettings zh={zh} /> : <McpSettings zh={zh} initialPreset={mcpPreset} />}
   </dialog>;
 }

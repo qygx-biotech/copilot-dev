@@ -1027,6 +1027,14 @@
       return this.desktop.files.exists({ relativePath });
     }
 
+    // Shows a project file selected in its folder (Finder or Explorer); a
+    // missing file opens the nearest folder that still exists.
+    async revealFile(relativePath) {
+      this.requireRoot();
+      splitPath(relativePath);
+      return this.desktop.files.reveal({ relativePath });
+    }
+
     async readFile(relativePath) {
       this.requireRoot();
       splitPath(relativePath);

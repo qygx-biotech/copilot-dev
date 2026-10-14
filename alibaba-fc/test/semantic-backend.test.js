@@ -23,8 +23,9 @@ global.fetch = async (url, options) => {
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 };
 const backend = require("../index.js");
+const agentChat = require("./helpers/agent-chat.js");
 const semantic = require("../../shared/semantic-intent.js");
-const agent = require("../side-chat-agent.js");
+const agent = require("../../shared/agent/side-chat-agent.js");
 const token = jwt.sign({ account: "semantic-test", role: "admin" }, process.env.JWT_SECRET);
 
 function ir(overrides = {}) {
@@ -61,7 +62,7 @@ function schemaInput() {
 }
 
 async function invoke(path, body, authenticated = true) {
-  const result = await backend.handler({
+  const result = await agentChat.handler({
     requestContext: { http: { method: "POST", path } },
     headers: authenticated ? { Authorization: `Bearer ${token}` } : {}, body: JSON.stringify(body)
   }, { requestId: "semantic-request" });
@@ -203,7 +204,7 @@ test("semantic advisory capabilities use unchanged closed effects and the existi
 
 test("experiment tool reports deterministic host ranking and preserves unverified constraints", () => {
   const paperYearFilter = { field: "paper_year", operator: "<", value: 2023, unit: null };
-  const local = backend._test.sanitizeLocalWorkspaceContext({
+  const local = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext({
     semantic: { ir: ir({ filters: [paperYearFilter] }) },
     semanticExperimentResult: {
       status: "ready", metric: { canonicalField: "hydroxyectoine_titer", direction: "maximize" },
@@ -264,7 +265,7 @@ test("the real renderer FC client serializes a compact semantic request accepted
 
 function comparisonKnowledgeBase({ operator = "<=", selectedPapers = [], evidenceType = "original-paper-evidence", content, temperature = 30, temperatureUnit = "degC" } = {}) {
   const quote = "The EctD activity assay was performed at 35°C.";
-  const local = backend._test.sanitizeLocalWorkspaceContext({
+  const local = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext({
     semantic: { ir: ir({ constraints: [{ type: "maximum-difference", field: "temperature_difference", operator, value: 5, unit: "degC", description: "Only temperatures within 5°C" }] }) },
     sourceMap: { selectedPaperIds: selectedPapers, paperSources: [{ sourceId: "paper-1", sourceKind: "paper", path: "literature/paper.pdf" }] },
     files: [{ sourceId: "paper-1", paperId: "paper-1", name: "paper.pdf", relativePath: "literature/paper.pdf", extension: "pdf", analysisStatus: "processed", evidenceType, content: content || `[paper-1:p2:chunk-2]\n${quote}` }],
@@ -472,7 +473,7 @@ test("legacy opaque semantic 502 gets only a brief cooldown and remains retryabl
 });
 
 test("FC preserves bounded literature identity and completion diagnostics and derives incomplete corpus coverage", () => {
-  const context = backend._test.sanitizeLocalWorkspaceContext({ literature: {
+  const context = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext({ literature: {
     explicitPaperIds: ["P31", "P31"], identityResolution: { kind: "exact-title", paperIds: [], noExactMatch: true, query: "private title" },
     discoveryMode: "exact-title-no-match", corpusWideRequest: true,
     coverage: { papersIncludedInSnapshot: 8, papersSuccessfullyAnalyzed: 7, coverageComplete: true },
@@ -504,7 +505,7 @@ test("cited follow-up context survives the host, shared compaction, renderer cli
       const reply = { ...semantic.interpretLocal(serialized), operations: ["read"], objects: ["literature"],
         scope: { papers: ["P2"], experiments: null }, unresolvedSlots: [] };
       responses.push(reply);
-      const response = await backend.handler({ requestContext: { http: { method: "POST", path: new URL(url).pathname } },
+      const response = await agentChat.handler({ requestContext: { http: { method: "POST", path: new URL(url).pathname } },
         headers: options.headers, body: options.body }, { requestId: "follow-up-transport" });
       return new Response(response.body, { status: response.statusCode, headers: { "Content-Type": "application/json" } });
     } });
@@ -522,7 +523,7 @@ test("cited follow-up context survives the host, shared compaction, renderer cli
   assert.ok(providerInput.paperCandidates.some(p => p.sourceId === "P2" && p.title === "BetaDock docking study"));
   assert.doesNotMatch(JSON.stringify(providerInput), /Old summary|Original P2 evidence|sourceMap|files|relativePath/);
   assert.deepEqual(c.literature.relevantPaperIds, ["P2"]); assert.equal(c.files.length, 1);
-  const local = backend._test.sanitizeLocalWorkspaceContext(c);
+  const local = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(c);
   assert.equal(local.literature.referenceResolution.status, "resolved");
   let turns = 0;
   const result = await agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: local },

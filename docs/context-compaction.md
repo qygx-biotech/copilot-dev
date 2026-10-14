@@ -1,9 +1,14 @@
 # Resilient model context
 
-The production path is `alibaba-fc/side-chat-agent.js` → `context-recovery.js` →
-the Requesty chat-completions adapter in `index.js`. The two reference repositories
-are not runtime dependencies. This policy supersedes the context/quota compaction
-policy recorded in `sidechat-context-budget.md`.
+The production path is `shared/agent/side-chat-agent.js` →
+`shared/agent/context-recovery.js`, both running in the desktop agent loop (an
+Electron utility process), → the FC model proxy (`POST /api/model/turn`) →
+Requesty. FC supplies the `CONTEXT_*` policy below through
+`POST /api/model/capabilities` at turn start and classifies provider failures; the
+loop process keeps archives, checkpoints, learned limits and cooldowns for the
+whole turn, so nothing about recovery is carried through FC between steps. The two
+reference repositories are not runtime dependencies. This policy supersedes the
+context/quota compaction policy recorded in `sidechat-context-budget.md`.
 
 ## Normal requests and budgets
 
@@ -33,9 +38,11 @@ Limits learned from confirmed overflow are scoped by endpoint/tool mode, provide
 model, account-key digest, configured window, output reserve, and image allowance.
 Input-only limits reserve the safety margin; combined limits additionally reserve
 output. Without numeric feedback, the attempted input budget drops by 20%.
-Learned limits are saved atomically for 24 hours and carried in signed handoffs.
-Credentials and account digests are not logged. Separate FC instances share learned
-limits only when the configured archive directory is on shared storage.
+Learned limits are saved atomically for 24 hours under the open project's archive
+directory (`.biodesign/runtime/context-archives/limits/`), keyed by opaque scope
+digests that FC returns with the capabilities. Credentials and account digests are
+not logged. Learned limits are therefore shared by turns in the same project on the
+same machine, not across machines.
 
 ## Input-token quotas
 
@@ -67,19 +74,19 @@ change quota/model configuration. Compaction cannot replenish shared allowance.
 
 Records are scoped by provider, Requesty endpoint, API-key digest and reported
 quota dimensions/metric. Explicit account/project quotas may span models; unknown
-scope is conservatively isolated by model. Signed handoffs carry provider
-measurements and confirmed cooldowns between requests. There is no local quota
+scope is conservatively isolated by model. The loop process keeps provider
+measurements and confirmed cooldowns for the turn. There is no local quota
 ledger that charges requests or summaries against capacity. Unknown remaining
 allowance stays unknown; even a cached reported remaining value cannot prevent
-a new full request. Concurrent requests share only confirmed cooldowns within
-the backend process. Older synthetic `spent`/`reserved` fields are ignored and
+a new full request. Concurrent turns share only confirmed cooldowns within
+the desktop loop process. Older synthetic `spent`/`reserved` fields are ignored and
 removed from subsequent snapshots.
 
 The observation TTL bounds metadata retention, extended through confirmed
 retry/reset deadlines. It does not represent a quota period or imply a refill.
 An unreported cooldown is not invented. A provider-confirmed future cooldown
 is respected before both normal and summary calls; if it cannot fit the quota-wait
-budget or HTTP deadline, the response explicitly asks the user to wait. Cached context
+budget or hard deadline, the response explicitly asks the user to wait. Cached context
 limits also serve only as recovery sizing hints, never as normal-request gates.
 
 ## Independent timing bounds and migration
@@ -102,10 +109,12 @@ silently reused. There is no aggregate active-recovery timeout.
   cumulative time actually spent waiting on provider-confirmed input-token quota
   cooldowns. It accommodates three ordinary 60-second cooldowns when the hard
   deadline permits. It does not invent a cooldown or a quota period.
-- **Hard request deadline:** the existing backend limit (at most 300 seconds in
-  this path, or the earlier supplied transport deadline) includes all time and
-  is never extended. Productive summaries, merging, quota waits and new agent
-  decisions inside the same backend request cannot renew it.
+- **Hard request deadline:** when the caller supplies one, it includes all time
+  and is never extended; productive summaries, merging, quota waits and new agent
+  decisions cannot renew it. The desktop agent loop supplies none: a turn is
+  bounded by the `AGENT_TURN_BUDGET_MS` loop budget, and each proxied model call by
+  its own timeout and FC's 300-second limit on that call. (Under the former FC
+  loop, the 300-second `/chat` request deadline was the hard deadline.)
 
 The existing shared recovery-attempt and summary-call limits, together with
 measurable reduction between retries, still bound recovery across both modes.
@@ -122,14 +131,12 @@ cooldown slice counts as active time. Cancellation interrupts waits and calls an
 prevents further dispatch, even if a provider fails to settle its promise.
 
 Provider wall-clock resets are converted to remaining durations on receipt;
-process-local cooldowns then use monotonic deadlines. Signed handoffs carry
-wall-clock deadlines, converted again on receipt by the next process. Cross-host
-clock skew can still affect imported deadlines. A local wall-clock rollback cannot
-extend an already established hard request lifetime. Before normal or summary
+process-local cooldowns then use monotonic deadlines. A local wall-clock rollback
+cannot extend an already established hard request lifetime. Before normal or summary
 calls, the entire remaining confirmed delay must fit both the quota-wait allowance
 and hard deadline; cancellation and bounds are rechecked after waiting.
 
-For example, two 45-second summaries followed by a 1-second answer use 91 seconds
+For example, where a hard deadline applies, two 45-second summaries followed by a 1-second answer use 91 seconds
 of active recovery and can succeed under a 180-second remaining hard deadline.
 Each recovery call individually fits its 180-second timeout. With only 88 seconds
 remaining initially, the second summary receives at most 43 seconds and recovery
@@ -189,11 +196,11 @@ indices. Checkpoints and original session messages are stored separately.
 The adapter currently uses stateless chat completions, not response-ID continuation.
 Rebuilding a checkpoint drops replaced history's opaque state; pending tool calls
 retain required signatures. The request manager clears continuation-state fields
-on rewritten requests. Signed desktop handoffs retain the accepted boundary,
-checkpoints, archive references, and learned budget.
+on rewritten requests. The loop process retains the accepted boundary,
+checkpoints, archive references, and learned budget across host tool boundaries.
 
 The bounded UI transcript serializer is unchanged in capacity. Before it would
-shorten a current-turn transcript, the backend saves an exact archive and attaches
+shorten a current-turn transcript, the agent loop saves an exact archive and attaches
 a `transcriptArchive` reference. Later turns can read retained archives only after
 the existing workspace/source-version checks accept the historical exchange.
 Archive reads are scoped to the authenticated account, project, and registered session
@@ -209,7 +216,8 @@ for input overflow. This change does not add answer continuation for output limi
 
 ## Configuration
 
-Set these on the FC backend. Values are bounded in `configFromEnv`.
+Set these on the FC backend. Values are bounded in `configFromEnv`, and
+`/api/model/capabilities` returns them to the desktop loop at turn start.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -223,30 +231,38 @@ Set these on the FC backend. Values are bounded in `configFromEnv`.
 | `CONTEXT_SUMMARY_CALLS` | `16` | Total summary calls across chunking/merging for that decision |
 | `CONTEXT_PROVIDER_CALL_TIMEOUT_MS` | `90000` | Ordinary call timeout only; 100–300000 ms, capped by remaining hard-request time; recovery calls independently use 180000 ms |
 | `CONTEXT_RECOVERY_MS` | retired | Ignored; remove this old aggregate-time setting. It is not a per-call alias |
-| `CONTEXT_QUOTA_WAIT_MS` | `180000` | Cumulative confirmed quota waiting; 0–900000 ms, `0` disables waiting; always bounded by the hard HTTP deadline |
+| `CONTEXT_QUOTA_WAIT_MS` | `180000` | Cumulative confirmed quota waiting; 0–900000 ms, `0` disables waiting; bounded by the hard deadline when one applies |
 | `CONTEXT_QUOTA_TTL_MS` | `60000` | Provider-observation retention only; 100–300000 ms, extended through confirmed cooldown; never a quota period |
-| `CONTEXT_ARCHIVE_DIR` | OS temp directory + `/biodesign-context` | Private archive and learned-limit filesystem root |
-| `CONTEXT_DEBUG` | off | `1` enables structured `agent_context_recovery` console events |
+| `CONTEXT_ARCHIVE_DIR` | — | No longer used by agent turns; see storage below |
+| `CONTEXT_DEBUG` | — | No longer used by agent turns; see debugging below |
 
-Use a private persistent/shared filesystem for `CONTEXT_ARCHIVE_DIR` when FC
-requests can change instances or archives must survive restart. Temporary storage
-is only a best-effort fallback. Missing files produce `ARCHIVE_UNAVAILABLE`, never
-invented content. Archive files contain original conversation/evidence data and use
-private filesystem permissions. Operators should apply storage retention and quota
-policies appropriate to their deployment; this implementation does not delete
-conversation archives automatically. Existing 700,000-byte signed-continuation and
-32 MiB HTTP bounds remain separate from model limits.
+The desktop loop writes archives (`sessions/<id>/`) and learned limits (`limits/`)
+under the open project's `.biodesign/runtime/context-archives/`, with private file
+permissions, and reports `archiveDurability: "local_filesystem"`. Archives stay with
+the project across app restarts. Missing files produce `ARCHIVE_UNAVAILABLE`, never
+invented content. Archive files contain original conversation/evidence data. This
+implementation does not delete conversation archives automatically. The former OSS
+archive adapter and the 700,000-byte signed-continuation bound were removed with the
+FC loop; FC's HTTP bounds on each proxied model call remain separate from model
+limits.
 
 ## Debugging
 
-Before every outbound Requesty attempt (including retries and summary calls),
-`requesty_provider_request` logs `estimatedTokens` instead of a character count.
-This uses the compaction manager's local request estimator, including system
-messages, tool definitions, protocol fields, and the configured image allowance.
-It is an uncalibrated input estimate, not a provider-reported token count or the
-reserved output allowance. The same value appears in streamed desktop debug
-events. This existing request log is always emitted; `CONTEXT_DEBUG=1` enables
-the additional recovery events below.
+Before every outbound Requesty attempt of a proxied call (including retries and
+summary calls), FC logs `requesty_provider_request` with `estimatedTokens` instead
+of a character count. This uses the compaction manager's request estimator,
+including system messages, tool definitions, protocol fields, and the configured
+image allowance. It is an uncalibrated input estimate, not a provider-reported
+token count or the reserved output allowance. FC also logs `model_turn_usage` for
+each call. This request log is always emitted.
+
+In agent turns, recovery progress reaches the renderer as loop status events:
+`context-compacted` (with the compaction, quota and timing fields), `context-recovery`
+(for example `quota-wait`) and the corpus-recovery statuses. The structured
+`agent_context_recovery` console events described below are emitted only when
+`ContextRecovery` runs with `debug` enabled; the desktop loop runs it with `debug`
+off, and `CONTEXT_DEBUG=1` on FC no longer reaches it. The reference below still
+describes the fields those events and the status events share.
 
 Events contain IDs and numeric measurements, never full prompts, evidence, image
 bytes, credentials, or summary text. `eventKind` distinguishes `provider_rejection`,
@@ -294,16 +310,17 @@ rejections, separate measurements, preserved full requests, expiry and shared re
 bounds. `test/context-recovery.test.js` tests budgeting, calibration, chunk rejection,
 recursive recovery, pending input, archive retrieval, isolation, deadlines, and
 honest failure with mocked providers. `agent-context-budget.test.js` and
-`corpus-continuation.test.js` exercise the authenticated FC/desktop handoff and
-actual host collection path, including original receipts and no repeated tools.
+`corpus-continuation.test.js` exercise the desktop agent loop through the FC model
+proxy and the actual host collection path, including original receipts and no
+repeated tools.
 `test/recovery-timing.test.js` uses fake monotonic and wall clocks to exercise
 productive consecutive 45-second summaries, stalled calls, multiple cooldowns, summary/provider latency, cancellation,
 shortened waits, distinct stopping bounds and clock changes. Production transport
 cancellation is also covered in `agent-context-budget.test.js`.
 
 Quota measurements can become stale when other clients consume the same quota.
-Confirmed cooldowns are shared only within this backend process or through signed
-handoffs, not automatically across other FC instances or external provider clients. The gateway does not always expose account/project
+Confirmed cooldowns are shared only within the desktop loop process, not across
+other desktops, app restarts or external provider clients. The gateway does not always expose account/project
 identity or remaining allowance; unknown scope is isolated rather than guessed.
 Different API keys sharing an upstream account cannot be reliably coordinated
 without a provider identity/shared quota service.
@@ -324,15 +341,15 @@ guarantee that upstream computation or billing stops.
 
 For new `run_corpus_workflow` receipts, the desktop card service optionally returns the complete validated card alongside its existing bounded map representation. The corpus handler sends those complete cards in a `corpusCardFallback` sidecar, separate from the unchanged canonical `result`. No generation, corpus rerun or reasoning worker is invoked to construct that sidecar. Missing/incompatible cards are recorded rather than counted as covered. Source versions and card content identities travel with each complete card.
 
-The FC continuation admits the sidecar only for a pending corpus call. Canonical receipts keep their existing result-batch limit; the sidecar is subject to the existing HTTP request envelope. Before model dispatch, `corpus-card-fallback.js` archives it through the existing account/session context archive service and removes it from model messages. Ordinary requests therefore keep the mixed corpus projection and never carry the complete-card payload. Canonical transcript receipts retain the mixed result. Signed recovery state holds archive references and admission state, not another copy of every card.
+Receipt admission at the agent loop's step boundary (`shared/agent/receipt-admission.js`) admits the sidecar only for a pending corpus call. Canonical receipts keep their existing result-batch limit. Before model dispatch, `corpus-card-fallback.js` archives it through the existing account/session context archive service and removes it from model messages. Ordinary requests therefore keep the mixed corpus projection and never carry the complete-card payload. Canonical transcript receipts retain the mixed result. Signed recovery state holds archive references and admission state, not another copy of every card.
 
 A provider-confirmed input/context-size rejection or input-token quota rejection activates the fallback. It replaces just the relevant corpus tool result, preserving its call ID and all other messages. The new view includes complete compatible cards, source hashes, card identities, compact failures/missing-card records, and card coverage explicitly distinguished from exhaustive content coverage. It omits original passages, duplicate previews, topics and previous syntheses. Model guidance labels the cards as derived and directs exact claims/quotations to `retrieve_project_evidence`. Current host source bindings, card readiness and card cache identity are checked before each card projection; revoked or changed sources/cards are excluded.
 
-Admission writes a deterministic durable marker before the retry. A later request, signed handoff or cold instance with the same archive session cannot return to the mixed result or take the same fallback again. Managed corpus results never become generic archive previews. Owned legacy previews are recognized by checking their archived original against the corpus call/content identity, then restored through the domain projection journal before dispatch. The extra request uses normal provider transport, usage accounting, cancellation and hard deadlines, but no agent iteration/tool slot or normal context-recovery attempt. A second confirmed size or input-quota rejection enters the progressive reduction stage below before normal generic recovery. Both rejection types share the same once-only admission marker. For input quotas, the existing ledger records the reported capacity and cooldown against the rejected mixed request before card projection; the card retry waits for any provider-confirmed cooldown and remains subject to the quota-wait allowance and hard deadline. Ordinary rate limits, request/output quotas, billing exhaustion, authentication, outages and output exhaustion do not activate card fallback. Archive I/O also observes cancellation and deadlines without being counted as a provider request.
+Admission writes a deterministic durable marker before the retry. A later step or turn with the same archive session cannot return to the mixed result or take the same fallback again. Managed corpus results never become generic archive previews. Owned legacy previews are recognized by checking their archived original against the corpus call/content identity, then restored through the domain projection journal before dispatch. The extra request uses normal provider transport, usage accounting, cancellation and hard deadlines, but no agent iteration/tool slot or normal context-recovery attempt. A second confirmed size or input-quota rejection enters the progressive reduction stage below before normal generic recovery. Both rejection types share the same once-only admission marker. For input quotas, the existing ledger records the reported capacity and cooldown against the rejected mixed request before card projection; the card retry waits for any provider-confirmed cooldown and remains subject to the quota-wait allowance and hard deadline. Ordinary rate limits, request/output quotas, billing exhaustion, authentication, outages and output exhaustion do not activate card fallback. Archive I/O also observes cancellation and deadlines without being counted as a provider request.
 
-Relevant implementation: `docs/source-system.js` (`readValidPaperCardForCorpusMap`, opt-in `completeCard`), `docs/project-context-service.js` (corpus sidecar), `alibaba-fc/agent-continuation.js` (handoff), `alibaba-fc/corpus-card-fallback.js` (archive/projection/admission), `alibaba-fc/context-recovery.js` (retry order) and `alibaba-fc/side-chat-agent.js` (current authority and accounting).
+Relevant implementation: `docs/source-system.js` (`readValidPaperCardForCorpusMap`, opt-in `completeCard`), `docs/project-context-service.js` (corpus sidecar), `shared/agent/receipt-admission.js` (boundary admission), `shared/agent/corpus-card-fallback.js` (archive/projection/admission), `shared/agent/context-recovery.js` (retry order) and `shared/agent/side-chat-agent.js` (current authority and accounting).
 
-Limits: complete cards can themselves exceed a provider window; progressive reduction is attempted within the bounds below before generic recovery. Existing HTTP, canonical receipt, signed-continuation and persisted-history limits remain. Cross-host recovery needs the configured durable context-archive service; without it, unavailable archives fail explicitly. Legacy corpus receipts issued without this sidecar cannot reconstruct complete cards from truncated orientations and retain generic recovery. Compatibility/currentness is checked against host snapshots, not by continuously reading desktop files during a provider request. This change does not enable proactive compaction or fresh-window reset.
+Limits: complete cards can themselves exceed a provider window; progressive reduction is attempted within the bounds below before generic recovery. Existing canonical receipt and persisted-history limits remain. Archives live in the open project; unavailable archives fail explicitly. Legacy corpus receipts issued without this sidecar cannot reconstruct complete cards from truncated orientations and retain generic recovery. Compatibility/currentness is checked against host snapshots, not by continuously reading desktop files during a provider request. This change does not enable proactive compaction or fresh-window reset.
 
 Offline validation: 401 focused tests passed, zero failed/skipped. Actual mocked Chat Completions and Responses request bodies verified the projection order and full content beyond the old card cutoff. The desktop/card-store handoff test verified missing/stale cards, one collection only, zero extra generation, canonical transcript preservation, a signed continuation and provider-request accounting. Recovery tests covered cold remote archives, pre-admission checkpoints, unavailable archives, revoked/changed bindings, second overflow, unrelated failures, cancellation and deadlines. Protected source-system, knowledge, acquisition, browser and child regressions were included; no external provider was contacted.
 
@@ -341,7 +358,7 @@ The input-quota extension was validated separately with 338 passing offline test
 
 ## Progressive Paper Card reduction after card-only rejection
 
-`shared/corpus-result-service.js` owns corpus-result projection policy. `docs/project-context-service.js` uses it to prepare the complete-card capsule from the existing card service; `alibaba-fc/corpus-card-reduction.js` injects the existing archive, provider and permission infrastructure. `ContextRecovery` classifies provider rejection and asks the result service for a smaller projection. No tool, domain store, card generation worker or corpus collection service is added. An accepted mixed or complete-card request does not invoke the summarizer. Only the existing confirmed input-size/input-quota classifiers admit this stage. Ordinary 429s, authentication, billing, outages, output exhaustion and local estimates do not admit it.
+`shared/corpus-result-service.js` owns corpus-result projection policy. `docs/project-context-service.js` uses it to prepare the complete-card capsule from the existing card service; `shared/agent/corpus-card-reduction.js` injects the existing archive, provider and permission infrastructure. `ContextRecovery` classifies provider rejection and asks the result service for a smaller projection. No tool, domain store, card generation worker or corpus collection service is added. An accepted mixed or complete-card request does not invoke the summarizer. Only the existing confirmed input-size/input-quota classifiers admit this stage. Ordinary 429s, authentication, billing, outages, output exhaustion and local estimates do not admit it.
 
 The internal `corpus-summary` request uses the selected model and existing provider adapter, including native reasoning configuration. It explicitly requests JSON-object output: `response_format: {type: "json_object"}` for Chat Completions, translated to `text.format: {type: "json_object"}` for native Responses. Validation repairs, semantic batches and merges retain this format; ordinary answer and generic plain-text checkpoint requests remain unchanged. It contains exactly a canonical summarizer instruction and one JSON data message: the relevant task, complete current card content with host identity bindings, deterministic handles/semantic parts, compact coverage/missing/failure metadata, and the target. Tools, conversation history, original attachments, provider continuation and private reasoning are absent. The main adapter suppresses its text stream from UI output. Only explicitly named top-level generation/debug/usage/protocol metadata is removed from cards; scientific fields are not sliced. The original store and receipt remain unchanged.
 
@@ -369,13 +386,13 @@ Bounds and accounting:
 - Visible target and provider output reserve are distinct. Internal reserve is `max(configured output reserve, min(32768, target + 2048))`; reasoning settings are preserved. This reserve is not a guarantee that reasoning plus visible output will fit.
 - At most three compressed main retries, plus the existing once-only card retry. Internal calls and these retries use provider usage/timing accounting but no agent iteration/tool slot or generic retry allowance. Generic recovery begins after corpus reduction stops only if a validated meaningful corpus summary remains; its existing allowance is retained. It can archive eligible non-corpus tools or summarize accepted plain assistant history, preserving corpus results, all user instructions and tool exchanges byte-for-byte. Without a meaningful corpus summary, failure is explicit. A guard rejects any generic compactor that rewrites a managed corpus result. Provider unavailability/timeouts may instead return an honest incomplete outcome.
 
-Persistence uses the existing account/project/session archive. Immutable journal records atomically claim a stage and each internal request **before** dispatch. A completed request receipt stores its artifact reference, supported usage counters and timing; pending records with no confirmed completion are uncertain, not instructions to replay. Stage manifests bind corpus keys, source/card identities, task, contract and provider profile. Signed continuation state contains references and stage metadata rather than duplicated card payloads. Immutable per-result pointers allow a later corpus result to join the context without expanding an earlier accepted compressed result, even from an older checkpoint. Completed artifacts can resume an unadmitted main retry; recorded main rejection advances the target. A pending admitted main retry without an outcome cannot be replayed. Recovery may reduce eligible non-corpus context only when a meaningful stored corpus summary exists; otherwise it returns an explicit incomplete result.
+Persistence uses the existing account/project/session archive. Immutable journal records atomically claim a stage and each internal request **before** dispatch. A completed request receipt stores its artifact reference, supported usage counters and timing; pending records with no confirmed completion are uncertain, not instructions to replay. Stage manifests bind corpus keys, source/card identities, task, contract and provider profile. The loop's turn state contains references and stage metadata rather than duplicated card payloads. Immutable per-result pointers allow a later corpus result to join the context without expanding an earlier accepted compressed result, even from an older checkpoint. Completed artifacts can resume an unadmitted main retry; recorded main rejection advances the target. A pending admitted main retry without an outcome cannot be replayed. Recovery may reduce eligible non-corpus context only when a meaningful stored corpus summary exists; otherwise it returns an explicit incomplete result.
 
-Local claims use exclusive creation plus file/directory sync. The existing OSS archive adapter uses conditional `x-oss-forbid-overwrite` writes. Missing objects are distinct from unavailable storage; adapters without atomic claims cannot perform this reduction and report the dependency honestly. Source scope/version/readiness/cache identity is rechecked after summary work and immediately before provider admission, including after quota waits. Invalid sources remove their summaries and dependent cross-paper synthesis; global model-authored omission/limitation prose is also withheld after invalidation. No managed corpus result is replaced by an omission marker or generic preview. Configuration changes invalidate cached summaries without resetting the corpus journal.
+Local claims use exclusive creation plus file/directory sync. Missing objects are distinct from unavailable storage; an archive without atomic claims cannot perform this reduction and reports the dependency honestly. Source scope/version/readiness/cache identity is rechecked after summary work and immediately before provider admission, including after quota waits. Invalid sources remove their summaries and dependent cross-paper synthesis; global model-authored omission/limitation prose is also withheld after invalidation. No managed corpus result is replaced by an omission marker or generic preview. Configuration changes invalidate cached summaries without resetting the corpus journal.
 
-Content-free events retained in continuation state and buffered `semanticTelemetry.corpusRecovery`, as well as the streaming progress callback, identify card rejection, stage/batch start/completion, validation failure, estimated reduction, compressed main retry, quota waits, generic recovery and incomplete termination. Full cards, model summaries and private reasoning are not logged in these events.
+Content-free events retained in turn state and buffered `semanticTelemetry.corpusRecovery`, as well as the streaming progress callback, identify card rejection, stage/batch start/completion, validation failure, estimated reduction, compressed main retry, quota waits, generic recovery and incomplete termination. Full cards, model summaries and private reasoning are not logged in these events.
 
-Limits: source currentness is the host's current authoritative snapshot, not continuous filesystem monitoring. Cross-host recovery needs the configured durable archive and atomic-claim support. Usage absent from an interrupted provider response remains unknown; receipt intent is not fabricated token usage. Existing HTTP/continuation/storage limits remain. No live-provider quality evaluation or live OSS fault test is implied by mocked transport tests. Proactive compaction and fresh-window reset remain deferred.
+Limits: source currentness is the host's current authoritative snapshot, not continuous filesystem monitoring. Recovery needs the project's archive directory and its atomic claims. Usage absent from an interrupted provider response remains unknown; receipt intent is not fabricated token usage. Existing receipt/storage limits remain. No live-provider quality evaluation is implied by mocked transport tests. Proactive compaction and fresh-window reset remain deferred.
 
 
 Earlier offline validation, before the corpus ownership correction (2026-10-06): **528 tests passed, 0 failed, 0 skipped**, plus syntax checks of the changed JavaScript modules and `git diff --check`. The selected suites cover reduction/fallback, evidence access/budgets, context/quota/timing recovery, durable archives, authenticated corpus continuations, provider fidelity, source-system and L0–L4 behavior, preflight/saved knowledge, source permissions, shortlist recovery, acquisition receipts/registration, Playwright ownership/references, runtime sessions and child restrictions.
@@ -384,7 +401,7 @@ The actual native `callRequesty` path and the authenticated renderer → FC → 
 
 Observed offline validation after the corpus ownership correction (2026-10-06): **533 tests passed, 0 failed, 0 skipped** in the same selected regression suites. Mocked native Responses and authenticated Chat Completions request bodies verify mixed → complete-card → model-summary delivery, full-card tails, identity and call association, unchanged canonical receipts, and buffered telemetry. Additional tests cover generic recovery of unrelated tools and accepted assistant history while corpus summaries remain unchanged, an overestimated fixed floor, obsolete-preview migration, summary uncertainty/storage failures, complete source revocation, and cold-start reuse. These checks do not establish scientific fidelity or live-provider/OSS behavior.
 
-Recovery timing correction: `alibaba-fc/src/index.js` starts an outer 300000 ms HTTP deadline at handler entry; `alibaba-fc/index.js` also caps the provider phase at 300000 ms or the earlier transport deadline. These remain unchanged. Thus two 170-second calls can succeed with a sufficiently long outer deadline in the recovery service, but cannot both finish inside the current five-minute HTTP invocation. A platform-enforced earlier cutoff or disconnected socket can also prevent delivery of final diagnostics. The separate quota-wait budget remains cumulative within one recovery run: 180000 ms by default (`CONTEXT_QUOTA_WAIT_MS`, configurable 0–900000 ms). It is not charged against an individual provider timer. Cold starts preserve absolute provider cooldowns and receipt journals, not a corpus elapsed deadline.
+Recovery timing correction: `alibaba-fc/src/index.js` starts an outer 300000 ms HTTP deadline at handler entry; `alibaba-fc/index.js` also caps the provider phase at 300000 ms or the earlier transport deadline. These remain unchanged, but since the agent loop moved to the desktop they bound one proxied model call rather than a whole recovery run. (Under the former FC loop, two 170-second calls could not both finish inside one five-minute `/chat` invocation.) A platform-enforced earlier cutoff or disconnected socket can also prevent delivery of final diagnostics. The separate quota-wait budget remains cumulative within one recovery run: 180000 ms by default (`CONTEXT_QUOTA_WAIT_MS`, configurable 0–900000 ms). It is not charged against an individual provider timer. Cold starts preserve absolute provider cooldowns and receipt journals, not a corpus elapsed deadline.
 
 Buffered `semanticTelemetry.corpusRecovery.events` and streaming status events include `recovery-provider-call` records with configured per-call allowance, actual timeout, outer-deadline limitation, duration and reason. `provider_call_timeout` means the individual timer expired; `hard_request_deadline_exhausted` means the earlier outer deadline. Corpus validation failures expose only a structural reason (for example `malformed_summary`), stage and request identity, never rejected summary/source text.
 

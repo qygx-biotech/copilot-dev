@@ -3,12 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
-const {
-  buildLocalWorkspaceContext,
-  createSideChatKnowledgeBase,
-  executeSideChatTool,
-  sanitizeLocalWorkspaceContext,
-} = require("../index.js")._test;
+const { buildLocalWorkspaceContext, sanitizeLocalWorkspaceContext } = require("../../shared/agent/request-context.js");
+const { createSideChatKnowledgeBase, executeSideChatTool } = require("../../shared/agent/side-chat-agent.js");
 
 test("local workspace chat context is whitelisted, bounded, and explicit about inventory", () => {
   const sanitized = sanitizeLocalWorkspaceContext({
@@ -266,12 +262,12 @@ test("corpus coverage survives sanitization and is rendered explicitly", () => {
 });
 
 test("Side Chat prompt permits internal maintenance without granting recommendation updates", () => {
-  const backendSource = fs.readFileSync(
-    path.join(__dirname, "../index.js"),
-    "utf8"
-  );
+  // The system prompts and the agent loop live in shared/agent/, shared with
+  // the desktop loop; index.js keeps the FC routes.
+  const backendSource = ["../index.js", "../../shared/agent/request-context.js"]
+    .map(file => fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
   const agentSource = fs.readFileSync(
-    path.join(__dirname, "../side-chat-agent.js"),
+    path.join(__dirname, "../../shared/agent/side-chat-agent.js"),
     "utf8"
   );
 
@@ -360,7 +356,7 @@ test("Side Chat remains isolated from Agent Work recommendation state", () => {
   assert.doesNotMatch(chatFunction, /runAgentInstruction/);
   assert.match(chatFunction, /projectContextService\.buildContext/);
   const agentStart = appSource.indexOf("async function runAgentInstruction");
-  const agentEnd = appSource.indexOf("function setAgentBusy", agentStart);
+  const agentEnd = appSource.indexOf("function agentTurnsChanged", agentStart);
   const agentFunction = appSource.slice(agentStart, agentEnd);
   assert.match(agentFunction, /surface:\s*"agent_command"/);
   assert.doesNotMatch(agentFunction, /currentRecommendation\s*=\s*panel\.recommendation/);

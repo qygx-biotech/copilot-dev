@@ -83,32 +83,5 @@
     return "";
   }
 
-  async function readWorkbenchResponse(response, { signal, onEvent = () => {}, onTiming } = {}) {
-    if (!/text\/event-stream/i.test(response.headers?.get?.("content-type") || "")) {
-      if (!onTiming || !response.text) return response.json();
-      onTiming("buffered_body_start");
-      const text = await response.text();
-      onTiming("buffered_body_end");
-      onTiming("json_parse_start");
-      const data = JSON.parse(text);
-      onTiming("json_parse_end");
-      return data;
-    }
-    let result = null;
-    try { await readEvents(response, async event => {
-      let data;
-      try { data = JSON.parse(event.data); } catch { throw failure("STREAM_INVALID", "The server returned an invalid stream event."); }
-      if (result) throw failure("STREAM_INVALID", "The server sent data after the final response.");
-      if (event.event === "complete" || event.event === "evidence-recovery") { result = data; return false; }
-      else if (event.event === "error") throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");
-      else if (["delta", "reset", "status", "sources", "transcript", "tool-ready"].includes(event.event)) await onEvent({ ...data, type: event.event });
-    }, { signal, onTiming }); } catch (error) {
-      if (signal?.aborted || error?.code === "OPERATION_ABORTED") throw failure("OPERATION_ABORTED", "The request was cancelled.");
-      if (String(error?.code || "").startsWith("STREAM_")) throw error;
-      throw failure("STREAM_INTERRUPTED", "The response was interrupted. Please retry.");
-    }
-    if (!result || (!result.reply && !result.project && !result.evidenceRecovery && !result.desktopToolCalls)) throw failure("STREAM_INTERRUPTED", "The response ended before a complete answer arrived.");
-    return result;
-  }
-  return Object.freeze({ readEvents, previewReply, readWorkbenchResponse });
+  return Object.freeze({ readEvents, previewReply });
 });

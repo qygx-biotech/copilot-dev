@@ -1,15 +1,15 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path');
-const { runSideChatAgent } = require('../side-chat-agent.js');
-const continuation = require('../agent-continuation.js');
-const progress = require('../agent-progress.js');
+const { runSideChatAgent } = require('../../shared/agent/side-chat-agent.js');
+const { withResults } = require('../../shared/agent/receipt-admission.js');
+const progress = require('../../shared/agent/agent-progress.js');
 const { ContextRecovery } = require('../context-recovery.js');
 const call = (name, args = {}, id = 'call') => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 const tools = (...calls) => ({ ok: true, message: { content: null, tool_calls: calls }, finishReason: 'stop' });
 const answer = reply => ({ ok: true, message: { content: JSON.stringify({ reply }) } });
 const local = { project: { workspaceId: 'progress-fixture' }, files: [{ name: 'notes.txt', relativePath: 'notes.txt', extension: 'txt', content: 'Measured yield: 42. ' + 'Observation. '.repeat(80) }] };
-const run = (requestTurn, extra = {}) => runSideChatAgent({ originalRequest: 'Report the measured yield and explain remaining gaps.', conversationMessages: [{ role: 'user', content: 'Report the measured yield and explain remaining gaps.' }],
+const run = (requestTurn, extra = {}) => runSideChatAgent({ loopBudget: { maxSteps: 8, maxToolCalls: 24 }, originalRequest: 'Report the measured yield and explain remaining gaps.', conversationMessages: [{ role: 'user', content: 'Report the measured yield and explain remaining gaps.' }],
   workspaceContext: { localWorkspaceContext: local }, systemPrompt: 'Answer with JSON reply.', model: 'fixture/model',
   parseFinalAnswer: text => JSON.parse(text), requestTurn, ...extra });
 const receipt = request => JSON.parse(request.messages.findLast(m => m.role === 'tool').content);
@@ -42,8 +42,8 @@ test('identical validation failures are suppressed before tool charges, includin
   }, { projectToolsEnabled: true });
   assert.equal(first.continuationState.totalToolCalls, 2);
   const binding = { project: 'progress-fixture' }, secret = 'test-only';
-  const state = continuation.open(continuation.seal(first.continuationState, binding, secret), binding, secret);
-  continuation.withResults(state, [{ id: 'handoff', result: { ok: true, findings: [{ text: 'Yield 42', sourceId: 'notes' }] } }]);
+  const state = first.continuationState;
+  withResults(state, [{ id: 'handoff', result: { ok: true, findings: [{ text: 'Yield 42', sourceId: 'notes' }] } }]);
   let resumed = 0;
   const second = await run(async request => {
     resumed++;
@@ -54,7 +54,6 @@ test('identical validation failures are suppressed before tool charges, includin
   }, { projectToolsEnabled: true, resume: state });
   assert.equal(second.continuationState.totalToolCalls, 3, 'repeated failure was not charged');
   assert.ok(second.continuationState.progressState.records.some(r => JSON.stringify(r.receipt).includes('Yield 42')));
-  assert.throws(() => continuation.open(continuation.seal(state, binding, secret), { project: 'other' }, secret));
 });
 
 test('pagination and status polling remain eligible and respect the overall turn budget', async () => {
@@ -166,7 +165,7 @@ test('a transient tool failure permits one identical retry and is then suppresse
   for (let attempt = 0; attempt < 2; attempt++) {
     const result = await run(async () => { n++; return tools(call('search_project_knowledge', { query: 'yield' }, `transient-${attempt}`)); }, { projectToolsEnabled: true, resume });
     assert.equal(result.data.desktopToolCalls.length, 1);
-    resume = continuation.withResults(result.continuationState, [{ id: `transient-${attempt}`, result: { ok: false, error: 'PROVIDER_TIMEOUT' } }]);
+    resume = withResults(result.continuationState, [{ id: `transient-${attempt}`, result: { ok: false, error: 'PROVIDER_TIMEOUT' } }]);
   }
   let requests = 0;
   const final = await run(async request => {
@@ -183,22 +182,11 @@ test('changed query with reordered identical provider evidence triggers adaptati
   for (const [i, query] of ['yield', 'yield evidence'].entries()) {
     const pending = await run(async () => tools(call('search_project_knowledge', { query }, `pool-${i}`)), { projectToolsEnabled: true, resume });
     const findings = [{ text: 'Measured yield 42', sourceId: 'S1' }, { text: 'Units unavailable', sourceId: 'S2' }];
-    resume = continuation.withResults(pending.continuationState, [{ id: `pool-${i}`, result: { ok: true, query, findings: i ? findings.reverse() : findings, timestamp: i } }]);
+    resume = withResults(pending.continuationState, [{ id: `pool-${i}`, result: { ok: true, query, findings: i ? findings.reverse() : findings, timestamp: i } }]);
   }
   const final = await run(async request => {
     assert.ok(recovery(request)); assert.match(recovery(request).content, /"newInformation":false/);
     return answer('Both searches return the same two observations: yield 42, with units unavailable.');
   }, { projectToolsEnabled: true, resume });
   assert.equal(final.ok, true);
-});
-
-test('expired deadline preserves evidence without a provider call or tool dispatch', async () => {
-  const state = progress.initial(); progress.record(state, call('query_experiment_results', {}, 'result'), { records: [{ sample: 'A', yield: 42 }] });
-  let requests = 0;
-  const result = await run(async () => { requests++; throw Error('No call permitted'); }, {
-    contextOptions: { config: { deadlineAt: Date.now() - 1 } },
-    resume: { progressState: state, agentMessages: [{ role: 'user', content: 'Report yield' }], step: 2, totalToolCalls: 1 },
-  });
-  assert.equal(requests, 0); assert.equal(result.ok, false); assert.match(result.data.reply, /42/);
-  assert.match(result.data.recoveryDiagnostics.blocker, /No generation time remains/);
 });

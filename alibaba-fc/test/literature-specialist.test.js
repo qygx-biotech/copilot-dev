@@ -1,9 +1,9 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
-const { runSideChatAgent } = require('../side-chat-agent.js');
-const continuation = require('../agent-continuation.js');
+const { runSideChatAgent } = require('../../shared/agent/side-chat-agent.js');
+const { withResults } = require('../../shared/agent/receipt-admission.js');
 const contract = require('../../shared/literature-agent.js');
-const specialist = require('../literature-specialist.js');
+const specialist = require('../../shared/agent/literature-specialist.js');
 const call = (name, args, id = name) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 const run = (requestTurn, extra = {}) => runSideChatAgent({ originalRequest: 'Find relevant enzyme papers and write a report.', conversationMessages: [{ role: 'user', content: 'Find relevant enzyme papers and write a report.' }],
   workspaceContext: { localWorkspaceContext: { project: { workspaceId: 'project-1' }, agentLoop: { version: 1 } } }, model: 'selected/model', surface: 'agent_command', desktopLiterature: true, desktopAcademic: true,
@@ -19,11 +19,9 @@ test('signed handoffs keep browser snapshots in the specialist and main complete
   const task = { objective: 'enzyme evidence', queries: ['enzyme'] };
   const first = await run(async () => ({ ok: true, message: { tool_calls: [call('discover_papers', task)] } }));
   assert.equal(first.data.desktopToolCalls[0].name, 'literature_worker');
-  const binding = { model: 'selected/model', project: 'project-1' };
-  let state = continuation.open(continuation.seal(first.continuationState, binding, 'secret'), binding, 'secret');
-  assert.throws(() => continuation.open(continuation.seal(state, binding, 'secret'), { ...binding, model: 'other' }, 'secret'));
+  let state = first.continuationState;
   const job_id = 'lit_' + 'a'.repeat(24);
-  state = continuation.withResults(state, [{ id: state.pending[0].id, result: { job_id, tools: [contract.tool('finish_discovery', 'Finish', contract.object({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(contract.text(2000), 30) }))], observation: 'RAW_SNAPSHOT_ONLY_IN_SPECIALIST [ref=e1]' } }]);
+  state = withResults(state, [{ id: state.pending[0].id, result: { job_id, tools: [contract.tool('finish_discovery', 'Finish', contract.object({ candidates: contract.array(contract.candidate, 40), limitations: contract.array(contract.text(2000), 30) }))], observation: 'RAW_SNAPSHOT_ONLY_IN_SPECIALIST [ref=e1]' } }]);
   const second = await run(async request => {
     assert.equal(request.stage, 'literature-specialist'); assert(JSON.stringify(request.messages).includes('RAW_SNAPSHOT_ONLY_IN_SPECIALIST'));
     assert.deepEqual(JSON.parse(request.messages.filter(message => message.role === 'user')[1].content), { observation: 'RAW_SNAPSHOT_ONLY_IN_SPECIALIST [ref=e1]' });
@@ -32,7 +30,7 @@ test('signed handoffs keep browser snapshots in the specialist and main complete
   }, { resume: state });
   assert(!JSON.stringify(second.continuationState.agentMessages).includes('RAW_SNAPSHOT_ONLY_IN_SPECIALIST'));
   const final = { version: 1, job_id, status: 'partial', candidates: [], searches: [{ query: 'enzyme', source: 'catalogue' }], limitations: ['No match in attempted query.'] };
-  state = continuation.withResults(second.continuationState, [{ id: second.continuationState.pending[0].id, result: { final } }]);
+  state = withResults(second.continuationState, [{ id: second.continuationState.pending[0].id, result: { final } }]);
   const third = await run(async request => { assert.equal(request.stage, 'local-tools'); assert(!JSON.stringify(request.messages).includes('RAW_SNAPSHOT_ONLY_IN_SPECIALIST')); assert(JSON.stringify(request.messages).includes('No match in attempted query.')); return { ok: true, message: { content: 'Report with explicit search limitations.' } }; }, { resume: state });
   assert.equal(third.data.reply, 'Report with explicit search limitations.');
 });
@@ -124,7 +122,7 @@ test('web search remains available after three calls and errors are not finalize
 test('main loop reports specialist provider failure instead of handing off an empty finalization', async t => {
   t.mock.method(console, 'error', () => {});
   const first = await run(async () => ({ ok: true, message: { tool_calls: [call('discover_papers', { objective: 'enzyme', queries: ['enzyme'] })] } }));
-  const resumed = continuation.withResults(first.continuationState, [{ id: first.data.desktopToolCalls[0].id, result: { job_id: 'lit_' + 'a'.repeat(24), tools: [] } }]);
+  const resumed = withResults(first.continuationState, [{ id: first.data.desktopToolCalls[0].id, result: { job_id: 'lit_' + 'a'.repeat(24), tools: [] } }]);
   const result = await run(async () => ({ ok: false, error: 'LlmRequestFailed', message: 'fetch failed', transportError: { causeCode: 'ECONNRESET' } }), { resume: resumed });
   assert.equal(result.ok, false); assert.equal(result.error, 'LlmRequestFailed'); assert.equal(result.failure.transportError.causeCode, 'ECONNRESET');
   assert.equal(result.data.desktopToolCalls, undefined); assert.equal(resumed.specialist.final, undefined);
@@ -132,7 +130,7 @@ test('main loop reports specialist provider failure instead of handing off an em
 test('nested hosted-search failure propagates through the real search stage and specialist', async t => {
   t.mock.method(console, 'error', () => {});
   const first = await run(async () => ({ ok: true, message: { tool_calls: [call('discover_papers', { objective: 'enzyme', queries: ['enzyme'] })] } }));
-  const resumed = continuation.withResults(first.continuationState, [{ id: first.data.desktopToolCalls[0].id, result: { job_id: 'lit_' + 'a'.repeat(24), tools: [] } }]);
+  const resumed = withResults(first.continuationState, [{ id: first.data.desktopToolCalls[0].id, result: { job_id: 'lit_' + 'a'.repeat(24), tools: [] } }]);
   const stages = [];
   const result = await run(async request => {
     stages.push(request.stage);
@@ -150,8 +148,8 @@ test('nested hosted-search failure propagates through the real search stage and 
 const snapshotTool = contract.tool('browser_snapshot', 'Observe the page', contract.object({}));
 const restoreWithReceipt = (state, response) => {
   const pending = specialist.handoff(state), binding = { model: 'selected/model', project: 'project-1' };
-  const restored = continuation.open(continuation.seal({ specialist: state, pending: [pending] }, binding, 'secret'), binding, 'secret');
-  return continuation.withResults(restored, [{ id: pending.id, result: response }]).specialist;
+  const restored = { specialist: state, pending: [pending] };
+  return withResults(restored, [{ id: pending.id, result: response }]).specialist;
 };
 test('a mixed batch drains in order across signed continuations before requesting the next model turn', async () => {
   let state = ready(); state.schemas.push(snapshotTool);

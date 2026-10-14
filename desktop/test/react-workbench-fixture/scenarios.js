@@ -10,6 +10,15 @@ window.copiedChats = [];
 Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new DOMException('Write permission denied.', 'NotAllowedError'); } } });
 let gates = {}, delayedPreparation = null, delayedHttp = null, nextFailure = false, responseText = '', nextSideTools = false, imageRequests = [];
 let nextLoginStatus = 0;
+// When set, Agent Work turns checkpoint a transcript turn with a command and its result, as the loop does.
+let agentCheckpoints = false;
+// When set, the next turn of that mode answers with this reply and its citations.
+let nextCitationReply = null;
+const checkpointFor = request => ({ turnId: request.callContext.turnId, model: 'fixture', workspaceId: request.localWorkspaceContext?.project?.workspaceId || '', status: 'completed',
+  startedAt: new Date().toISOString(), sequence: 1, bindings: [], messages: [{ role: 'user', content: request.originalRequest },
+    { role: 'assistant', content: null, tool_calls: [{ id: `run-${request.callContext.turnId}`, type: 'function', function: { name: 'exec_command', arguments: '{"cmd":"python3 summarise.py"}' } }] },
+    { role: 'tool', tool_call_id: `run-${request.callContext.turnId}`, name: 'exec_command', content: `{"output":"${request.originalRequest} -> run A 4.2 g/L; run B 5.1 g/L"}` },
+    { role: 'assistant', content: 'Summarised the runs.' }] });
 const nativeFetch = window.fetch.bind(window);
 window.fetch = async (url, options = {}) => {
   if (String(url).startsWith('file:')) return nativeFetch(url, options);
@@ -21,39 +30,74 @@ window.fetch = async (url, options = {}) => {
     check(options.headers.Authorization === 'Bearer fixture-session', 'image understanding retains authenticated FC identity');
     return new Response(JSON.stringify({ understanding: { text: 'The chart reports measured activity.', model: 'fixture-image-model' }, imageCount: body.images.length }), { headers: { 'content-type': 'application/json' } });
   }
-  if (route !== '/chat') throw new Error(`Unexpected fixture route ${route}`);
-  const body = JSON.parse(options.body); requests.push(body);
-  check(options.headers.Authorization === 'Bearer fixture-session', 'model request retains authenticated FC identity');
-  if (delayedHttp) { const response = delayedHttp; delayedHttp = null; return response; }
-  if (nextFailure) { nextFailure = false; return new Response('{}', { status: 503 }); }
+  throw new Error(`Unexpected fixture route ${route}`);
+};
+// Agent turns reach the desktop agent loop through docs/local-agent-transport.js.
+// The fixture answers turns at that boundary so streaming, host-tool
+// boundaries, failures and cancellation are deterministic; the loop itself
+// has dedicated suites.
+function fixtureResult(body) {
   const download = body.mode === 'agent_instruction' && /download/i.test(body.originalRequest);
   let result;
-  if (nextSideTools && body.mode === 'side_chat') { nextSideTools = false; result = { desktopToolCalls: [{ id: 'side-download', name: 'download_sources', args: { sources: [{ url: 'https://papers.example.org/side-only.pdf' }] } }], desktopContinuation: 'forbidden-side-continuation' }; }
-  else if (download && !body.desktopContinuation) result = { desktopToolCalls: [{ id: 'download-1', name: 'download_sources', args: { sources: [{ url: 'https://papers.example.org/enzyme-paper.pdf' }] } }], desktopContinuation: 'fixture-signed-continuation' };
+  // Plan mode: the agent answers with a proposed plan.
+  if (nextCitationReply?.mode === body.mode && !body.resumed) { const { reply, citations } = nextCitationReply; nextCitationReply = null; return { reply, citations }; }
+  if (body.desktopTools?.collaborationMode === 'plan') return { reply: 'Grounded in the fermentation data.\n\n<proposed_plan>\n1. Compare titres at matched pH.\n2. Repeat the best condition in triplicate.\n</proposed_plan>' };
+  if (nextSideTools && body.mode === 'side_chat') { nextSideTools = false; result = { desktopToolCalls: [{ id: 'side-download', name: 'download_sources', args: { sources: [{ url: 'https://papers.example.org/side-only.pdf' }] } }] }; }
+  else if (download && !body.resumed) result = { desktopToolCalls: [{ id: 'download-1', name: 'download_sources', args: { sources: [{ url: 'https://papers.example.org/enzyme-paper.pdf' }] } }] };
   else if (download) {
     const files = body.desktopToolResults[0].results.filter(file => file.status === 'downloaded');
-    check(files.length === 1 && files[0].path === 'literature/enzyme-paper.pdf', 'FC continuation receives actual validated saved-file result');
+    check(files.length === 1 && files[0].path === 'literature/enzyme-paper.pdf', 'the resumed turn receives the actual validated saved-file result');
     result = { reply: `Saved ${files.length} PDF: literature/enzyme-paper.pdf. Not yet ingested or analyzed.`, taskOutcome: { status: 'completed', downloadSuccessCount: files.length } };
   } else result = { reply: responseText || (body.mode === 'side_chat' ? 'The selected evidence reports 25 U/mL at pH 7.\n\nThis is a measured result, not proof of an optimum.' : '### Evidence review\n\nCompare enzyme variants at matched conditions.\n\nRecommended next step: repeat the activity assay.'), ...(body.mode === 'agent_instruction' ? { project: { summary: 'Evidence supports a controlled comparison.', draftMemo: 'Repeat at matched pH.', safetyNotes: 'Scientist review required.' } } : {}) };
-  return new Response(new ReadableStream({
-    start(controller) {
-      const send = (event, data) => controller.enqueue(new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
-      send('status', { stage: body.mode === 'side_chat' ? 'side-fixture-retrieval' : 'agent-fixture-analysis' });
-      send('delta', { text: body.mode === 'side_chat' ? 'Selected evidence is streaming…' : 'Agent analysis is streaming…' });
-      const finish = () => { try { send('complete', result); controller.close(); } catch {} };
-      if (gates[body.mode]) gates[body.mode].push(finish); else setTimeout(finish, 90);
-    }, cancel() {},
-  }), { headers: { 'content-type': 'text/event-stream' } });
-};
-// Keep the existing orchestration and FC/desktop continuation path. Preparation
-// is deterministic here; its real retrieval/corpus behavior has dedicated suites.
+  return result;
+}
+window.BioDesignLocalAgentTransport = { startSession({ agent, token, body, signal }) {
+  check(token === 'fixture-session', 'model request retains authenticated identity');
+  check(typeof agent?.start === 'function', 'agent turns use the desktop agent loop API');
+  let boundary = false;
+  const exchange = (request, onEvent) => new Promise((resolve, reject) => {
+    requests.push(request);
+    const stop = () => reject(Object.assign(new Error('The request was cancelled.'), { code: 'OPERATION_ABORTED' }));
+    if (signal?.aborted) return stop();
+    signal?.addEventListener('abort', stop, { once: true });
+    const settle = result => { boundary = Boolean(result.desktopToolCalls); resolve(result); };
+    if (delayedHttp) {
+      const pending = delayedHttp; delayedHttp = null;
+      pending.then(value => value?.status === 401 ? reject(Object.assign(new Error('Sign in again.'), { code: 'AUTH_REQUIRED', status: 401 })) : settle(fixtureResult(request)));
+      return;
+    }
+    if (nextFailure) { nextFailure = false; return reject(Object.assign(new Error('The agent turn failed.'), { code: 'AGENT_TURN_FAILED' })); }
+    const result = fixtureResult(request);
+    (async () => {
+      await onEvent({ type: 'status', stage: request.mode === 'side_chat' ? 'side-fixture-retrieval' : 'agent-fixture-analysis' });
+      await onEvent({ type: 'delta', text: request.mode === 'side_chat' ? 'Selected evidence is streaming…' : 'Agent analysis is streaming…' });
+      if (agentCheckpoints && request.mode === 'agent_instruction') await onEvent({ type: 'transcript', conversationTurn: checkpointFor(request) });
+      const finish = () => settle(result);
+      if (gates[request.mode]) gates[request.mode].push(finish); else setTimeout(finish, 90);
+    })().catch(reject);
+  });
+  return {
+    first: onEvent => exchange(body, onEvent),
+    next: (reply, onEvent) => { boundary = false; return exchange({ ...body, desktopToolResults: reply.desktopToolResults, resumed: true }, onEvent); },
+    atBoundary: () => boundary,
+    close: async () => {},
+  };
+} };
+// Keep the existing orchestration. Preparation is deterministic here; its real
+// retrieval/corpus behavior has dedicated suites.
 ProjectContextService.prototype.buildContext = async function (options) {
   prepared.push(options);
   if (delayedPreparation) { const gate = delayedPreparation; delayedPreparation = null; await gate; }
   options.onProgress?.({ stage: `${options.surface}-preparing`, message: `Preparing ${options.surface} evidence` });
-  return { files: options.selectedPaths.map(relativePath => ({ relativePath, analysisStatus: 'processed', content: 'Measured activity: 25 U/mL at pH 7.' })),
+  // As the real service does: the turn runs on the agent loop, with its scope
+  // registered against the open project object.
+  const project = this.workspace.workspace;
+  const context = { project: { workspaceId: project?.workspaceId }, agentLoop: { version: 1 },
+    files: options.selectedPaths.map(relativePath => ({ relativePath, analysisStatus: 'processed', content: 'Measured activity: 25 U/mL at pH 7.' })),
     literature: { relevantPaperIds: [], coverage: { papersDiscovered: 0, papersSearchable: 0 } }, experiments: {},
     ...(options.surface === 'agent_command' && /download/i.test(options.question) ? { semantic: { ir: { operations: ['search', 'store'] } } } : {}) };
+  (this.agentTurns ||= new Map()).set(options.turnId, { options, context, project, hardSelection: false, selected: [], paths: [], sourceStats: {}, sourceVersions: {}, calls: 0, receipts: new Map() });
+  return context;
 };
 
 async function selectProject(initialize = true) {
@@ -223,7 +267,7 @@ async function runWorkbenchScenarios() {
   check(requests.filter(r => r.mode === 'side_chat').length === 1, 'duplicate form submissions do not duplicate sends');
   check(requests[0].model === 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', 'Side Chat captures its selected model');
   check(requests[1].model === 'default' && requests[1].desktopTools.permission === 'workspace_write', 'Agent Work retains independent model and explicit permission');
-  check(!requests[0].desktopTools && !requests[0].desktopContinuation, 'Side Chat never exposes desktop download capability');
+  check(!requests[0].desktopTools, 'Side Chat never exposes desktop download capability');
   check(prepared[0].selectedPaths.length === 1 && prepared[0].selectedPaths[0] === 'literature/evidence.pdf', 'hard selected-source scope reaches existing preparation service');
   check(prepared[0].projectGoal === 'Compare enzyme variants at matched pH.', 'saved project goal reaches research preparation');
   document.querySelector('.agent-pane').dispatchEvent(new Event('pointerdown', { bubbles: true }));
@@ -292,16 +336,16 @@ async function runWorkbenchScenarios() {
   check(document.querySelector('.library-files').textContent.includes('enzyme-paper.pdf'), 'actual saved PDF appears in Literature without an ingestion run');
   document.querySelector('[aria-label="Close dialog"]').click();
   check(document.querySelector('.agent-conversation').textContent.includes('Not yet ingested'), 'download result does not claim premature analysis');
-  check(requests.at(-1).desktopContinuation === 'fixture-signed-continuation', 'download resumes the existing FC continuation');
+  check(requests.at(-1).resumed === true && requests.at(-1).desktopToolResults?.length === 1, 'download resumes the same agent turn with the saved-file receipt');
   check(document.querySelectorAll('.analysis-panel:not([hidden]) .agent-message.assistant > .turn-message-clock').length === findAnalysisPanel(runningAgentId).messages.filter(message => message.role === 'assistant').length, 'each Agent reply has its own duration');
   const beforeError = JSON.stringify(currentRecommendation); nextFailure = true;
-  await sendAgent('Analyze backend failure.'); await waitFor(() => !snapshot().agentBusy, 'FC error');
-  check(JSON.stringify(currentRecommendation) === beforeError, 'FC errors do not commit a demo recommendation');
+  await sendAgent('Analyze backend failure.'); await waitFor(() => !snapshot().agentBusy, 'agent turn error');
+  check(JSON.stringify(currentRecommendation) === beforeError, 'agent turn errors do not commit a demo recommendation');
   check(snapshot().runs[`agent_command:${snapshot().activeAgentId}`].status === 'failed', 'actual backend failure renders a failed state');
   nextSideTools = true;
   const beforeDenied = requests.length;
   await sendSide('Discuss a paper.'); await waitFor(() => !snapshot().sideBusy, 'forbidden side tool');
-  check(requests.length === beforeDenied + 1 && snapshot().runs[`side_chat:${snapshot().activeConversationId}`].status === 'failed', 'Side Chat rejects a returned desktop tool call without a continuation');
+  check(requests.length === beforeDenied + 1 && snapshot().runs[`side_chat:${snapshot().activeConversationId}`].status === 'failed', 'Side Chat rejects a returned desktop download call');
   check(JSON.stringify(currentRecommendation) === beforeError, 'forbidden Side Chat tool call does not change the recommendation');
   gates.side_chat = [];
   await sendSide('Cancel this discussion.'); await waitFor(() => gates.side_chat.length === 1, 'cancellable stream');
@@ -373,7 +417,7 @@ async function runWorkbenchScenarios() {
   await sendSide('Late response from the old project');
   let releaseHttp; delayedHttp = new Promise(resolve => { releaseHttp = resolve; });
   await sendAgent('Analyze a response that will arrive after switching projects.');
-  await waitFor(() => delayedHttp === null, 'old project FC request');
+  await waitFor(() => delayedHttp === null, 'old project agent turn');
   await selectProject(false);
   const secondProjectId = snapshot().project.id;
   check(snapshot().goalEditor?.optional, 'existing folder with no saved goal also offers the prompt');
@@ -462,6 +506,178 @@ async function runWorkbenchScenarios() {
   check(snapshot().activeAgentId !== forkedAgentId && !await workspaceManager.fileExists(forkSidePath), 'deleting selected Agent selects a valid replacement and removes its Side Chats');
   await adapter.command('agent.open', { projectId: firstProjectId, role: 'agent_command', conversationId: runningAgentId }); await tick();
   check(snapshot().activeConversationId === savedChatId && await workspaceManager.fileExists('literature/enzyme-paper.pdf'), 'deleting chats preserves other histories and downloaded papers');
+  // Plan mode: the Mode selector sends a planning turn, the proposed plan renders
+  // as a card, and "Implement this plan" continues in Default mode.
+  const mode = () => document.querySelector('.analysis-panel:not([hidden]) [data-agent-setting="collaborationMode"]');
+  check(mode()?.value === 'default', 'Agent Work starts in Default mode');
+  mode().value = 'plan'; mode().dispatchEvent(new Event('change', { bubbles: true })); await tick();
+  await sendAgent('Plan the next fermentation run.'); await waitFor(() => !snapshot().agentBusy, 'plan turn');
+  check(requests.at(-1).desktopTools?.collaborationMode === 'plan', 'the planning turn carries plan mode');
+  const card = () => document.querySelector('.analysis-panel:not([hidden]) .proposed-plan');
+  check(card()?.querySelector('.proposed-plan-body')?.textContent.includes('Repeat the best condition in triplicate'), 'the proposed plan renders as a card');
+  check(!card().querySelector('.proposed-plan-body').textContent.includes('proposed_plan'), 'the plan tags are not shown');
+  check([...card().querySelectorAll('.proposed-plan-actions button')].map(button => button.textContent).join('|') === 'Implement this plan|Implement in a new conversation|Keep planning', 'the plan offers the three choices');
+  card().querySelector('[data-analysis-action="plan-implement"]').click();
+  await waitFor(() => requests.at(-1).originalRequest === 'Implement the plan.', 'implementation turn'); await waitFor(() => !snapshot().agentBusy, 'implementation turn finishes');
+  check(!requests.at(-1).desktopTools?.collaborationMode && mode().value === 'default', 'implementing switches the conversation back to Default');
+  check(!document.querySelector('.analysis-panel:not([hidden]) .proposed-plan-actions') && document.querySelector('.analysis-panel:not([hidden]) .proposed-plan-choice')?.textContent === 'Implementing this plan in this conversation.', 'a plan is acted on once');
+  // Bug reports: the header opens the dialog, which lists what the report will
+  // contain; the host saves it (the fixture main process checks the file).
+  document.querySelector('[data-feedback-open]').click(); await tick();
+  const report = () => document.querySelector('dialog.feedback-dialog');
+  check(report()?.open && report().querySelectorAll('input[name="category"]').length === 5 && report().querySelector('input[value="bug"]').checked, 'the bug report dialog offers five categories');
+  check(report().querySelector('input[name="includeLogs"]').checked && report().querySelectorAll('.feedback-contents li').length === 4, 'the report lists what it will contain');
+  report().querySelector('textarea[name="note"]').value = ['Agent Work stopped. Authorization: Bearer', 'abcdefghijklmnopqrstuvwxyz012345'].join(' ');
+  report().querySelector('form').requestSubmit();
+  await waitFor(() => /^Saved biodesign-report-[0-9a-f]{8}\.json/.test(report()?.querySelector('.feedback-status')?.textContent || ''), 'report saved');
+  check(report().querySelector('.feedback-actions button').textContent === 'Show in folder', 'a saved report can be shown in its folder');
+  report().querySelector('form').requestSubmit(); await tick();
+  check(!report(), 'the report dialog closes');
+  // Memory: off until enabled in the Memory tab; the setting lives in the project
+  // (the fixture main process checks .biodesign/memory/settings.json).
+  document.querySelector('[aria-label="Open skills and MCP plugins"]').click(); await tick();
+  [...document.querySelectorAll('.runtime-tabs button')].find(button => button.textContent === 'Memory').click();
+  const memoryToggle = () => document.querySelector('.memory-toggle input');
+  await waitFor(() => memoryToggle() && !memoryToggle().disabled, 'memory settings load');
+  check(!memoryToggle().checked && document.querySelector('.memory-settings').textContent.includes('not evidence'), 'memory is off until enabled and says memories are not evidence');
+  memoryToggle().click();
+  await waitFor(() => memoryToggle()?.checked && !memoryToggle().disabled, 'memory enabled');
+  check(/0 conversations processed · last run: never/.test(document.querySelector('.memory-status').textContent), 'memory status shows nothing processed yet');
+  check(document.querySelector('.memory-settings button[aria-expanded]').disabled, 'there is no memory to view yet');
+  document.querySelector('.runtime-extensions [aria-label="Close dialog"]').click(); await tick();
+  check(!document.querySelector('.runtime-extensions'), 'the settings dialog closes');
+  // Parallel tasks: up to three Agent Work conversations run at once, each with
+  // its own folder name for output/; a fourth waits; Side Chat is not counted.
+  gates.agent_instruction = [];
+  const parallel = [];
+  for (const text of ['Plot titre against pH.', 'Summarise the assay results.', 'Draft the methods section.']) {
+    await adapter.command('agent.new', { projectId: snapshot().project.id, role: 'agent_command' }); await tick();
+    await sendAgent(text); parallel.push(snapshot().activeAgentId);
+  }
+  await waitFor(() => gates.agent_instruction.length === 3, 'three Agent Work turns run at once');
+  check(snapshot().agentTurnsRunning === 3 && parallel.every(id => snapshot().runs[`agent_command:${id}`]?.status === 'running'), 'three Agent Work conversations run at once');
+  const folders = parallel.map(id => findAnalysisPanel(id).outputFolder);
+  check(folders.every(folder => /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(folder)) && new Set(folders).size === 3 && folders[0].startsWith('plot-titre-against-ph-'), `each conversation has its own output/ folder name (${folders.join(', ')})`);
+  const projectGroup = name => [...document.querySelectorAll('.project-group')].find(group => group.querySelector('.project-group-heading strong')?.textContent === name);
+  const runningRows = [...projectGroup('Enzyme Engineering').querySelectorAll('[data-topic-select]')].filter(row => row.querySelector('.activity-dot'));
+  check(runningRows.length === 3 && runningRows.every(row => !row.disabled), 'conversations in the project stay open to switch while tasks run, each marked as running');
+  check(document.querySelector('[aria-label="New chat in Separate Project"]').disabled && !projectGroup('Separate Project').querySelector('[data-topic-select]:not(:disabled)'), 'nothing switches to another project while tasks run');
+  await adapter.command('agent.new', { projectId: snapshot().project.id, role: 'agent_command' }); await tick();
+  const waiting = snapshot().activeAgentId, beforeWaiting = requests.length;
+  const waitingInput = () => document.querySelector(`[data-analysis-instruction][data-panel-id="${waiting}"]`);
+  check(waitingInput().closest('form').querySelector('button[type="submit"]').disabled && waitingInput().closest('form').querySelector('.agent-turn-limit')?.textContent.startsWith('3 Agent Work tasks are running'), 'a fourth task waits, and its composer says why');
+  waitingInput().value = 'Check the plate reader export.'; waitingInput().dispatchEvent(new Event('input', { bubbles: true }));
+  waitingInput().closest('form').requestSubmit(); await tick();
+  check(requests.length === beforeWaiting && !snapshot().agentBusy && [...document.querySelectorAll('.toast')].some(toast => toast.textContent.startsWith('3 Agent Work tasks are running')), 'a fourth turn does not start while three run');
+  await sendSide('Notes while the tasks run.'); await waitFor(() => !snapshot().sideBusy, 'Side Chat alongside three tasks');
+  check(sideChatMessages.at(-1).role === 'assistant', 'Side Chat is not counted against the limit');
+  gates.agent_instruction.shift()();
+  await waitFor(() => snapshot().agentTurnsRunning === 2, 'one task finishes');
+  check(!waitingInput().closest('form').querySelector('.agent-turn-limit') && waitingInput().value === 'Check the plate reader export.', 'the waiting task can start, with its instruction kept');
+  waitingInput().closest('form').requestSubmit();
+  await waitFor(() => snapshot().agentBusy && gates.agent_instruction.length === 3, 'the fourth task starts');
+  gates.agent_instruction.splice(0).forEach(finish => finish()); delete gates.agent_instruction;
+  await waitFor(() => snapshot().agentTurnsRunning === 0, 'all tasks finish');
+  check([...parallel, waiting].every(id => findAnalysisPanel(id).messages.at(-1).role === 'assistant' && findAnalysisPanel(id).taskStatus !== 'running'), 'every parallel task keeps its own reply');
+  // The folder name crosses the validated IPC boundary to the host runtime.
+  const runtimeOpen = taskFolder => window.biodesignDesktop.execution.runWorkflow({ workflowId: 'runtime_advanced_open', input: { owner: crypto.randomUUID(), surface: 'agent_command', permission: 'workspace_write', taskFolder } });
+  let folderError = null;
+  try { await runtimeOpen('Titre/Plot'); } catch (error) { folderError = error.code; }
+  check(folderError === 'INVALID_TASK_FOLDER', `the host rejects an invalid task folder (${folderError})`);
+  check(typeof (await runtimeOpen(folders[0])).project === 'boolean', 'the host accepts the conversation\'s folder name');
+  // Agent Work history: each conversation keeps a canonical transcript that the
+  // next turn replays, with earlier tool calls and results, instead of excerpts.
+  const agentRequests = () => requests.filter(request => request.mode === 'agent_instruction');
+  const transcriptFile = id => `.biodesign/chat/agents/${id}/agent-transcript.json`;
+  await adapter.command('agent.open', { projectId: snapshot().project.id, role: 'agent_command', conversationId: parallel[0] }); await tick();
+  await sendAgent('Follow up on the titre plot.'); await waitFor(() => !snapshot().agentBusy, 'follow-up turn');
+  const seeded = agentRequests().at(-1);
+  check(seeded.conversationTranscript?.turns.length === 1 && seeded.conversationTranscript.turns[0].legacy && seeded.conversationTranscript.turns[0].messages[0].content === 'Plot titre against pH.',
+    'an existing conversation starts its transcript from its earlier messages');
+  check(!seeded.messages.some(message => /Previous conversation excerpts/.test(message.content)), 'no excerpts are sent once the transcript exists');
+  agentCheckpoints = true;
+  await adapter.command('agent.new', { projectId: snapshot().project.id, role: 'agent_command' }); await tick();
+  const historyId = snapshot().activeAgentId;
+  await sendAgent('Summarise runs.csv.'); await waitFor(() => !snapshot().agentBusy, 'first history turn');
+  const firstTurnId = agentRequests().at(-1).callContext.turnId;
+  check(agentRequests().at(-1).conversationTranscript.turns.length === 0, 'a new conversation starts with an empty transcript');
+  check(findAnalysisPanel(historyId).messages[0].id === firstTurnId, 'the turn ID is the user message ID');
+  await sendAgent('Now plot the same runs.'); await waitFor(() => !snapshot().agentBusy, 'second history turn');
+  const secondTurnId = agentRequests().at(-1).callContext.turnId;
+  const replayed = agentRequests().at(-1).conversationTranscript.turns.find(turn => turn.turnId === firstTurnId);
+  check(replayed && !replayed.legacy && replayed.messages.some(message => message.role === 'tool' && /Summarise runs\.csv\. -> run A 4\.2 g\/L/.test(message.content)),
+    'the follow-up turn carries the earlier turn\'s tool calls and results');
+  const saved = await workspaceManager.readJson(transcriptFile(historyId));
+  check(saved.version === 1 && saved.transcript.turns.map(turn => turn.turnId).join() === [firstTurnId, secondTurnId].join(), 'the transcript is saved with the conversation');
+  // A fork keeps the turns it keeps.
+  await adapter.command('agent.fork', { projectId: snapshot().project.id, role: 'agent_command', conversationId: historyId, messageId: `${firstTurnId}-reply` });
+  await waitFor(() => snapshot().activeAgentId !== historyId && !snapshot().projectBusy, 'fork with history'); await tick();
+  const forkId = snapshot().activeAgentId;
+  check((await workspaceManager.readJson(transcriptFile(forkId))).transcript.turns.map(turn => turn.turnId).join() === firstTurnId, 'a fork keeps only the transcript of the turns it keeps');
+  // Editing the latest message replaces its turn in the transcript.
+  await adapter.command('agent.open', { projectId: snapshot().project.id, role: 'agent_command', conversationId: historyId }); await tick();
+  const historyPanel = () => document.querySelector(`.analysis-panel[data-panel-id="${historyId}"]`);
+  historyPanel().querySelector('[data-analysis-action="edit"]').click(); await tick();
+  const editor = historyPanel().querySelector('[data-agent-edit-input]');
+  editor.value = 'Now tabulate the same runs.'; editor.dispatchEvent(new Event('input', { bubbles: true }));
+  historyPanel().querySelector('[data-analysis-action="save-edit"]').click();
+  await waitFor(() => agentRequests().at(-1).originalRequest === 'Now tabulate the same runs.', 'edited turn'); await waitFor(() => !snapshot().agentBusy, 'edited turn finishes');
+  const editedTranscript = agentRequests().at(-1).conversationTranscript;
+  check(editedTranscript.turns.map(turn => turn.turnId).join() === firstTurnId && editedTranscript.discardedTurnIds.includes(secondTurnId), 'an edit replaces its turn in the transcript');
+  agentCheckpoints = false;
+  // Deleting a conversation deletes its transcript.
+  await adapter.command('chat.delete', { projectId: snapshot().project.id, catalogId: snapshot().catalogId, role: 'agent_command', conversationId: forkId });
+  await waitFor(() => !snapshot().agents.some(chat => chat.id === forkId) && !snapshot().projectBusy, 'delete fork');
+  check(!await workspaceManager.fileExists(transcriptFile(forkId)) && await workspaceManager.fileExists(transcriptFile(historyId)), 'deleting a conversation deletes only its transcript');
+  // Citations open the folder that holds the cited file, in Side Chat and Agent Work.
+  const cited = literatureModule.sourceRegistry.getByPath('literature/evidence.pdf'), originalHash = cited.contentHash;
+  const preparedHash = 'sha256:' + 'b'.repeat(64);
+  const citationReply = (hash, relativePath = 'literature/evidence.pdf') => ({ reply: 'The assay reached 25 U/mL [evidence](biodesign-citation:citation-1).',
+    citations: [{ id: 'citation-1', reference: cited.sourceId, sourceId: cited.sourceId, relativePath, contentHash: hash, status: 'resolved' }] });
+  const lastCitation = scope => [...document.querySelectorAll(`${scope} .side-source-citation`)].at(-1);
+  // The turn's own evidence reads prepare the source while it runs; the citation
+  // is bound to the source as it is once the answer arrives.
+  gates.side_chat = [];
+  nextCitationReply = { mode: 'side_chat', ...citationReply(preparedHash) };
+  await sendSide('Which source reports the activity?');
+  await waitFor(() => gates.side_chat.length === 1, 'cited Side Chat answer pending');
+  cited.contentHash = preparedHash;
+  gates.side_chat.splice(0).forEach(finish => finish()); delete gates.side_chat;
+  await waitFor(() => !snapshot().sideBusy, 'cited Side Chat answer'); await tick();
+  check(sideChatMessages.at(-1).citations[0].status === 'resolved' && !lastCitation('#sideChatHistory').disabled && /Show in folder$/.test(lastCitation('#sideChatHistory').title),
+    'a Side Chat citation is bound to its source as prepared during the turn, and offers its folder');
+  lastCitation('#sideChatHistory').click(); await tick();
+  nextCitationReply = { mode: 'agent_instruction', ...citationReply(preparedHash) };
+  await sendAgent('Which source reports the activity?'); await waitFor(() => !snapshot().agentBusy, 'cited Agent Work answer'); await tick();
+  check(lastCitation('.analysis-panel:not([hidden])') && !lastCitation('.analysis-panel:not([hidden])').disabled, 'an Agent Work citation offers its folder');
+  lastCitation('.analysis-panel:not([hidden])').click(); await tick();
+  // A citation saved as missing before its source was prepared is current, and clickable, now.
+  const savedReply = document.createElement('div'); document.body.append(savedReply);
+  renderSideChatMarkdown(savedReply, citationReply(preparedHash).reply, [{ ...citationReply(preparedHash).citations[0], status: 'missing', workspaceId: snapshot().project.id }]);
+  check(!savedReply.querySelector('.side-source-citation').disabled && !/unavailable/.test(savedReply.querySelector('.side-source-citation').title), 'a citation saved as missing whose source is current is clickable again');
+  // A file that moved opens the folder that held it.
+  renderSideChatMarkdown(savedReply, citationReply(preparedHash).reply, [{ ...citationReply(preparedHash, 'literature/moved.pdf').citations[0], workspaceId: snapshot().project.id }]);
+  check(!savedReply.querySelector('.side-source-citation').disabled, 'a citation of a moved file still offers its folder');
+  savedReply.querySelector('.side-source-citation').click();
+  await waitFor(() => [...document.querySelectorAll('.toast')].some(toast => /no longer there/.test(toast.textContent)), 'moved file opens its folder');
+  savedReply.remove(); cited.contentHash = originalHash;
+  // A project-mode turn's output/ changes: the turn card shows the host's totals,
+  // undoes them once, and the undo command reaches the host workflow over IPC.
+  const outputHost = document.createElement('div'); document.body.appendChild(outputHost);
+  let undoneTurn = null;
+  window.BioDesignTurnDetails.mount(outputHost, { details: { version: 1, turnId: 'output-turn', model: 'fixture', startedAt: 1, finishedAt: 2,
+    activities: [{ id: 'tool:run', kind: 'tool', stage: 'tool-completed', status: 'completed', name: 'exec_command', summary: { filesCreated: 1, filesChanged: 1 } }],
+    artifacts: [], turnUsage: null, childUsage: [], outputChanges: { created: 1, changed: 1, deleted: 0, complete: true, undoAvailable: true } },
+    onUndoOutput: async turnId => { undoneTurn = turnId; return { turnId, restored: ['output/summary.md'], removed: ['output/report.md'], conflicts: [] }; } });
+  await tick();
+  check(outputHost.querySelector('.turn-output-changes')?.textContent.includes('Files in output/: 1 created · 1 changed'), 'the turn card shows its output/ changes');
+  outputHost.querySelector('.turn-output-changes button').click(); await tick();
+  check(undoneTurn === 'output-turn' && outputHost.querySelector('.turn-output-changes [role="status"]')?.textContent === 'Restored 1 and removed 1 files.', 'undo reports what it restored');
+  check(!outputHost.querySelector('.turn-output-changes button'), 'undo is offered once');
+  let undoError = null;
+  try { await adapter.command('output.undo', { projectId: snapshot().project.id, turnId: 'turn-without-changes' }); } catch (error) { undoError = error.code; }
+  check(undoError === 'NO_OUTPUT_CHANGES', `output.undo reaches the host workflow through validated IPC (${undoError})`);
+  outputHost.remove();
   // Long real-path response to inspect wrapping and bounded scrolling.
   responseText = '### Enzyme evidence\n\n' + ('Measured activity should be interpreted alongside pH, substrate and replicate controls.\n\n').repeat(28) + '\n```text\n' + 'long-sequence-'.repeat(60) + '\n```';
   await sendSide('Explain evidence limitations.'); await waitFor(() => !snapshot().sideBusy, 'long reply');

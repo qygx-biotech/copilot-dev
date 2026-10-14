@@ -49,6 +49,10 @@
     const captured = { turnId: options.callContext?.turnId, projectId: options.localWorkspaceContext?.project?.workspaceId || options.desktopTools?.projectId,
       requestedModel: options.model, surface: options.mode === 'side_chat' ? 'side_chat' : 'agent_command',
       permission: options.desktopTools?.permission || options.permission || 'read_only',
+      // Plan mode (Agent Work): explore and propose; nothing in the project changes.
+      planMode: options.mode !== 'side_chat' && options.desktopTools?.collaborationMode === 'plan',
+      // The Agent Work conversation's folder in output/, used while it runs alongside other tasks.
+      taskFolder: options.mode !== 'side_chat' && typeof options.outputTask === 'string' && /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(options.outputTask) ? options.outputTask : null,
       originalRequest: options.originalRequest || options.messages?.findLast(message => message.role === 'user')?.content || '', signal: options.signal };
     if (typeof captured.turnId !== 'string' || !captured.turnId || typeof captured.projectId !== 'string' || !captured.projectId) throw fail('INVALID_SUBAGENT_PARENT');
     const runtimeChild = options.runtimeChild ? contract.normalizeChild(options.runtimeChild,
@@ -71,21 +75,30 @@
     let catalog = Array.isArray(skills?.catalog) ? clone(skills.catalog) : [];
     const enabledSkills = new Set(catalog.filter(skill => skill.enabled === true && skill.available === true && !skill.invalid).map(skill => skill.name));
     const originalSkills = new Set(enabledSkills), revokedTools = new Set();
-    const mcp = !runtimeChild && captured.surface === 'agent_command' && captured.permission === 'full_access'
+    // Generic MCP tools may change external systems, so plan mode offers none.
+    const mcp = !runtimeChild && !captured.planMode && captured.surface === 'agent_command' && captured.permission === 'full_access'
       ? await workflow('runtime_mcp_definitions', {}) : { tools: [] };
     check();
     const advancedEnabled = skills.advancedRuntimeVersion === 1;
-    const capabilities = advancedEnabled && !runtimeChild ? await workflow('runtime_advanced_open', { owner: sessionId, surface: captured.surface, permission: captured.permission }) : {};
+    const capabilities = advancedEnabled && !runtimeChild ? await workflow('runtime_advanced_open', { owner: sessionId, surface: captured.surface, permission: captured.permission,
+      ...(typeof captured.turnId === 'string' && /^[A-Za-z0-9._:-]{1,200}$/.test(captured.turnId) ? { turnId: captured.turnId } : {}),
+      ...(captured.planMode ? { collaborationMode: 'plan' } : {}), ...(captured.taskFolder ? { taskFolder: captured.taskFolder } : {}) }) : {};
     let advancedClosing;
     const closeAdvanced = () => {
       if (!advancedEnabled || runtimeChild) return Promise.resolve();
       return advancedClosing ||= workflow('runtime_advanced_close', { owner: sessionId }).catch(() => {});
     };
     if (advancedEnabled && !runtimeChild) { signal.addEventListener('abort', closeAdvanced, { once: true }); if (signal.aborted || !isCurrent()) { await closeAdvanced(); check(); } }
+    // Plan mode never offers tools that save memory, write files, generate images or install plugins.
+    const PLAN_HIDDEN = new Set(['memory_write', 'provider', 'plugins']);
+    // Conversation memory tools exist only while memory is on for this project.
+    const memoryEnabled = !runtimeChild && await service.projectMemory?.enabled?.().catch(() => false) === true;
     const extraTools = !advancedEnabled ? [] : runtimeChild ? stateTools.boardNames : advanced.catalog.map(tool => tool.function.name).filter(name => {
       const group = advanced.group(name);
+      if (captured.planMode && (PLAN_HIDDEN.has(group) || name === 'apply_patch')) return false;
+      if (name.startsWith('conversation_memory_') && !memoryEnabled) return false;
       return group === 'state' || group === 'memory_write' && typeof service.saveExplicitMemory === 'function' ||
-        ['scratch','vision'].includes(group) && capabilities.scratch && typeof interaction?.confirm === 'function' || group === 'permission' && capabilities.scratch && typeof interaction?.confirm === 'function' ||
+        ['scratch','vision','permission'].includes(group) && (capabilities.scratch || capabilities.project) && typeof interaction?.confirm === 'function' ||
         group === 'provider' && capabilities.image && typeof interaction?.confirm === 'function' || group === 'plugins' && capabilities.plugins && typeof interaction?.confirm === 'function';
     });
     const extensions = runtime.normalize({ version: 1, skills: { catalog: JSON.stringify(catalog), active: skills?.active || [] },
@@ -98,26 +111,6 @@
     const resources = clone((mcp.resources || []).filter(item => mcpNames.has(item.tool)));
     const resourceTemplateServers = clone(mcp.resourceTemplateServers || []);
     const receipts = new Map(), childContexts = new Map(), childQueues = new Map(), activeMcp = new Map(), undelivered = [];
-    const earlyCalls = new Map();
-    function executeEarly(envelope, verify) {
-      check();
-      if (runtimeChild || envelope.scope?.turnId !== captured.turnId || envelope.scope?.projectId !== captured.projectId ||
-          captured.requestedModel !== 'default' && envelope.scope?.model !== captured.requestedModel) throw fail('INVALID_STREAM_CALL');
-      if (earlyCalls.has(envelope.ticket)) return;
-      const pending = (async () => {
-        const verified = await verify(envelope); check();
-        if (canonical(verified.scope) !== canonical(envelope.scope) || verified.call?.name !== 'host_project_status' ||
-            Object.keys(verified.call.args || {}).length || !verified.identity?.step?.toolNames?.includes(verified.call.name) ||
-            verified.identity.authority?.surface !== captured.surface || verified.identity.authority?.permission !== captured.permission) throw fail('INVALID_STREAM_CALL');
-        const call = verified.call;
-        // Authenticated ticket only bypasses the *previous* step's advertised
-        // snapshot, never the registry, owner, live checks, budget or journal.
-        domainCalls.set(call.id, canonical({ name: call.name, args: call.args }));
-        return execute(call);
-      })();
-      earlyCalls.set(envelope.ticket, pending);
-      pending.catch(error => emitStatus({ type: 'early-tool', status: 'failed', code: error.code || 'EARLY_TOOL_FAILED' }));
-    }
     let parentTranscript = clone(options.conversationTranscript || { version: 1, turns: [], summaries: [] });
     const observeTranscript = turn => {
       check();
@@ -129,12 +122,16 @@
       context: () => verifiedStateContext || service.agentTurns?.get(captured.turnId)?.context || options.localWorkspaceContext,
       transcript: () => parentTranscript, memory: () => service.workspace?.state?.memory,
       saveMemory: note => service.saveExplicitMemory(note, { turnId: captured.turnId }),
+      conversationMemory: memoryEnabled ? service.projectMemory : null,
       notify: message => { check(); queue.enqueue(JSON.stringify({ board: message }), { kind: 'subagent' }); } });
-    let advertised = null, domainCatalog = [], nestedRemaining = 24;
+    // The agent loop reports the remaining turn budget; a single Code Mode call
+    // may still make at most 24 nested calls (shared/agent/receipt-admission.js).
+    const NESTED_CALLS_PER_CELL = 24, MAX_TURN_TOOL_CALLS = 2048;
+    let advertised = null, domainCatalog = [], nestedRemaining = NESTED_CALLS_PER_CELL;
     const nestedCounts = new Map();
     const cellPermissions = new Map(), cellReplies = new Map();
     const observeTools = (definitions, remaining) => {
-      if (Number.isInteger(remaining) && remaining >= 0 && remaining <= 24) nestedRemaining = remaining;
+      if (Number.isInteger(remaining) && remaining >= 0 && remaining <= MAX_TURN_TOOL_CALLS) nestedRemaining = remaining;
       if (!Array.isArray(definitions)) return;
       advertised = new Set(definitions.map(tool => tool.function?.name).filter(Boolean)); domainCatalog = clone(definitions);
     };
@@ -178,7 +175,7 @@
           if (result.conversationTurn) onTranscript?.(result.conversationTurn);
           // The child journal is retained by the manager, not injected as a
           // second source of evidence or an executable continuation in its parent.
-          const { conversationTurn, desktopContinuation, agentCheckpoint, ...publicResult } = result;
+          const { conversationTurn, agentCheckpoint, ...publicResult } = result;
           return publicResult;
         }
         finally { childContexts.delete(child.taskId); childQueues.delete(child.taskId); service.agentTurns?.delete(child.taskId); }
@@ -330,6 +327,7 @@
     async function extendedCall(call) {
       if (advanced.has(call.name)) tools.validate(call.name, call.args);
       const group = advanced.group(call.name);
+      if (captured.planMode && (['memory_write', 'provider', 'plugins'].includes(group) || call.name === 'apply_patch')) throw fail('PLAN_MODE_READ_ONLY');
       if (group === 'state' || group === 'memory_write') {
         if (/^(history_|memories_)/.test(call.name)) {
           if (typeof service.runtimeStateContext !== 'function') throw fail('SOURCE_VERIFICATION_UNAVAILABLE');
@@ -344,8 +342,16 @@
         return result;
       }
       if (call.name === 'request_permissions') {
-        if (!await approve('Allow isolated scratch execution for this turn? No project files, network or browser access. Reason: ' + call.args.reason)) return { granted: false, capability: call.args.capability };
-        return workflow('runtime_advanced_grant', { owner: sessionId });
+        // The first project run also downloads the execution runtime once.
+        const download = call.args.capability === 'project_execution' && capabilities.runtime?.state === 'not_installed' && capabilities.runtime.downloadBytes
+          ? ` The first run downloads BioDesign's Python runtime (about ${Math.max(1, Math.round(capabilities.runtime.downloadBytes / 1e6))} MB).` : '';
+        const title = call.args.capability === 'project_execution' && captured.planMode
+          ? `Run read-only commands in this project while planning? They can read project files (not .biodesign), cannot change anything in the project, and have no network access.${download} Reason: `
+          : call.args.capability === 'project_execution'
+          ? `Run code in this project for this turn? It can read project files (not .biodesign), write only to output/ (only to its own task folder in output/agent-tasks/ while other Agent Work tasks run), and has no network access.${download} Reason: `
+          : 'Allow isolated scratch execution for this turn? No project files, network or browser access. Reason: ';
+        if (!await approve(title + call.args.reason)) return { granted: false, capability: call.args.capability };
+        return workflow('runtime_advanced_grant', { owner: sessionId, capability: call.args.capability });
       }
       let result = await workflow('runtime_advanced_call', { owner: sessionId, call }); check();
       if (call.name === 'request_plugin_install') {
@@ -367,7 +373,7 @@
           for (const subcall of result.tool_calls) {
             const key = canonical(subcall);
             if (!cellReplies.has(key)) {
-              const withinBudget = nestedRemaining > 0;
+              const withinBudget = nestedRemaining > 0 && (nestedCounts.get(call.id) || 0) < NESTED_CALLS_PER_CELL;
               if (withinBudget) { nestedRemaining--; nestedCounts.set(call.id, (nestedCounts.get(call.id) || 0) + 1); }
               const denied = !withinBudget || domainHandlers.has(subcall.name) || !permitted.has(subcall.name) || advertised && !advertised.has(subcall.name) || contract.isAgentTool(subcall.name) ||
                 ['spawn','run_code','wait_code','request_permissions','request_plugin_install','apply_patch','view_image','image_gen_imagegen'].includes(subcall.name) || /^mcp_/.test(subcall.name);
@@ -434,7 +440,7 @@
         if (prior.fingerprint !== fingerprint) throw fail('RUNTIME_RECEIPT_CONFLICT');
         const value = await prior.promise; check(); return clone(value);
       }
-      if (advancedEnabled && ++totalAdmissions > 24) throw fail('TOOL_BUDGET_EXCEEDED');
+      if (advancedEnabled && ++totalAdmissions > MAX_TURN_TOOL_CALLS) throw fail('TOOL_BUDGET_EXCEEDED');
       if (revokedTools.has(call.name)) throw fail('TOOL_CAPABILITY_REVOKED');
       if (advertised && !advertised.has(call.name) && domainCalls.get(call.id) !== fingerprint) throw fail('STEP_TOOL_NOT_ADVERTISED');
       const promise = (async () => {
@@ -526,7 +532,6 @@
       try {
         await Promise.allSettled([...activeMcp.values()].map(cancel => cancel()));
         await closeAdvanced(); signal.removeEventListener('abort', closeAdvanced);
-        await Promise.allSettled([...earlyCalls.values()]); earlyCalls.clear();
         await manager.close();
         state.close(); if (!options.runtimeBoard) state.board.closed = true;
         for (const id of childContexts.keys()) service.agentTurns?.delete(id);
@@ -545,7 +550,7 @@
     scopeTurn.runtimeUsers = (Number(scopeTurn.runtimeUsers) || 0) + 1;
     const authorityWatch = setInterval(() => { try { check(); } catch { lifetime.abort(); } }, 200);
     authorityWatch.unref?.();
-    return { extensions, signal, execute, executeEarly, executeDomain, executeBatch, atCheckpoint, close, bindModel, observeContext, observeTranscript, observeTools, acknowledge: ids => queue.acknowledge(ids), manager, parent: parentIdentity };
+    return { extensions, signal, execute, executeDomain, executeBatch, atCheckpoint, close, bindModel, observeContext, observeTranscript, observeTools, acknowledge: ids => queue.acknowledge(ids), manager, parent: parentIdentity };
   }
   return { create, serializeCompletion };
 });

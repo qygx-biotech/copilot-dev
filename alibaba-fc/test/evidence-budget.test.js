@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict'), jwt = require('jsonwebtoken');
-const backend = require('../index.js'), continuation = require('../agent-continuation.js');
+const backend = require('../index.js'), { withResults } = require('../../shared/agent/receipt-admission.js');
+const agentChat = require("./helpers/agent-chat.js");
 const contract = require('../../shared/side-chat-tools.js'), transcript = require('../../shared/conversation-transcript.js');
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
@@ -32,17 +33,17 @@ async function dispatch(t, f, args, { name = 'retrieve_project_evidence', parall
   const payload = { mode: 'side_chat', model, originalRequest: question, messages: [{ role: 'user', content: question }],
     localWorkspaceContext: f.context, conversationTranscript: transcript.normalize(), callContext: { turnId: f.options.turnId, callRole: 'answer', profile: 'medium' } };
   const send = async extra => {
-    const response = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, ...extra }) });
+    const response = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, ...extra }) });
     assert.equal(response.statusCode, 200, response.body); return JSON.parse(response.body);
   };
-  const cards = f.calls.cards, first = await send({}); assert.ok(first.desktopContinuation);
+  const cards = f.calls.cards, first = await send({}); assert.ok(first.boundary);
   const receipts = [];
   for (const call of first.desktopToolCalls) receipts.push(await f.service.executeAgentTool(call, { turnId: f.options.turnId }));
   assert.ok(JSON.stringify(receipts).length < 180000);
   for (const receipt of receipts) {
     assert.equal(receipt.result.ok, true, JSON.stringify(receipt));
   }
-  const final = await send({ desktopContinuation: first.desktopContinuation, desktopToolResults: receipts });
+  const final = await send({ boundary: first.boundary, desktopToolResults: receipts });
   assert.equal(final.fallback, false); assert.equal(requests.length, 2);
   assert.equal(final.semanticTelemetry.contextRecovery.compactionCount, 0);
   const visible = requests[1].messages.filter(message => message.role === 'tool');
@@ -110,7 +111,7 @@ for (const [name, bound] of [['retrieve_project_evidence', 16000], ['read_paper_
 test('retrieval bounds and signed transport limits remain enforced', () => {
   for (const max_characters of [199, 30001, -1, '30000']) assert.throws(() => contract.validate('retrieve_project_evidence', { query: 'x', max_characters }), { code: 'INVALID_PROJECT_TOOL_INPUT' });
   assert.throws(() => contract.validate('read_paper_evidence', { paper_id: 'P1', max_characters: 30000 }), { code: 'INVALID_PROJECT_TOOL_INPUT' });
-  assert.throws(() => continuation.withResults({ projectToolState: true, pending: [{ id: 'read', name: 'retrieve_project_evidence' }], agentMessages: [] },
+  assert.throws(() => withResults({ projectToolState: true, pending: [{ id: 'read', name: 'retrieve_project_evidence' }], agentMessages: [] },
     [{ id: 'read', result: { ok: true, content: 'x'.repeat(180000) } }]), { code: 'INVALID_TOOL_CONTINUATION' });
 });
 

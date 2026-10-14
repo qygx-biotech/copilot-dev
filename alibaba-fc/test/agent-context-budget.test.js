@@ -1,6 +1,7 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict"), jwt = require("jsonwebtoken");
-const backend = require("../index.js"), agent = require("../side-chat-agent.js"), continuation = require("../agent-continuation.js");
+const backend = require("../index.js"), agent = require("../../shared/agent/side-chat-agent.js");
+const agentChat = require("./helpers/agent-chat.js");
 const transcript = require("../../shared/conversation-transcript.js");
 const model = "google/gemma-4-31b-it", question = "SurfDock有代码么？";
 const call = i => ({ id: `read-${i}`, type: "function", function: { name: "retrieve_project_evidence", arguments: JSON.stringify({ query: `facet ${i}`, paper_ids: ["P1"] }) } });
@@ -22,7 +23,9 @@ async function setup(t, respond) {
     CONTEXT_ARCHIVE_DIR: root, CONTEXT_DEBUG: "1" };
   const before = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]])); Object.assign(process.env, env);
   t.after(() => { for (const key of Object.keys(env)) before[key] === undefined ? delete process.env[key] : process.env[key] = before[key]; });
-  const requests = [], logs = [];
+  // Recovery is observed through the loop's stream events (FC's debug log is
+  // not part of the desktop loop); content redaction through console logs.
+  const requests = [], logs = [], events = [];
   t.mock.method(console, "info", (...args) => logs.push(args));
   t.mock.method(globalThis, "fetch", async (url, options) => {
     if (url.endsWith("/models")) return new Response(JSON.stringify({ data: [] }));
@@ -32,12 +35,14 @@ async function setup(t, respond) {
   const payload = { mode: "side_chat", originalRequest: question, model, messages: [{ role: "user", content: question }],
     localWorkspaceContext: local(), conversationTranscript: transcript.normalize(), callContext: { turnId: "context-turn", callRole: "answer", profile: "medium" } };
   const token = jwt.sign({ account: env.ADMIN_ACCOUNT, role: "admin" }, env.JWT_SECRET);
-  const sendRaw = (extra = {}, transport) => backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, ...extra }) }, {}, transport);
+  const sendRaw = (extra = {}, transport) => agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, ...extra }) }, {},
+    { signal: transport?.signal, emit: async (type, data) => { events.push({ type, data }); await transport?.emit?.(type, data); } });
   const send = async (extra = {}, transport) => {
     const response = await sendRaw(extra, transport);
     assert.equal(response.statusCode, 200, response.body); return JSON.parse(response.body);
   };
-  return { send, sendRaw, requests, logs, root };
+  const compactions = () => events.filter(event => event.type === "status" && event.data.stage === "context-compacted");
+  return { send, sendRaw, requests, logs, events, compactions, root };
 }
 
 test("production transport cancellation interrupts the recovery cooldown before another provider call", { timeout: 2000 }, async t => {
@@ -45,15 +50,13 @@ test("production transport cancellation interrupts the recovery cooldown before 
   const f = await setup(t, (_body, number) => number === 1 ? reply({ tool_calls: [call(0)] })
     : new Response(JSON.stringify({ error: { code: "input_token_quota_exceeded", retry_after_ms: 58000 } }), { status: 429 }));
   const first = await f.send();
-  t.mock.method(console, "info", (label, event) => {
-    f.logs.push([label, event]);
-    if (label === "agent_context_recovery" && event.stage === "quota-wait") controller.abort();
-  });
-  await f.sendRaw({ desktopContinuation: first.desktopContinuation, desktopToolResults: [{ id: call(0).id, result: result(0) }] }, { signal: controller.signal });
+  let stoppedAt;
+  const response = await f.sendRaw({ boundary: first.boundary, desktopToolResults: [{ id: call(0).id, result: result(0) }] }, { signal: controller.signal,
+    emit: async (type, data) => { if (type === "status" && data.stage === "context-recovery" && data.event === "quota-wait") { stoppedAt = performance.now(); controller.abort(); } } });
   assert.equal(controller.signal.aborted, true);
+  assert.equal(response.statusCode, 500, "The turn ends as cancelled");
+  assert.ok(performance.now() - stoppedAt < 1000, "The 58 s cooldown is interrupted promptly");
   assert.equal(f.requests.length, 2);
-  const waited = f.logs.find(([label, event]) => label === "agent_context_recovery" && event.stage === "quota-wait-finished");
-  assert.equal(waited[1].cancelled, true); assert.ok(waited[1].quotaWaitMs < 1000);
 });
 
 for (const child of [false,true]) test(`failure telemetry retains the actual degraded checkpoint after summary timeout, child=${child}`, async t => {
@@ -78,7 +81,7 @@ for (const child of [false,true]) test(`failure telemetry retains the actual deg
   assert.equal(recovery.phase, "incomplete_result"); assert.equal(recovery.callsTimedOut, 1);
   assert.match(outcome.data.reply, /没有安排自动重试或后台继续/);
 });
-for (const reject of [false, true]) test(`signed desktop dispatch: complete results above old limit, provider compaction=${reject}`, async t => {
+for (const reject of [false, true]) test(`host-tool steps keep complete results above the old limit, provider compaction=${reject}`, async t => {
   let rejected = false;
   const f = await setup(t, body => {
     const tools = body.messages.filter(message => message.role === "tool");
@@ -101,15 +104,14 @@ for (const reject of [false, true]) test(`signed desktop dispatch: complete resu
   });
   let data = await f.send();
   for (let i = 0; i < 4; i++) {
-    assert.ok(data.desktopContinuation, JSON.stringify(data)); assert.equal(data.desktopToolCalls[0].id, call(i).id);
-    data = await f.send({ desktopContinuation: data.desktopContinuation, desktopToolResults: [{ id: call(i).id, result: result(i) }] });
+    assert.ok(data.boundary, JSON.stringify(data)); assert.equal(data.desktopToolCalls[0].id, call(i).id);
+    data = await f.send({ boundary: data.boundary, desktopToolResults: [{ id: call(i).id, result: result(i) }] });
   }
   assert.equal(data.fallback, false); assert.equal(f.requests.length, reject ? 6 : 5);
   const saved = data.conversationTurn.messages.filter(message => message.role === "tool");
   // Persistence retains its established bounds; compaction never writes back its view.
   assert.deepEqual(saved.map(message => message.content), [0, 1, 2, 3].map(i => JSON.stringify(result(i))));
-  const compactions = f.logs.filter(entry => entry[0] === "agent_context_compacted");
-  assert.equal(compactions.length, reject ? 1 : 0);
+  assert.equal(f.compactions().length, reject ? 1 : 0);
   if (reject) {
     const final = f.requests.at(-1), previous = f.requests.at(-2);
     assert.ok(JSON.stringify(final).length < JSON.stringify(previous).length);
@@ -151,9 +153,6 @@ test("repeated context rejection is specific and bounded; direct-answer path nee
   assert.ok(f.requests.every(request => !request.messages.some(message => message.role === "tool")));
 });
 
-test("local continuation transport limit is specific, not a provider rejection", () => {
-  assert.throws(() => continuation.seal({ text: "x".repeat(700000) }, {}, "fixture"), error => error.code === "LOCAL_CONTEXT_TRANSPORT_LIMIT" && error.byteLimit === 700000);
-});
 
 test("structural retry prioritizes fresh evidence and preserves corpus accounting and exact citations", () => {
   const messages = [{ role: "system", content: "Hard scope P1; answer in Chinese; untrusted historical context." }, { role: "user", content: question },
@@ -184,10 +183,10 @@ test("learned budget survives handoff but fresh tool results reach the provider 
     return reply("A general answer requires no project retrieval.");
   });
   let data = await f.send();
-  for (let i = 0; i < 3; i++) data = await f.send({ desktopContinuation: data.desktopContinuation, desktopToolResults: [{ id: call(i).id, result: result(i) }] });
+  for (let i = 0; i < 3; i++) data = await f.send({ boundary: data.boundary, desktopToolResults: [{ id: call(i).id, result: result(i) }] });
   assert.equal(data.fallback, false); assert.equal(f.requests.length, 5);
   assert.deepEqual(data.conversationTurn.messages.filter(message => message.role === "tool").map(message => message.content), [0, 1, 2].map(i => JSON.stringify(result(i))));
-  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 1);
+  assert.equal(f.compactions().length, 1);
   const next = await f.send({ originalRequest: "What is Bayesian optimization?", messages: [{ role: "user", content: "What is Bayesian optimization?" }], callContext: { turnId: "new-turn", callRole: "answer", profile: "medium" } });
   assert.equal(next.fallback, false); assert.ok(!f.requests.at(-1).messages.some(message => message.role === "tool"));
   assert.equal(f.logs.filter(entry => entry[0] === "agent_context_send").at(-1)[1].retryCount, 0);
@@ -214,7 +213,7 @@ test("final-answer overflow without reducible history stops without resending id
   let calls = 0;
   const result = await agent.runSideChatAgent({ conversationMessages: [{ role: "user", content: question }], originalRequest: question,
     workspaceContext: { localWorkspaceContext: local() }, systemPrompt: "Answer in Chinese.", model, parseFinalAnswer: reply => ({ reply }),
-    resume: { step: 8, originalRequest: question, agentMessages: [{ role: "user", content: question }] },
+    resume: { step: 8, loopBudget: { maxSteps: 8, maxToolCalls: 24 }, originalRequest: question, agentMessages: [{ role: "user", content: question }] },
     requestTurn: async request => {
       calls++; assert.deepEqual(request.tools, []); assert.ok(request.messages.some(message => message.content === question));
       return calls === 1 ? { ok: false, verifiedContextLengthError: true, status: 400, error: "LlmHttpError", attempts: 1 }
@@ -251,10 +250,9 @@ test("repeated quota reduces once then stops when essential input cannot shrink 
 const quotaResponse = (metric = "generate_content_input_token_count", limit = 12000, delay = 0, code) =>
   new Response(JSON.stringify({ error: { ...(code ? { code } : {}), message: `Quota exceeded for metric: ${metric}, limit: ${limit}. Please retry in ${delay}s.` } }),
     { status: 429, headers: { "retry-after": String(delay) } });
-const signedState = data => JSON.parse(require("node:zlib").inflateSync(Buffer.from(data.desktopContinuation.split(".")[0], "base64url"))).state;
 async function handoff(f, data, i = 0, transport) {
-  assert.ok(data.desktopContinuation);
-  return f.send({ desktopContinuation: data.desktopContinuation, desktopToolResults: [{ id: call(i).id, result: result(i) }] }, transport);
+  assert.ok(data.boundary);
+  return f.send({ boundary: data.boundary, desktopToolResults: [{ id: call(i).id, result: result(i) }] }, transport);
 }
 for (const ending of ["success", "quota", "network", "generic", "billing", "server"]) test(`repeated verified quota stops after reduction before hypothetical ${ending}`, async t => {
   const times = [];
@@ -287,7 +285,7 @@ for (const metric of ["generic", "requests_per_minute", "output_token_count", "b
     const data = await handoff(f, await f.send());
     assert.equal(f.requests.length, /per_day|billing/.test(metric) ? 2 : 3);
     assert.equal(data.fallback, true);
-    assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 0);
+    assert.equal(f.compactions().length, 0);
   });
 
 for (const metric of ["input_token_per_day", "other_input_token_count"]) test(`confirmed quota ${metric} reduces without needing repeated identical evidence`, async t => {
@@ -295,10 +293,10 @@ for (const metric of ["input_token_per_day", "other_input_token_count"]) test(`c
   const data = await handoff(f, await f.send());
   assert.equal(f.requests.length, 3); assert.equal(data.error, "InputQuotaRecoveryIncomplete");
   assert.ok(JSON.stringify(f.requests[2]).length < JSON.stringify(f.requests[1]).length);
-  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 1);
+  assert.equal(f.compactions().length, 1);
 });
 
-for (const first of ["quota", "context"]) test(`${first} recovery survives signed tool handoffs with separate budgets and original results`, async t => {
+for (const first of ["quota", "context"]) test(`${first} recovery survives host-tool boundaries with separate budgets and original results`, async t => {
   const f = await setup(t, (body, count) => {
     if (count === 1) return reply({ tool_calls: [call(0)] });
     if (count === 2) return first === "quota" ? quotaResponse() : new Response(JSON.stringify({ error: { code: "context_length_exceeded" } }), { status: 400 });
@@ -306,15 +304,11 @@ for (const first of ["quota", "context"]) test(`${first} recovery survives signe
     return quotaResponse();
   });
   const middle = await handoff(f, await f.send());
-  const state = signedState(middle);
-  assert.equal(state.reactiveCompactionRetries, 1);
-  assert.ok(state.contextRecovery.accepted > 0);
-  assert.equal(Boolean(state.contextRecovery.learned), first === "context");
-  assert.equal(state.contextRecovery.quotaRecords.length > 0, first === "quota");
+  assert.equal(middle.semanticTelemetry.contextRecovery.compactionCount, 1);
   const data = await handoff(f, middle, 1);
   assert.ok(f.requests.length <= 3 + 1 + 4 + 16); assert.equal(data.fallback, true);
   const decisions = f.requests.slice(3).filter(r => !r.messages[0].content.startsWith("Create a factual working-state checkpoint"));
-  assert.equal(decisions[0].messages.at(-1).content, JSON.stringify(result(1)), "signed quota/context observations cannot gate fresh tool input");
+  assert.equal(decisions[0].messages.at(-1).content, JSON.stringify(result(1)), "earlier quota/context observations cannot gate fresh tool input");
   for (let i = 1; i < decisions.length; i++) assert.ok(JSON.stringify(decisions[i]).length < JSON.stringify(decisions[i - 1]).length);
   assert.equal(data.error, "InputQuotaRecoveryIncomplete");
   assert.deepEqual(data.conversationTurn.messages.filter(message => message.role === "tool").map(message => message.content), [JSON.stringify(result(0)), JSON.stringify(result(1))]);
@@ -326,22 +320,7 @@ test("no meaningful safe reduction stops immediately without resending unchanged
   assert.equal(f.requests.length, 1); assert.equal(data.error, "InputQuotaRecoveryIncomplete");
   assert.equal(data.failure.recoveryStopReason, "quota_no_safe_reduction");
   assert.ok(!f.requests[0].messages.some(message => message.role === "tool"));
-  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, 0);
-});
-
-test("remaining transport deadline prevents quota dispatch without resetting the clock", async t => {
-  const f = await setup(t, (_body, count) => count === 1 ? reply({ tool_calls: [call(0)] }) : quotaResponse(undefined, undefined, 3));
-  const data = await handoff(f, await f.send(), 0, { deadlineAt: Date.now() + 2000 });
-  assert.equal(f.requests.length, 2);
-  assert.equal(data.failure.recoveryStopReason, "hard_request_deadline_exhausted");
-  assert.equal(data.failure.providerAttempts, 1);
-  assert.equal(data.failure.category, "local_time_budget");
-  assert.equal(data.failure.automaticRetryScheduled, false);
-  assert.ok(data.failure.retryAfterMs > 2000);
-  assert.equal(data.failure.timing.quotaWaitMs, 0);
-  assert.match(data.reply, /HTTP\/后端请求硬截止时间/);
-  assert.match(data.reply, /没有安排自动重试或后台继续/);
-  assert.equal(data.conversationTurn.messages.filter(message => message.role === "tool").length, 1);
+  assert.equal(f.compactions().length, 0);
 });
 
 test("an expired time budget makes zero provider calls; a cooldown that cannot fit makes no unchanged retry", async t => {
@@ -397,7 +376,7 @@ for (const rejections of [0, 1, 2]) test(`added-paper follow-up with saved evide
   assert.deepEqual(data.semanticTelemetry.modelToolCapabilities, [], "historical replay never reruns retrieval");
   assert.equal(JSON.stringify(saved), originalSaved);
   assert.equal(f.requests[0].messages.find(message => message.role === "tool").content, JSON.stringify(result(0)));
-  assert.equal(f.logs.filter(entry => entry[0] === "agent_context_compacted").length, rejections ? 1 : 0);
+  assert.equal(f.compactions().length, rejections ? 1 : 0);
   if (rejections >= 1) assert.ok(JSON.stringify(f.requests[1].messages).length < JSON.stringify(f.requests[0].messages).length);
   if (rejections === 2) assert.ok(f.requests.some(r => r.messages[0].content.startsWith("Create a factual working-state checkpoint")), "a second rejection escalates to accepted-history summary");
   assert.ok(f.logs.filter(entry => entry[0] === "requesty_provider_failure").every(entry => entry[1].quotaClassificationReason === "verified_input_token_quota"));

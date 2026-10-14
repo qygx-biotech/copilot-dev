@@ -78,7 +78,7 @@ test("explanation and result-producing recommendation updates retain existing ef
 });
 
 test("machine-readable capability metadata exactly covers current agent tools and effects", () => {
-  const agent = require("../side-chat-agent.js");
+  const agent = require("../../shared/agent/side-chat-agent.js");
   for (const [name, effect] of Object.entries(agent.AGENT_TOOL_EFFECTS)) {
     const item = semantic.CAPABILITY_REGISTRY.find((candidate) => candidate.tool === name);
     if (!item) {

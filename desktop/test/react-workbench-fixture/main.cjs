@@ -23,6 +23,7 @@ fs.writeFileSync(path.join(projectB, '.biodesign/workspace.json'), JSON.stringif
 app.setPath('userData', path.join(profile, 'profile'));
 app.commandLine.appendSwitch('disable-background-networking');
 let win, sessions, dispose;
+const revealed = [];
 const errors = [];
 (async () => {
   try {
@@ -33,6 +34,10 @@ const errors = [];
     const { ProjectCatalog } = await import(pathToFileURL(path.join(root, 'desktop/services/project-catalog.mjs')));
     const { registerIpcHandlers } = await import(pathToFileURL(path.join(root, 'desktop/ipc/register-handlers.mjs')));
     const { downloadSources } = await import(pathToFileURL(path.join(root, 'desktop/services/source-downloader.mjs')));
+    const { FeedbackReports } = await import(pathToFileURL(path.join(root, 'desktop/services/feedback-report.mjs')));
+    // Bug reports are saved into the fixture profile instead of asking where.
+    const feedback = new FeedbackReports({ appInfo: () => ({ version: 'fixture', platform: process.platform }), diagnostics: async () => ({ projectOpen: Boolean(sessions?.active) }),
+      chooseFile: async name => path.join(profile, name) });
     sessions = new ProjectSessionManager({ appPath: root });
     sessions.initializeKnowledge = async () => ({ available: false });
     const open = sessions.open.bind(sessions);
@@ -51,7 +56,9 @@ const errors = [];
     win.webContents.on('preload-error', (_event, _path, error) => errors.push(error.message));
     // No real remote requests in this fixture.
     win.webContents.session.webRequest.onBeforeRequest({ urls: ['https://*/*', 'http://*/*'] }, (_details, callback) => callback({ cancel: true }));
-    dispose = registerIpcHandlers({ ipcMain, sessionManager: sessions, getWindow: () => win,
+    // Citations ask the host to show their file in its folder; the fixture records the requests.
+    const revealPath = { file: file => { revealed.push(['file', file]); }, folder: async folder => { revealed.push(['folder', folder]); } };
+    dispose = registerIpcHandlers({ ipcMain, sessionManager: sessions, getWindow: () => win, feedback, revealPath,
       writeClipboardText: async text => {
         // Exercise native clipboard access, then immediately restore its formats.
         const previous = await Promise.all((await clipboard.read()).map(async item =>
@@ -130,6 +137,15 @@ const errors = [];
     if (state.project.goal !== 'Compare enzyme variants at matched pH.') result.failed.push('Project goal was not persisted in existing project state');
     if (JSON.parse(fs.readFileSync(path.join(projectB, '.biodesign/state.json'), 'utf8')).project.goal !== 'Review the separate project evidence.') result.failed.push('Inactive project goal was not saved to the correct folder');
     if (pickerCount !== 2) result.failed.push('Remembered projects unexpectedly reopened the folder picker');
+    const reportFile = fs.readdirSync(profile).find(name => /^biodesign-report-[0-9a-f]{8}\.json$/.test(name));
+    const report = reportFile && JSON.parse(fs.readFileSync(path.join(profile, reportFile), 'utf8'));
+    if (!report || report.category !== 'bug' || !report.note.includes('Bearer [REDACTED_SECRET]') || report.note.includes('abcdefghijklmnopqrstuvwxyz012345')) result.failed.push('bug report was not saved with its secret redacted');
+    if (report && (!report.logs?.rendererEvents?.length || 'conversation' in report || !report.contents.includes('logs'))) result.failed.push('bug report did not hold exactly the chosen parts');
+    const evidence = fs.realpathSync(path.join(projectA, 'literature', 'evidence.pdf'));
+    if (revealed.filter(([kind, file]) => kind === 'file' && file === evidence).length !== 2) result.failed.push(`citations did not show the cited file in its folder: ${JSON.stringify(revealed)}`);
+    if (!revealed.some(([kind, folder]) => kind === 'folder' && folder === path.dirname(evidence))) result.failed.push('a moved file did not open the folder that held it');
+    const memorySettings = JSON.parse(fs.readFileSync(path.join(projectA, '.biodesign/memory/settings.json'), 'utf8'));
+    if (memorySettings.enabled !== true) result.failed.push('enabling memory was not saved in the project');
     console.log('REACT_WORKBENCH_RESULT ' + JSON.stringify({ ...result, screenshots, errors, projectA, projectB }));
     dispose(); await sessions.close(); win.destroy(); app.exit(result.failed.length || errors.length ? 1 : 0);
   } catch (error) { console.error(error.stack, errors, await win?.webContents.executeJavaScript('({ checks: window.passed?.slice(-6), navigationError: window.BioDesignFrontend?.getSnapshot().projectError, alerts: [...document.querySelectorAll("[role=alert]")].map(node => node.textContent), clipboardBridge: typeof window.biodesignDesktop?.clipboard?.writeText })').catch(() => ({}))); dispose?.(); await sessions?.close().catch(() => {}); app.exit(1); }

@@ -5,8 +5,8 @@ const assert = require("node:assert/strict");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const { ProjectContextService } = require("../../docs/project-context-service.js");
 const contract = require("../../shared/literature-wiki.js");
-const { sanitizeLocalWorkspaceContext } = require("../index.js")._test;
-const agent = require("../side-chat-agent.js");
+const { sanitizeLocalWorkspaceContext } = require("../../shared/agent/request-context.js");
+const agent = require("../../shared/agent/side-chat-agent.js");
 const clone = value => JSON.parse(JSON.stringify(value));
 const selectedModel = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
 function pageFor(input) {

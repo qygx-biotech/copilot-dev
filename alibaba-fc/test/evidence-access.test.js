@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
 const contract = require('../../shared/side-chat-tools.js');
-const agent = require('../side-chat-agent.js');
+const agent = require('../../shared/agent/side-chat-agent.js');
 const backend = require('../index.js');
-const continuation = require('../agent-continuation.js');
+const { withResults } = require('../../shared/agent/receipt-admission.js');
 const transcript = require('../../shared/conversation-transcript.js');
 const model = 'google/gemma-4-31b-it';
 async function fixture(question = 'What are the major themes in the project literature?', options = {}) {
@@ -31,7 +31,7 @@ async function fixture(question = 'What are the major themes in the project lite
   return f;
 }
 async function loop(f, requestTurn, resume) {
-  return agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, f.options.question) },
+  return agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(f.context, f.options.question) },
     originalRequest: f.options.question, conversationMessages: [{ role: 'user', content: f.options.question }],
     conversationTranscript: transcript.normalize(), turnId: f.options.turnId, model, systemPrompt: 'Answer from sufficient evidence.',
     parseFinalAnswer: reply => reply ? { reply } : null, projectToolsEnabled: true, supportsTools: true, requestTurn, resume });
@@ -87,13 +87,13 @@ test('CASE 3 + 8: understanding can progress from cards to original evidence and
   const second = await loop(f, async req => {
     assert.ok(req.messages.some(m => m.role === 'tool' && /paper_card/.test(m.content)));
     return { ok: true, message: { tool_calls: [toolCall('retrieve_project_evidence', { query: 'methane ectoine carbon', paper_ids: [f.ids[0]], requirement: { granularity: 'claim_support' } }, 'support')] } };
-  }, continuation.withResults(first.continuationState, [firstResult]));
+  }, withResults(first.continuationState, [firstResult]));
   const secondResult = await f.tool(second.data.desktopToolCalls[0].name, second.data.desktopToolCalls[0].args, 'support');
   const bundle = secondResult.result.evidenceBundle;
   assert.equal(bundle.items[0].derived, false); assert.equal(bundle.items[0].current, true);
   assert.equal(bundle.coverage.complete, false); assert.equal(bundle.resolvedRequirement.granularity, 'claim_support');
   const ref = bundle.items[0].references[0];
-  const final = await loop(f, async () => ({ ok: true, message: { content: `Methane supplies carbon. [[cite:${ref.reference}]]` } }), continuation.withResults(second.continuationState, [secondResult]));
+  const final = await loop(f, async () => ({ ok: true, message: { content: `Methane supplies carbon. [[cite:${ref.reference}]]` } }), withResults(second.continuationState, [secondResult]));
   assert.equal(final.data.citations[0].sourceId, f.ids[0]); assert.equal(final.data.citations[0].page, 1);
   assert.equal(final.data.conversationTurn.messages.filter(m => m.role === 'tool').length, 2);
   assert.equal(f.calls.cards, 3);
@@ -142,7 +142,7 @@ test('CASE 6: Chinese all-paper review keeps original request, measured coverage
   const first = await loop(f, async () => ({ ok: true, message: { tool_calls: [toolCall('run_corpus_workflow', {}, 'corpus')] } }));
   const response = await f.tool('run_corpus_workflow', {}, 'corpus');
   assert.deepEqual(response.result.evidenceBundle.coverage, { requested: 3, included: 3, complete: true, analyzed: 3, failed: 0, missing: 0 });
-  const final = await loop(f, async () => ({ ok: true, message: { content: '逐篇总结及综述：比较研究主题和已有证据的限制。' } }), continuation.withResults(first.continuationState, [response]));
+  const final = await loop(f, async () => ({ ok: true, message: { content: '逐篇总结及综述：比较研究主题和已有证据的限制。' } }), withResults(first.continuationState, [response]));
   assert.match(final.data.reply, /综述/); assert.equal(final.data.corpusCoverage.complete, true);
   await f.tool('run_corpus_workflow', {}, 'warm'); assert.equal(f.calls.cards, 3);
   const searched = await f.tool('search_project_knowledge', { query: 'all papers', requirement: { coverage: 'exhaustive' } });
@@ -225,7 +225,7 @@ test('corpus collection performs no query-time provider work, including when all
     providerCalls++;
     assert.ok(input.messages.some(message => message.role === 'tool' && message.content.includes('local-evidence')));
     return { ok: true, message: { content: `逐篇总结及综述：甲烷与渗透应激相关。[[cite:${reference}]]` } };
-  }, continuation.withResults(first.continuationState, [response]));
+  }, withResults(first.continuationState, [response]));
   assert.equal(providerCalls, 2, 'One main-agent tool decision, then one main-agent synthesis; no per-paper LLM calls');
   assert.equal(final.data.corpusCoverage.complete, true);
   assert.equal(final.data.citations[0].sourceId, f.ids[0]);
@@ -335,7 +335,7 @@ for (const rejectionStatus of [400, 429]) test(`corpus desktop handoff uses full
       : { content: 'This overview is based on derived cards; original evidence supports exact details.' };
     return new Response(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 100, completion_tokens: 10 } }));
   });
-  const run = resume => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, f.options.question) },
+  const run = resume => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(f.context, f.options.question) },
     originalRequest: f.options.question, conversationMessages: [{ role: 'user', content: f.options.question }],
     conversationTranscript: transcript.normalize(), turnId: f.options.turnId, model, systemPrompt: 'Preserve authorized source scope.',
     contextOptions: { config: { root: archiveRoot } }, parseFinalAnswer: reply => ({ reply }), projectToolsEnabled: true, supportsTools: true, resume,
@@ -346,7 +346,7 @@ for (const rejectionStatus of [400, 429]) test(`corpus desktop handoff uses full
   assert.equal(receipt.corpusCardFallback.cards.length, 1);
   assert.equal(receipt.corpusCardFallback.missingCards.length, 2);
   assert.deepEqual(receipt.corpusCardFallback.cards[0].card, fullCard);
-  const resumed = continuation.withResults(first.continuationState, [receipt]);
+  const resumed = withResults(first.continuationState, [receipt]);
   const second = await run(resumed);
   assert(second.ok, JSON.stringify(second));
   assert.equal(bodies.length, 3); assert.equal(second.continuationState.step, 2);
@@ -366,10 +366,9 @@ for (const rejectionStatus of [400, 429]) test(`corpus desktop handoff uses full
   for (const key of ['files', 'findings', 'knowledge', 'evidenceBundle']) assert.equal(projected[key], undefined);
   assert.deepEqual(receipt, canonical);
   assert.equal(second.continuationState.transcriptTurn.messages.find(m => m.tool_call_id === 'collect-full').content, JSON.stringify(canonical.result));
-  const signed = continuation.seal(second.continuationState, { turn: f.options.turnId }, 'offline');
-  const cold = continuation.open(signed, { turn: f.options.turnId }, 'offline');
+  const cold = second.continuationState;
   const precise = await f.tool('retrieve_project_evidence', { query: 'Reactor pH', paper_ids: [f.ids[0]] }, 'precise');
-  const final = await run(continuation.withResults(cold, [precise]));
+  const final = await run(withResults(cold, [precise]));
   assert(final.ok, JSON.stringify(final)); assert.equal(bodies.length, 4);
   assert(JSON.parse(bodies[3].messages.find(m => m.tool_call_id === 'collect-full').content).corpusCardProjection);
   assert.equal(final.data.turnUsage.coverage.requests, 4, "The card retry counts as a real provider request");
@@ -389,8 +388,11 @@ test('actual native main adapter compresses corpus in a tool-free context, hides
   f.system.corpusWorkflows.run=async(...args)=>{collections++;return collect(...args);};
   f.system.corpusWorkflows.mapWorker=()=>assert.fail('No corpus map reasoning');
   const beforeCards=f.calls.cards, bodies=[],events=[], alias='fixture/native';
-  const env={ REQUESTY_MODEL:alias,NATIVE_KEY:'offline',CONTEXT_ARCHIVE_DIR:root,CONTEXT_PROVIDER_CALL_TIMEOUT_MS:'100',
+  const env={ REQUESTY_MODEL:alias,NATIVE_KEY:'offline',CONTEXT_ARCHIVE_DIR:root,CONTEXT_PROVIDER_CALL_TIMEOUT_MS:'100',JWT_SECRET:'native-fixture',ADMIN_ACCOUNT:'native-fixture',
     AGENT_PROVIDER_ADAPTERS_JSON:JSON.stringify({[alias]:{api:'responses',endpoint:'https://offline.invalid/responses',model:'native-model',apiKeyEnv:'NATIVE_KEY',supportsTools:true,supportsImages:true,reasoning:{effort:'high'}}}) };
+  const previous=Object.fromEntries(Object.keys(env).map(key=>[key,process.env[key]]));Object.assign(process.env,env);
+  t.after(()=>{for(const [key,value] of Object.entries(previous)) value===undefined?delete process.env[key]:process.env[key]=value;});
+  const token=require('jsonwebtoken').sign({account:env.ADMIN_ACCOUNT,role:'admin'},env.JWT_SECRET);
   const textResponse=text=>new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text}]}],usage:{input_tokens:100,output_tokens:10}}));
   t.mock.method(globalThis,'fetch',async(_url,init)=>{
     const body=JSON.parse(init.body);bodies.push(body);
@@ -412,14 +414,19 @@ test('actual native main adapter compresses corpus in a tool-free context, hides
     assert(JSON.stringify(body).includes('input_image'),'Original attachments retained for the MAIN request');
     return textResponse('{"reply":"This is a derived overview, not exhaustive evidence coverage."}');
   });
-  const run=resume=>backend._test.callRequesty([{role:'user',content:f.options.question}],env,
-    {localWorkspaceContext:backend._test.sanitizeLocalWorkspaceContext(f.context,f.options.question)},'side_chat',{turnId:f.options.turnId},
-    {emit:async(kind,data)=>events.push({kind,data})}, {enabled:true,projectTools:true,originalRequest:f.options.question,resume,
-      conversationTranscript:transcript.normalize(),images:[{dataUrl:'data:image/png;base64,aGVsbG8='}]});
-  const first=await run();assert(first.ok,JSON.stringify(first));assert(first.continuationState);
+  // One Side Chat turn on the agent loop; the host answers its corpus-workflow boundary.
+  const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+  const transport={emit:async(kind,data)=>events.push({kind,data})};
+  const post=async extra=>{const response=await require('./helpers/agent-chat.js').post({mode:'side_chat',originalRequest:f.options.question,messages:[{role:'user',content:f.options.question}],
+    localWorkspaceContext:f.context,conversationTranscript:transcript.normalize(),images:[{name:'figure.png',dataUrl:png}],
+    callContext:{turnId:f.options.turnId,callRole:'answer',profile:'medium'},...extra},token,transport);
+    assert.equal(response.statusCode,200,response.body);return JSON.parse(response.body);};
+  const first=await post({});assert(first.boundary,JSON.stringify(first).slice(0,500));
+  assert.deepEqual(first.desktopToolCalls.map(call=>call.name),['run_corpus_workflow']);
   const receipt=await f.tool('run_corpus_workflow',{},'collect'), canonical=structuredClone(receipt);
-  const second=await run(continuation.withResults(first.continuationState,[receipt]));
-  assert(second.ok,JSON.stringify(second));assert.equal(bodies.length,6);assert.equal(collections,1);assert.equal(f.calls.cards,beforeCards);
+  const second={data:await post({boundary:first.boundary,desktopToolResults:[{...receipt,id:first.desktopToolCalls[0].id}]})};
+  second.semanticTelemetry=second.data.semanticTelemetry;
+  assert.equal(second.data.fallback,false,JSON.stringify(second.data).slice(0,500));assert.equal(bodies.length,6);assert.equal(collections,1);assert.equal(f.calls.cards,beforeCards);
   assert.equal(second.data.turnUsage.coverage.requests,6);assert.equal(second.data.turnUsage.coverage.inputTokens,6,'Failed native requests keep provider-supplied usage');
   assert.equal(second.data.turnUsage.totals.inputTokens,430);
   assert(!JSON.stringify(events.filter(e=>e.kind==='delta')).includes('INTERNAL_SUMMARY_NOT_UI'));

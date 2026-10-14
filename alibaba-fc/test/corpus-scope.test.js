@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict'), jwt = require('jsonwebtoken');
 const backend = require('../index.js'), contract = require('../../shared/side-chat-tools.js');
+const agentChat = require("./helpers/agent-chat.js");
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
 const transcript = require('../../shared/conversation-transcript.js');
@@ -31,7 +32,7 @@ function installBackend(t, respond) {
   });
   const token = jwt.sign({ account: env.ADMIN_ACCOUNT, role: 'admin' }, env.JWT_SECRET);
   return { requests, send: async payload => {
-    const response = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+    const response = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
     assert.equal(response.statusCode, 200, response.body); return JSON.parse(response.body);
   } };
 }
@@ -69,7 +70,7 @@ for (const [selected, legacyCount, useHandle] of [[false, 0], [false, 3], [true,
       }
       return { tool_calls: [toolCall(args)] };
     });
-    const initial = await b.send(payload(f)); assert.ok(initial.desktopContinuation);
+    const initial = await b.send(payload(f)); assert.ok(initial.boundary);
     const call = initial.desktopToolCalls[0]; assert.equal(call.name, 'run_corpus_workflow');
     const response = await f.service.executeAgentTool(call, { turnId: f.request.turnId });
     assert.equal(response.result.ok, true, JSON.stringify(response));
@@ -82,7 +83,7 @@ for (const [selected, legacyCount, useHandle] of [[false, 0], [false, 3], [true,
     assert.equal(result.scopeResolution.legacyRequestedCount, legacyCount);
     assert.equal(result.scopeResolution.legacyArgumentsNormalized, legacyCount > 0);
     assert.ok(result.findings.papers.every(paper => paper.originalEvidence.length));
-    const final = await b.send({ ...payload(f), desktopContinuation: initial.desktopContinuation, desktopToolResults: [response] });
+    const final = await b.send({ ...payload(f), boundary: initial.boundary, desktopToolResults: [response] });
     assert.equal(final.fallback, false); assert.equal(b.requests.length, 2);
     const receipt = b.requests[1].messages.find(message => message.tool_call_id === call.id);
     assert.deepEqual(JSON.parse(receipt.content).scopeResolution, result.scopeResolution);
@@ -119,7 +120,7 @@ for (const kind of ['outside', 'unknown', 'historical', 'artifact']) test(`legac
   if (kind === 'outside') f.context.sourceMap.paperSources.push(f.system.registry.get(f.ids[2]));
   if (kind === 'artifact') f.context.files.push({ name: 'prior-result', relativePath: '.biodesign/workflows/prior-result.json', evidenceType: 'corpus-workflow', content: 'Historical artifact.' });
   const answer = await b.send(payload(f));
-  assert.equal(answer.desktopContinuation, undefined);
+  assert.equal(answer.boundary, undefined);
   const errors = b.requests.flatMap(request => request.messages.filter(message => message.role === 'tool').map(message => JSON.parse(message.content).error));
   assert.ok(errors.includes(expected), JSON.stringify(errors));
   assert.equal(f.service.agentTurns.get(f.request.turnId).calls, 0);
@@ -158,8 +159,8 @@ for (const variant of ['ambiguous', 'stale']) test(`legacy ${variant} bindings f
   const f = await fixture(), source = f.context.sourceMap.paperSources[0], handle = 'turn_fixture:local:paper';
   const binding = { itemId: handle, kind: 'paper', sourceId: source.sourceId, contentHash: variant === 'stale' ? 'old-hash' : source.contentHash };
   let calls = 0, error;
-  const result = await require('../side-chat-agent.js').runSideChatAgent({
-    workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, question) }, originalRequest: question,
+  const result = await require('../../shared/agent/side-chat-agent.js').runSideChatAgent({
+    workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(f.context, question) }, originalRequest: question,
     conversationMessages: [{ role: 'user', content: question }], turnId: f.request.turnId, model, systemPrompt: 'Answer in Chinese.',
     supportsTools: true, projectToolsEnabled: true, parseFinalAnswer: reply => ({ reply }),
     resume: { step: 0, originalRequest: question, agentMessages: [{ role: 'user', content: question }],

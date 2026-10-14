@@ -1,8 +1,8 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const semantic = require("../../shared/semantic-intent.js"), citations = require("../../shared/source-citations.js");
-const { runSideChatAgent, resolveSideChatAnswerCitations, createSideChatKnowledgeBase } = require("../side-chat-agent.js");
-const continuation = require("../agent-continuation.js");
+const { runSideChatAgent, resolveSideChatAnswerCitations, createSideChatKnowledgeBase } = require("../../shared/agent/side-chat-agent.js");
+const { withResults } = require("../../shared/agent/receipt-admission.js");
 const query = "Find AI and synthetic biology papers and download five relevant papers.";
 const refs = Array.from({ length: 5 }, (_, i) => "paper_" + String(i + 1).padStart(24, "0"));
 const papers = refs.map((paper_ref, i) => ({ paper_ref, title: `AI and synthetic biology study ${i + 1}`, authors: ["Author"],
@@ -16,8 +16,8 @@ const call = (name, args) => ({ id: name, type: "function", function: { name, ar
 const actions = (...tool_calls) => ({ ok: true, message: { tool_calls } });
 function resumeWith(pending, result) {
   const binding = { project: "reply-fixture", account: "test" };
-  const state = continuation.open(continuation.seal(pending.continuationState, binding, "secret"), binding, "secret");
-  return continuation.withResults(state, [{ id: pending.data.desktopToolCalls[0].id, result }]);
+  const state = pending.continuationState;
+  return withResults(state, [{ id: pending.data.desktopToolCalls[0].id, result }]);
 }
 async function attempted(count) {
   const found = await run({ requestTurn: async () => actions(call("plan_literature_search", {

@@ -8,10 +8,28 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const invalid = code => Object.assign(new Error(code), { code });
 const MAX_BYTES = 10 * 1024 * 1024;
-function createScratchFilesystem(root) {
+// scope (project mode): { writable, hidden, protected, reopened }. hidden is a
+// top-level folder name; writable is output or a parallel task's
+// output/agent-tasks/<task>; protected folders (output/agent-tasks) are not
+// writable except the reopened ones (the turn's own task folder). Reads exclude
+// the hidden folder in any case, since volumes may be case-insensitive; writes
+// and removals are limited to files inside the writable folder (none when it is
+// null: a read-only project session) and outside protected folders.
+function createScratchFilesystem(root, scope = null) {
   const candidate = name => {
     if (typeof name !== 'string' || name.includes('\\') || /[\x00-\x1f]/.test(name) || name.split('/').some(p => !p || p === '.' || p === '..')) throw invalid('INVALID_SCRATCH_PATH');
+    if (scope && name.split('/')[0].toLowerCase() === scope.hidden.toLowerCase()) throw invalid('PATH_NOT_READABLE');
     return path.join(root, name);
+  };
+  const inside = (name, folder, caseless = false) => {
+    const [a, b] = caseless ? [name.toLowerCase(), folder.toLowerCase()] : [name, folder];
+    return a.startsWith(`${b}/`);
+  };
+  const assertWritable = name => {
+    candidate(name);
+    const within = (folder, caseless) => (caseless ? name.toLowerCase() === folder.toLowerCase() : name === folder) || inside(name, folder, caseless);
+    if (scope && (!scope.writable || !inside(name, scope.writable) ||
+      ((scope.protected || []).some(folder => within(folder, true)) && !(scope.reopened || []).some(folder => inside(name, folder))))) throw invalid('PATH_NOT_WRITABLE');
   };
   async function checked(name, parents = false, create = false) {
     candidate(name);
@@ -28,6 +46,8 @@ function createScratchFilesystem(root) {
   }
   const api = {
     candidate,
+    assertWritable,
+    scope: scope ? 'project_output' : 'scratch',
     async exists(name) { try { await checked(name); return true; } catch (e) { if (e.code === 'ENOENT') return false; throw e; } },
     async readBinary(name) {
       const file = await checked(name);
@@ -43,6 +63,7 @@ function createScratchFilesystem(root) {
     },
     async readText(name) { return (await api.readBinary(name)).toString('utf8'); },
     async writeBinary(name, bytes) {
+      assertWritable(name);
       if (bytes.length > MAX_BYTES) throw invalid('FILE_TOO_LARGE');
       const file = await checked(name, true, true);
       try { const info = await fs.lstat(file); if (info.isSymbolicLink() || !info.isFile()) throw invalid('INVALID_WRITE_TARGET'); }
@@ -58,6 +79,7 @@ function createScratchFilesystem(root) {
     },
     async writeText(name, text) { return api.writeBinary(name, Buffer.from(text)); },
     async remove(name) {
+      assertWritable(name);
       const file = await checked(name), info = await fs.lstat(file);
       if (!info.isFile()) throw invalid('INVALID_REMOVE_TARGET');
       await fs.unlink(file);
@@ -70,7 +92,12 @@ async function runFileWorker(applyPatch) {
     let input = '';
     process.stdin.setEncoding('utf8');
     for await (const chunk of process.stdin) { input += chunk; if (input.length > 15 * 1024 * 1024) throw invalid('FILE_TOO_LARGE'); }
-    const { operation, args } = JSON.parse(input), files = createScratchFilesystem(process.cwd());
+    const { operation, args, scope } = JSON.parse(input);
+    const folder = value => typeof value === 'string' && /^output(\/[a-z0-9-]+){0,2}$/.test(value);
+    const folders = value => value === undefined || (Array.isArray(value) && value.every(folder));
+    if (scope !== undefined && ((scope?.writable !== null && !folder(scope?.writable)) || typeof scope?.hidden !== 'string' ||
+      !folders(scope.protected) || !folders(scope.reopened))) throw invalid('INVALID_FILE_OPERATION');
+    const files = createScratchFilesystem(process.cwd(), scope || null);
     let value;
     if (operation === 'patch') value = await applyPatch(files, args.patch);
     else if (operation === 'read') value = { data: (await files.readBinary(args.path)).toString('base64') };

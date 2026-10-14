@@ -2,9 +2,9 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const { mkdtemp, rm } = require("node:fs/promises"), path = require("node:path"), os = require("node:os");
 const semantic = require("../../shared/semantic-intent.js");
-const { runSideChatAgent, compactSideChatAgentMessages } = require("../side-chat-agent.js");
-const continuation = require("../agent-continuation.js"), academic = require("../academic-agent.js");
-const planning = require("../academic-planning.js"), recovery = require("../academic-recovery.js"), context = require("../academic-context.js");
+const { runSideChatAgent, compactSideChatAgentMessages } = require("../../shared/agent/side-chat-agent.js");
+const { withResults } = require("../../shared/agent/receipt-admission.js"), academic = require("../../shared/agent/academic-agent.js");
+const planning = require("../../shared/agent/academic-planning.js"), recovery = require("../../shared/agent/academic-recovery.js"), context = require("../../shared/agent/academic-context.js");
 const query = "Find AI and synthetic biology papers and download five suitable papers.";
 const plan = { queries: ["artificial intelligence in synthetic biology", "AI-driven synthetic biology design", "machine learning for metabolic engineering"],
   request_kind: "topic", requested_count: 5, subtopics: ["AI in metabolic engineering", "AI-driven protein design for synthetic biology", "AI for synthetic biology automation"],
@@ -29,7 +29,7 @@ const lastError = request => request.messages.filter(message => message.role ===
 const progress = request => JSON.parse(request.messages.findLast(message => message.content?.startsWith("Literature workflow progress (host state): ")).content.split("\n")[0].slice("Literature workflow progress (host state): ".length));
 function resumed(pending, results) {
   const binding = { project: "evidence-regression", account: "test" };
-  return continuation.withResults(continuation.open(continuation.seal(pending.continuationState, binding, "secret"), binding, "secret"),
+  return withResults(pending.continuationState,
     pending.data.desktopToolCalls.map((call, index) => ({ id: call.id, result: results[index] })));
 }
 async function searched(cursor = "pool:5", papers = refs.map((_, index) => paper(index))) {

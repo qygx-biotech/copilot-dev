@@ -231,8 +231,8 @@ test("novel cross-source composition prepares both domains and computes rank det
   assert.ok(context.semanticExperimentResult.unappliedConstraints.some((item) => item.field === "temperature_difference"));
   assert.ok(context.experiments.relevantExperimentIds.length);
   assert.ok(context.semantic.plan.steps.length > 1);
-  const backend = require("../index.js")._test;
-  const agent = require("../side-chat-agent.js");
+  const backend = require("../../shared/agent/request-context.js");
+  const agent = require("../../shared/agent/side-chat-agent.js");
   const local = backend.sanitizeLocalWorkspaceContext(context, context.semantic.ir.goal);
   const knowledge = agent.createSideChatKnowledgeBase({ localWorkspaceContext: local });
   const paper = knowledge.paperLookup.papers.find((item) => item.item.content.includes("assay was performed at 35°C"));

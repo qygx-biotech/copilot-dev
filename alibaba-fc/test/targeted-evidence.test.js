@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict'), jwt = require('jsonwebtoken');
 const backend = require('../index.js'), transcript = require('../../shared/conversation-transcript.js');
+const agentChat = require("./helpers/agent-chat.js");
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
 const model = 'google/gemma-4-31b-it', question = 'SurfDock的源代码仓库在哪里？';
@@ -45,14 +46,14 @@ async function dispatch(t, f, respond) {
   const token = jwt.sign({ account: env.ADMIN_ACCOUNT, role: 'admin' }, env.JWT_SECRET);
   let extra = {}, result;
   for (let round = 0; round < 5; round++) {
-    const response = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
+    const response = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
       mode: 'side_chat', model, originalRequest: question, messages: [{ role: 'user', content: question }], localWorkspaceContext: f.context,
       conversationTranscript: transcript.normalize(), callContext: { turnId: f.options.turnId, callRole: 'answer', profile: 'medium' }, ...extra }) });
     assert.equal(response.statusCode, 200, response.body); result = JSON.parse(response.body);
     if (!result.desktopToolCalls) break;
     const batch = [];
     for (const call of result.desktopToolCalls) batch.push(await f.service.executeAgentTool(call, { turnId: f.options.turnId }));
-    receipts.push(...batch); extra = { desktopContinuation: result.desktopContinuation, desktopToolResults: batch };
+    receipts.push(...batch); extra = { boundary: result.boundary, desktopToolResults: batch };
   }
   return { result, requests, receipts };
 }

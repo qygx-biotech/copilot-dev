@@ -1,16 +1,28 @@
 # BioDesign Copilot Alibaba Function Compute Backend
 
-This folder contains the authoritative cloud gateway for BioDesign Copilot. Electron's authenticated AI traffic uses this route:
+This folder contains the authoritative cloud gateway for BioDesign Copilot. Electron's authenticated AI traffic uses these routes:
 
 ```text
 docs/ frontend -> Alibaba Function Compute HTTP endpoint -> Requesty
+desktop agent loop (Electron utility process) -> POST /api/model/turn -> Requesty
 ```
 
 Electron never calls Requesty directly. The retired `worker/` implementation contains no Requesty client; Requesty credentials remain in Function Compute environment variables or secrets. The backend validates chat model choices before forwarding them to Requesty.
 
+## Architecture
+
+Side Chat and Agent Work run on the desktop agent loop (`shared/agent/local-driver.js` in an Electron utility process). FC does not run the agent loop. For the loop, FC is the model proxy: [`/api/model/capabilities`](#model-proxy-endpoint) resolves the model and turn policy once per turn, and every model step is one [`/api/model/turn`](#model-proxy-endpoint) call that applies the user's provider key on the server. FC also keeps:
+
+- login, sessions and beta-user key resolution;
+- Deep retrieval planning and reranking (`/api/knowledge/*`), Paper Card and native-PDF endpoints (`/api/literature/*`) and corpus mapping;
+- semantic interpretation, context routing, wiki updates, image understanding, audio transcription and `/api/sources/fetch`;
+- the retained OSS document and diagnostic endpoints.
+
+The FC `/chat` agent-loop route was removed, together with signed desktop continuations, completed-call stream tickets (`/api/runtime/verify-stream-call`), the OSS context-archive adapter and chat timing. Both routes now return 404. Deployment notes below that mention `POST /chat` describe earlier archives; the same agent code now runs on the desktop, and its model calls reach FC only through the proxy. The agent loop's design is described in [the migration plan](../docs/local-agent-loop-migration.md).
+
 Side Chat now runs a [direct selected-model/tool loop](../docs/sidechat-direct-agent-loop.md), with no mandatory semantic interpretation or image-extraction call. Deploy the current runtime and synchronized `shared/side-chat-tools.js`; verify `runtimeContracts.sideChatAgentLoop: direct-tools-v1` in `/health`. The development deployment checked on 2026-09-20 lacks this marker. Old archives do not automatically include this change. The optional semantic/image endpoints and existing Agent Work path remain available.
 
-Side Chat now supports a versioned persisted tool transcript, source-version-aware replay, and streamed checkpoints. See [conversation persistence and deployment](../docs/sidechat-conversation-transcript.md). Deploy `conversation-history.js` and the synchronized shared transcript contract with the updated runtime. Intermediate checkpoints require the streaming HTTP adapter; buffered handlers retain only checkpoints returned in a completed response.
+Side Chat now supports a versioned persisted tool transcript, source-version-aware replay, and streamed checkpoints. See [conversation persistence and deployment](../docs/sidechat-conversation-transcript.md). Transcript handling now runs in the desktop agent loop (`shared/agent/conversation-history.js`); intermediate checkpoints stream to the renderer from the loop process, independent of the FC handler mode.
 
 The equation-input privacy fix requires `semantic-input-privacy.js` alongside the updated handler and shared contracts. See [equation validation, verification and deployment](../docs/sidechat-equation-validation.md). Its health marker is `semanticInputValidation: math-paths-v2`.
 
@@ -55,7 +67,7 @@ Deploy **`Archive-task-execution.zip`** to the current FC application and reload
 
 1. Leave `REQUESTY_TOOL_MODE` unset or set it to `sequential`.
 2. Upload this ZIP with `index.js` at its root using the existing FC deployment process. For manual packaging include the new `requesty-search-stage.js` alongside all existing runtime helpers, `src`, `shared`, `bootstrap`, dependency manifests and production `node_modules`.
-3. Reload/rebuild the updated desktop client. It passes `originalRequest` and preserves it through signed desktop and evidence-recovery continuations. Older continuations predate this binding; begin a new move after updating.
+3. Reload/rebuild the updated desktop client. It passes `originalRequest`, which the agent loop keeps for the whole turn.
 4. Test one web-only query, one authorized search/download move, and one web/local comparison needing evidence recovery. Check `requesty_tool_stage` for one search stage followed by local tools, semantic/request presence and at most one `completion-correction`. `agent_task_outcome` must distinguish actual save results from blocked/incomplete work; resumes must retain search status and avoid repeating downloads. Verify actual paths and MIME types before treating a requested PDF download as fulfilled.
 
 Sequential requests never mix `{type:"web_search"}` and functions or send Google's unverified `toolConfig` flag. Only `web`/`both` semantic scope requests a search stage; missing/legacy scope remains conservative. Both stages retain the selected model and authenticated user's Requesty key. Search findings and actual citations cross the boundary as bounded untrusted evidence; raw hosted protocol traces do not. Existing local tools, permissions, downloads and knowledge ingestion remain in their current owners. See [request shapes, recovery and limitations](../docs/WEB_SEARCH_AND_SOURCE_DOWNLOAD.md).
@@ -91,7 +103,7 @@ After a fresh search move, inspect **FC logs** for `requesty_web_search_response
 
 ## Agent panel model selection
 
-The middle Agent panel adds `google/gemini-3.1-flash-lite:flex` alongside Default and Nemotron. The selected model is captured per move and sent as `model` in `POST /chat` with `mode: "agent_instruction"`. FC validates it using the same request-local model abstraction, and sends that exact ID in Requesty Chat Completions for every answer/tool-loop turn, including streaming and signed desktop download continuations. Default/older clients retain the configured answer model. Changes during a run apply to the next move.
+The middle Agent panel adds `google/gemini-3.1-flash-lite:flex` alongside Default and Nemotron. The selected model is captured per move and sent as `model` with the agent turn (`mode: "agent_instruction"`). FC validates it in `/api/model/capabilities` and `/api/model/turn` using the same request-local model abstraction, and sends that exact ID in Requesty Chat Completions for every answer/tool-loop step of the turn. Default/older clients retain the configured answer model. Changes during a run apply to the next move.
 
 The Gemini 3.1 update is packaged in `Archive-gemini-3.1-flash-lite.zip`. Deploy this archive to the current FC application and reload the client together. Saved Agent selections of Gemini 2.5 migrate to Gemini 3.1; historical messages retain their original model metadata.
 
@@ -107,7 +119,7 @@ Transport references: [Requesty extra body fields](https://docs.requesty.ai/fram
 
 An explicit Agent selection also travels through `callContext.model` and the existing `X-BioDesign-Chat-Model` header to preparation, wiki updates, semantic interpretation, planning/reranking, corpus workers and evidence recovery. These tasks use the same selected model and its own capability configuration. Agent Default and requests without a selection retain their configured role models. Gemini Flex is an Agent-only option; Side Chat selection and download permissions are unchanged. Gemini 3.1 Flex has confirmed `supportsWebSearch: true` and `jsonSchema: true` defaults in `requesty-models.js`; explicit per-model entries in `REQUESTY_MODEL_CAPABILITIES_JSON` can override them. Other models retain metadata-based search gating. Deploy the updated FC backend before using the new client selection, and ensure the user's Requesty account can access this model. Tests mock provider responses; live model access has not been verified.
 
-For troubleshooting, the FC `chat_model_selection` log records the requested and resolved answer model, and `/chat` returns the actual request model as `model`. The client debug log includes the requested model at `main-agent.started` and the FC-reported model at `main-agent.completed`. Requesty metadata already tags each call by role (for example `biodesign:semantic_parser` or `biodesign:answer`) and turn ID, so preparation can be distinguished from the final answer.
+For troubleshooting, the FC `model_turn_usage` log records the resolved model for every proxied step, and the agent turn result reports the actual request model as `model`. The client debug log includes the requested model at `main-agent.started` and the FC-reported model at `main-agent.completed`. Requesty metadata already tags each call by role (for example `biodesign:semantic_parser` or `biodesign:answer`) and turn ID, so preparation can be distinguished from the final answer.
 
 The model-propagation fix is available in `Archive-agent-model-selection.zip`. Upload it to the current FC application using the existing handler/runtime, and reload or rebuild the updated client. It includes all runtime helpers and production dependencies; the previous `Archive.zip` remains untouched.
 
@@ -254,7 +266,7 @@ No production dependency was added for the local-workspace routes. The existing 
 
 ## Literature shortlist validation and recovery
 
-Agent Work literature acquisition starts with the main model, the original request, a metadata-only project catalog and permitted tools. A local acquisition-entry shortcut bypasses the separate semantic LLM and eager PDF preparation for paper search/download wording; unrelated Agent Work preparation and Side Chat remain on their existing paths. Academic tool availability follows the desktop capability and existing permissions, independently of semantic IR. The model chooses whether to invoke them; the first academic invocation initializes host workflow state. The structured flow remains plan, collect, select, download, and plan/search or selection/download can share a model turn. The paper MCP server and PDF acquisition remain local to Electron; FC coordinates model calls and signed desktop handoffs. Mixed requests can use the existing project evidence tools on demand, without preparing Paper Cards merely to acquire new papers.
+Agent Work literature acquisition starts with the main model, the original request, a metadata-only project catalog and permitted tools. A local acquisition-entry shortcut bypasses the separate semantic LLM and eager PDF preparation for paper search/download wording; unrelated Agent Work preparation and Side Chat remain on their existing paths. Academic tool availability follows the desktop capability and existing permissions, independently of semantic IR. The model chooses whether to invoke them; the first academic invocation initializes host workflow state. The structured flow remains plan, collect, select, download, and plan/search or selection/download can share a model turn. The paper MCP server and PDF acquisition remain local to Electron; the desktop agent loop coordinates model calls (through the FC proxy) and host tool boundaries. Mixed requests can use the existing project evidence tools on demand, without preparing Paper Cards merely to acquire new papers.
 
 Saving authorization is checked against the original request, never model plans or tool results. Search-only, negated or instructional download wording cannot authorize saving, even if a model emits a download call. This intentionally conservative English/Chinese check can miss unfamiliar wording; it does not grant permission on uncertainty. Topic requests default to 10 papers when plan_literature_search.requested_count is omitted. That argument accepts the user’s explicit count (1–100); explicit numeric paper counts remain host limits. One download_papers invocation accepts the remaining validated selection, up to 100 references. Electron executes sequentially (concurrency 1), so routine execution boundaries do not require model calls. The original ten-minute move deadline and existing search/tool/model budgets remain unchanged; large targets are best-effort within those limits. Named-paper requests remain restricted to the named set. Existing accepted continuation plans retain their counts, and older five-reference handoffs remain valid. Aggregate receipts include attempted/saved/failed/not-attempted counts; successful files survive cancellation or deadline exhaustion. Detailed local receipts are saved under .biodesign/academic/receipts. Download handoffs are bounded to 160,000 JSON characters inside the existing 180,000-character continuation-result envelope; verbose acquisition diagnostics are compacted without dropping handles, saved paths or failure codes. Selection allows up to the existing 120-candidate ceiling so a 100-paper target can retain relevant reserves. Existing continuation states with semantic IR remain compatible. The lightweight frontend entry shortcut recognizes acquisition wording; requests outside that shortcut retain legacy preparation. `test/academic-main-loop.test.js` and `test/academic-desktop-flow.test.js` cover the main-model entry, local evidence on demand, named papers, permissions, count validation and signed recovery paths with controlled provider responses.
 
@@ -264,7 +276,7 @@ Plan-result compaction reconstructs a complete historical acceptance receipt fro
 
 Search input normalization removes exact duplicate query strings, including `query` repeated in `queries`, without trimming, case-folding, rewriting or dropping distinct searches. Empty normalized `queries` is omitted. Existing query counts, provider/query job limits and field limits are validated afterwards. Invalid inputs identify the field, invalid value and required correction. `INVALID_ACADEMIC_INPUT` searches participate in bounded recovery, including desktop-returned failures; accepted corrected inputs release the gate so searching, selection and authorized saving can continue. An opaque desktop validation failure is reported as an argument-level blocker when its specific field cannot be established.
 
-The normal literature sequence is plan → collect candidate pool → select → download. Initial local MCP searches return up to the existing 20-paper response limit from the already collected, deduplicated cache, even if the model supplies a smaller `limit`. The existing 65,000-character paper-batch cap may return fewer. This consumes no extra provider requests and retains the shared 35-second provider deadline, provider/query limits, 120-candidate workflow cap and global call/time budgets. Explicit cursor requests still use their original `limit` and all original search parameters. A `next_cursor` never forces a preliminary shortlist rejection or another search; additional queries/pages are optional when relevance, evidence, requested count or topic coverage is insufficient. Older signed continuations waiting on `INSPECT_NEXT_PAGE_BEFORE_SELECTION` or `UNINSPECTED_CANDIDATES_REMAIN` are released to revalidate selection; real cursor-input, evidence and coverage errors remain enforced. `sources_exhausted` expresses the model's assessment of the inspected pool, not exhaustion of every provider record.
+The normal literature sequence is plan → collect candidate pool → select → download. Initial local MCP searches return up to the existing 20-paper response limit from the already collected, deduplicated cache, even if the model supplies a smaller `limit`. The existing 65,000-character paper-batch cap may return fewer. This consumes no extra provider requests and retains the shared 35-second provider deadline, provider/query limits, 120-candidate workflow cap and global call/time budgets. Explicit cursor requests still use their original `limit` and all original search parameters. A `next_cursor` never forces a preliminary shortlist rejection or another search; additional queries/pages are optional when relevance, evidence, requested count or topic coverage is insufficient. A selection blocker left by the removed inspection gate (`INSPECT_NEXT_PAGE_BEFORE_SELECTION` or `UNINSPECTED_CANDIDATES_REMAIN`) is released to revalidate selection; real cursor-input, evidence and coverage errors remain enforced. `sources_exhausted` expresses the model's assessment of the inspected pool, not exhaustion of every provider record.
 
 Validation errors carry the offending paper/value, allowed IDs and labels, and the required correction. Shortlist validation reports semantic violations across all rows together and leaves the accepted selection unchanged until the whole batch is valid. The harness supplies those errors on bounded recovery turns and suppresses identical failed tool calls before dispatch or tool-budget charging. Each unresolved episode allows at most two identical retries, four validation failures, or three recovery model turns. Resolving an issue such as pagination resets that episode's allowance; lifetime counters remain available for diagnostics, and the overall eight-model-turn / 24-tool-call limits stay unchanged. Fresh metadata that repairs missing abstracts permits revalidation, including unchanged shortlist arguments; empty refreshes preserve known evidence. Pagination errors provide `required_tool_call` with the returned cursor and original search parameters. Repeating an initial query, changing cursor parameters, failed responses and non-advancing cursors do not count as inspecting the next page.
 
@@ -272,9 +284,9 @@ An accepted shortlist permits the already-authorized download to continue automa
 
 Final literature messages preserve the assistant's `reply`, including its language, lists and explanations. The harness does not replace it with a download summary or append selection reasons/gaps. Verified execution counts and paths remain in `taskOutcome`/`downloadResults`; assessment details remain in `academicSelection`. A factual host fallback is used only when no final reply is available, including exhausted validation recovery. Known online `paper_ref` citations render as links derived from host metadata rather than unresolved workspace citations. Code examples and unrelated local-source citation behavior are preserved. `test/academic-reply.test.js`, the production desktop-flow tests and the Electron Agent Work fixture cover response, display and saved-history consistency.
 
-An empty provider response during literature download recovery is detected from assistant content and usable function calls, independently of finish reason or token usage. The harness allows one corrective model turn within the remaining step/tool/time budgets, using the fresh host candidate catalog and existing selection/download validation. The allowance and last usable reply survive signed continuations. If recovery stays empty or a budget is exhausted, the previous reply and verified saved files are returned with an incomplete recovery status; without a reply, the host generates a factual summary. `taskOutcome.emptyResponseRecovery` records the stopping limit and allowlisted finish reason, request ID, numeric usage and provider codes. Credentials, prompts and arbitrary provider error prose are excluded. `test/academic-empty-recovery.test.js` exercises the production harness and Requesty JSON/SSE adapter with controlled responses.
+An empty provider response during literature download recovery is detected from assistant content and usable function calls, independently of finish reason or token usage. The harness allows one corrective model turn within the remaining step/tool/time budgets, using the fresh host candidate catalog and existing selection/download validation. The allowance and last usable reply survive host tool boundaries. If recovery stays empty or a budget is exhausted, the previous reply and verified saved files are returned with an incomplete recovery status; without a reply, the host generates a factual summary. `taskOutcome.emptyResponseRecovery` records the stopping limit and allowlisted finish reason, request ID, numeric usage and provider codes. Credentials, prompts and arbitrary provider error prose are excluded. `test/academic-empty-recovery.test.js` exercises the production harness and Requesty JSON/SSE adapter with controlled responses.
 
-Regression coverage is in `test/academic-shortlist-recovery.test.js`, `test/academic-search-recovery.test.js`, `test/academic-evidence-recovery.test.js`, `test/academic-candidate-pool.test.js` and `test/academic-desktop-flow.test.js`. Coverage includes optional cursor correction followed by several missing abstracts, batch and incremental correction through real temporary PDF saves, metadata repair, identical retries and malformed historical search results. Candidate-pool integration tests run the production harness, signed continuations, desktop execution and real stdio MCP with controlled provider workers, including deduplication, size limits, optional paging/search and direct selection/download despite a remaining cursor. Those stdio cases require the Python build environment installed by `paper:build`; host-only cases run without it. The desktop flow additionally exercises semantic routing, the production renderer and authenticated FC handler. These controlled model/MCP tests do not measure live provider availability or model quality. Include all root JavaScript modules, including `academic-recovery.js` and `academic-context.js`, when packaging the FC handler, and run `npm run sync:shared` for the shared validator. Electron preparation also synchronizes this shared contract for desktop builds; rebuilding Electron alone does not update the FC harness.
+Regression coverage is in `test/academic-shortlist-recovery.test.js`, `test/academic-search-recovery.test.js`, `test/academic-evidence-recovery.test.js`, `test/academic-candidate-pool.test.js` and `test/academic-desktop-flow.test.js`. Coverage includes optional cursor correction followed by several missing abstracts, batch and incremental correction through real temporary PDF saves, metadata repair, identical retries and malformed historical search results. Candidate-pool integration tests run the production harness, desktop agent-loop boundaries, desktop execution and real stdio MCP with controlled provider workers, including deduplication, size limits, optional paging/search and direct selection/download despite a remaining cursor. Those stdio cases require the Python build environment installed by `paper:build`; host-only cases run without it. The desktop flow additionally exercises semantic routing, the production renderer and authenticated FC handler. These controlled model/MCP tests do not measure live provider availability or model quality. Include all root JavaScript modules, including `academic-recovery.js` and `academic-context.js`, when packaging the FC handler, and run `npm run sync:shared` for the shared validator. Electron preparation also synchronizes this shared contract for desktop builds; rebuilding Electron alone does not update the FC harness.
 
 ## Local-Workspace Literature Endpoints
 
@@ -302,7 +314,7 @@ None of these routes accepts an OSS key, a directory handle, or a project folder
 
 Function Compute requests Requesty's strict `json_schema` response mode when the configured model advertises it, otherwise it uses `json_object` plus the identical host-side schema validation. Malformed structured output, chain-of-thought fields, duplicate IDs, hallucinated IDs, and out-of-range or non-finite scores fail closed. Sanitized errors never disclose credentials, model configuration, prompts, or provider response bodies.
 
-The existing authenticated `POST /chat` route also accepts an optional bounded `localWorkspaceContext` object from the frontend. Function Compute whitelists its compact source map, hard paper/experiment scopes, coverage, project summaries, metadata-only inventory, processed evidence, and limitation notices. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence. The response includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. This route still uses the existing Requesty configuration and does not persist the context.
+An agent turn carries an optional bounded `localWorkspaceContext` object from the renderer to the desktop agent loop. The loop (`shared/agent/request-context.js`) whitelists its compact source map, hard paper/experiment scopes, coverage, project summaries, metadata-only inventory, processed evidence, and limitation notices. The complete Project context / goal is placed in its own durable system message before the workspace catalog, conversation, or Agent Work evidence. The result includes `localWorkspaceFilesUsed` and `localWorkspaceScope` for diagnostics. FC sees this context only inside the model messages of `/api/model/turn` calls and does not persist it.
 
 Model-generated JSON is decoded through `model-json.js` before the existing schema/provenance validators. It narrowly repairs unescaped LaTeX in string values (including `\mu` and mathematical control sequences inside explicit math delimiters), without repairing JSON structure or changing provider/model selection. Correctly JSON-escaped math, multiline strings and row separators round-trip unchanged through normal JSON storage. Ambiguous ordinary JSON escapes outside math remain JSON escapes; this is not a general malformed-JSON recovery mechanism. Markdown wiki prose needs no JSON decoding. HTTP envelopes, tool arguments, configuration and saved-file parsing remain strict. This backend-only fix requires deploying the FC code including `model-json.js`; no storage migration or successful-card regeneration is needed.
 
@@ -312,7 +324,7 @@ Workspace open and Refresh synchronize only cheap file metadata; they perform ze
 
 Workspace-tree selections map to stable paper and experiment source IDs. Explicit selections define hard tool scopes. With no paper selection, ready metadata and content indexes are searched first, cheap metadata identifies likely unprepared candidates, and only candidates are prepared. Precise answers use original page/chunk evidence; Paper Cards can aid broad interpretation but are never the sole evidence. Experiment CSV/XLS/XLSX/TSV/TXT files are normalized lazily into bounded structured records with raw values and file/sheet/range provenance. Retrieved evidence is request-scoped and is not copied into persistent conversation history.
 
-Side Chat and Agent Work both use the same bounded model-driven tool loop in `side-chat-agent.js`; only authorization and final response parsing differ. Informational and internal-state effects are shared. Side Chat receives a structured denial for official result-producing actions such as `update_recommendation`; Agent Command retains its existing recommendation commit path. The server cannot open the browser's local folder, so source preparation and state persistence remain in the shared browser service and server tools inspect only request-scoped evidence.
+Side Chat and Agent Work both use the same bounded model-driven tool loop in `shared/agent/side-chat-agent.js`, run by the desktop agent loop; only authorization and final response parsing differ. Informational and internal-state effects are shared. Side Chat receives a structured denial for official result-producing actions such as `update_recommendation`; Agent Command retains its existing recommendation commit path. Source preparation and state persistence remain in the renderer's project service, which answers the loop's host tool calls at step boundaries; loop-side tools inspect only request-scoped evidence.
 
 When a PDF-capable model also supports schema output on the same request, native PDF analysis uses strict `json_schema` directly. Otherwise it performs native PDF analysis first and a second schema-constrained extraction call (or `json_object` with host validation when schema output itself is unavailable). The default literature path remains local parsed retrieval; native PDF is selected only for whole-paper/layout-sensitive work or bounded recovery.
 
@@ -340,32 +352,35 @@ Health check:
 curl https://your-alibaba-fc-endpoint/health
 ```
 
-Chat request:
+Model proxy request (agent turns themselves run in the desktop app):
 
 Use a `TOKEN` returned by the existing `/api/login` flow (the complete login command is shown below).
 
 ```bash
-curl -X POST https://your-alibaba-fc-endpoint/chat \
+curl -X POST https://your-alibaba-fc-endpoint/api/model/capabilities \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Help draft a lactose biosensor project memo."}]}'
+  -d '{"version":1,"surface":"side_chat"}'
+
+curl -X POST https://your-alibaba-fc-endpoint/api/model/turn \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"version":1,"surface":"side_chat","messages":[{"role":"user","content":"Reply with one short sentence."}]}'
 ```
 
-Expected `/chat` response shape:
+Expected `/api/model/turn` response shape (provider failures keep `200` with `ok: false`, `origin: "provider"` and a `category`):
 
 ```json
 {
-  "reply": "string",
-  "project": {
-    "summary": "string",
-    "organism": "string",
-    "missingInformation": ["string"],
-    "safetyLevel": "string",
-    "safetyNotes": "string",
-    "draftMemo": "string"
-  }
+  "ok": true,
+  "model": "string",
+  "api": "chat_completions",
+  "capabilities": { "supportsTools": true, "supportsImages": false, "supportsWebSearch": false, "toolMode": "sequential" },
+  "result": { "ok": true, "message": { "role": "assistant", "content": "string" }, "usage": {} }
 }
 ```
+
+`POST /chat` and `POST /api/runtime/verify-stream-call` return 404.
 
 ## Temporary OSS Write/Read Test
 
@@ -394,9 +409,9 @@ The PDF workflow uses the existing JWT bearer login and these document endpoints
 - `POST /api/documents/upload-url` validates a PDF name and size, creates an application-controlled key under the authenticated account prefix, and returns a five-minute OSS V4 signed PUT URL.
 - `POST /api/documents/review` runs only after an explicit user action. It reviews an owned PDF and caches the structured result as `.paper-review.json` in the same UUID folder. A repeated request returns that cache unless `force: true` is supplied.
 - `POST /api/documents/delete` permanently deletes the owned PDF and its cached review sidecar.
-- `POST /chat` receives a PDF inventory, summary-availability flags, up to three selected keys, and bounded recent user/assistant history. Side Chat accepts normal plain-text model replies instead of requiring the full recommendation JSON schema. It uses cached summaries for relevance routing, reads full text only for explicit/relevant PDFs, and uses summary map-reduce for large collection-wide questions. HTTP 503 permits up to five total attempts (the initial call plus four retries), within the existing deadline and cancellation limits. Other transient HTTP 408, 425, 429, and 5xx errors retain one retry; callers may impose stricter attempt limits.
+- Chat over stored OSS PDFs (`storedDocuments` on the former `POST /chat`) was removed with the FC agent loop. The desktop agent loop rejects browser-session uploads and stored documents.
 
-For the active local-workspace flow, `/chat` receives locally prepared cached summaries or bounded source excerpts through `localWorkspaceContext`; it does not receive a directory handle, arbitrary local path access, original PDF bytes, login password, JWT, API key, or Alibaba credential in the JSON body. The Authorization header continues to carry the existing JWT independently.
+For the active local-workspace flow, the desktop agent loop sends locally prepared cached summaries or bounded source excerpts to `/api/model/turn` inside model messages; FC does not receive a directory handle, arbitrary local path access, original PDF bytes, login password, JWT, API key, or Alibaba credential in the JSON body. The Authorization header continues to carry the existing JWT independently.
 
 The browser never selects a bucket or object path. Keys have this form:
 
@@ -442,12 +457,6 @@ curl -sS -X POST "$FC_URL/api/documents/review" \
 curl -sS "$FC_URL/api/documents" \
   -H "Authorization: Bearer $TOKEN" \
   | jq
-
-curl -sS -X POST "$FC_URL/chat" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "{\"mode\":\"side_chat\",\"messages\":[{\"role\":\"user\",\"content\":\"What are this paper's main limitations?\"}],\"storedDocuments\":[{\"objectKey\":$(printf '%s' "$OBJECT_KEY" | jq -R .)}]}" \
-  | jq
 ```
 
 Expected review output includes `"ok": true`, `"summaryCached": true`, a non-empty `summary`, and the original `objectKey`. The list response must contain that key with `"summaryAvailable": true`. These OSS document endpoints are retained for compatibility tests; the active Workspace explorer and Side Chat local-file flow do not call them.
@@ -468,7 +477,7 @@ curl -sS "$FC_URL/api/documents" \
 
 The delete response must contain `"deleted": true`, and the key must no longer appear in the list or under the account prefix in the OSS console.
 
-Legacy OSS flow limitation: without a metadata database, the retained OSS listing cannot restore original module placement. Its full-text chat context remains capped at three routed PDFs and 26,000 characters, while collection questions use cached summaries. This does not describe the active local Workspace explorer: local conversations are persisted under `.biodesign/chat/`, and local file selection is path-based.
+Legacy OSS flow limitation: without a metadata database, the retained OSS listing cannot restore original module placement, and stored PDFs can no longer be used as chat context. This does not describe the active local Workspace explorer: local conversations are persisted under `.biodesign/chat/`, and local file selection is path-based.
 
 Negative checks:
 
@@ -497,7 +506,7 @@ environment files or tests. Older deployment archives remain untouched.
 After deployment, reload a development desktop after `npm run desktop:prepare`;
 packaged desktops need rebuilding and relaunching to include the updated renderer
 and shared contracts. Start a new move. The client now sends `originalRequest`,
-and signed continuations bind it explicitly. Agent Work uses task-directed
+and the agent loop keeps it for the whole turn. Agent Work uses task-directed
 execution prompts and one bounded correction for an eligible unattempted
 download; Side Chat remains conversational and cannot download. Final
 `taskOutcome` and per-source results are host-owned. See the architecture notes
@@ -517,11 +526,55 @@ Paper discovery must pass `callContext` through `LiteratureTools.searchPapers` i
 
 The two reproduced regressions are covered in `test/agent-model-boundaries.test.js` through real Deep retrieval and the production Agent message builder. The complete suite passed 652 tests. These functional fixes require a client reload/rebuild. `Archive-agent-routing-fix.zip` additionally includes specific `INVALID_CALL_CONTEXT` and `INVALID_SEMANTIC_CONTEXT` responses; the client logs allowlisted codes and HTTP status without logging response bodies.
 
+## Agent loop budget
+
+The model decides when a turn is finished. These optional variables only stop
+runaway turns; when one is reached, the agent makes its tool-free final synthesis
+from the collected receipts, so small-window or low-quota models still end with
+an answer. They are set on FC. `/api/model/capabilities` returns the budget at
+turn start and the desktop loop keeps it for the turn, so changing it does not
+affect turns already running.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AGENT_MAX_STEPS` | `64` | Main-model steps per turn (2–512); the last is reserved for synthesis |
+| `AGENT_MAX_TOOL_CALLS` | `192` | Tool calls per turn, including nested Code Mode calls (1–2048) |
+| `AGENT_TURN_BUDGET_MS` | `1800000` | Wall-clock time of a turn (60 s–6 h); `0` disables |
+| `AGENT_TURN_TOKEN_BUDGET` | unset | Provider-reported total tokens per turn (1000–1e9); unset or `0` disables |
+
+The 300-second FC request deadline bounds each proxied model call, not the turn;
+the desktop loop has no request deadline. Host tools run at most 64 per step
+(`HOST_BATCH_LIMIT` in `shared/agent/local-driver.js`); a later call in the same
+step is answered with a retry hint, and the model can repeat it in its next step.
+Context recovery stays reactive; see below.
+
+## Model proxy endpoint
+
+`POST /api/model/turn` makes one model call for an authenticated user through the existing Requesty or configured Responses transport. It runs no agent loop, tools or prompt assembly, and provider keys stay in FC. It is the desktop agent loop's only model path; see [the local agent loop migration](../docs/local-agent-loop-migration.md).
+
+- Request: `{ version: 1, model?, surface?, stage?, messages, tools?, temperature?, max_tokens?, response_format?, stream?, callContext?, retry? }`. Limits are in `model-turn.js` (`LIMITS`).
+- Proxy failures (validation, unknown model, missing capability, size, cap) return 4xx/5xx with `origin: "proxy"`. Session failures keep the existing `401 Unauthorized`.
+- Streaming emits `status`, `delta`, `sources`, `tool-call`, `usage` and a terminal `final` event. Without streaming, the same final object is returned as JSON.
+- The final object carries the unchanged provider result in `result`. Provider failures add `origin: "provider"` and a `category` (`context_overflow`, `input_quota`, `rate_limit`, `auth`, `transport` or `provider`); pass `result` to `overflow()` / `inputQuota()` for exact recovery decisions.
+- Each call logs `model_turn_usage` with a hashed user key, never the account name or credentials.
+
+`POST /api/model/capabilities` (`{ version: 1, model?, surface? }`) returns what the desktop loop needs before its first call, resolved with the same model environment and capability catalog that gate `/api/model/turn`: the model, API kind, tool/image/web-search capabilities (`agentCapabilities`), the `CONTEXT_*` context policy and `AGENT_*` loop budget, and opaque SHA-256 scope digests for learned limits. It never returns keys, provider endpoints or account names.
+
+The desktop loop (`shared/agent/local-driver.js`) runs every Side Chat and Agent Work turn through these two endpoints. Its context archives and learned limits are written under the project's `.biodesign/runtime/context-archives/`, and it has no 300 s request deadline; per-call timeouts and quota waits still apply.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MODEL_PROXY_DAILY_TOKEN_CAP` | unset (off) | Per-user daily (UTC) cap on provider-reported tokens for this endpoint. A soft cap: one call may overshoot. |
+| `MODEL_PROXY_USAGE_DIR` | OS temp + `/biodesign-model-usage` | Ledger location. Instances share counts only when this is shared storage. |
+
 ## Context recovery
 
-The production agent uses token-aware context recovery with archived originals,
-bounded summary/chunk retries, and learned provider limits. See
-[configuration, debug events, storage requirements, and validation](../docs/context-compaction.md).
-Set `CONTEXT_DEBUG=1` for metadata-only console diagnostics and configure
-`CONTEXT_MODEL_WINDOWS` for reliable first-request budgeting. No deployment is
-performed by enabling or testing this implementation locally.
+The desktop agent loop uses token-aware context recovery with archived originals,
+bounded summary/chunk retries, and learned provider limits. FC supplies its
+`CONTEXT_*` policy through `/api/model/capabilities`; configure
+`CONTEXT_MODEL_WINDOWS` here for reliable first-request budgeting. See
+[configuration, events, storage, and validation](../docs/context-compaction.md).
+`CONTEXT_ARCHIVE_DIR` and `CONTEXT_DEBUG` no longer affect agent turns: archives
+are written in the open project, and recovery events reach the desktop as loop
+status events. No deployment is performed by enabling or testing this
+implementation locally.

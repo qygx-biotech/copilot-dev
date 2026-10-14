@@ -14,9 +14,9 @@ for (const { question, cancel } of [
     const panel = { id: 'panel', instruction: question, selectedModel: 'fixture/selected', messages: [] };
     const noop = () => {}; let requests = 0;
     const controller = new AbortController();
-    const sandbox = vm.createContext({ console, Boolean, String, Set, AbortController, activeAgentRequest: false, panel,
-      findAnalysisPanel: () => panel, agentWorkApi: { beginTurn: () => ({ requestedModel: panel.selectedModel, permission: 'workspace_write' }), finishTurn: () => { panel.taskStatus = 'completed'; } },
-      makeId: () => 'demand-turn', getAgentModelOptions: () => [], setAgentBusy: noop, getSelectedPaperIds: () => [], getProjectContext: () => '',
+    const sandbox = vm.createContext({ console, Boolean, String, Set, AbortController, runningAgentTurns: new Map(), agentTurnRunning: () => false, agentTurnsAtLimit: () => false, agentTurnsChanged: () => {}, agentTaskFolder: () => 'task-folder', agentTranscripts: null, panel,
+      findAnalysisPanel: () => panel, agentWorkApi: { beginTurn: () => ({ id: 'demand-turn', requestedModel: panel.selectedModel, permission: 'workspace_write' }), finishTurn: () => { panel.taskStatus = 'completed'; } },
+      makeId: () => 'demand-turn', getAgentModelOptions: () => [], getSelectedPaperIds: () => [], getProjectContext: () => '',
       projectContextService: f.service, workspaceManager: f.workspace, selectedWorkspacePaths: new Set(), workspaceTree: await f.workspace.scanDirectoryTree(), workspaceAbortController: new AbortController(),
       activeLiteratureOperations: 0, retrievalProfile: 'medium', currentLanguage: 'zh', USE_BACKEND: true, authToken: 'fixture',
       knowledgeService: null, literatureModule: f.literature, agentWorkArea: { getStreamHost: () => null }, analysisPanelStack: { querySelectorAll: () => [] },
@@ -104,13 +104,13 @@ test('cancellation during parsing prevents a subsequent paper-card model call', 
 
 
 test('cold source handles survive signed continuation; changed metadata still fails closed', async () => {
-  const backend = require('../index.js'), agent = require('../side-chat-agent.js'), continuation = require('../agent-continuation.js');
+  const backend = require('../index.js'), agent = require('../../shared/agent/side-chat-agent.js'), { withResults } = require('../../shared/agent/receipt-admission.js');
   const transcript = require('../../shared/conversation-transcript.js');
   const f = await demandFixture();
   const context = await f.service.buildContext({ ...f.options, question: 'Read paper 3' });
   let itemId;
   const run = (resume, name) => agent.runSideChatAgent({ surface: 'side_chat',
-    workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(context, 'Read paper 3') },
+    workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(context, 'Read paper 3') },
     originalRequest: 'Read paper 3', conversationMessages: [{ role: 'user', content: 'Read paper 3' }],
     conversationTranscript: transcript.normalize(), turnId: f.options.turnId, model: 'fixture/selected',
     systemPrompt: 'Read the requested paper.', supportsTools: true, projectToolsEnabled: true, resume,
@@ -125,8 +125,7 @@ test('cold source handles survive signed continuation; changed metadata still fa
   assert.equal(first.data.desktopToolCalls.length, 1);
   const result = await f.service.executeAgentTool(first.data.desktopToolCalls[0], { turnId: f.options.turnId });
   assert.equal(result.result.ok, true, JSON.stringify(result));
-  const signed = continuation.seal(first.continuationState, { project: 'fixture' }, 'fixture-secret');
-  const resumed = continuation.withResults(continuation.open(signed, { project: 'fixture' }, 'fixture-secret'), [result]);
+  const resumed = withResults(first.continuationState, [result]);
   const second = await run(resumed, 'cold-again');
   assert.equal(second.data.desktopToolCalls.length, 1, 'A metadata-bound handle remains valid after on-demand hashing');
   f.workspace.set(f.system.registry.get(f.ids[3]).path, 'Changed after signing', Date.now() - 1000);

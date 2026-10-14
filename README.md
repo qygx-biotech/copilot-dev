@@ -22,6 +22,16 @@ Alibaba Function Compute remains the authenticated, secret-bearing AI gateway:
 Electron -> user-selected local workspace -> bounded evidence or on-demand private PDF -> Function Compute -> Requesty
 ```
 
+Side Chat and Agent Work run on the desktop agent loop. The loop runs in an Electron utility process. FC is its model proxy: each model step is one authenticated `POST /api/model/turn`, which applies the provider key on the server and returns the provider's answer:
+
+```text
+renderer -> preload agent IPC -> main AgentLoopService -> agent-loop utility process (shared/agent/local-driver.js)
+   ↑  step boundaries: host tool calls and runtime checkpoints              │ one model step at a time
+   └─ receipts, queued input, current workspace context                     └─> FC /api/model/turn -> Requesty
+```
+
+The loop owns the turn's conversation, tool policy, budgets and context compaction, and keeps its state in the utility process for the whole turn. At each step boundary it pauses. The renderer runs the requested project, academic or download tools against the open workspace, then answers with the receipts and its current workspace context. Nothing about the turn is signed or carried back and forth through FC. Compaction archives are written under the project's `.biodesign/runtime/context-archives/`. A turn needs the desktop app with a project folder open. The browser-compatibility build reports that Side Chat and Agent Work are unavailable.
+
 The existing account/password screen supports the admin and configured beta users. FC verifies bcrypt passwords, signs user sessions, and resolves each beta user's own server-held Requesty key for all model calls. Admin credentials and `REQUESTY_API_KEY` remain compatible when beta configuration is absent. See [beta login setup and deployment](alibaba-fc/README.md#multi-user-beta-login) for `BETA_USERS_JSON`, `REQUESTY_KEY_BETA01`, adding users, and the tested deployment ZIP.
 
 Retrieval has two production modes:
@@ -59,8 +69,9 @@ Requesty credentials exist only in FC environment variables or secrets; selectab
 - `desktop/preload/` and `desktop/ipc/` - frozen capability bridge and validated allowlisted IPC.
 - `desktop/services/` - confined project filesystem, persisted desktop jobs, and structured execution registry.
 - `desktop/workers/` - isolated production QMD runtime; heavy indexing/model work never runs in the renderer or main event loop.
-- `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`).
-- `alibaba-fc/side-chat-agent.js` - the bounded effect-authorized tool loop shared by Side Chat and Agent Work.
+- `alibaba-fc/index.js` - deployed Node 20 Function Compute handler (`index.handler`): authentication, the model proxy (`/api/model/turn`, `/api/model/capabilities`), and the retrieval, paper-card, document, image and transcription endpoints.
+- `shared/agent/` - the agent loop shared by Side Chat and Agent Work: the local driver (`local-driver.js`), the bounded effect-authorized tool loop (`side-chat-agent.js`), budgets, context compaction and recovery.
+- `desktop/services/agent-loop-service.mjs`, `desktop/workers/agent-loop-*.mjs`, `docs/local-agent-transport.js` - the agent loop's utility-process host, its FC proxy client, and the renderer's view of a turn as a sequence of step-boundary exchanges.
 - `local-backend/` - shared `ProjectQmdManager` plus a compatibility-only localhost adapter for targeted browser development/tests.
 - `docs/QMD_KNOWLEDGE_ARCHITECTURE.md` - authority, lifecycle, invalidation, model, retrieval, and benchmark design.
 - `local-backend/benchmark/REPORT.md` - measured lexical/cloud-replay results plus the historical local-semantic baseline.
@@ -107,6 +118,7 @@ Initialization occurs only after confirmation and creates:
     ├── chat/
     │   ├── index.json
     │   └── conversations/
+    ├── memory/            # memory across conversations, once turned on (docs/codex-parity-features.md)
     └── cache/
 ```
 
@@ -258,18 +270,18 @@ All require the existing JWT bearer token. Deployment instructions and legacy OS
 
 The desktop now implements Nanobot-style input queues, skills, generic MCP
 connections and generic subagents in JavaScript. Electron remains the local
-host; authenticated Alibaba FC requests and Requesty remain the model path.
+host and runs the agent loop; the authenticated FC model proxy and Requesty
+remain the model path.
 The Python `nanobot/` checkout is a reference, not a packaged runtime dependency.
 
 - **Input during a turn:** Side Chat and Agent Work accept text through **Add to
   current turn**. Delivery badges distinguish queued, received and undelivered
-  input. FC yields signed checkpoints after ordinary model/tool cycles and before
-  accepting a final answer. The host delivers new input at these boundaries;
+  input. The agent loop pauses at checkpoints after ordinary model/tool cycles
+  and before accepting a final answer. The host delivers new input at these boundaries;
   it does not interrupt an in-flight provider request. The original request,
   model, permissions, project and source selection remain bound to the turn.
-  Images and permission/scope changes require a new turn. Injection IDs are
-  deduplicated along the signed continuation chain; this is not a server-side
-  guarantee of exactly-once inference after replaying an older token.
+  Images and permission/scope changes require a new turn. The loop process
+  deduplicates injection IDs for the life of the turn.
 - **Skills:** **Skills & MCP → Skills** manages `.biodesign/skills/<name>/SKILL.md`.
   Existing `skills/<name>/SKILL.md` files are discovered too. Managed project
   skills override project skills, which override optional bundled skills.
@@ -300,8 +312,8 @@ The Python `nanobot/` checkout is a reference, not a packaged runtime dependency
 The existing compaction, task/job system, worktree behavior and scientific tool
 controls are unchanged. No unrestricted filesystem or shell tool was added.
 Receipt and capability size limits fail explicitly without silently truncating
-scientific evidence. Desktop and FC must both be updated to use the new protocol;
-building this branch does not deploy FC or update an installed desktop app.
+scientific evidence. Desktop and FC must both be updated to use the model-proxy
+protocol; building this branch does not deploy FC or update an installed desktop app.
 
 **Next review:** Generic MCP OAuth/account ownership and credential-storage policy
 need a product decision. Configured environment/header credentials currently use
@@ -311,10 +323,10 @@ enabled localhost endpoints are supported; private LAN endpoints are not enabled
 These are not changes to the integrated literature/browser login flow.
 
 Implementation entry points: `shared/runtime-extensions.js`,
-`alibaba-fc/side-chat-agent.js`, `docs/runtime-session.js`,
+`shared/agent/side-chat-agent.js`, `docs/runtime-session.js`,
 `docs/generic-subagents.js`, `desktop/services/skills-service.mjs` and
-`desktop/services/generic-mcp-service.mjs`. Regression coverage includes signed
-handler/renderer handoffs, child scope isolation, skill discovery, real MCP SDK
+`desktop/services/generic-mcp-service.mjs`. Regression coverage includes agent-loop
+step-boundary handoffs with the renderer, child scope isolation, skill discovery, real MCP SDK
 handshakes and Electron queue/management interactions with fixture providers.
 
 ### Nanobot workbench additions
@@ -343,8 +355,8 @@ underlying persistence and execution paths:
   permission. `/new`, `/apps`, `/skills`, `/settings` and `/help` are local
   commands; selecting a suggestion edits the draft, and Send runs the command.
 - **Activity and usage:** Typed activity cards summarize actual tool receipts.
-  FC records provider-reported input, output and cached tokens per model request,
-  preserving the ledger across signed continuations. Recent-round charts show
+  The agent loop records provider-reported input, output and cached tokens per
+  model request for the whole turn. Recent-round charts show
   reported totals and cache hit rates, with missing counters/retry coverage
   explicitly marked incomplete. Context-window percentages are not invented.
   Inline diffs compare bounded before/after text around successful existing
@@ -380,7 +392,7 @@ requested. No deployment or installed-app update is performed by this change.
 
 The left column has one generic Workspace explorer beneath Project Context. Checkboxes provide multi-file selection, the current context is shown as removable chips above Side Chat, and no selection means **Entire Project**. Project scope uses the saved goal/state, processed paper summaries, and file inventory without pretending that unprocessed files were read.
 
-Side Chat sends bounded recent conversation history, the current question, a compact source map, and only the evidence prepared for that request to the existing authenticated `/chat` endpoint. The full registry, all Paper Cards, parsed PDFs, and experiment tables are never injected. Explicit paper and experiment IDs are hard scopes. With no selection, ordinary questions search already-ready metadata/indexes first and prepare only likely candidates; explicit corpus synthesis prepares the frozen full scope. Coverage records discovered, snapshot-included, prepared, analyzed, failed, and missing papers. The existing Context area shows prepare/map/synthesis/verification progress and the final answer is prefixed with exact analyzed coverage.
+Side Chat sends bounded recent conversation history, the current question, a compact source map, and only the evidence prepared for that request to the desktop agent loop, whose model calls go through the authenticated FC model proxy. The full registry, all Paper Cards, parsed PDFs, and experiment tables are never injected. Explicit paper and experiment IDs are hard scopes. With no selection, ordinary questions search already-ready metadata/indexes first and prepare only likely candidates; explicit corpus synthesis prepares the frozen full scope. Coverage records discovered, snapshot-included, prepared, analyzed, failed, and missing papers. The existing Context area shows prepare/map/synthesis/verification progress and the final answer is prefixed with exact analyzed coverage.
 
 Both Side Chat and the existing **Agent instruction → Analyze & Recommend** surface call the same `ProjectContextService`, registry, readiness service, and source tools, then use the same bounded model-driven tool loop. Each tool has an effect: informational/internal-state tools are allowed from both surfaces, while official result-producing tools are reserved for Agent Command and destructive/external effects remain denied. Side Chat may therefore prepare sources, update deterministic metadata and compact typed memory, retry workflows, and recover the allowlisted browser analysis coordinator without changing the Current Recommendation. The optional context-router LLM is disabled by default, so unrelated messages make no preparatory source call.
 

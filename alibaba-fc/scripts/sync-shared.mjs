@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, cp, mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,4 +9,9 @@ for (const name of ["corpus-result-service.js", "advanced-tools.js", "runtime-co
   await mkdir(path.dirname(destination), { recursive: true });
   await copyFile(source, destination);
 }
+// The agent loop shared with the desktop app. Replace the whole directory so
+// a module removed from shared/agent cannot linger in an FC package.
+const agentDestination = path.join(packageRoot, "shared", "agent");
+await rm(agentDestination, { recursive: true, force: true });
+await cp(path.resolve(packageRoot, "..", "shared", "agent"), agentDestination, { recursive: true });
 console.log("Shared contracts prepared for Alibaba FC packaging.");

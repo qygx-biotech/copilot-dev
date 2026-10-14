@@ -2,7 +2,8 @@
 const test = require("node:test"), assert = require("node:assert/strict"), vm = require("node:vm");
 const fs = require("node:fs/promises"), path = require("node:path"), os = require("node:os"), jwt = require("jsonwebtoken");
 const semantic = require("../../shared/semantic-intent.js");
-const agent = require("../side-chat-agent.js"), backend = require("../index.js");
+const agent = require("../../shared/agent/side-chat-agent.js"), backend = require("../index.js");
+const agentChat = require("./helpers/agent-chat.js");
 const citations = require("../../shared/source-citations.js");
 const reported = require("./helpers/reported-search-download-ir.js");
 const model = "google/gemini-3.1-flash-lite:flex";
@@ -16,8 +17,8 @@ const download = selected => ({ id: "download", type: "function", function: { na
 function context(value = ir) { return { project: { workspaceId: "execution-project", goal: "EctD A163V methane conversion" }, semantic: { ir: value } }; }
 function run(extra = {}) {
   return agent.runSideChatAgent({ originalRequest: reported.query, conversationMessages: [{ role: "user", content: "Project wrapper: EctD A163V. Review strain engineering.\n" + reported.query }],
-    workspaceContext: { localWorkspaceContext: context() }, model, systemPrompt: backend._test.systemPrompt,
-    surface: "agent_command", desktopDownloads: true, downloadPermission: "workspace_write", supportsWebSearch: true, parseFinalAnswer: backend._test.parseModelResponse || JSON.parse,
+    workspaceContext: { localWorkspaceContext: context() }, model, systemPrompt: require("../../shared/agent/request-context.js").systemPrompt,
+    surface: "agent_command", desktopDownloads: true, downloadPermission: "workspace_write", supportsWebSearch: true, parseFinalAnswer: require("../../shared/agent/request-context.js").parseModelResponse || JSON.parse,
     ...extra });
 }
 function searchResponse(values = sources) { return { ok: true, message: { content: "Concrete candidate papers and supporting sources. Download selection remains pending.", web_search: { content: values } } }; }
@@ -67,7 +68,7 @@ test("exact reported task corrects premature review once, resumes real local dow
   const body = { mode: "agent_instruction", model, originalRequest: reported.query, messages: sandbox.buildAgentMessages(reported.query),
     localWorkspaceContext: context(), desktopTools: { version: 1, permission: "workspace_write", projectId: "execution-project" }, callContext: { turnId: "execution-turn", callRole: "answer", profile: "medium" } };
   const invoke = async input => {
-    const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(input) }, {});
+    const result = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(input) }, {});
     return { status: result.statusCode, data: JSON.parse(result.body) };
   };
   const first = await invoke(body);
@@ -87,8 +88,7 @@ test("exact reported task corrects premature review once, resumes real local dow
   });
   assert.equal(localAttempts, 3); assert.equal(fcAttempts, 1);
   assert.deepEqual(results.map(result => result.status), ["downloaded", "downloaded", "failed"]);
-  const resumed = { ...body, desktopContinuation: first.data.desktopContinuation, desktopToolResults: [{ id: first.data.desktopToolCalls[0].id, results }] };
-  assert.equal((await invoke({ ...resumed, originalRequest: "A different request" })).status, 400);
+  const resumed = { ...body, boundary: first.data.boundary, desktopToolResults: [{ id: first.data.desktopToolCalls[0].id, results }] };
   const final = await invoke(resumed);
   assert.equal(final.status, 200); assert.equal(final.data.error, "AgentTaskIncomplete");
   assert.equal(final.data.taskOutcome.status, "incomplete");

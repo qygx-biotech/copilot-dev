@@ -1,9 +1,9 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict"), jwt = require("jsonwebtoken");
 const semantic = require("../../shared/semantic-intent.js");
-const { runSideChatAgent } = require("../side-chat-agent.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js");
 const { toolMode, withCombinedToolConfig } = require("../requesty-models.js");
-const { evidenceMessage } = require("../requesty-search-stage.js");
+const { evidenceMessage } = require("../../shared/agent/requesty-search-stage.js");
 const model = "google/gemini-3.1-flash-lite:flex", url = "https://papers.example.org/ectd.pdf";
 const nativeSignature = "HOSTED_SIGNATURE_MUST_NOT_CROSS_STAGE", localSignature = "LOCAL_SIGNATURE_MUST_SURVIVE";
 const functionCall = (name, args = {}, id = "local-1") => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) }, extra_content: { google: { thought_signature: localSignature } } });
@@ -218,13 +218,14 @@ process.env.REQUESTY_API_KEY = "sequential-provider-fixture";
 process.env.REQUESTY_MODEL = model;
 delete process.env.REQUESTY_TOOL_MODE;
 const backend = require("../index.js");
+const agentChat = require("./helpers/agent-chat.js");
 const token = jwt.sign({ account: process.env.ADMIN_ACCOUNT, role: "admin" }, process.env.JWT_SECRET);
 const final = { reply: "Saved selected source and compared project evidence.", project: { summary: "Review", organism: "Unknown", missingInformation: [], safetyLevel: "Review", safetyNotes: "Review", draftMemo: "Draft" } };
 const response = (message, streaming) => streaming ? new Response(`data: ${JSON.stringify({ choices: [{ index: 0, delta: {
   ...message, tool_calls: message.tool_calls?.map((call, index) => ({ ...call, index })),
 }, finish_reason: message.tool_calls ? "tool_calls" : "stop" }] })}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } })
   : new Response(JSON.stringify({ choices: [{ message, finish_reason: message.tool_calls ? "tool_calls" : "stop" }] }));
-const send = (body, transport) => backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }, {}, transport);
+const send = (body, transport) => agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }, {}, transport);
 
 for (const streaming of [false, true]) for (const metadataKind of ["nested", "absent", "empty"]) test(`FC diagnoses ${metadataKind} citation metadata at the search boundary (${streaming ? "stream" : "JSON"})`, async t => {
   const query = "检索AI与合成生物学的论文并下载。";
@@ -327,9 +328,9 @@ for (const streaming of [false, true]) test(`FC search → download → continua
     callContext: { turnId: "sequential-move", callRole: "answer", profile: "medium" } };
   const transport = streaming ? { start: async () => {}, emit: async (event, data) => events.push({ event, data }) } : undefined;
   const first = JSON.parse((await send(body, transport)).body);
-  assert.equal(first.desktopToolCalls.length, 1); assert.ok(first.desktopContinuation);
+  assert.equal(first.desktopToolCalls.length, 1); assert.ok(first.boundary);
   assert.equal(first.semanticTelemetry.cloudCalls.answer, 2);
-  const last = JSON.parse((await send({ ...body, desktopContinuation: first.desktopContinuation,
+  const last = JSON.parse((await send({ ...body, boundary: first.boundary,
     desktopToolResults: [{ id: "local-1", results: [{ url, status: "downloaded", path: "literature/ectd.pdf", resolvedUrl: url, contentType: "application/pdf", downloadMethod: "local" }] }] }, transport)).body);
   assert.equal(requests.length, 4); assert.equal(last.reply, final.reply);
   assert.equal(last.webSearchSources[0].url, url); assert.equal(last.webSearchStatus.status, "completed");
@@ -358,7 +359,7 @@ test("research claims of completed actions do not replace a failed local tool re
     ? { ok: true, message: { ...searchMessage(), content: findings } }
     : { ok: true, message: { tool_calls: [functionCall("download_sources", { sources: [{ url }] })] } } });
   assert.equal(first.data.desktopToolCalls.length, 1, "A prose success claim cannot supply a desktop result");
-  const resume = require("../agent-continuation.js").withResults(first.continuationState,
+  const resume = require("../../shared/agent/receipt-admission.js").withResults(first.continuationState,
     [{ id: "local-1", results: [{ url, status: "failed", error: { code: "HTTP_ERROR", httpStatus: 403 },
       localError: { code: "HTTP_ERROR", httpStatus: 403 }, fallbackError: { code: "HTTP_ERROR", httpStatus: 403 } }] }]);
   const result = await run(query, "web", { resume, requestTurn: async request => {
@@ -375,161 +376,6 @@ test("research claims of completed actions do not replace a failed local tool re
   assert.match(result.data.reply, /Download attempted but failed/);
   assert.equal(result.data.webSearchSources[0].url, url);
   assert.equal(result.semanticTelemetry.cloudCalls.answer, 3);
-});
-
-for (const [surface, download] of [["side_chat", false], ["agent_instruction", false], ["agent_instruction", true]]) test(`production renderer ${surface} recovery retains search and counts once (download=${download})`, async t => {
-  const fs = require("node:fs"), vm = require("node:vm");
-  const { followUpFixture } = require("./helpers/follow-up-fixture.js");
-  const f = followUpFixture(), requests = [], exchanges = [], progress = [];
-  f.workspace.workspace.workspaceId = "W1";
-  f.literature.preparation.readSourceBytesForUse = async () => {};
-  f.service.buildContext = async () => assert.fail("Recovery must not restart preflight or ingestion");
-  const query = "Search online EctD papers and compare BetaDock's license" + (download ? " and download the selected PDF" : "");
-  const local = { ...localContext(query, "both"), project: { workspaceId: "W1", workspaceName: "Workspace" }, files: [], knowledge: { hits: [] },
-    literature: { selectedPaperIds: [], explicitPaperIds: ["P2"], relevantPaperIds: ["P2"], referenceResolution: { status: "resolved" } },
-    sourceMap: { selectedPaperIds: [], paperSources: f.sources }, notices: [] };
-  const read = id => functionCall("read_paper_evidence", { paper_id: "P2", query: "license" }, id);
-  t.mock.method(globalThis, "fetch", async (_url, options) => {
-    const request = JSON.parse(options.body); requests.push(request);
-    assert.equal(request.model, model); assert.equal(request.toolConfig, undefined);
-    assert.equal(options.headers.Authorization, `Bearer ${process.env.REQUESTY_API_KEY}`);
-    if (surface === "side_chat") {
-      assert.ok(request.tools.some(tool => tool.function?.name === "search_web"));
-      if (requests.length <= 2) return response({ tool_calls: [read(`read-${requests.length}`)] }, true);
-      assert.match(request.messages.findLast(message => message.role === "tool").content, /license is restrictive/);
-      return response({ content: "The original paper reports a restrictive license [[cite:P2:p4:original]]." }, true);
-    }
-    if (requests.length === 1) { assert.deepEqual(request.tools, [{ type: "web_search" }]); return response(searchMessage(), true); }
-    checkLocal(request);
-    assert.equal(request.tools.some(tool => tool.function?.name === "download_sources"), download);
-    if (requests.length === 2) return response({ tool_calls: [...(download ? [functionCall("download_sources", { sources: [{ url }] }, "save-1")] : []), read("read-1")] }, true);
-    assert.ok(request.messages.some(message => message.role === "system" && message.content.includes("recovery has been consumed")));
-    assert.ok(request.messages.some(message => message.content?.startsWith("External search evidence") && message.content.includes(url)));
-    const trace = request.messages.find(message => message.tool_calls);
-    assert.equal(trace.tool_calls.at(-1).extra_content.google.thought_signature, localSignature);
-    if (requests.length === 3) return response({ tool_calls: [read("read-2")] }, true);
-    assert.match(request.messages.findLast(message => message.role === "tool").content, /license is restrictive/);
-    const reply = "The original paper reports a restrictive license [[cite:P2:p4:original]].";
-    return response({ content: surface === "side_chat" ? reply : JSON.stringify({ ...final, reply }) }, true);
-  });
-  const source = fs.readFileSync(require.resolve("../../docs/app.js"), "utf8");
-  const functions = ["sendWorkbenchRequest", "sendWorkbenchRequestOnce"].map(name => source.match(new RegExp(`^async function ${name}\\([\\s\\S]*?^}$`, "m"))[0]).join("\n");
-  let downloads = 0;
-  const sandbox = vm.createContext({ Response, projectContextService: f.service, workspaceManager: f.workspace, workspaceAbortController: null,
-    authToken: token, selectedWorkspacePaths: new Set(), getSelectedPaperIds: () => [], experimentModuleCards: [], referenceDocuments: [], activeSideChatDocumentKeys: [],
-    MAX_BROWSER_REFERENCE_FILES: 1, TOTAL_REFERENCE_TEXT_LIMIT: 100, runtimeLog: null, literatureModule: null,
-    buildExperimentModulesForRequest: () => ({}), buildFlattenedExperimentDocumentsForRequest: () => [], collectExperimentNotesForRequest: () => [],
-    collectSelectedStoredDocumentKeys: () => [], collectStoredDocumentsForRequest: () => [], buildDocumentsForRequest: () => [], getProjectContext: () => "",
-    backendUrl: path => path, getAuthHeaders: headers => ({ ...headers, authorization: `Bearer ${token}` }), requireLoginForUnauthorized: () => {}, t: key => key,
-    fetch: async (_route, options) => {
-      exchanges.push(JSON.parse(options.body));
-      const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: options.headers, body: options.body }, {},
-        { start: async () => {}, emit: async (event, data) => progress.push({ event, data }) });
-      assert.equal(result.statusCode, 200, result.body);
-      return new Response(result.body, { status: result.statusCode });
-    },
-    window: { BioDesignEventStream: require("../../shared/event-stream.js"), BioDesignWebSearch: require("../../shared/web-search.js"), BioDesignSourceDownload: require("../../shared/source-download.js"),
-      biodesignDesktop: { execution: { runWorkflow: async ({ input }) => {
-        assert.ok(download); downloads++;
-        assert.equal(input.webSearchSources[0].url, url);
-        return [{ url, status: "downloaded", path: "literature/ectd.pdf", resolvedUrl: url, contentType: "application/pdf", downloadMethod: "local" }];
-      } } } },
-  });
-  vm.runInContext(functions, sandbox);
-  const result = await sandbox.sendWorkbenchRequest({ mode: surface, ...(surface === "side_chat" ? {} : { model }),
-    messages: [{ role: "user", content: query }], localWorkspaceContext: local,
-    desktopTools: surface === "side_chat" ? null : { version: 1, permission: download ? "workspace_write" : "read_only", projectId: "W1" },
-    callContext: { turnId: `recovery-${surface}-${download}`, callRole: "answer", profile: "medium" } });
-  assert.equal(requests.length, surface === "side_chat" ? 3 : 4); assert.equal(exchanges.length, download ? 3 : 2);
-  assert.equal(result.semanticTelemetry.cloudCalls.answer, surface === "side_chat" ? 3 : 4, "Side Chat counts only its selected tool loop; Agent Work retains the search stage");
-  if (surface !== "side_chat") { assert.equal(result.webSearchSources[0].url, url); assert.equal(result.webSearchStatus.status, "completed"); }
-  else assert.equal(result.webSearchSources, undefined, "No compulsory search precedes Side Chat");
-  assert.equal(result.evidenceRecoveryStatus.cycle, 1); assert.equal(f.reads.length, 1);
-  assert.equal(downloads, download ? 1 : 0);
-  assert.ok(exchanges.at(-1).agentContinuation); assert.equal(exchanges.at(-1).desktopContinuation, undefined);
-  assert.equal(exchanges.at(-1).desktopToolResults, undefined);
-  assert.ok(!JSON.stringify(progress).includes(localSignature));
-  if (surface === "side_chat") assert.equal(result.citations[0].sourceId, "P2");
-  assert.match(result.reply, /restrictive license/);
-});
-
-test("local-only Side Chat resumes the same bounded tool loop after host evidence recovery", async t => {
-  const f = require("./helpers/follow-up-fixture.js").followUpFixture();
-  const query = "解释 BetaDock 的许可证";
-  const local = { ...localContext(query, "workspace"), files: [], knowledge: { hits: [] }, evidenceRecovery: { version: 1, cycle: 0 },
-    literature: { explicitPaperIds: ["P2"], selectedPaperIds: [], referenceResolution: { status: "resolved" } },
-    sourceMap: { paperSources: f.sources, selectedPaperIds: [] } };
-  const body = { mode: "side_chat", messages: [{ role: "user", content: query }], localWorkspaceContext: local,
-    callContext: { turnId: "local-readonly-move", callRole: "answer", profile: "medium" } };
-  let count = 0;
-  t.mock.method(globalThis, "fetch", async (_url, options) => {
-    const request = JSON.parse(options.body); count++;
-    assert.ok(!request.tools?.some(tool => tool.type === "web_search"));
-    assert.ok(request.messages.some(message => message.role === "user" && message.content === query));
-    if (count === 1) return response({ tool_calls: [functionCall("read_paper_evidence", { paper_id: "P2", query: "license" }, "first-read")] }, false);
-    assert.ok(request.messages.some(message => message.role === "system" && message.content.includes("recovery has been consumed")));
-    const firstRead = request.messages.find(message => message.role === "tool" && message.tool_call_id === "first-read");
-    assert.match(firstRead.content, /PAPER_EVIDENCE_NOT_AVAILABLE/);
-    assert.equal(request.messages.find(message => message.tool_calls)?.tool_calls[0].extra_content.google.thought_signature, localSignature);
-    if (count === 2) return response({ tool_calls: [functionCall("read_paper_evidence", { paper_id: "P2", query: "license" }, "recovered-read")] }, false);
-    assert.match(request.messages.findLast(message => message.role === "tool").content, /license is restrictive/);
-    return response({ content: "论文说明其许可证有限制 [[cite:P2:p4:original]]。" }, false);
-  });
-  const firstResponse = await send(body);
-  assert.equal(firstResponse.statusCode, 200, firstResponse.body);
-  const first = JSON.parse(firstResponse.body);
-  assert.ok(first.agentContinuation);
-  assert.equal(first.semanticTelemetry.cloudCalls.answer, 1);
-  const recovered = { ...local, files: [{ sourceId: "P2", paperId: "P2", relativePath: f.sources[1].path,
-    name: "BetaDock.pdf", extension: "pdf", analysisStatus: "processed", evidenceType: "original-paper-evidence",
-    content: "[P2:p4:original] The license is restrictive." }],
-    citationEvidence: [{ sourceId: "P2", reference: "P2:p4:original", page: 4, contentHash: "hash-P2" }],
-    evidenceRecovery: { version: 1, cycle: 1, outcomes: [{ paperId: "P2", query: "license", status: "recovered" }] } };
-  const finalResponse = await send({ ...body, agentContinuation: first.agentContinuation, localWorkspaceContext: recovered });
-  assert.equal(finalResponse.statusCode, 200, finalResponse.body);
-  const result = JSON.parse(finalResponse.body);
-  assert.equal(count, 3);
-  assert.equal(result.semanticTelemetry.cloudCalls.answer, 3);
-  assert.equal(result.semanticTelemetry.cloudCallsCumulative, true);
-  assert.equal(result.evidenceRecovery, undefined);
-  assert.equal(result.citations[0].sourceId, "P2");
-  assert.match(result.reply, /论文说明/);
-});
-
-test("read-only recovery token binds project, user, turn, model, surface, permissions, tool mode and hard scope", async t => {
-  const f = require("./helpers/follow-up-fixture.js").followUpFixture();
-  const query = "Compare web findings with BetaDock's license";
-  const local = { ...localContext(query, "both"), files: [], knowledge: { hits: [] }, evidenceRecovery: { version: 1, cycle: 0 },
-    literature: { explicitPaperIds: ["P2"], selectedPaperIds: [], referenceResolution: { status: "resolved" } },
-    sourceMap: { paperSources: f.sources, selectedPaperIds: [] } };
-  const body = { mode: "side_chat", messages: [{ role: "user", content: query }], localWorkspaceContext: local,
-    callContext: { turnId: "bound-readonly-move", callRole: "answer", profile: "medium" } };
-  let count = 0;
-  t.mock.method(globalThis, "fetch", async () => response((count++, { tool_calls: [functionCall("read_paper_evidence", { paper_id: "P2", query: "license" })] }), false));
-  const first = JSON.parse((await send(body)).body);
-  assert.ok(first.agentContinuation); assert.equal(first.desktopContinuation, undefined);
-  const resumed = { ...body, agentContinuation: first.agentContinuation, localWorkspaceContext: { ...local, evidenceRecovery: { version: 1, cycle: 1, outcomes: [] } } };
-  for (const changed of [
-    { ...resumed, localWorkspaceContext: { ...resumed.localWorkspaceContext, project: { ...local.project, workspaceId: "different-project" } } },
-    { ...resumed, callContext: { ...body.callContext, turnId: "different-turn" } },
-    { ...resumed, mode: "agent_instruction" },
-    { ...resumed, model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning" },
-    { ...resumed, desktopTools: { version: 1, permission: "workspace_write", projectId: local.project.workspaceId } },
-    { ...resumed, localWorkspaceContext: { ...resumed.localWorkspaceContext, literature: { ...local.literature, selectedPaperIds: ["P1"] } } },
-    { ...resumed, desktopToolResults: [] }, { ...resumed, desktopContinuation: first.agentContinuation },
-    { ...resumed, agentContinuation: first.agentContinuation + "x" },
-  ]) assert.equal((await send(changed)).statusCode, 400);
-  assert.equal(count, 1);
-  const previousKey = process.env.REQUESTY_API_KEY;
-  process.env.REQUESTY_API_KEY = "rotated-key-fixture";
-  assert.equal((await send(resumed)).statusCode, 400);
-  process.env.REQUESTY_API_KEY = previousKey;
-  process.env.REQUESTY_TOOL_MODE = "combined";
-  assert.equal((await send(resumed)).statusCode, 400);
-  delete process.env.REQUESTY_TOOL_MODE;
-  const invalidUser = jwt.sign({ account: "another-user", role: "admin" }, process.env.JWT_SECRET);
-  const denied = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${invalidUser}` }, body: JSON.stringify(resumed) }, {});
-  assert.equal(denied.statusCode, 401); assert.equal(count, 1);
 });
 
 test("metadata-only hosted search survives streaming into the local stage", async t => {
@@ -567,8 +413,8 @@ test("exhausted local budget resumes with retained failed-search state and no to
     if (++count === 1) return { ok: false, error: "WEB_SEARCH_PROVIDER_ERROR" };
     checkLocal(request); return { ok: true, message: { tool_calls: [functionCall("download_sources", { sources: [{ url }] })] } };
   } });
-  const continuation = require("../agent-continuation.js");
-  const resume = continuation.withResults(first.continuationState, [{ id: "local-1", results: [{ url, status: "failed", error: { code: "HTTP_ERROR" } }] }]);
+  const { withResults } = require("../../shared/agent/receipt-admission.js");
+  const resume = withResults(first.continuationState, [{ id: "local-1", results: [{ url, status: "failed", error: { code: "HTTP_ERROR" } }] }]);
   resume.step = 8; resume.totalToolCalls = 24;
   const result = await run(query, "web", { resume, requestTurn: async request => {
     count++; assert.deepEqual(request.tools, []); checkLocal(request);

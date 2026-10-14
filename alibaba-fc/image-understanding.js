@@ -1,13 +1,7 @@
 "use strict";
 const images = require("./shared/chat-images.js");
-function validImageBytes(image) {
-  const info = images.dataUrlInfo(image.dataUrl);
-  const bytes = Buffer.from(info.base64, "base64");
-  if (bytes.toString("base64") !== info.base64) return false;
-  if (info.mimeType === "image/png") return bytes.length >= 24 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  if (info.mimeType === "image/jpeg") return bytes.length >= 4 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 && bytes.at(-2) === 255 && bytes.at(-1) === 217;
-  return bytes.length >= 20 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
-}
+// Shared with the /chat admission and the desktop loop.
+const { validImageBytes } = require("./request-admission.js");
 async function understandImages(body, { env, request, metadata = {}, signal } = {}) {
   const error = (statusCode, code) => ({ statusCode, body: { error: code } });
   let attachments;

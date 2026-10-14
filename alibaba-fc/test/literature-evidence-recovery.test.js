@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
-const agent = require("../side-chat-agent.js");
-const { sanitizeLocalWorkspaceContext } = require("../index.js")._test;
+const agent = require("../../shared/agent/side-chat-agent.js");
+const { sanitizeLocalWorkspaceContext } = require("../../shared/agent/request-context.js");
 const { followUpFixture } = require("./helpers/follow-up-fixture.js");
 function fixture() {
   const f = followUpFixture();
@@ -15,6 +15,7 @@ function fixture() {
 }
 const call = (paperId = "P2", query = "license", id = "read-1") => ({ id, type: "function", function: { name: "read_paper_evidence", arguments: JSON.stringify({ paper_id: paperId, query }) } });
 const run = (local, requestTurn, extra = {}) => agent.runSideChatAgent({
+  loopBudget: { maxSteps: 8, maxToolCalls: 24 },
   workspaceContext: { localWorkspaceContext: sanitizeLocalWorkspaceContext(local) },
   conversationMessages: [{ role: "user", content: "Does BetaDock provide source code?" }],
   systemPrompt: "Use original evidence", parseFinalAnswer: reply => ({ reply }), requestTurn, ...extra });

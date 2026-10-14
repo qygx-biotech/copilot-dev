@@ -8,7 +8,7 @@ const { ProjectContextService } = require("../../docs/project-context-service.js
 const { KnowledgeSyncAgent, SYNC_CAPABILITIES } = require("../../docs/request-pipeline.js");
 const semantic = require("../../shared/semantic-intent.js");
 const profiles = require("../../shared/retrieval-profiles.js");
-const fc = require("../index.js")._test;
+const fc = require("../../shared/agent/request-context.js");
 const addPapers = (workspace, from, to) => { for (let n = from; n <= to; n++) workspace.set(`literature/P${n}.pdf`, `EctD A163V evidence for paper ${n}; Km = 2 mM.`); };
 
 test("A/B/C: 150 ready papers take metadata-only fast path; three additions and deletion touch only affected layers", async (t) => {
@@ -37,7 +37,7 @@ test("A/B/C: 150 ready papers take metadata-only fast path; three additions and 
   });
   assert.equal(afterAddition.knowledgeSync.updated.paperCards, 3);
   assert.equal(afterAddition.requestUnderstanding.originalQuery, "Hello");
-  const answered = await require("../side-chat-agent.js").runSideChatAgent({
+  const answered = await require("../../shared/agent/side-chat-agent.js").runSideChatAgent({
     surface: "agent_command", systemPrompt: "Answer the current request", conversationMessages: [{ role: "user", content: "Hello" }],
     workspaceContext: { localWorkspaceContext: fc.sanitizeLocalWorkspaceContext(afterAddition, "Hello") },
     parseFinalAnswer: (content) => ({ reply: content }),
@@ -233,7 +233,7 @@ test("one FC semantic interpretation supplies English working query and the exis
   assert.equal(context.requestUnderstanding.canonicalQueryEn, "Which papers study methods to improve EctD thermostability?");
   context.knowledgeSync.toolHistory = "PRIVATE_MAINTENANCE_TRANSCRIPT";
   const sanitized = fc.sanitizeLocalWorkspaceContext(context, query);
-  const answer = await require("../side-chat-agent.js").runSideChatAgent({
+  const answer = await require("../../shared/agent/side-chat-agent.js").runSideChatAgent({
     surface: "side_chat", systemPrompt: "Answer the current request", conversationMessages: [{ role: "user", content: query }],
     workspaceContext: { localWorkspaceContext: sanitized }, parseFinalAnswer: (content) => ({ reply: content }),
     requestTurn: async ({ messages }) => {

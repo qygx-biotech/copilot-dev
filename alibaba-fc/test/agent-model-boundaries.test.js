@@ -57,6 +57,7 @@ test("production Agent messages keep evidence identifiers separate from the inst
   Object.assign(process.env, env);
   t.after(() => { for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
   const backend = require("../index.js"), providerRequests = [];
+const agentChat = require("./helpers/agent-chat.js");
   t.mock.method(globalThis, "fetch", async (_url, options) => {
     if (!options?.body) return new Response(JSON.stringify({ data: [] }));
     providerRequests.push(JSON.parse(options.body));
@@ -71,7 +72,7 @@ test("production Agent messages keep evidence identifiers separate from the inst
   vm.runInContext(app.match(/^function buildAgentMessages\([\s\S]*?^}/m)[0], sandbox);
   for (const query of ["帮我检索一下AI和合成生物学结合的文章", "Find papers about AI and synthetic biology"]) {
     const ir = semantic.interpretLocal({ query });
-    const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
+    const result = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
       mode: "agent_instruction", model, messages: sandbox.buildAgentMessages(query),
       localWorkspaceContext: { semantic: { ir } }, callContext: { turnId: "agent-boundary", callRole: "answer", profile: "medium" },
     }) }, {});
@@ -83,7 +84,7 @@ test("production Agent messages keep evidence identifiers separate from the inst
     assert.ok(providerRequests.at(-1).messages.some(message => message.content.includes("SurfDock.pdf")));
   }
   const callsBefore = providerRequests.length;
-  const invalid = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
+  const invalid = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
     mode: "agent_instruction", model, messages: sandbox.buildAgentMessages("Compare EctD engineering"),
     localWorkspaceContext: { semantic: { ir: semantic.interpretLocal({ query: "Summarize the project" }) } },
   }) }, {});

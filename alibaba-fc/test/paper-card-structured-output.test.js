@@ -113,7 +113,7 @@ for (const terminal of [false, true]) test(`excerpt failure ${terminal ? "termin
     assert.equal(requests.length, count, "a compatible completed card remains cached");
   }
   let modelCalls = 0;
-  await require("../side-chat-agent.js").runSideChatAgent({ workspaceContext: { localWorkspaceContext: context },
+  await require("../../shared/agent/side-chat-agent.js").runSideChatAgent({ workspaceContext: { localWorkspaceContext: context },
     model: process.env.REQUESTY_MODEL, originalRequest: "新增的论文是什么？", conversationMessages: [{ role: "user", content: "新增的论文是什么？" }],
     systemPrompt: "Use current evidence.", parseFinalAnswer: reply => ({ reply }), requestTurn: async () => {
       modelCalls++; assert.equal(active, 0); return { ok: true, message: { content: "已检查新增文献。" } };

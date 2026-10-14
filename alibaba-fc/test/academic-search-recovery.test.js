@@ -1,8 +1,8 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const contract = require("../../shared/academic-tools.js"), semantic = require("../../shared/semantic-intent.js");
-const { runSideChatAgent, compactSideChatAgentMessages } = require("../side-chat-agent.js");
-const continuation = require("../agent-continuation.js"), planning = require("../academic-planning.js");
+const { runSideChatAgent, compactSideChatAgentMessages } = require("../../shared/agent/side-chat-agent.js");
+const { withResults } = require("../../shared/agent/receipt-admission.js"), planning = require("../../shared/agent/academic-planning.js");
 const query = "Find and download two papers about AI-assisted biological design and experimental validation.";
 const plan = { request_kind: "topic", subtopics: ["AI-assisted biological design", "Experimental validation"], synonyms: ["machine learning"],
   queries: ['"AI" AND "biological design"', '"AI" AND "experimental validation"'], requested_count: 2, year_from: 2023, year_to: 2026 };
@@ -25,7 +25,7 @@ const lastError = request => request.messages.filter(message => message.role ===
 }).findLast(result => result.error)?.error;
 function resumeWith(result, resultFor) {
   const binding = { project: "search-regression", account: "test" };
-  return continuation.withResults(continuation.open(continuation.seal(result.continuationState, binding, "secret"), binding, "secret"),
+  return withResults(result.continuationState,
     result.data.desktopToolCalls.map(call => ({ id: call.id, result: resultFor(call) })));
 }
 const found = papers => ({ version: 1, status: "completed", papers });

@@ -5,16 +5,17 @@ const web = require("../../shared/web-search.js");
 const downloads = require("../../shared/source-download.js");
 const { webSearchCapability } = require("../requesty-models.js");
 const { readRequestyStream } = require("../requesty-stream.js");
-const continuation = require("../agent-continuation.js");
-const { runSideChatAgent, executeSideChatTool, createSideChatKnowledgeBase } = require("../side-chat-agent.js");
+const { withResults } = require("../../shared/agent/receipt-admission.js");
+const { runSideChatAgent, executeSideChatTool, createSideChatKnowledgeBase } = require("../../shared/agent/side-chat-agent.js");
 process.env.JWT_SECRET = "source-download-test-secret";
 process.env.ADMIN_ACCOUNT = "source-download-test";
 process.env.REQUESTY_API_KEY = "source-download-fixture-key";
 process.env.REQUESTY_MODEL = "fixture/search-model";
 // Retain these mixed-tool regression fixtures under the explicit opt-in mode.
 process.env.REQUESTY_TOOL_MODE = "combined";
-process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ "fixture/search-model": { supportsWebSearch: true } });
+process.env.REQUESTY_MODEL_CAPABILITIES_JSON = JSON.stringify({ "fixture/search-model": { supportsWebSearch: true, supportsTools: true } });
 const backend = require("../index.js");
+const agentChat = require("./helpers/agent-chat.js");
 const auth = jwt.sign({ account: process.env.ADMIN_ACCOUNT, role: "admin" }, process.env.JWT_SECRET);
 const url = "https://papers.example.org/ectd.pdf";
 const local = [{ type: "function", function: { name: "list_papers", parameters: { type: "object" } } }];
@@ -172,32 +173,23 @@ test("agent loop resumes hosted search → desktop download → existing local t
   global.fetch = async (_address, options) => { requests.push(JSON.parse(options.body)); return new Response(JSON.stringify({ choices: [{ message: messages.shift(), finish_reason: "stop" }] })); };
   const body = { mode: "agent_instruction", messages: [{ role: "user", content: "Find EctD papers and download the most relevant PDF, then compare existing papers" }],
     desktopTools: { version: 1, permission: "workspace_write", projectId: "project-1" }, callContext: { turnId: "download-turn", callRole: "answer", profile: "medium" } };
-  const send = async extra => JSON.parse((await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` }, body: JSON.stringify({ ...body, ...extra }) }, {})).body);
+  const send = async extra => JSON.parse((await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` }, body: JSON.stringify({ ...body, ...extra }) }, {})).body);
   try {
     const first = await send({});
-    assert.equal(first.desktopToolCalls[0].name, "download_sources"); assert.ok(first.desktopContinuation);
+    assert.equal(first.desktopToolCalls[0].name, "download_sources"); assert.ok(first.boundary);
     assert.equal(requests[0].tools.find(tool => tool.type === "web_search").function, undefined);
-    const resumed = await send({ desktopContinuation: first.desktopContinuation, desktopToolResults: [{ id: first.desktopToolCalls[0].id,
+    const resumed = await send({ boundary: first.boundary, desktopToolResults: [{ id: first.desktopToolCalls[0].id,
       results: [{ url, status: "downloaded", path: "literature/ectd.pdf", resolvedUrl: url, contentType: "application/pdf", downloadMethod: "local" }] }] });
     assert.equal(resumed.reply, final.reply); assert.equal(resumed.webSearchSources[0].url, url);
     assert.equal(requests.length, 3);
     assert.ok(requests[1].messages.some(message => message.role === "tool" && message.name === "download_sources" && message.content.includes("literature/ectd.pdf")));
     assert.ok(requests[2].messages.some(message => message.role === "tool" && message.name === "list_papers"));
     assert.ok(requests.every(request => !request.messages.some(message => message.role === "tool" && message.name === "web_search")));
-    const tampered = await send({ desktopContinuation: first.desktopContinuation + "x", desktopToolResults: [] });
+    const tampered = await send({ boundary: first.boundary + "x", desktopToolResults: [] });
     assert.equal(tampered.error, "INVALID_TOOL_CONTINUATION");
   } finally { global.fetch = original; }
 });
 
-test("signed continuation binds user/move/permission and keeps tool budgets", () => {
-  const binding = { user: "one", turn: "move", permission: "workspace_write" };
-  const state = { totalToolCalls: 23, step: 7 };
-  const token = continuation.seal(state, binding, "fixture-secret");
-  assert.deepEqual(continuation.open(token, binding, "fixture-secret"), state);
-  for (const modified of [{ ...binding, user: "two" }, { ...binding, permission: "read_only" }, { ...binding, turn: "other" }]) {
-    assert.throws(() => continuation.open(token, modified, "fixture-secret"), { code: "INVALID_TOOL_CONTINUATION" });
-  }
-});
 
 test("a download and missing local evidence share one bounded loop without repeating the write", async () => {
   const fixture = require("./helpers/follow-up-fixture.js").followUpFixture();
@@ -206,18 +198,18 @@ test("a download and missing local evidence share one bounded loop without repea
     sourceMap: { selectedPaperIds: [], paperSources: fixture.sources }, evidenceRecovery: { version: 1, cycle: 0 } };
   const options = { conversationMessages: [{ role: "user", content: "Download this PDF and compare it with BetaDock" }], systemPrompt: "Answer",
     surface: "agent_command", desktopDownloads: true, downloadPermission: "workspace_write", parseFinalAnswer: reply => ({ reply }),
-    workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(local) } };
+    workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(local) } };
   let calls = 0;
   const first = await runSideChatAgent({ toolMode: "combined", ...options, requestTurn: async () => {
     calls++; return { ok: true, message: { tool_calls: [call("download_sources", { sources: [{ url }] }, "download"), call("read_paper_evidence", { paper_id: "P2", query: "license" }, "read")] } };
   } });
-  const resume = continuation.withResults(first.continuationState, [{ id: "download", results: [{ url, status: "downloaded", path: "literature/new.pdf" }] }]);
+  const resume = withResults(first.continuationState, [{ id: "download", results: [{ url, status: "downloaded", path: "literature/new.pdf" }] }]);
   const recovery = await runSideChatAgent({ toolMode: "combined", ...options, resume, requestTurn: () => assert.fail("Recover before another model request") });
   assert.equal(recovery.data.evidenceRecovery.requests[0].paperId, "P2");
   assert.deepEqual(recovery.continuationState.pending, []);
   local.evidenceRecovery = { version: 1, cycle: 1 };
-  const final = await runSideChatAgent({ toolMode: "combined", ...options, resume: continuation.withResults(recovery.continuationState, []),
-    workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(local) },
+  const final = await runSideChatAgent({ toolMode: "combined", ...options, resume: withResults(recovery.continuationState, []),
+    workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(local) },
     requestTurn: async ({ messages }) => {
       calls++; assert.equal(messages.filter(message => message.role === "tool" && message.name === "download_sources").length, 1);
       assert.ok(messages.some(message => message.role === "system" && message.content.includes("recovery has been consumed")));
@@ -232,8 +224,8 @@ test("direct download works without web search and a resumed exhausted loop gets
     surface: "agent_command", desktopDownloads: true, downloadPermission: "full_access", supportsWebSearch: false, parseFinalAnswer: reply => ({ reply }),
     requestTurn: async request => { seen = request.tools; return { ok: true, message: { tool_calls: [call("download_sources", { sources: [{ url }] })] } }; } });
   assert.ok(!seen.some(tool => tool.type === "web_search")); assert.equal(first.data.desktopToolCalls.length, 1);
-  const resume = continuation.withResults(first.continuationState, [{ id: "local-call", results: [{ url, status: "failed", error: { code: "HTTP_ERROR" } }] }]);
-  resume.step = 8; resume.totalToolCalls = 24;
+  const resume = withResults(first.continuationState, [{ id: "local-call", results: [{ url, status: "failed", error: { code: "HTTP_ERROR" } }] }]);
+  resume.step = 8; resume.totalToolCalls = 24; resume.loopBudget = { maxSteps: 8, maxToolCalls: 24 };
   const result = await runSideChatAgent({ toolMode: "combined", conversationMessages: [{ role: "user", content: "Download" }], workspaceContext: {}, systemPrompt: "Answer", resume,
     surface: "agent_command", desktopDownloads: true, downloadPermission: "full_access", supportsWebSearch: true, parseFinalAnswer: reply => ({ reply }),
     requestTurn: async ({ tools }) => { assert.deepEqual(tools, []); return { ok: true, message: { content: "Download failed." } }; } });
@@ -244,14 +236,14 @@ test("provider search errors are classified without dispatching or leaking upstr
   const original = global.fetch;
   global.fetch = async () => new Response(JSON.stringify({ error: { message: "web_search unsupported secret-fixture" } }), { status: 400 });
   try {
-    const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` },
+    const result = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` },
       body: JSON.stringify({ mode: "side_chat", messages: [{ role: "user", content: "Search online" }] }) }, {});
     assert.equal(JSON.parse(result.body).error, "LlmHttpError"); assert.ok(!result.body.includes("secret-fixture"));
   } finally { global.fetch = original; }
 });
 
 test("the current FC fetch route requires authentication and rejects unsafe targets before network fetch", async () => {
-  const send = (url, headers = { authorization: `Bearer ${auth}` }) => backend.handler({ httpMethod: "POST", path: "/api/sources/fetch", headers, body: JSON.stringify({ url }) }, {});
+  const send = (url, headers = { authorization: `Bearer ${auth}` }) => agentChat.handler({ httpMethod: "POST", path: "/api/sources/fetch", headers, body: JSON.stringify({ url }) }, {});
   assert.equal((await send(url, {})).statusCode, 401);
   for (const url of ["http://127.0.0.1/", "http://100.100.100.200/", "file:///etc/passwd", "ftp://example.org/"]) {
     const result = await send(url); assert.equal(result.statusCode, 400); assert.equal(JSON.parse(result.body).error, "UNSAFE_URL");

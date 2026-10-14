@@ -366,8 +366,8 @@ test("Chinese review reaches corpus and final answer after wiki validation failu
   assert.equal(Object.keys(workflow.maps).length, 3);
   assert.equal(f.calls.cards, 3, "Corpus mapping reused all three compatible Paper Cards");
   const reference = Object.values(workflow.maps)[0].findings[0].evidenceRefs[0];
-  const localWorkspaceContext = backend._test.sanitizeLocalWorkspaceContext(context, query);
-  const answer = await require("../side-chat-agent.js").runSideChatAgent({
+  const localWorkspaceContext = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(context, query);
+  const answer = await require("../../shared/agent/side-chat-agent.js").runSideChatAgent({
     surface: "side_chat", workspaceContext: { localWorkspaceContext }, conversationMessages: [{ role: "user", content: query }],
     systemPrompt: "Answer with the current corpus evidence", parseFinalAnswer: reply => ({ reply }),
     requestTurn: async ({ messages }) => {

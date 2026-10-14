@@ -42,7 +42,7 @@
       }) : [] };
   }
 
-  // A monotonic request sequence is retained in signed continuation state.
+  // A monotonic request sequence is retained in the turn's continuation state.
   // Replayed stream snapshots replace prior snapshots; they are never summed.
   function recordUsage(state, { id, sequence = state.sequence + 1, model, stage, startedAt, endedAt = Date.now(), usage, ok, attempts = 1 }) {
     if (integer(sequence) === null || sequence <= state.committedThrough || state.seenSequences.includes(sequence) || !text(id)) return false;
@@ -98,6 +98,8 @@
         ...(number(summary.sourceCount) !== null ? { sourceCount: summary.sourceCount } : {}),
         ...(number(summary.referenceCount) !== null ? { referenceCount: summary.referenceCount } : {}),
         ...(number(summary.resultCount) !== null ? { resultCount: summary.resultCount } : {}),
+        // Files a project-mode call created, changed or deleted in output/.
+        ...Object.fromEntries(['filesCreated', 'filesChanged', 'filesDeleted'].filter(key => integer(summary[key]) !== null).map(key => [key, summary[key]])),
         ...(Array.isArray(summary.sourceIds) ? { sourceIds: [...new Set(summary.sourceIds.map(value => text(value, 200)).filter(Boolean))].slice(0, 30) } : {}) };
     }
     return result;
@@ -159,6 +161,10 @@
       !/^(?:[a-z]:|[/\\])|[\x00-\x1f]/i.test(path) && !path.split(/[/\\]/).some(part => part === '..' || part === '.');
     const result = { version: VERSION, turnId: text(raw.turnId), model: text(raw.model), startedAt: number(raw.startedAt) ?? 0,
       finishedAt: number(raw.finishedAt), activities: [], artifacts: [], turnUsage: null, childUsage: [] };
+    // The turn's net changes to output/ in a project sandbox, as the host observed them.
+    const changes = raw.outputChanges;
+    if (changes && ['created', 'changed', 'deleted'].every(key => integer(changes[key]) !== null && changes[key] >= 0) && changes.created + changes.changed + changes.deleted > 0)
+      result.outputChanges = { created: changes.created, changed: changes.changed, deleted: changes.deleted, complete: changes.complete === true, undoAvailable: changes.undoAvailable === true };
     for (const activity of (Array.isArray(raw.activities) ? raw.activities : []).slice(-LIMITS.activities)) mergeActivity(result.activities, activity);
     if (raw.turnUsage?.version === VERSION && raw.turnUsage.turnId === result.turnId)
       result.turnUsage = usageSnapshot(createUsage(raw.turnUsage, { turnId: result.turnId, model: result.model, now: result.startedAt }));

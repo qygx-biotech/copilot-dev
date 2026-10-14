@@ -13,7 +13,7 @@ const {
   executeSideChatTool,
   normalizeToolCalls,
   runSideChatAgent
-} = require("../side-chat-agent");
+} = require("../../shared/agent/side-chat-agent.js");
 
 function toolCall(name, args, id = "tool-1") {
   return {

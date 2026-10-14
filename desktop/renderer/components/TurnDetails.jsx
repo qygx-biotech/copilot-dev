@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './turn-details.css';
 
@@ -48,20 +48,50 @@ export function ArtifactDiff({ artifact, zh = false }) {
   </details>;
 }
 
-export function TurnDetails({ details, zh = false }) {
+// Per-call file counts from project-mode receipts.
+const fileCounts = (summary, zh) => [['filesCreated', zh ? '个文件新建' : 'created'], ['filesChanged', zh ? '个文件修改' : 'changed'], ['filesDeleted', zh ? '个文件删除' : 'deleted']]
+  .filter(([key]) => summary[key] > 0).map(([key, word]) => `${number(summary[key])} ${word}`);
+const undoErrors = { TURN_ACTIVE: ['The turn is still running.', '该轮仍在运行。'], ALREADY_UNDONE: ['These changes were already undone.', '这些更改已撤销。'],
+  UNDO_UNAVAILABLE: ['No backup was kept for this turn.', '这一轮没有保留备份。'], NO_OUTPUT_CHANGES: ['No recorded changes remain.', '没有可撤销的记录。'] };
+
+// A project-mode turn's net changes to output/, as the host observed them. Undo
+// is offered once the turn has finished and a backup was kept.
+export function OutputChanges({ changes, zh = false, onUndo = null }) {
+  const [state, setState] = useState({ status: 'idle' });
+  if (!changes) return null;
+  const parts = fileCounts({ filesCreated: changes.created, filesChanged: changes.changed, filesDeleted: changes.deleted }, zh);
+  const undo = async () => {
+    setState({ status: 'busy' });
+    try { setState({ status: 'done', result: await onUndo() }); }
+    catch (error) { setState({ status: 'error', code: error?.code || 'UNDO_FAILED' }); }
+  };
+  const result = state.result;
+  return <div className="turn-output-changes">
+    <p>{zh ? 'output/ 中的文件：' : 'Files in output/:'} {parts.join(' · ')}{!changes.complete && (zh ? '（记录不完整）' : ' (record incomplete)')}</p>
+    {onUndo && changes.undoAvailable && state.status !== 'done' && <button type="button" className="secondary-button" disabled={state.status === 'busy'} onClick={undo}>{zh ? '撤销这些更改' : 'Undo these changes'}</button>}
+    {state.status === 'done' && <p role="status">{zh
+      ? `已恢复 ${number(result.restored.length)} 个、移除 ${number(result.removed.length)} 个文件${result.conflicts.length ? `；${number(result.conflicts.length)} 个之后被编辑的文件已保留` : ''}。`
+      : `Restored ${number(result.restored.length)} and removed ${number(result.removed.length)} files${result.conflicts.length ? `; kept ${number(result.conflicts.length)} edited since` : ''}.`}</p>}
+    {state.status === 'error' && <p role="alert">{(undoErrors[state.code] || ['The changes could not be undone.', '无法撤销这些更改。'])[zh ? 1 : 0]}</p>}
+  </div>;
+}
+
+export function TurnDetails({ details, zh = false, onUndoOutput = null }) {
   if (!details || (!details.activities?.length && !details.turnUsage?.rounds?.length && !details.artifacts?.length)) return null;
   const elapsed = details.finishedAt ? Math.max(0, details.finishedAt - details.startedAt) : null;
   const activities = (details.activities || []).slice(-160);
-  return <details className="turn-details"><summary>{elapsed !== null ? (zh ? `耗时 ${seconds(elapsed)}` : `Worked for ${seconds(elapsed)}`) : (zh ? '活动详情' : 'Activity details')} <span>{activities.filter(item => item.kind === 'tool').length} {zh ? '次工具调用' : 'tool calls'}</span></summary>
+  return <><details className="turn-details"><summary>{elapsed !== null ? (zh ? `耗时 ${seconds(elapsed)}` : `Worked for ${seconds(elapsed)}`) : (zh ? '活动详情' : 'Activity details')} <span>{activities.filter(item => item.kind === 'tool').length} {zh ? '次工具调用' : 'tool calls'}</span></summary>
     <ol className="turn-activity-list">{activities.map(item => {
       const unsettled = Number.isFinite(details.finishedAt) && ['running', 'pending'].includes(item.status);
       const status = unsettled ? 'unknown' : item.status;
       const statusText = unsettled && item.kind === 'stage' ? (zh ? '已记录' : 'Observed') : label(status, zh);
-      return <li key={item.id} className={`turn-activity-${status}`}><span className="turn-activity-icon" aria-hidden="true">{status === 'completed' ? '✓' : status === 'failed' || status === 'cancelled' ? '!' : status === 'running' ? '◌' : '·'}</span><div><strong>{item.name || stageLabel(item.stage, zh)}</strong> <span>{statusText}</span>{Number.isFinite(item.durationMs) && <small> · {seconds(item.durationMs)}</small>}{item.summary && <p className="turn-details-muted">{[item.summary.code, item.summary.sourceCount !== undefined ? `${item.summary.sourceCount} ${zh ? '个来源' : 'sources'}` : '', item.summary.referenceCount !== undefined ? `${item.summary.referenceCount} ${zh ? '条证据引用' : 'evidence references'}` : '', item.summary.resultCount !== undefined ? `${item.summary.resultCount} ${zh ? '个结果' : 'results'}` : '', item.summary.evidenceStatus].filter(Boolean).join(' · ')}</p>}</div></li>; })}</ol>
+      return <li key={item.id} className={`turn-activity-${status}`}><span className="turn-activity-icon" aria-hidden="true">{status === 'completed' ? '✓' : status === 'failed' || status === 'cancelled' ? '!' : status === 'running' ? '◌' : '·'}</span><div><strong>{item.name || stageLabel(item.stage, zh)}</strong> <span>{statusText}</span>{Number.isFinite(item.durationMs) && <small> · {seconds(item.durationMs)}</small>}{item.summary && <p className="turn-details-muted">{[item.summary.code, item.summary.sourceCount !== undefined ? `${item.summary.sourceCount} ${zh ? '个来源' : 'sources'}` : '', item.summary.referenceCount !== undefined ? `${item.summary.referenceCount} ${zh ? '条证据引用' : 'evidence references'}` : '', item.summary.resultCount !== undefined ? `${item.summary.resultCount} ${zh ? '个结果' : 'results'}` : '', ...fileCounts(item.summary, zh), item.summary.evidenceStatus].filter(Boolean).join(' · ')}</p>}</div></li>; })}</ol>
     {(details.artifacts || []).map(artifact => <ArtifactDiff key={artifact.id} artifact={artifact} zh={zh} />)}
     <UsageChart usage={details.turnUsage} zh={zh} />
+    {window.BioDesignFeedback && <button type="button" className="text-button turn-report" onClick={() => window.BioDesignFeedback.open({ turnId: details.turnId, turnDetails: details }).catch(() => {})}>{zh ? '报告本轮' : 'Report this turn'}</button>}
     {details.childUsage?.length > 0 && <details><summary>{zh ? '子代理用量（单独统计）' : 'Subagent usage (separate totals)'}</summary>{details.childUsage.map(usage => <UsageChart key={usage.turnId} usage={usage} zh={zh} />)}</details>}
-  </details>;
+  </details>
+  <OutputChanges changes={details.outputChanges} zh={zh} onUndo={onUndoOutput && Number.isFinite(details.finishedAt) ? () => onUndoOutput(details.turnId) : null} /></>;
 }
 
 export function installTurnDetails() {

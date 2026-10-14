@@ -1,9 +1,9 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
-const { runSideChatAgent } = require("../side-chat-agent.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js");
 const { requestRequestyMessage } = require("../index.js")._test;
-const continuation = require("../agent-continuation.js"), semantic = require("../../shared/semantic-intent.js");
-const planning = require("../academic-planning.js");
+const { withResults } = require("../../shared/agent/receipt-admission.js"), semantic = require("../../shared/semantic-intent.js");
+const planning = require("../../shared/agent/academic-planning.js");
 const query = "Find and save five relevant AI synthetic biology papers.";
 const ir = { ...semantic.interpretLocal({ query }), matchedPattern: null, objects: ["literature"], operations: ["search", "store"],
   capabilityHints: ["search_papers", "download_sources"], retrievalScope: "web", requestedOutput: { type: "papers", limit: 5 } };
@@ -16,13 +16,13 @@ const select = ids => ({ shortlist: ids.map(paper_ref => ({ paper_ref, relevance
 const tool = (name, args) => ({ id: name, type: "function", function: { name, arguments: JSON.stringify(args) } });
 const actions = (...tool_calls) => ({ tool_calls });
 const answer = reply => ({ content: JSON.stringify({ reply, project: { summary: "Literature search" } }) });
-const run = options => runSideChatAgent({ surface: "agent_command", desktopAcademic: true, desktopDownloads: true, downloadPermission: "workspace_write",
+const run = options => runSideChatAgent({ loopBudget: { maxSteps: 8, maxToolCalls: 24 }, surface: "agent_command", desktopAcademic: true, desktopDownloads: true, downloadPermission: "workspace_write",
   originalRequest: query, systemPrompt: "Complete the literature request.", conversationMessages: [{ role: "user", content: query }],
   workspaceContext: { localWorkspaceContext: { semantic: { ir } } }, parseFinalAnswer: JSON.parse, ...options });
 function withResult(pending, result) {
   const binding = { project: "empty-recovery", account: "test" };
-  const state = continuation.open(continuation.seal(pending.continuationState, binding, "secret"), binding, "secret");
-  return continuation.withResults(state, [{ id: pending.data.desktopToolCalls[0].id, result }]);
+  const state = pending.continuationState;
+  return withResults(state, [{ id: pending.data.desktopToolCalls[0].id, result }]);
 }
 // Production harness + Requesty adapter; only provider responses and desktop
 // search/download outcomes are controlled. No replacement agent state machine.

@@ -5,6 +5,7 @@ const images = require("../../shared/chat-images.js");
 const semantic = require("../../shared/semantic-intent.js");
 const privacy = require("../semantic-input-privacy.js");
 const backend = require("../index.js");
+const agentChat = require("./helpers/agent-chat.js");
 const { LiteratureApiClient } = require("../../docs/literature-module.js");
 const model = "google/gemma-4-31b-it";
 const input = query => ({ query, profile: "medium", activeScope: { paperIds: ["P1"] }, conversationContext: [],
@@ -111,7 +112,7 @@ function fixture(t) {
     return new Response(JSON.stringify({ choices: [{ message: { content: planning ? JSON.stringify(result) : result }, finish_reason: "stop" }] }));
   });
   const send = async (path, payload) => {
-    const response = await backend.handler({ httpMethod: "POST", path, headers: { authorization: `Bearer ${token}`, "X-BioDesign-Chat-Model": model }, body: JSON.stringify(payload) }, {});
+    const response = await agentChat.handler({ httpMethod: "POST", path, headers: { authorization: `Bearer ${token}`, "X-BioDesign-Chat-Model": model }, body: JSON.stringify(payload) }, {});
     return { status: response.statusCode, data: JSON.parse(response.body) };
   };
   return { requests, logs, send, setResponse: value => { replyOverride = value; }, configurations: () => configurations };

@@ -2,8 +2,8 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const { followUpFixture } = require("./helpers/follow-up-fixture.js");
 const semantic = require("../../shared/semantic-intent.js");
-const { sanitizeLocalWorkspaceContext } = require("../index.js")._test;
-const agent = require("../side-chat-agent.js");
+const { sanitizeLocalWorkspaceContext } = require("../../shared/agent/request-context.js");
+const agent = require("../../shared/agent/side-chat-agent.js");
 
 test("recent cited papers and exchanges survive host preparation and repeated compaction without changing saved chat", async () => {
   const f = followUpFixture(), saved = JSON.stringify(f.conversation);

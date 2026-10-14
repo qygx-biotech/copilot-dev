@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const citations = require("../../shared/source-citations.js");
-const agent = require("../side-chat-agent.js");
-const { sanitizeLocalWorkspaceContext } = require("../index.js")._test;
+const agent = require("../../shared/agent/side-chat-agent.js");
+const { sanitizeLocalWorkspaceContext } = require("../../shared/agent/request-context.js");
 const { ProjectContextService, normalizeStoredConversation } = require("../../docs/project-context-service.js");
 
 function fixture() {

@@ -15,7 +15,7 @@ async function checkAgentInjectionQueue() {
     check(card(queued).querySelector('.runtime-injection-status')?.textContent.includes('Queued'), 'Agent Work displays the queued receipt status');
     release(); await pending;
     check(message.injection.status === 'received' && card(queued).querySelector('.runtime-injection-status')?.textContent.includes('Received'), 'Agent Work displays the acknowledged receipt status');
-    check(!activeAgentRuntime && queued.taskStatus === 'completed', 'The Agent Work queue closes after a complete answer');
+    check(!runningAgentTurns.size && queued.taskStatus === 'completed', 'The Agent Work queue closes after a complete answer');
   } finally {
     release(); requestGate = null;
     analysisPanels = preserved; saveAnalysisPanels(); renderAnalysisPanels();
@@ -61,13 +61,13 @@ async function runAgentScenarios() {
   check(document.activeElement.value === second.instruction && document.activeElement.selectionStart === 4, "Progress renders preserve composer focus and selection");
   let release; requestGate = new Promise(resolve => { release = resolve; });
   card(first).querySelector("form").requestSubmit(); await tick();
-  check(first.taskStatus === "running" && first.messages.length === 1 && card(second).querySelector('[type="submit"]').disabled, "Submit creates a user turn and preserves the existing single-run guard");
+  check(first.taskStatus === "running" && first.messages.length === 1 && !card(second).querySelector('[type="submit"]').disabled, "Submit creates a user turn, and another task can still start while it runs");
   deleteAnalysisPanel(first.id);
   check(findAnalysisPanel(first.id) === first && card(first).querySelector('[data-analysis-action="delete"]').disabled, "Running tasks cannot be deleted or detached from their execution");
   click(legacy, "new-chat"); const temporary = analysisPanels[1];
   check(temporary !== first && analysisPanels[2] === first, "A card's new-chat action inserts immediately below that card");
   click(temporary, "delete");
-  check(!findAnalysisPanel(temporary.id) && activeAgentPanelId === first.id && first.taskStatus === "running", "Deleting a different task leaves the current run intact");
+  check(!findAnalysisPanel(temporary.id) && agentTurnRunning(first.id) && first.taskStatus === "running", "Deleting a different task leaves the current run intact");
   check(requests[0].model === geminiFlex && !requests[0].permission && !requests[0].attachments && requests[0].messages[0].content === "Review candidate evidence" && requests[0].images.length === 1, "The captured Agent model and prepared image reach the request without widening permissions");
   check(attachmentFiles.size === 1 && first.messages[0].attachments[0].digest, "Submitted image contents are stored for exact revision replay while chat state retains metadata only");
   check(contextRequests[0].callContext.model === geminiFlex && contextRequests[0].turnId === requests[0].callContext.turnId, "The captured Agent model reaches preparation before the answer under the same turn ID");

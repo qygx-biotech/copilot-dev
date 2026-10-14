@@ -6,6 +6,7 @@
   "use strict";
   const SYNC_VERSION = 1;
   const wikiContract = root.BioDesignLiteratureWiki || (typeof require === "function" ? require("../shared/literature-wiki.js") : {});
+  const retrievalContract = root.BioDesignRetrievalContract || (typeof require === "function" ? require("../shared/retrieval-contract.js") : {});
   const SYNC_TASK = "synchronize knowledge base through required derived layers";
   const SYNC_CAPABILITIES = Object.freeze([
     "describe_source", "ensure_source_ready", "generate_paper_card", "update_topics",
@@ -585,7 +586,13 @@
         text = new TextDecoder().decode(bytes);
       } else throw Object.assign(new Error(), { code: "UNSUPPORTED_SOURCE_REPRESENTATION" });
       const path = `.biodesign/knowledge/memory/source-${id}.md`;
-      await this.workspace.writeFile(path, `---\nsource_id: ${JSON.stringify(id)}\nsource_path: ${JSON.stringify(source.path)}\ncontent_hash: ${JSON.stringify(source.contentHash)}\nsource_kind: ${JSON.stringify(source.sourceKind)}\nrepresentation_version: 1\nauthoritative: false\n---\n\n# ${source.displayName}\n\n${text || ""}\n`);
+      // Agent Work output keeps its label in the searchable representation.
+      let generated = null;
+      if (source.path?.startsWith("output/") && retrievalContract.generatedOutputOrigin) {
+        try { generated = retrievalContract.generatedOutputOrigin(retrievalContract.parseGeneratedOutputIndex(await (await this.workspace.readFile(retrievalContract.GENERATED_OUTPUT_INDEX)).text()), source.path, source.contentHash); }
+        catch { generated = null; }
+      }
+      await this.workspace.writeFile(path, `---\nsource_id: ${JSON.stringify(id)}\nsource_path: ${JSON.stringify(source.path)}\ncontent_hash: ${JSON.stringify(source.contentHash)}\nsource_kind: ${JSON.stringify(source.sourceKind)}\n${generated ? "origin: \"generated\"\n" : ""}representation_version: 1\nauthoritative: false\n---\n\n# ${source.displayName}\n\n${generated ? `> ${retrievalContract.GENERATED_OUTPUT_NOTICE}\n\n` : ""}${text || ""}\n`);
       source.artifacts.documentMarkdown = { path, sourceId: id, contentHash: source.contentHash, schemaVersion: 1, extractorVersion: "local-source-v1" };
       if (knowledgeService?.available) await knowledgeService.indexDocuments("project-memory", { embed: false });
       source.parseStatus = "ready";

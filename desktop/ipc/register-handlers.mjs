@@ -12,6 +12,8 @@ import {
   sanitizeError,
   ValidationError,
 } from "./validation.mjs";
+import { validateAgentCancel, validateAgentInject, validateAgentRespond, validateAgentStart, validateAgentSteer } from "./agent-loop-validation.mjs";
+import { validateFeedbackPayload } from "../services/feedback-report.mjs";
 
 const { RETRIEVAL_LIMITS } = retrievalContract;
 
@@ -43,6 +45,26 @@ function boolean(value, label, fallback = false) {
   if (value === undefined) return fallback;
   if (typeof value !== "boolean") throw new ValidationError("INVALID_BOOLEAN", `${label} must be a boolean.`);
   return value;
+}
+
+// Shows a project file selected in its folder (Finder or Explorer). A file
+// that no longer exists opens the nearest folder that does. The path must stay
+// inside the project, without symlinks; project metadata is never shown.
+export async function revealProjectPath(filesystem, relativePath, reveal) {
+  const parts = relativePath.split("/");
+  if (parts[0].toLowerCase() === ".biodesign") throw new ValidationError("PATH_NOT_REVEALABLE", "Project metadata cannot be shown.");
+  const existing = async path => {
+    try { return await filesystem.resolveExisting(path); }
+    catch (error) { if (error?.code === "ENOENT") return null; throw error; }
+  };
+  const file = await existing(relativePath);
+  if (file) { await reveal.file(file); return { revealed: "file", relativePath }; }
+  for (let length = parts.length - 1; length > 0; length--) {
+    const folder = parts.slice(0, length).join("/"), absolute = await existing(folder);
+    if (absolute) { await reveal.folder(absolute); return { revealed: "folder", relativePath: folder }; }
+  }
+  await reveal.folder(filesystem.root);
+  return { revealed: "folder", relativePath: "" };
 }
 
 function projectPayload(sessionManager, rawPayload, allowedKeys = []) {
@@ -92,6 +114,12 @@ export function registerIpcHandlers(options) {
     assertOnlyKeys(payload, []);
     return runtimeInfo();
   });
+
+  // Bug reports (desktop/services/feedback-report.mjs). Available without a project.
+  if (options.feedback) {
+    handle(channels.feedbackSave, async (_event, payload) => options.feedback.save(validateFeedbackPayload(payload)));
+    handle(channels.feedbackReveal, async (_event, payload) => { assertOnlyKeys(payload ?? {}, []); return options.feedback.reveal(); });
+  }
   handle(channels.clipboardWriteText, async (event, payload) => {
     assertTrustedIpcSender(event, getWindow);
     assertOnlyKeys(payload, ["text"]);
@@ -209,6 +237,10 @@ export function registerIpcHandlers(options) {
     const { active, payload } = projectPayload(sessionManager, rawPayload, ["relativePath", "recursive"]);
     return active.filesystem.list(assertRelativePath(payload.relativePath), { recursive: boolean(payload.recursive, "recursive") });
   });
+  if (options.revealPath) handle(channels.filesReveal, async (_event, rawPayload) => {
+    const { active, payload } = projectPayload(sessionManager, rawPayload, ["relativePath"]);
+    return revealProjectPath(active.filesystem, assertRelativePath(payload.relativePath), options.revealPath);
+  });
   handle(channels.filesTree, async (_event, rawPayload) => {
     const { active, payload } = projectPayload(sessionManager, rawPayload, ["excludeNames"]);
     if (payload.excludeNames !== undefined && (!Array.isArray(payload.excludeNames) || payload.excludeNames.length > 20)) throw new ValidationError("INVALID_EXCLUSIONS", "excludeNames must be a bounded array.");
@@ -282,6 +314,22 @@ export function registerIpcHandlers(options) {
     if (typeof payload.workflowId === "string" && (payload.workflowId.startsWith("runtime_") || ["literature_worker", "literature_jobs", "download_sources", "search_academic_papers", "get_academic_paper", "resolve_paper_full_text", "download_papers"].includes(payload.workflowId))) assertTrustedIpcSender(event, getWindow);
     return active.execution.run(boundedString(payload.workflowId, "workflowId", 100), assertRecord(payload.input || {}, "input"), { jobs: active.jobs, filesystem: active.filesystem });
   });
+
+  // Agent turns carry the session token and control model spending, so every
+  // call must come from the trusted desktop frame and the active project.
+  const agentLoop = options.agentLoop;
+  if (agentLoop) {
+    const agentPayload = (event, rawPayload, validate) => {
+      assertTrustedIpcSender(event, getWindow);
+      const { payload } = projectPayload(sessionManager, rawPayload, Object.keys(rawPayload || {}).filter(key => key !== "projectId"));
+      return validate(payload);
+    };
+    handle(channels.agentStart, async (event, rawPayload) => agentLoop.start(event.sender, agentPayload(event, rawPayload, validateAgentStart)));
+    handle(channels.agentCancel, async (event, rawPayload) => agentLoop.cancel(event.sender, agentPayload(event, rawPayload, validateAgentCancel)));
+    handle(channels.agentSteer, async (event, rawPayload) => agentLoop.steer(event.sender, agentPayload(event, rawPayload, validateAgentSteer)));
+    handle(channels.agentInject, async (event, rawPayload) => agentLoop.inject(event.sender, agentPayload(event, rawPayload, validateAgentInject)));
+    handle(channels.agentRespond, async (event, rawPayload) => agentLoop.respond(event.sender, agentPayload(event, rawPayload, validateAgentRespond)));
+  }
 
   const progressListener = (event) => {
     const window = getWindow();

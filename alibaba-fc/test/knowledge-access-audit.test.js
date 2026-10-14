@@ -5,8 +5,8 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
 const contract = require('../../shared/side-chat-tools.js');
-const backend = require('../index.js'), agent = require('../side-chat-agent.js');
-const continuation = require('../agent-continuation.js'), transcript = require('../../shared/conversation-transcript.js');
+const backend = require('../index.js'), agent = require('../../shared/agent/side-chat-agent.js');
+const { withResults } = require('../../shared/agent/receipt-admission.js'), transcript = require('../../shared/conversation-transcript.js');
 const model = 'google/gemma-4-31b-it';
 const K = 'search_project_knowledge', E = 'retrieve_project_evidence', C = 'run_corpus_workflow';
 const texts = [
@@ -66,7 +66,7 @@ async function fixture(question, { failedCard = false, selected = null } = {}) {
     assert.equal(output.result.ok, true, JSON.stringify(output)); return output;
   };
   f.loop = async (requestTurn, resume) => agent.runSideChatAgent({
-    workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, f.options.question) },
+    workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(f.context, f.options.question) },
     originalRequest: f.options.question, conversationMessages: [{ role: 'user', content: f.options.question }], conversationTranscript: f.history,
     model, turnId: f.options.turnId, systemPrompt: 'Use sufficient current evidence.', supportsTools: true, projectToolsEnabled: true,
     parseFinalAnswer: reply => reply ? { reply } : null, resume, requestTurn: async input => { f.modelCalls++; f.observeRequest?.(input); return requestTurn(input); },
@@ -84,7 +84,7 @@ async function scripted(f, actions, finalText) {
     const call = first.data.desktopToolCalls[0];
     const output = await f.service.executeAgentTool(call, { turnId: f.options.turnId });
     assert.equal(output.result.ok, true, JSON.stringify(output)); f.results.push({ tool: call.name, result: output.result });
-    resume = continuation.withResults(continuation.open(continuation.seal(first.continuationState, { project: 'audit' }, 'fixture'), { project: 'audit' }, 'fixture'), [output]);
+    resume = withResults(first.continuationState, [output]);
   }
   const reference = f.results.flatMap(r => r.result.evidenceBundle.items).flatMap(i => i.references || [])[0];
   const derived = f.results.flatMap(r => r.result.evidenceBundle.items).find(i => i.current && i.derived && i.sourceIds.length);
@@ -204,7 +204,7 @@ test('stress: declared exhaustive coverage survives signed continuation and cann
   const first = await f.loop(async () => ({ ok: true, message: { tool_calls: [{ id: 'exhaustive-search', type: 'function', function: { name: K,
     arguments: JSON.stringify({ query: 'methane', requirement: { coverage: 'exhaustive' } }) } }] } }));
   const result = await f.service.executeAgentTool(first.data.desktopToolCalls[0], { turnId: f.options.turnId });
-  const state = continuation.withResults(continuation.open(continuation.seal(first.continuationState, {}, 'fixture'), {}, 'fixture'), [result]);
+  const state = withResults(first.continuationState, [result]);
   const final = await f.loop(async () => ({ ok: true, message: { content: 'This is a complete review of the collection.' } }), state);
   assert.equal(final.data.corpusCoverage?.complete, false);
   assert.equal(final.data.corpusCoverage.analyzedCount, 0);

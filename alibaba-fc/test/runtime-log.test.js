@@ -8,9 +8,10 @@ const { LiteratureApiClient } = require("../../docs/literature-module.js");
 test("buffered response diagnostics distinguish handoff, final answer and incomplete result", () => {
   const { responseOutcome } = require("../../docs/runtime-log.js");
   assert.deepEqual(responseOutcome({}), { stage: "response_received", status: "partial" });
-  for (const data of [{ desktopToolCalls: [{ id: "read" }], reply: "Preparing evidence" }, { evidenceRecovery: {} }, { desktopContinuation: "signed" }])
+  for (const data of [{ desktopToolCalls: [{ id: "read" }], reply: "Preparing evidence" }, { evidenceRecovery: {} }, { agentCheckpoint: { version: 1, final: false } }])
     assert.deepEqual(responseOutcome(data), { stage: "tool_handoff", status: "partial" });
   assert.deepEqual(responseOutcome({ reply: "Verified answer" }), { stage: "final_answer", status: "completed" });
+  assert.deepEqual(responseOutcome({ reply: "Verified answer", agentCheckpoint: { version: 1, final: true } }), { stage: "final_answer", status: "completed" });
   assert.deepEqual(responseOutcome({ reply: "Preserved checkpoint", failure: { degraded: true } }), { stage: "incomplete_result", status: "failed" });
   assert.deepEqual(responseOutcome({ reply: "Partial findings", taskOutcome: { status: "incomplete" } }), { stage: "incomplete_result", status: "partial" });
 });

@@ -4,10 +4,25 @@ const fs = require('node:fs/promises'), os = require('node:os'), path = require(
 const lifecycle = require('../provider-lifecycle.js');
 const transcript = require('../../shared/conversation-transcript.js');
 const protocol = require('../requesty-tool-context.js');
-const specialist = require('../literature-specialist.js');
-const history = require('../conversation-history.js');
+const specialist = require('../../shared/agent/literature-specialist.js');
+const history = require('../../shared/agent/conversation-history.js');
 const { SubagentManager } = require('../../docs/generic-subagents.js');
-const backend = require('../index.js');
+const agentChat = require('./helpers/agent-chat.js');
+// A real PNG; turn admission checks image bytes.
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+// One Side Chat turn on the agent loop with `env` as the FC environment.
+async function loopTurn(env, body, { token, events = [] } = {}) {
+  const all = { JWT_SECRET: 'fidelity-secret', ADMIN_ACCOUNT: 'fidelity-admin', ...env };
+  const before = Object.fromEntries(Object.keys(all).map(key => [key, process.env[key]]));
+  Object.assign(process.env, all);
+  try {
+    token ||= require('jsonwebtoken').sign({ account: all.ADMIN_ACCOUNT, role: 'admin' }, all.JWT_SECRET);
+    const user = [...body.messages].reverse().find(message => message.role === 'user');
+    const response = await agentChat.post({ mode: 'side_chat', originalRequest: typeof user.content === 'string' ? user.content : user.content.find(part => part.type === 'text').text,
+      ...body }, token, { emit: async (kind, data) => events.push({ kind, data }) });
+    return { statusCode: response.statusCode, body: response.body, data: JSON.parse(response.body) };
+  } finally { for (const [key, value] of Object.entries(before)) value === undefined ? delete process.env[key] : process.env[key] = value; }
+}
 const alias = 'fixture/native';
 const entry = { api: 'responses', endpoint: 'https://native.invalid/v1/responses', model: 'native-model', apiKeyEnv: 'NATIVE_KEY', supportsTools: true, supportsImages: true, reasoning: { effort: 'high' }, webSearch: { adapter: 'responses_web_search' } };
 const environment = extra => ({ REQUESTY_MODEL: alias, NATIVE_KEY: 'native-secret', AGENT_PROVIDER_ADAPTERS_JSON: JSON.stringify({ [alias]: { ...entry, ...extra } }), REQUESTY_MODEL_CAPABILITIES_JSON: JSON.stringify({ [alias]: { supportsImages: false, supportsTools: false, supportsWebSearch: false } }) });
@@ -167,7 +182,7 @@ test('authenticated native HTTP route does not require a beta Requesty credentia
     return new Response(JSON.stringify({ id: 'http', status: 'completed', output: [message('done', '{"reply":"Native answer"}', 'final_answer')] }));
   });
   const token = require('jsonwebtoken').sign({ id: user.id, account: user.account, role: 'beta' }, env.JWT_SECRET, { subject: user.id });
-  const result = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ mode: 'side_chat', messages: [{ role: 'user', content: 'Rewrite a sentence.' }] }) }, {});
+  const result = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ mode: 'side_chat', messages: [{ role: 'user', content: 'Rewrite a sentence.' }] }) }, {});
   assert.equal(result.statusCode, 200, result.body); assert.equal(calls, 1);
   assert(!result.body.includes('native-secret'));
 });
@@ -198,17 +213,19 @@ test('native main-loop transport uses native credentials and image admission, ne
     return new Response(JSON.stringify({ id: `r${bodies.length}`, status: 'completed', end_turn: bodies.length !== 1, output: bodies.length === 1 ? [reasoning, message('first', 'Continuing')] : [message('final', '{"reply":"Done"}', 'final_answer')] }));
   });
   const events = [];
-  const result = await backend._test.callRequesty([{ role: 'user', content: 'Inspect this image' }], { ...environment(), CONTEXT_ARCHIVE_DIR: root }, {}, 'side_chat', { turnId: 'native-turn' }, { emit: async (kind, data) => events.push({ kind, data }) }, { images: [{ dataUrl: 'data:image/png;base64,aGVsbG8=' }] });
-  assert(result.ok, JSON.stringify(result)); assert.equal(bodies.length, 2);
+  const result = (await loopTurn({ ...environment(), CONTEXT_ARCHIVE_DIR: root }, { messages: [{ role: 'user', content: 'Inspect this image' }],
+    callContext: { turnId: 'native-turn', callRole: 'answer', profile: 'medium' }, images: [{ name: 'image.png', dataUrl: `data:image/png;base64,${PNG}` }] }, { events })).data;
+  assert.equal(result.fallback, false, JSON.stringify(result)); assert.equal(bodies.length, 2);
   assert(bodies[0].input.some(item => Array.isArray(item.content) && item.content.some(part => part.type === 'input_image')));
   assert.deepEqual(bodies[1].input.filter(item => ['r1', 'first'].includes(item.id)), [reasoning, message('first', 'Continuing')]);
   assert(!JSON.stringify(events.filter(event => event.kind === 'delta')).includes('PRIVATE_PROTOCOL_ANALYSIS'));
-  const rejected = await backend._test.callRequesty([{ role: 'user', content: 'Image' }], { ...environment({ supportsImages: false }), CONTEXT_ARCHIVE_DIR: root }, {}, 'side_chat', null, null, { images: [{ dataUrl: 'data:image/png;base64,aGVsbG8=' }] });
+  const rejected = (await loopTurn({ ...environment({ supportsImages: false }), CONTEXT_ARCHIVE_DIR: root }, { messages: [{ role: 'user', content: 'Image' }],
+    callContext: { turnId: 'native-rejected', callRole: 'answer', profile: 'medium' }, images: [{ name: 'image.png', dataUrl: `data:image/png;base64,${PNG}` }] })).data;
   assert.equal(rejected.error, 'MODEL_IMAGE_CAPABILITY_UNAVAILABLE'); assert.equal(bodies.length, 2);
 });
 
 test('explicit native search adapter preserves BioDesign search and citation metadata', async () => {
-  const stage = require('../requesty-search-stage.js');
+  const stage = require('../../shared/agent/requesty-search-stage.js');
   const result = await stage.run({ activeRequest: 'Find enzyme research', supported: config.supportsWebSearch, onProgress: async () => {}, requestTurn: options => lifecycle.responses(config, { ...request(options.messages), tools: options.tools }, { fetchImpl: async (_url, options) => {
     const body = JSON.parse(options.body); assert.deepEqual(body.tools, [{ type: 'web_search' }]);
     return new Response(JSON.stringify({ id: 'search', status: 'completed', output: [{ type: 'web_search_call', id: 'web1', status: 'completed', action: { type: 'search', query: 'enzyme' } }, message('research', 'Found a paper')] }));
@@ -235,8 +252,9 @@ test('main-loop local execution returns results paired with the original ordered
     assert.equal(result.type, 'function_call_output'); assert.equal(result.call_id, 'list1'); assert.equal(typeof result.output, 'string');
     return new Response(JSON.stringify({ id: 'final', status: 'completed', output: [message('done', '{"reply":"Done"}', 'final_answer')] }));
   });
-  const result = await backend._test.callRequesty([{ role: 'user', content: 'List local papers.' }], { ...environment(), CONTEXT_ARCHIVE_DIR: root }, {}, 'side_chat', { turnId: 'native-tools' });
-  assert(result.ok, JSON.stringify(result)); assert.equal(requests, 2);
+  const result = (await loopTurn({ ...environment(), CONTEXT_ARCHIVE_DIR: root }, { messages: [{ role: 'user', content: 'List local papers.' }],
+    callContext: { turnId: 'native-tools', callRole: 'answer', profile: 'medium' } })).data;
+  assert.equal(result.fallback, false, JSON.stringify(result)); assert.equal(requests, 2);
 });
 
 for (const native of [true, false]) test(`${native ? 'native' : 'chat'} actual request preserves mixed attachments and limits tool image delivery explicitly`, async t => {
@@ -250,12 +268,13 @@ for (const native of [true, false]) test(`${native ? 'native' : 'chat'} actual r
     return new Response(JSON.stringify(native ? { id: 'image-response', status: 'completed', output: [message('final', '{"reply":"Done"}', 'final_answer')] } : { choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '{"reply":"Done"}' } }] }));
   });
   const env = native ? environment() : { REQUESTY_API_KEY: 'fixture-key', REQUESTY_MODEL: 'fixture/chat', REQUESTY_MODEL_CAPABILITIES_JSON: JSON.stringify({ 'fixture/chat': { supportsImages: true, supportsTools: true, supportsWebSearch: false } }) };
-  const result = await backend._test.callRequesty(messages, { ...env, CONTEXT_ARCHIVE_DIR: root }, {}, 'side_chat', { turnId: 'mixed-images' }, null, { images: [{ dataUrl: 'data:image/png;base64,dXNlcg==' }] });
-  assert(result.ok, JSON.stringify(result));
+  const result = (await loopTurn({ ...env, CONTEXT_ARCHIVE_DIR: root }, { messages, originalRequest: 'Describe the figures',
+    callContext: { turnId: 'mixed-images', callRole: 'answer', profile: 'medium' }, images: [{ name: 'user.png', dataUrl: `data:image/png;base64,${PNG}` }] })).data;
+  assert.equal(result.fallback, false, JSON.stringify(result));
   const requestMessages = native ? body.input : body.messages;
   const parts = requestMessages.flatMap(m => Array.isArray(m.content) ? m.content : []);
   const pixels = parts.filter(p => ['input_image', 'image_url'].includes(p.type)).map(p => native ? p.image_url : p.image_url.url);
-  assert.deepEqual(pixels, ['data:image/png;base64,cHJpb3I=', 'data:image/png;base64,dXNlcg==', ...images.slice(2).map(data => `data:image/png;base64,${data}`)]);
+  assert.deepEqual(pixels, ['data:image/png;base64,cHJpb3I=', `data:image/png;base64,${PNG}`, ...images.slice(2).map(data => `data:image/png;base64,${data}`)]);
   const receipts = requestMessages.filter(m => native ? m.type === 'function_call_output' : m.role === 'tool').map(m => JSON.parse(native ? m.output : m.content).value.content[0]);
   assert.deepEqual(receipts.map(r => r.delivered_as_pixels), [false, false, true, true, true, true]);
   assert.deepEqual(receipts.map(r => r.originating_call_id), images.map((_, i) => `img${i}`));

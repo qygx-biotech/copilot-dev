@@ -215,7 +215,9 @@ global.fetch = async (_url, options = {}) => {
   );
 };
 
-const { handler, _test } = require("../index");
+const { _test } = require("../index");
+// Agent turns (/chat) run on the agent loop; every other route is the FC handler.
+const { handler } = require("./helpers/agent-chat.js");
 
 const context = {
   requestId: "fc-unit-test-request",
@@ -1815,31 +1817,6 @@ test("missing and foreign PDF objects produce controlled errors", async () => {
   assert.equal(parseResponse(foreignDeleteResponse).error, "ObjectAccessDenied");
 });
 
-test("existing chat can retrieve an owned stored PDF as evidence", async () => {
-  const objectKey = _test.buildOwnedPdfObjectKey(
-    process.env.ADMIN_ACCOUNT,
-    "side-chat-paper.pdf"
-  );
-  objectStore.set(objectKey, {
-    buffer: makeMachineReadablePdf(),
-    contentType: "application/pdf"
-  });
-
-  const response = await handler(
-    apiEvent("POST", "/chat", {
-      mode: "side_chat",
-      messages: [{ role: "user", content: "What does this paper conclude?" }],
-      storedDocuments: [{ objectKey }]
-    }),
-    context
-  );
-  const body = parseResponse(response);
-
-  assert.equal(response.statusCode, 200);
-  assert.equal(body.reply, "The stored PDF evidence was available to Side Chat.");
-  assert.deepEqual(body.storedPdfsUsed, ["side-chat-paper.pdf"]);
-});
-
 test("Side Chat accepts plain-text follow-ups and preserves multi-round history", async () => {
   capturedLlmRequests.length = 0;
   queuedChatCompletionTexts.push("The first conversational answer.");
@@ -2085,7 +2062,7 @@ test("chat history is bounded while retaining the latest turn", () => {
     role: index % 2 ? "assistant" : "user",
     content: `${index}:${"x".repeat(3990)}`
   }));
-  const sanitized = _test.sanitizeChatMessagesForLlm(messages);
+  const sanitized = require("../../shared/agent/request-context.js").sanitizeChatMessagesForLlm(messages);
   assert.ok(sanitized.length <= 40);
   assert.equal(sanitized[0].role, "user");
   assert.equal(sanitized.at(-1).content.startsWith("59:"), true);
@@ -2097,7 +2074,7 @@ test("chat history is bounded while retaining the latest turn", () => {
 
 test("a long prior Side Chat answer remains available to the next turn", () => {
   const longAnswer = "Prior answer detail. ".repeat(2500).trim();
-  const sanitized = _test.sanitizeChatMessagesForLlm([
+  const sanitized = require("../../shared/agent/request-context.js").sanitizeChatMessagesForLlm([
     { role: "user", content: "Give me a detailed analysis." },
     { role: "assistant", content: longAnswer },
     { role: "user", content: "Now compare its last two sections." }
@@ -2105,144 +2082,6 @@ test("a long prior Side Chat answer remains available to the next turn", () => {
 
   assert.equal(sanitized[1].content, longAnswer);
   assert.equal(sanitized.at(-1).content, "Now compare its last two sections.");
-});
-
-test("side chat routes by cached summaries and avoids loading unrelated PDFs", async () => {
-  const pdf = makeMachineReadablePdf();
-  const alphaKey = _test.buildOwnedPdfObjectKey(
-    process.env.ADMIN_ACCOUNT,
-    "alpha-catalyst.pdf"
-  );
-  const betaKey = _test.buildOwnedPdfObjectKey(
-    process.env.ADMIN_ACCOUNT,
-    "beta-fermentation.pdf"
-  );
-  for (const [objectKey, title] of [
-    [alphaKey, "Alpha catalyst study"],
-    [betaKey, "Beta fermentation study"]
-  ]) {
-    objectStore.set(objectKey, { buffer: pdf, contentType: "application/pdf" });
-    objectStore.set(objectKey.replace(/[^/]+$/, ".paper-review.json"), {
-      buffer: Buffer.from(
-        JSON.stringify({
-          version: 1,
-          objectKey,
-          filename: objectKey.split("/").pop(),
-          language: "en",
-          updatedAt: "2026-08-14T06:00:00.000Z",
-          review: {
-            title,
-            summary: `${title} reports a focused validation result.`,
-            research_question: `What does ${title} demonstrate?`,
-            methods: "Controlled comparison.",
-            key_results: [`${title} produced its reported result.`],
-            limitations: ["Limited validation scale."],
-            main_conclusion: `${title} supports further evaluation.`
-          }
-        })
-      ),
-      contentType: "application/json"
-    });
-  }
-
-  pdfGetCalls = 0;
-  const focusedResponse = await handler(
-    apiEvent("POST", "/chat", {
-      mode: "side_chat",
-      messages: [{ role: "user", content: "What does alpha conclude?" }],
-      storedDocuments: [
-        { objectKey: alphaKey, summaryAvailable: true },
-        { objectKey: betaKey, summaryAvailable: true }
-      ]
-    }),
-    context
-  );
-  const focusedBody = parseResponse(focusedResponse);
-  assert.equal(focusedResponse.statusCode, 200);
-  assert.deepEqual(focusedBody.storedPdfsUsed, ["alpha-catalyst.pdf"]);
-  assert.equal(focusedBody.documentScope.mode, "summary-relevance");
-  assert.equal(pdfGetCalls, 1);
-
-  pdfGetCalls = 0;
-  const collectionResponse = await handler(
-    apiEvent("POST", "/chat", {
-      mode: "side_chat",
-      messages: [{ role: "user", content: "Summarize all uploaded files." }],
-      storedDocuments: [
-        { objectKey: alphaKey, summaryAvailable: true },
-        { objectKey: betaKey, summaryAvailable: true }
-      ],
-      selectedDocumentKeys: [alphaKey]
-    }),
-    context
-  );
-  const collectionBody = parseResponse(collectionResponse);
-  assert.equal(collectionResponse.statusCode, 200);
-  assert.deepEqual(collectionBody.storedPdfsUsed, []);
-  assert.deepEqual(collectionBody.storedPdfSummariesUsed.sort(), [
-    "alpha-catalyst.pdf",
-    "beta-fermentation.pdf"
-  ]);
-  assert.equal(collectionBody.documentScope.mode, "collection-summaries");
-  assert.equal(pdfGetCalls, 0);
-});
-
-test("collection chat uses cached summaries for twenty papers without loading PDFs", async () => {
-  const storedDocuments = [];
-  for (let index = 1; index <= 20; index += 1) {
-    const objectKey = _test.buildOwnedPdfObjectKey(
-      process.env.ADMIN_ACCOUNT,
-      `collection-paper-${String(index).padStart(2, "0")}.pdf`
-    );
-    objectStore.set(objectKey, {
-      buffer: makeMachineReadablePdf(),
-      contentType: "application/pdf"
-    });
-    objectStore.set(objectKey.replace(/[^/]+$/, ".paper-review.json"), {
-      buffer: Buffer.from(
-        JSON.stringify({
-          version: 1,
-          objectKey,
-          filename: objectKey.split("/").pop(),
-          language: "en",
-          updatedAt: "2026-08-15T02:00:00.000Z",
-          review: {
-            title: `Collection paper ${index}`,
-            summary: `Paper ${index} reports a distinct evidence result.`,
-            research_question: `Research question ${index}.`,
-            methods: `Method ${index}.`,
-            key_results: [`Result ${index}.`],
-            limitations: [`Limitation ${index}.`],
-            main_conclusion: `Conclusion ${index}.`
-          }
-        })
-      ),
-      contentType: "application/json"
-    });
-    storedDocuments.push({ objectKey, summaryAvailable: true });
-  }
-
-  pdfGetCalls = 0;
-  queuedChatCompletionTexts.push(
-    "The twenty cached paper summaries were compared without loading full PDFs."
-  );
-  const response = await handler(
-    apiEvent("POST", "/chat", {
-      mode: "side_chat",
-      messages: [
-        { role: "user", content: "Compare all twenty papers in the collection." }
-      ],
-      storedDocuments
-    }),
-    context
-  );
-  const body = parseResponse(response);
-  assert.equal(response.statusCode, 200);
-  assert.equal(body.fallback, false);
-  assert.equal(body.documentScope.mode, "collection-summaries");
-  assert.equal(body.storedPdfSummariesUsed.length, 20);
-  assert.equal(body.storedPdfsUsed.length, 0);
-  assert.equal(pdfGetCalls, 0);
 });
 
 for (const native of [false, true]) test(`${native ? "native PDF" : "combined text"} normalizes descriptive omissions but never source identity or citation fields`, async () => {

@@ -223,7 +223,7 @@
   function responseOutcome(data) {
     if (data.fallback || data.failure || data.contextRecoveryIncomplete || (data.taskOutcome && data.taskOutcome.status !== "completed"))
       return { status: data.fallback || data.failure ? "failed" : "partial", stage: "incomplete_result" };
-    if (data.desktopToolCalls?.length || data.desktopContinuation || data.evidenceRecovery || data.agentContinuation)
+    if (data.desktopToolCalls?.length || data.agentCheckpoint?.final === false || data.evidenceRecovery)
       return { status: "partial", stage: "tool_handoff" };
     if (typeof data.reply === "string" && data.reply.trim() || data.project)
       return { status: "completed", stage: "final_answer" };

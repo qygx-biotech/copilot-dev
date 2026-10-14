@@ -25,6 +25,7 @@ const channels = Object.freeze({
   filesMkdir: "biodesign:files:mkdir",
   filesRemove: "biodesign:files:remove",
   filesTree: "biodesign:files:tree",
+  filesReveal: "biodesign:files:reveal",
   knowledgeInitialize: "biodesign:knowledge:initialize",
   knowledgeStatus: "biodesign:knowledge:status",
   knowledgeUpdate: "biodesign:knowledge:update",
@@ -38,32 +39,47 @@ const channels = Object.freeze({
   jobsCancel: "biodesign:jobs:cancel",
   executionList: "biodesign:execution:list",
   executionRun: "biodesign:execution:run",
+  agentStart: "biodesign:agent:start",
+  agentCancel: "biodesign:agent:cancel",
+  agentSteer: "biodesign:agent:steer",
+  agentInject: "biodesign:agent:inject",
+  agentRespond: "biodesign:agent:respond",
+  agentEvent: "biodesign:agent:event",
+  feedbackSave: "biodesign:feedback:save",
+  feedbackReveal: "biodesign:feedback:reveal",
 });
 
 let activeProjectId = null;
 
+// contextBridge copies only the message of an Error thrown across it; custom
+// properties such as code and status are dropped. Plain objects are copied
+// whole, so desktop failures cross as { name, code, message, status }.
+function desktopError(code, message, status) {
+  return { name: "DesktopError", code, message, ...(Number.isInteger(status) ? { status } : {}) };
+}
+
 async function invoke(channel, payload = {}) {
-  const response = await ipcRenderer.invoke(channel, payload);
+  let response;
+  try { response = await ipcRenderer.invoke(channel, payload); }
+  catch (error) { throw desktopError("DESKTOP_IPC_FAILED", String(error?.message || "Desktop request failed.").slice(0, 1000)); }
   if (!response?.ok) {
-    const error = new Error(response?.error?.message || "Desktop operation failed.");
-    error.code = response?.error?.code || "DESKTOP_OPERATION_FAILED";
-    throw error;
+    throw desktopError(response?.error?.code || "DESKTOP_OPERATION_FAILED", response?.error?.message || "Desktop operation failed.", response?.error?.status);
   }
   return response.value;
 }
 
 function projectPayload(payload = {}) {
-  if (!activeProjectId) {
-    const error = new Error("Select a project folder first.");
-    error.code = "NO_ACTIVE_PROJECT";
-    throw error;
-  }
+  if (!activeProjectId) throw desktopError("NO_ACTIVE_PROJECT", "Select a project folder first.");
   if (payload.projectId !== undefined && payload.projectId !== activeProjectId) {
-    const error = new Error("The request belongs to a previous project.");
-    error.code = "PROJECT_MISMATCH";
-    throw error;
+    throw desktopError("PROJECT_MISMATCH", "The request belongs to a previous project.");
   }
   return { ...payload, projectId: activeProjectId };
+}
+
+// Async, so a project check fails as a rejection: a synchronous throw across
+// contextBridge loses the error's code like an Error does.
+async function invokeProject(channel, payload) {
+  return invoke(channel, projectPayload(payload));
 }
 
 function deepFreeze(value) {
@@ -110,24 +126,26 @@ const api = {
     status: () => invoke(channels.projectStatus, { projectId: activeProjectId }),
   },
   files: {
-    list: (payload) => invoke(channels.filesList, projectPayload(payload)),
-    stat: (payload) => invoke(channels.filesStat, projectPayload(payload)),
-    exists: (payload) => invoke(channels.filesExists, projectPayload(payload)),
-    readText: (payload) => invoke(channels.filesReadText, projectPayload(payload)),
-    readBinary: (payload) => invoke(channels.filesReadBinary, projectPayload(payload)),
-    writeText: (payload) => invoke(channels.filesWriteText, projectPayload(payload)),
-    writeBinary: (payload) => invoke(channels.filesWriteBinary, projectPayload(payload)),
-    mkdir: (payload) => invoke(channels.filesMkdir, projectPayload(payload)),
-    remove: (payload) => invoke(channels.filesRemove, projectPayload(payload)),
-    tree: (payload = {}) => invoke(channels.filesTree, projectPayload(payload)),
+    list: (payload) => invokeProject(channels.filesList, payload),
+    stat: (payload) => invokeProject(channels.filesStat, payload),
+    exists: (payload) => invokeProject(channels.filesExists, payload),
+    readText: (payload) => invokeProject(channels.filesReadText, payload),
+    readBinary: (payload) => invokeProject(channels.filesReadBinary, payload),
+    writeText: (payload) => invokeProject(channels.filesWriteText, payload),
+    writeBinary: (payload) => invokeProject(channels.filesWriteBinary, payload),
+    mkdir: (payload) => invokeProject(channels.filesMkdir, payload),
+    remove: (payload) => invokeProject(channels.filesRemove, payload),
+    tree: (payload = {}) => invokeProject(channels.filesTree, payload),
+    // Shows a project file in its folder in Finder or Explorer.
+    reveal: (payload) => invokeProject(channels.filesReveal, payload),
   },
   knowledge: {
-    initialize: (payload) => invoke(channels.knowledgeInitialize, projectPayload(payload)),
-    status: (payload = {}) => invoke(channels.knowledgeStatus, projectPayload(payload)),
-    update: (payload) => invoke(channels.knowledgeUpdate, projectPayload(payload)),
-    embed: (payload) => invoke(channels.knowledgeEmbed, projectPayload(payload)),
-    search: (payload) => invoke(channels.knowledgeSearch, projectPayload(payload)),
-    document: (payload) => invoke(channels.knowledgeDocument, projectPayload(payload)),
+    initialize: (payload) => invokeProject(channels.knowledgeInitialize, payload),
+    status: (payload = {}) => invokeProject(channels.knowledgeStatus, payload),
+    update: (payload) => invokeProject(channels.knowledgeUpdate, payload),
+    embed: (payload) => invokeProject(channels.knowledgeEmbed, payload),
+    search: (payload) => invokeProject(channels.knowledgeSearch, payload),
+    document: (payload) => invokeProject(channels.knowledgeDocument, payload),
     onProgress(listener) {
       if (typeof listener !== "function") throw new TypeError("A progress listener is required.");
       const wrapped = (_event, payload) => listener(payload);
@@ -136,14 +154,36 @@ const api = {
     },
   },
   jobs: {
-    start: (payload) => invoke(channels.jobsStart, projectPayload(payload)),
-    status: (payload) => invoke(channels.jobsStatus, projectPayload(payload)),
-    list: () => invoke(channels.jobsList, projectPayload()),
-    cancel: (payload) => invoke(channels.jobsCancel, projectPayload(payload)),
+    start: (payload) => invokeProject(channels.jobsStart, payload),
+    status: (payload) => invokeProject(channels.jobsStatus, payload),
+    list: () => invokeProject(channels.jobsList),
+    cancel: (payload) => invokeProject(channels.jobsCancel, payload),
+  },
+  // Bug reports: save writes a local file chosen by the user; reveal shows the
+  // last saved one. Neither needs an open project.
+  feedback: {
+    save: (payload) => invoke(channels.feedbackSave, payload),
+    reveal: () => invoke(channels.feedbackReveal),
   },
   execution: {
-    listWorkflows: () => invoke(channels.executionList, projectPayload()),
-    runWorkflow: (payload) => invoke(channels.executionRun, projectPayload(payload)),
+    listWorkflows: () => invokeProject(channels.executionList),
+    runWorkflow: (payload) => invokeProject(channels.executionRun, payload),
+  },
+  // The desktop agent loop. start resolves when the turn ends; its progress
+  // arrives through onEvent tagged with the turnId.
+  agent: {
+    start: (payload) => invokeProject(channels.agentStart, payload),
+    cancel: (payload) => invokeProject(channels.agentCancel, payload),
+    steer: (payload) => invokeProject(channels.agentSteer, payload),
+    inject: (payload) => invokeProject(channels.agentInject, payload),
+    // Answers a step boundary event ({ type: "boundary" }) of a running turn.
+    respond: (payload) => invokeProject(channels.agentRespond, payload),
+    onEvent(listener) {
+      if (typeof listener !== "function") throw new TypeError("An agent event listener is required.");
+      const wrapped = (_event, payload) => listener(payload);
+      ipcRenderer.on(channels.agentEvent, wrapped);
+      return () => ipcRenderer.removeListener(channels.agentEvent, wrapped);
+    },
   },
 };
 

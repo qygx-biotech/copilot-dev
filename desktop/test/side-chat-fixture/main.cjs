@@ -1,5 +1,8 @@
 // Runs the repository's real editor, submission functions, delegated events,
 // citation renderer, and CSS in Chromium. Workspace persistence/network are mocks.
+// Turns go through the real sendWorkbenchRequest and runtime session of the
+// desktop agent loop; the fixture answers at sendWorkbenchRequestOnce, the
+// transport to the loop, which has its own suites.
 const { app, BrowserWindow } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -22,9 +25,9 @@ const functions = [
   "persistSideChatConversation", "renderSideChatConversation", "renderSideChatConversationSelect", "changeSideChatConversation", "beginSideChatMessageEdit", "showSideChatEditError", "reviseLatestSideChatMessage",
   "setSideChatBusy", "askSideChat", "addSideChatThinking", "updateSideChatThinking", "getSideChatActivitySteps", "sideChatProgressText", "formatCorpusPaperProgress",
   "setSideChatEmptyState", "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
-  "getSideChatCitationContext", "navigateSideChatCitation", "createSideChatActivitySummary", "addSideChatMessage",
+  "getSideChatCitationContext", "citationRevealable", "navigateSideChatCitation", "createSideChatActivitySummary", "addSideChatMessage",
   "createStreamingAnswer", "normalizeSideChatModel", "shortSideChatModelName", "updateSideChatModelConfiguration", "renderSideChatModelControl", "saveWorkspaceStateNow",
-  "runAgentInstruction", "setAgentBusy", "getAgentModelOptions",
+  "runAgentInstruction", "agentTurnsChanged", "agentTaskFolder", "getAgentModelOptions",
   "initializeSideChatImages", "submitSideChat", "understandSideChatImages", "sendWorkbenchRequest",
   "queueSideChatInput", "runtimeInjectionLabel",
   "handleComposerCommand", "composerReferenceMessages",
@@ -45,7 +48,7 @@ const sideChatHistory = document.querySelector("#history"), sideChatInput = docu
 const translations = { editLastMessage: "Edit latest message", cancelEdit: "Cancel", saveAndRegenerate: "Save and regenerate", editMessageRequired: "Enter a message before saving.", chatPersistenceFailed: "Could not save. Please try again.", sideChatUserLabel: "You", sideChatAssistantLabel: "Copilot", citationUnavailable: "Source unavailable", backendFallbackMessage: "Request failed; local fallback", thinking: "Thinking..." };
 const t = key => translations[key] || key;
 let sideChatBusy = false, sideChatMessages = [], sideChatConversation, activeCorpusProgress = null, activeLiteratureOperations = 0, lastSourceUsage;
-let activeSideRuntime = null, activeAgentRuntime = null;
+let activeSideRuntime = null;
 let acknowledgeRuntimeInjections = false, injectedMessages = [];
 const sideChatModelSelect = document.getElementById("sideChatModelSelect"), sideChatModelDescription = document.getElementById("sideChatModelDescription");
 const projectContextInput = { value: "Test goal" };
@@ -72,14 +75,16 @@ window.fetch = async (url, options) => {
 const USE_BACKEND = true, authToken = "fixture";
 const agentWorkApi = window.BioDesignAgentWork;
 let agentWorkArea = null;
-let activeAgentRequest = false, activeAgentPanelId = "", currentRecommendation = { title: "Existing recommendation" };
+let currentRecommendation = { title: "Existing recommendation" };
+const agentTranscripts = null;
+const AGENT_TURN_LIMIT = 3, runningAgentTurns = new Map(), agentTurnRunning = panelId => runningAgentTurns.has(panelId), agentTurnsAtLimit = () => runningAgentTurns.size >= AGENT_TURN_LIMIT;
 const agentPanel = { id: "agent-panel", instruction: "Review evidence", recommendation: currentRecommendation, frozen: false };
 const analysisPanelStack = document.createElement("div"); document.body.append(analysisPanelStack);
 const findAnalysisPanel = id => id === agentPanel.id ? agentPanel : null;
 let panelSaves = [];
 const saveAnalysisPanels = () => panelSaves.push(structuredClone(agentPanel));
 const renderAnalysisPanels = () => { analysisPanelStack.innerHTML = '<article data-panel-id="agent-panel"><div class="agent-stream-slot"></div></article>'; };
-const renderBackendStatus = () => {};
+const renderBackendStatus = () => {}, renderAllDocumentLists = () => {};
 const buildAgentMessages = instruction => [{ role: "user", content: instruction }];
 const normalizeAgentResponse = response => ({ title: response.reply });
 const createLocalRecommendation = () => ({ title: "Local fallback" });
@@ -90,7 +95,19 @@ let workspaceTree = { type: "directory", relativePath: "", children: [{ type: "f
 const flattenWorkspaceTree = tree => tree.children;
 const expandedWorkspacePaths = new Set([""]), selectedWorkspacePaths = new Set();
 const literatureModule = { documents: [], sourceRegistry: { list: () => sources, get: id => sources.find(s => s.sourceId === id) } };
-const projectContextService = { buildConversationContext: conversation => structuredClone(conversation.messages), buildContext: async options => { contextCalls.push(options.question); contextModels.push(options.callContext?.model); return { literature: {}, files: [] }; } };
+// Like the real service, a prepared context registers the turn's project scope,
+// which the turn's runtime session holds while it runs.
+const turnScope = (options, context) => { projectContextService.agentTurns.set(options.turnId, { options, context, project: context.project, hardSelection: false, selected: [], sourceVersions: {}, paths: [] }); return context; };
+const projectContextService = { agentTurns: new Map(), buildConversationContext: conversation => structuredClone(conversation.messages), buildContext: async options => { contextCalls.push(options.question); contextModels.push(options.callContext?.model);
+  return turnScope(options, { literature: {}, files: [], project: { workspaceId: workspaceManager.workspace.workspaceId }, agentLoop: { version: 1 } }); } };
+// The desktop host as the renderer sees it: the agent loop API and host
+// workflows. Turns here use no skills, Apps or runtime tools.
+let workflowCalls = [];
+window.biodesignDesktop = { agent: {}, execution: { runWorkflow: async ({ workflowId }) => {
+  workflowCalls.push(workflowId);
+  if (workflowId === "runtime_skills_context") return { catalog: [], active: [] };
+  throw new Error("Unexpected fixture workflow " + workflowId);
+} } };
 const workspaceChatStore = { saveConversation: async conversation => { saves.push(structuredClone(conversation)); if (saves.length === saveFailAt) throw new Error("disk unavailable"); savedConversations.set(conversation.id, structuredClone(conversation)); return structuredClone(conversation); },
   saveTranscriptTurn: async (id, turn) => { const conversation = savedConversations.get(id); if (!conversation) return null; conversation.transcript = window.BioDesignConversationTranscript.upsert(conversation.transcript, turn); return conversation.transcript; },
   listConversations: async () => [...savedConversations.values()].map(({ messages, ...record }) => ({ ...record, messageCount: messages.length })),
@@ -115,8 +132,9 @@ const showToast = text => toasts.push(text);
 class AuthRequiredError extends Error {}
 const getSelectedPaperIds = () => [];
 const sendWorkbenchRequestOnce = async request => {
-  const { onStream, onTranscript, signal, isCurrentRequest, runtimeQueue, ...payload } = request;
-  requests.push(structuredClone(payload)); lastStreamCallback = onStream;
+  const { onStream, onTranscript, signal, isCurrentRequest, runtimeQueue, runtimeSession, runtimeExtensions, turnObserver, ...payload } = request;
+  if (!runtimeSession || !runtimeExtensions || signal !== runtimeSession.signal) throw new Error("The turn did not open a runtime session");
+  requests.push(JSON.parse(JSON.stringify(payload))); lastStreamCallback = onStream;
   for (const event of streamEvents) onStream?.(event);
   if (pendingRequest) await pendingRequest;
   if (acknowledgeRuntimeInjections && runtimeQueue && !signal?.aborted) {
@@ -141,7 +159,7 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     fs.writeFileSync(fixturePath, fixtureHtml);
     await win.loadFile(fixturePath);
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/source-citations.js"), "utf8"));
-    for (const script of ["shared/conversation-transcript.js", "shared/side-chat-tools.js", "shared/retrieval-contract.js", "shared/semantic-intent.js", "docs/project-context-service.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
+    for (const script of ["shared/conversation-transcript.js", "shared/side-chat-tools.js", "shared/retrieval-contract.js", "shared/semantic-intent.js", "shared/corpus-result-service.js", "docs/project-context-service.js", "shared/collaboration-modes.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "shared/chat-images.js"), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/chat-image-composer.js"), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/chat-attachments.js"), "utf8"));
@@ -150,6 +168,9 @@ const renderWorkspaceExplorer = () => { workspaceTreeContainer.replaceChildren()
     await win.webContents.executeJavaScript("window.BioDesignRuntimeLog.installPanel()");
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/agent-work-area.js"), "utf8"));
     await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, "docs/runtime-turns.js"), "utf8"));
+    // The runtime session and its dependencies, in docs/index.html order.
+    for (const script of ["shared/runtime-concurrency.js", "shared/advanced-tools.js", "shared/runtime-tools.js", "shared/generic-subagent.js", "shared/runtime-extensions.js",
+      "docs/generic-subagents.js", "docs/runtime-tool-registry.js", "docs/runtime-state-tools.js", "docs/runtime-session.js"]) await win.webContents.executeJavaScript(fs.readFileSync(path.join(root, script), "utf8"));
     await win.webContents.executeJavaScript(`${setup}\n${functions}\n${scrollInspection}\n${modelEvents}\n${historyEvents}\n${events}\n${fs.readFileSync(path.join(__dirname, "scenarios.js"), "utf8")}`);
     await win.webContents.executeJavaScript("initializeSideChatImages()");
     const result = await win.webContents.executeJavaScript("runScenarios()");

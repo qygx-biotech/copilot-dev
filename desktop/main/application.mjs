@@ -5,11 +5,13 @@ import {
   dialog,
   ipcMain,
   nativeImage,
+  net,
   session,
   shell,
   utilityProcess,
 } from "electron";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { allowsMicrophone } from "./media-permissions.mjs";
@@ -17,7 +19,11 @@ import { registerIpcHandlers } from "../ipc/register-handlers.mjs";
 import channels from "../ipc/channels.cjs";
 import { imagePreview } from "../services/runtime-image.mjs";
 import { ProjectSessionManager } from "../services/project-session.mjs";
+import { ExecutionRuntime, loadRuntimeManifest } from "../services/execution-runtime.mjs";
+import { FeedbackReports } from "../services/feedback-report.mjs";
 import { ProjectCatalog } from "../services/project-catalog.mjs";
+import { AGENT_PROXY_URL_OVERRIDE, AgentLoopService } from "../services/agent-loop-service.mjs";
+import backendConfig from "../../shared/backend-config.js";
 import {
   BIO_DESIGN_APP_USER_MODEL_ID,
   getWindowsUpdateEligibility,
@@ -34,6 +40,7 @@ let mainWindow = null;
 let sessionManager = null;
 let unregisterHandlers = null;
 let updaterController = null;
+let executionRuntime = null;
 const smokeDiagnostics = [];
 
 if (process.platform === "win32") {
@@ -273,9 +280,14 @@ app.on("web-contents-created", (_event, contents) => {
 app.whenReady().then(async () => {
   app.setAppLogsPath();
   installSecurityPolicy();
+  // Python and Node for sandboxed project commands, downloaded on first use from
+  // the release pinned in desktop/runtime/execution-runtime.json. net.fetch uses
+  // the system proxy settings.
+  executionRuntime = new ExecutionRuntime({ root: path.join(app.getPath("userData"), "runtimes"),
+    manifest: await loadRuntimeManifest(), fetchImpl: (url, options) => net.fetch(url, options) });
   sessionManager = new ProjectSessionManager({
     utilityProcess,
-    advancedRuntime: { imagePreview: bytes => imagePreview(nativeImage, bytes) },
+    advancedRuntime: { imagePreview: bytes => imagePreview(nativeImage, bytes), runtime: executionRuntime },
     resourcesPath: process.resourcesPath,
     packaged: app.isPackaged,
     appPath: applicationRoot,
@@ -309,7 +321,38 @@ app.whenReady().then(async () => {
       logEvent: (event, details) => { void log(event, details); },
     });
   }
+  // Side Chat and Agent Work run on the desktop agent loop; FC is its model
+  // proxy. A development proxy URL may be supplied; the proxy client accepts
+  // only HTTPS or loopback HTTP.
+  const agentLoop = new AgentLoopService({
+    sessionManager, utilityProcess, appPath: applicationRoot,
+    baseUrl: process.env[AGENT_PROXY_URL_OVERRIDE] || backendConfig.FC_BASE_URL,
+    sendEvent: (sender, payload) => sender.send(channels.agentEvent, payload),
+  });
+  // Bug reports are saved where the user chooses, by default in Downloads.
+  const feedback = new FeedbackReports({
+    appInfo: () => ({ version: app.getVersion(), packaged: app.isPackaged, platform: process.platform, architecture: process.arch, osRelease: os.release(),
+      electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, locale: app.getLocale() }),
+    diagnostics: async () => ({ projectOpen: Boolean(sessionManager?.active), agentTurnsRunning: agentLoop.turns?.size ?? 0,
+      executionRuntime: await executionRuntime?.status(),
+      sandbox: sessionManager?.active?.advancedRuntime ? await sessionManager.active.advancedRuntime.capabilities({ surface: "agent_command", permission: "workspace_write" })
+        .then(({ scratch, project, runtime, unavailableDependencies }) => ({ scratch, project, runtime, unavailableDependencies })) : null }),
+    logFile: path.join(app.getPath("logs"), "desktop.log"),
+    chooseFile: async name => {
+      const result = await dialog.showSaveDialog(mainWindow, { defaultPath: path.join(app.getPath("downloads"), name),
+        filters: [{ name: "BioDesign report", extensions: ["json"] }] });
+      return result.canceled ? null : result.filePath;
+    },
+    reveal: file => shell.showItemInFolder(file),
+  });
   unregisterHandlers = registerIpcHandlers({
+    agentLoop,
+    feedback,
+    // Citations open the folder that holds the cited file.
+    revealPath: {
+      file: file => shell.showItemInFolder(file),
+      folder: async folder => { const failure = await shell.openPath(folder); if (failure) throw Object.assign(new Error(failure), { code: "OPEN_FAILED" }); },
+    },
     writeClipboardText: (text) => clipboard.writeText(text),
     projectCatalog: new ProjectCatalog(path.join(app.getPath('userData'), 'projects')),
     openExternal: url => shell.openExternal(url),
@@ -366,5 +409,6 @@ app.on("window-all-closed", () => {
 
 app.on("quit", () => {
   updaterController?.stop();
+  void executionRuntime?.close();
   unregisterHandlers?.();
 });

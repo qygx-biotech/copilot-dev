@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
 const jwt = require('jsonwebtoken'), backend = require('../index.js');
+const agentChat = require("./helpers/agent-chat.js");
 const model = 'fixture/freeform-agent';
 function setup(t, respond) {
   const env = { JWT_SECRET: 'freeform-fixture', ADMIN_ACCOUNT: 'freeform', REQUESTY_API_KEY: 'freeform-key', REQUESTY_MODEL: model,
@@ -17,7 +18,7 @@ function setup(t, respond) {
   });
   const token = jwt.sign({ account: 'freeform', role: 'admin' }, env.JWT_SECRET);
   const send = async () => {
-    const result = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
+    const result = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
       mode: 'agent_instruction', model, originalRequest: 'Reply in the requested format.', messages: [{ role: 'user', content: 'Reply in the requested format.' }],
       desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'read_only', projectId: 'fixture' },
     }) });
@@ -45,9 +46,9 @@ for (const mode of ['plain', 'returned-error', 'thrown-error', 'legacy-error']) 
     const source = fs.readFileSync(require.resolve('../../docs/app.js'), 'utf8').match(/^async function runAgentInstruction\([\s\S]*?^}/m)[0];
     const panel = { id: 'panel', instruction: 'Hello', selectedModel: model, messages: [] }, recommendation = { summary: 'Existing' };
     const records = [], noop = () => {};
-    const sandbox = vm.createContext({ console, AbortController, panel, currentRecommendation: recommendation, activeAgentRequest: false,
-      findAnalysisPanel: () => panel, agentWorkApi: { beginTurn: () => { panel.taskStatus = 'running'; return { requestedModel: model }; }, finishTurn: (p, turn, result) => { records.push(result); p.taskStatus = result.status || 'completed'; } },
-      makeId: () => 'freeform-turn', getAgentModelOptions: () => [], setAgentBusy: noop, getSelectedPaperIds: () => [], getProjectContext: () => '',
+    const sandbox = vm.createContext({ console, AbortController, panel, currentRecommendation: recommendation, runningAgentTurns: new Map(), agentTurnRunning: () => false, agentTurnsAtLimit: () => false, agentTurnsChanged: () => {}, agentTaskFolder: () => 'task-folder', agentTranscripts: null,
+      findAnalysisPanel: () => panel, agentWorkApi: { beginTurn: () => { panel.taskStatus = 'running'; return { id: 'freeform-turn', requestedModel: model }; }, finishTurn: (p, turn, result) => { records.push(result); p.taskStatus = result.status || 'completed'; } },
+      makeId: () => 'freeform-turn', getAgentModelOptions: () => [], getSelectedPaperIds: () => [], getProjectContext: () => '',
       projectContextService: null, workspaceManager: { workspace: {} }, workspaceTree: null, workspaceAbortController: null, selectedWorkspacePaths: new Set(),
       saveAnalysisPanels: noop, renderAnalysisPanels: noop, renderBackendStatus: noop, normalizeSemanticTelemetry: noop, literatureModule: null,
       agentWorkArea: null, analysisPanelStack: { querySelectorAll: () => [] }, USE_BACKEND: true, authToken: 'fixture',

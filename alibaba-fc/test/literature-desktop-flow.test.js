@@ -1,13 +1,12 @@
 'use strict';
-const test = require('node:test'), assert = require('node:assert/strict'), vm = require('node:vm');
-const { readFile, mkdtemp, rm } = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
-const jwt = require('jsonwebtoken'), backend = require('../index.js');
+const test = require('node:test'), assert = require('node:assert/strict');
+const { mkdtemp, rm } = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
+const jwt = require('jsonwebtoken');
 const { demandFixture } = require('./helpers/demand-context-fixture.js');
 const academic = require('../../shared/academic-tools.js'), literature = require('../../shared/literature-agent.js');
-const sourceDownload = require('../../shared/source-download.js'), webSearch = require('../../shared/web-search.js'), eventStream = require('../../shared/event-stream.js');
 const call = (name, args) => ({ id: name, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 
-for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'busy', 'input-quota', 'raw-finish']) test(`production renderer → authenticated backend → specialist → local host → signed resume: ${scenario}`, async t => {
+for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'busy', 'input-quota', 'raw-finish']) test(`production renderer → agent loop → specialist → local host → resume: ${scenario}`, async t => {
   const providerFailure = scenario === 'failure', batch = scenario === 'batch';
   const finishArguments = scenario === 'raw-finish' ? { candidates: Array.from({ length: 65 }, (_, i) => ({ title: `论文 ${i}`, url: `https://example.org/paper?id=${i}` })), notes: 'Unvalidated specialist findings', results: [{ status: 'downloaded', file: 'model-claim.pdf' }] } : { candidates: [], limitations: ['No corroborated records in this fixture.'] };
   const { ProjectFilesystem } = await import('../../desktop/services/project-filesystem.mjs');
@@ -71,29 +70,29 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
     }
     return new Response(JSON.stringify({ choices: [{ message }] }));
   });
-  const app = await readFile(path.resolve(__dirname, '../../docs/app.js'), 'utf8');
-  const functions = ['sendWorkbenchRequest', 'sendWorkbenchRequestOnce'].map(name => app.match(new RegExp(`^async function ${name}\\([\\s\\S]*?^}$`, 'm'))[0]).join('\n');
-  const requests = []; let allowLibrary, requestedLibrary, prompts = 0;
+  let allowLibrary, requestedLibrary, prompts = 0;
   const libraryGate = new Promise(resolve => { allowLibrary = resolve; });
   const libraryPrompted = new Promise(resolve => { requestedLibrary = resolve; });
-  const sandbox = vm.createContext({ console, JSON, Math, Date, Error, AbortController, Response, TextDecoder, setTimeout, clearTimeout, currentAccount: 'fixture', currentLanguage: 'en',
-    projectContextService: null, MAX_BROWSER_REFERENCE_FILES: 1, TOTAL_REFERENCE_TEXT_LIMIT: 100, workspaceAbortController: new AbortController(), workspaceManager: { workspace: { workspaceId: 'project-1' } }, authToken: token,
-    experimentModuleCards: [], referenceDocuments: [], activeSideChatDocumentKeys: [], runtimeLog: null, literatureModule: null,
-    buildExperimentModulesForRequest: () => ({}), buildFlattenedExperimentDocumentsForRequest: () => [], collectExperimentNotesForRequest: () => [], collectSelectedStoredDocumentKeys: () => [], collectStoredDocumentsForRequest: () => [],
-    buildDocumentsForRequest: () => [], getProjectContext: () => '', backendUrl: route => route, getAuthHeaders: headers => ({ ...headers, authorization: `Bearer ${token}` }), requireLoginForUnauthorized: () => {}, t: key => key,
-    fetch: async (route, options) => { requests.push(JSON.parse(options.body));
-      if (requests.length === 2 && ['transport', 'cancel'].includes(scenario)) {
+  const { sandbox, agent, starts, replies } = await require('./helpers/desktop-renderer.js').desktopRenderer(t, { token, service: f.service,
+    workflow: (workflowId, input) => workflowId === 'literature_worker' ? host.run(input) : undefined,
+    globals: { currentAccount: 'fixture', currentLanguage: 'en', workspaceAbortController: new AbortController() },
+    window: { BioDesignLibrarySettings: { edit() { prompts++; requestedLibrary(); return libraryGate; } }, BioDesignLiteratureAgent: literature } });
+  // What reached the loop: the turn's start and each boundary reply carrying host receipts.
+  const requests = () => [...starts.map(start => start.body), ...replies.filter(reply => reply?.desktopToolResults?.length)];
+  // The connection to the loop fails, or the user stops the turn, between handoffs.
+  if (['transport', 'cancel'].includes(scenario)) {
+    const respond = agent.respond;
+    agent.respond = async payload => {
+      if (payload.reply?.desktopToolResults?.length) {
         if (scenario === 'cancel') requestController.abort();
         throw Object.assign(new Error('Connection interrupted between handoffs'), { code: scenario === 'cancel' ? 'OPERATION_ABORTED' : 'TEST_CONNECTION_LOST' });
       }
-      const result = await backend.handler({ httpMethod: 'POST', path: route, headers: options.headers, body: options.body }, {}); return new Response(result.body, { status: result.statusCode, headers: result.headers }); },
-    window: { BioDesignLibrarySettings: { edit() { prompts++; requestedLibrary(); return libraryGate; } }, BioDesignAcademicTools: academic, BioDesignLiteratureAgent: literature, BioDesignSourceDownload: sourceDownload, BioDesignWebSearch: webSearch, BioDesignEventStream: eventStream,
-      biodesignDesktop: { execution: { runWorkflow: ({ workflowId, input }) => { assert.equal(workflowId, 'literature_worker'); return host.run(input); } } } },
-  });
-  vm.runInContext(functions, sandbox);
-  const pending = sandbox.sendWorkbenchRequest({ signal: requestController.signal, desktopRound: 150, mode: 'agent_instruction', model, messages: [{ role: 'user', content: query }], originalRequest: query,
+      return respond(payload);
+    };
+  }
+  const pending = sandbox.sendWorkbenchRequest({ signal: requestController.signal, mode: 'agent_instruction', model, messages: [{ role: 'user', content: query }], originalRequest: query,
     localWorkspaceContext: context,
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'workspace_write', projectId: 'project-1' }, callContext: { turnId: 'literature-e2e', callRole: 'answer', profile: 'medium' } });
+    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'workspace_write', projectId: context.project.workspaceId }, callContext: { turnId: 'literature-e2e', callRole: 'answer', profile: 'medium' } });
   await libraryPrompted; noPreparation(); assert.equal(host.jobs.size, competing ? 1 : 0); assert.deepEqual(stages, ['main']);
   allowLibrary({ url: 'https://example.org/library' });
   if (['transport', 'cancel'].includes(scenario)) {
@@ -118,8 +117,8 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
     assert.equal(result.failure.failureStage, 'literature-specialist.provider');
     assert.equal(result.failure.requestId, 'specialist-failure-fixture');
     assert.deepEqual(result.failure.providerCodes, ['invalid_request_error']);
-    assert.deepEqual(stages, ['main', 'specialist']); assert.equal(requests.length, 2);
-    assert(requests[1].desktopContinuation); assert.equal(result.desktopToolCalls, undefined);
+    assert.deepEqual(stages, ['main', 'specialist']); assert.equal(requests().length, 2);
+    assert.equal(result.desktopToolCalls, undefined);
     const job = host.jobs.get(result.failure.jobId); assert.equal(job.status, 'failed'); assert.equal(browser.owner, null);
     assert(job.observations.includes('RAW_BROWSER_SNAPSHOT'));
     const next = await host.run({ ...policy, action: 'begin', kind: 'discover_papers', task: { objective: 'Subsequent job', queries: ['enzyme'] }, libraryAccess: { url: 'https://example.org/library' } });
@@ -130,10 +129,10 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
     return;
   }
   assert.equal(result.reply, 'Completed report with explicit coverage limits.'); assert.deepEqual(stages, scenario === 'input-quota' ? ['main', 'specialist', 'specialist', 'specialist', 'main'] : ['main', 'specialist', 'main']);
-  assert.equal(requests.length, batch || scenario === 'input-quota' ? 5 : 3); assert(requests[1].desktopContinuation);
+  assert.equal(requests().length, batch || scenario === 'input-quota' ? 5 : 3);
   assert.deepEqual(browserCalls, batch || scenario === 'input-quota' ? ['browser_navigate', 'browser_snapshot', 'browser_snapshot', 'browser_snapshot'] : ['browser_navigate', 'browser_snapshot']);
   if (batch) {
-    const handoffIds = requests.slice(1).flatMap(request => request.desktopToolResults.map(result => result.id));
+    const handoffIds = requests().slice(1).flatMap(request => request.desktopToolResults.map(result => result.id));
     assert.equal(new Set(handoffIds).size, 4);
   }
   assert.equal(result.literatureResults[0].status, 'completed');

@@ -1,6 +1,6 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm');
-const {readFile,mkdtemp,rm}=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
+const test=require('node:test'),assert=require('node:assert/strict');
+const {mkdtemp,rm}=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const jwt=require('jsonwebtoken'),backend=require('../index.js'),semantic=require('../../shared/semantic-intent.js');
 const {ProjectContextService}=require('../../docs/project-context-service.js'),{createFixture,SyncWorkspace}=require('./helpers/preflight-fixture.js');
 const {LiteratureApiClient}=require('../../docs/literature-module.js');
@@ -8,7 +8,7 @@ const academic=require('../../shared/academic-tools.js'),sourceDownload=require(
 const ref='paper_'+'a'.repeat(24),sourceUrl='https://papers.example.org/ectd.pdf';
 const paper={paper_ref:ref,title:'EctD engineering',authors:['A'],doi:'10.1000/ectd',abstract:'Relevant abstract',providers:[{source:'arxiv',paper_id:'fixture'}],locations:[{url:sourceUrl,kind:'pdf_candidate'}]};
 
-for (const mode of ['normal','corrected','exhausted','normalized','search_corrected','search_exhausted']) test(`production renderer/FC/local-MCP literature flow: ${mode}`,async t=>{
+for (const mode of ['normal','corrected','exhausted','normalized','search_corrected','search_exhausted']) test(`production renderer/agent loop/local-MCP literature flow: ${mode}`,async t=>{
  const recover=['corrected','exhausted'].includes(mode),exhausted=mode.endsWith('exhausted'),searchRecovery=mode.startsWith('search_');
  const {ProjectFilesystem}=await import('../../desktop/services/project-filesystem.mjs');
  const {LocalExecutionService}=await import('../../desktop/services/local-execution-service.mjs');
@@ -23,7 +23,7 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
  const env={JWT_SECRET:'academic-secret',ADMIN_ACCOUNT:'academic-user',REQUESTY_API_KEY:'fixture-api-key',REQUESTY_MODEL:model,REQUESTY_TOOL_MODE:'sequential',REQUESTY_MODEL_CAPABILITIES_JSON:JSON.stringify({[model]:{supportsWebSearch:true}})};
  const prior=Object.fromEntries(Object.keys(env).map(key=>[key,process.env[key]]));Object.assign(process.env,env);
  t.after(()=>{for(const[key,value]of Object.entries(prior)){if(value===undefined)delete process.env[key];else process.env[key]=value;}});
- const token=jwt.sign({account:env.ADMIN_ACCOUNT,role:'admin'},env.JWT_SECRET),requests=[],host=[],providerRoles=[];
+ const token=jwt.sign({account:env.ADMIN_ACCOUNT,role:'admin'},env.JWT_SECRET),requests=[],providerRoles=[];
  const workspace=new SyncWorkspace();workspace.workspace.workspaceId='project-1';
  const f=await createFixture({workspace,cardFailure:()=>true});
  f.workspace.set('literature/existing.pdf','An existing PDF with no Paper Card');
@@ -82,24 +82,17 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
   } else message={content:'Saved selected paper.'};
   return new Response(JSON.stringify({choices:[{message}]}));
  });
- const app=await readFile(path.resolve(__dirname,'../../docs/app.js'),'utf8');
- const functions=['sendWorkbenchRequest','sendWorkbenchRequestOnce'].map(name=>app.match(new RegExp(`^async function ${name}\\([\\s\\S]*?^}$`,'m'))[0]).join('\n');
- const sandbox=vm.createContext({console,JSON,Math,Date,Error,AbortController,Response,TextDecoder,setTimeout,clearTimeout,
-  projectContextService:null,MAX_BROWSER_REFERENCE_FILES:1,TOTAL_REFERENCE_TEXT_LIMIT:100,workspaceAbortController:new AbortController(),workspaceManager:{workspace:{workspaceId:'project-1'}},authToken:token,
-  experimentModuleCards:[],referenceDocuments:[],activeSideChatDocumentKeys:[],runtimeLog:null,literatureModule:null,
-  buildExperimentModulesForRequest:()=>({}),buildFlattenedExperimentDocumentsForRequest:()=>[],collectExperimentNotesForRequest:()=>[],collectSelectedStoredDocumentKeys:()=>[],collectStoredDocumentsForRequest:()=>[],
-  buildDocumentsForRequest:()=>[],getProjectContext:()=>'',backendUrl:route=>route,getAuthHeaders:headers=>({...headers,authorization:`Bearer ${token}`}),requireLoginForUnauthorized:()=>{},t:key=>key,
-  fetch:async(route,options)=>{host.push(JSON.parse(options.body));const result=await backend.handler({httpMethod:'POST',path:route,headers:options.headers,body:options.body},{});return new Response(result.body,{status:result.statusCode,headers:result.headers});},
-  window:{BioDesignAcademicTools:academic,BioDesignSourceDownload:sourceDownload,BioDesignWebSearch:webSearch,BioDesignEventStream:eventStream,biodesignDesktop:{execution:{runWorkflow:({workflowId,input})=>active.execution.run(workflowId,input,{filesystem})}}}
- });
- vm.runInContext(functions,sandbox);
+ // The renderer runs academic tools through the real desktop workflows.
+ const {sandbox,starts,replies}=await require('./helpers/desktop-renderer.js').desktopRenderer(t,{token,service:contextService,
+  workflow:(id,input)=>id.startsWith('runtime_')?undefined:active.execution.run(id,input,{filesystem})});
+ const host=()=>[...starts.map(start=>start.body),...replies.filter(reply=>reply?.desktopToolResults?.length)];
  const query='Search EctD and download 1 relevant PDF';
  const localWorkspaceContext=await contextService.buildContext({surface:'agent_command',turnId:'academic-turn',question:query,callContext:{model}});
  const result=await sandbox.sendWorkbenchRequest({mode:'agent_instruction',model,messages:[{role:'user',content:query}],originalRequest:query,
   localWorkspaceContext,
   desktopTools:{version:1,academicVersion:1,permission:'workspace_write',projectId:'project-1'},callContext:{turnId:'academic-turn',callRole:'answer',profile:'medium'}});
  const expectedCalls=mode==='corrected'?5:recover||(searchRecovery&&!exhausted)?4:3;
- assert.equal(requests.length,expectedCalls);assert.equal(host.length,exhausted?searchRecovery?1:2:3);
+ assert.equal(requests.length,expectedCalls);assert.equal(host().length,exhausted?searchRecovery?1:2:3);
  assert.deepEqual(providerRoles,Array(expectedCalls).fill('acquisition'));
  assert.equal(localWorkspaceContext.semantic,undefined);
  assert.equal(localWorkspaceContext.agentLoop.academicAcquisition,true);
@@ -122,6 +115,6 @@ for (const mode of ['normal','corrected','exhausted','normalized','search_correc
  assert.deepEqual(Buffer.from(await filesystem.readBinary(result.downloadResults[0].path)),pdf);
  assert.equal(result.academicSources[0].paper_ref,ref);
  assert.equal(result.webSearchStatus,undefined);
- assert.ok(!JSON.stringify(host).includes(pdf.toString('base64')));
- assert.ok(host[1].desktopContinuation);assert.ok(host[2].desktopToolResults[0].result.results[0].path);
+ assert.ok(!JSON.stringify(host()).includes(pdf.toString('base64')));
+ assert.ok(host()[2].desktopToolResults[0].result.results[0].path);
 });

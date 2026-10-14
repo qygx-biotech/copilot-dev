@@ -3,8 +3,9 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
 const contract = require('../../shared/side-chat-tools.js');
-const agent = require('../side-chat-agent.js'), backend = require('../index.js');
-const continuation = require('../agent-continuation.js'), transcript = require('../../shared/conversation-transcript.js');
+const agent = require('../../shared/agent/side-chat-agent.js'), backend = require('../index.js');
+const agentChat = require("./helpers/agent-chat.js");
+const { withResults } = require('../../shared/agent/receipt-admission.js'), transcript = require('../../shared/conversation-transcript.js');
 const model = 'google/gemma-4-31b-it', question = 'SurfDock有源代码吗？';
 const toolCall = (name, args, id = name) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 async function fixture(options = {}) {
@@ -23,7 +24,7 @@ async function fixture(options = {}) {
   return f;
 }
 const run = (f, requestTurn, extra = {}) => agent.runSideChatAgent({
-  workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, question) },
+  workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(f.context, question) },
   originalRequest: question, conversationMessages: [{ role: 'user', content: question }], conversationTranscript: transcript.normalize(),
   turnId: f.options.turnId, model, systemPrompt: 'Answer only from sufficient evidence.', parseFinalAnswer: reply => ({ reply }),
   supportsTools: true, projectToolsEnabled: true, requestTurn, ...extra,
@@ -90,19 +91,19 @@ test('authenticated FC and host dispatch resolve catalog handles, read metadata-
     conversationTranscript: transcript.normalize(), localWorkspaceContext: f.context,
     callContext: { turnId: f.options.turnId, callRole: 'answer', profile: 'medium' } };
   const invoke = async body => {
-    const response = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+    const response = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
     assert.equal(response.statusCode, 200); return JSON.parse(response.body);
   };
   let data = await invoke(payload);
   for (let round = 0; round < 2; round++) {
-    assert.ok(data.desktopContinuation); assert.equal(data.fallback, false);
+    assert.ok(data.boundary); assert.equal(data.fallback, false);
     const results = [];
     for (const call of data.desktopToolCalls) {
       assert.equal(call.args.paper_id || call.args.requirement.scope.sourceIds[0], f.paper.sourceId);
       const result = await f.service.executeAgentTool(call, { turnId: f.options.turnId });
       assert.equal(result.result.ok, true, JSON.stringify(result)); results.push(result);
     }
-    data = await invoke({ ...payload, desktopContinuation: data.desktopContinuation, desktopToolResults: results });
+    data = await invoke({ ...payload, boundary: data.boundary, desktopToolResults: results });
   }
   assert.equal(requests.length, 3); assert.equal(data.citations[0].sourceId, f.paper.sourceId); assert.equal(data.citations[0].page, 1);
   assert.deepEqual(data.conversationTurn.messages.map(message => message.role), ['user', 'assistant', 'tool', 'tool', 'assistant', 'tool', 'assistant']);
@@ -185,8 +186,7 @@ test('signed continuation retains immutable handle bindings and refuses ambiguou
     assert.equal(result.result.ok, true);
     if (changed) f.context.sourceMap.paperSources.find(source => source.sourceId === f.paper.sourceId).contentHash = 'new-version';
     else first.continuationState.knowledgeIdentity.handles.push({ itemId: handle, kind: 'paper', sourceId: 'another-paper', contentHash: 'other-version' });
-    const signed = continuation.seal(first.continuationState, { turn: f.options.turnId }, 'fixture-secret');
-    const resumed = continuation.withResults(continuation.open(signed, { turn: f.options.turnId }, 'fixture-secret'), [result]);
+    const resumed = withResults(first.continuationState, [result]);
     let round = 0;
     const final = await run(f, async request => {
       if (!round++) return { ok: true, message: { tool_calls: [toolCall('retrieve_project_evidence', { query: 'code', paper_ids: [handle] }, 'read')] } };

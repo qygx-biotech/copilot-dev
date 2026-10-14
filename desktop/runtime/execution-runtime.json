@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "runtimeVersion": "2026.10.1",
+  "baseUrl": "https://github.com/qygx-biotech/copilot-dev/releases/download/execution-runtime-2026.10.1",
+  "assets": {
+    "darwin-arm64": {
+      "file": "biodesign-runtime-2026.10.1-darwin-arm64.tar.gz",
+      "sha256": "cc03fe5535f911a0b3524e37a5e87eb0c410cf79b0a258146fa0e519c5495c82",
+      "size": 136559591
+    }
+  }
+}

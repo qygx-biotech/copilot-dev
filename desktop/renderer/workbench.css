@@ -145,6 +145,11 @@
 .copilot-workbench .agent-move-selectors { display:flex; flex-wrap:wrap; gap:12px; }
 .copilot-workbench .agent-composer-actions { display:flex; align-items:center; gap:8px; }
 .copilot-workbench .agent-composer-hint { font-size:10px; margin:8px 0 0; color:var(--muted); }
+/* A plan-mode reply's proposed plan and its implement / new conversation / keep planning choices. */
+.copilot-workbench .proposed-plan { margin:10px 0; padding:12px 14px; border:1px solid var(--line, #d7dde5); border-left:3px solid var(--accent, #2f6fde); border-radius:8px; background:var(--panel, rgba(127,127,127,.04)); }
+.copilot-workbench .proposed-plan-title { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+.copilot-workbench .proposed-plan-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.copilot-workbench .proposed-plan-choice { margin:8px 0 0; font-size:11px; color:var(--muted); }
 .copilot-workbench .agent-chat-progress { max-height:52px; overflow:auto; flex-shrink:0; font-size:10px; margin:4px 0; }
 .copilot-workbench .agent-result-actions { display:flex; flex-wrap:wrap; gap:8px; padding-top:10px; }
 .copilot-workbench .agent-result-actions details { flex-basis:100%; padding:10px; border:1px solid var(--line); border-radius:7px; background:var(--surface-muted); }

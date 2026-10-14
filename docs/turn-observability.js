@@ -24,12 +24,15 @@
       ...(Array.isArray(result.results) ? result.results.flatMap(item => item.sourceIds || [item.sourceId]) : []),
     ].filter(value => typeof value === 'string'))].slice(0, 30);
     const references = Array.isArray(evidence?.items) ? evidence.items.flatMap(item => item.references || []) : [];
+    const changes = result.value?.output_changes;
     return { status: failed ? code === 'OPERATION_ABORTED' || result.status === 'cancelled' ? 'cancelled' : 'failed'
       : pending ? 'pending' : success ? 'completed' : 'unknown', summary: {
       ...(code ? { code: text(code, 100) } : {}),
       ...(sourceIds.length ? { sourceIds, sourceCount: sourceIds.length } : {}),
       ...(references.length ? { referenceCount: references.length } : {}),
       ...(Array.isArray(result.results) ? { resultCount: result.results.length } : {}),
+      ...(changes && typeof changes === 'object' ? Object.fromEntries(['created', 'changed', 'deleted'].filter(key => Array.isArray(changes[key]))
+        .map(key => [`files${key[0].toUpperCase()}${key.slice(1)}`, changes[key].length])) : {}),
       ...(typeof evidence?.sufficiency === 'string' || typeof result.evidenceStatus === 'string'
         ? { evidenceStatus: text(evidence?.sufficiency || result.evidenceStatus, 100) } : {}) } };
   }
@@ -50,6 +53,7 @@
         // repeated on render. Never infer edits from assistant/tool text.
         this.artifacts = Array.isArray(previous.artifacts) ? previous.artifacts.filter(item => item?.origin === 'host-write' && safePath(item.path)).slice(-20).map(copy) : [];
         for (const usage of previous.childUsage) this.children.set(usage.turnId, usage);
+        if (previous.outputChanges) this.outputChanges = copy(previous.outputChanges);
       }
     }
     publish() { this.onChange(this.snapshot()); }
@@ -84,6 +88,10 @@
     }
     receipt(call, receipt, { startedAt, endedAt = this.now() } = {}) {
       const result = receiptSummary(receipt);
+      // Project-mode receipts carry the host's running totals for output/.
+      const changes = (receipt?.result ?? receipt)?.value?.output_changes;
+      if (changes?.turn && typeof changes.turn === 'object')
+        this.outputChanges = { ...changes.turn, complete: changes.complete === true, undoAvailable: changes.undo_available === true };
       contract.mergeActivity(this.activities, { id: 'tool:' + text(call.id), callId: text(call.id), capability: call.name,
         stage: 'tool-' + result.status, status: result.status, summary: result.summary, timestamp: endedAt,
         ...(Number.isFinite(startedAt) ? { durationMs: Math.max(0, endedAt - startedAt) } : {}) });
@@ -129,7 +137,7 @@
     snapshot() {
       return contract.normalizeDetails({ version: 1, turnId: this.turnId, model: this.model, startedAt: this.startedAt, finishedAt: this.finishedAt,
         activities: this.activities, artifacts: this.artifacts, turnUsage: this.turnUsage,
-        childUsage: [...this.children.values()] });
+        childUsage: [...this.children.values()], ...(this.outputChanges ? { outputChanges: this.outputChanges } : {}) });
     }
   }
   return { TurnObserver, receiptSummary, safePath };

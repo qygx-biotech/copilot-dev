@@ -34,13 +34,10 @@ test('live permission revocation blocks queued execution; messages cannot restor
  const f=await fixture(t);f.setPermission('read_only');await assert.rejects(f.session.execute({id:'revoked',name:'host_project_status',args:{}}),{code:'PERMISSION_REVOKED'});assert.equal(f.runs,0);
  f.setPermission('full_access');await assert.rejects(f.session.execute({id:'again',name:'host_project_status',args:{}}),{code:'OPERATION_ABORTED'});
 });
-test('verified early and complete handoff share one admission and receipt',async t=>{
- const f=await fixture(t),call={id:'call_1',name:'host_project_status',args:{}},scope={turnId:'turn',projectId:'project',model:'model'};
- let verified=0;const value={call,scope,identity:{step:{toolNames:[call.name]},authority:{surface:'agent_command',permission:'full_access'}}};
- f.session.executeEarly({ticket:'signed',scope},async()=>{verified++;return value;});
- await new Promise(r=>setImmediate(r));
+test('a repeated call shares one admission and receipt; changed arguments conflict',async t=>{
+ const f=await fixture(t),call={id:'call_1',name:'host_project_status',args:{}};
  const result=await f.session.execute(call);assert.equal(result.result.ok,true);assert.equal(f.runs,1);
- f.session.executeEarly({ticket:'signed',scope},async()=>{throw new Error('must not reverify');});assert.equal(verified,1);
+ assert.deepEqual(await f.session.execute(call),result);assert.equal(f.runs,1);
  await assert.rejects(f.session.execute({...call,args:{changed:true}}),{code:'RUNTIME_RECEIPT_CONFLICT'});
 });
 test('audited concurrency excludes browsers, acquisition, source preparation and untrusted MCP hints',()=>{

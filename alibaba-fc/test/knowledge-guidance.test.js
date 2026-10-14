@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict'), jwt = require('jsonwebtoken');
-const backend = require('../index.js'), agent = require('../side-chat-agent.js');
+const backend = require('../index.js'), agent = require('../../shared/agent/side-chat-agent.js');
+const agentChat = require("./helpers/agent-chat.js");
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
 const model = 'google/gemma-4-31b-it';
@@ -92,7 +93,7 @@ test('definitions and selection guidance reach the authenticated production main
     return new Response(JSON.stringify({ choices: [{ message: { content: 'A neural network learns patterns from examples.' }, finish_reason: 'stop' }] }));
   });
   const token = jwt.sign({ account: env.ADMIN_ACCOUNT, role: 'admin' }, env.JWT_SECRET);
-  const result = await backend.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
+  const result = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
     mode: 'side_chat', model, originalRequest: question,
     messages: [{ role: 'assistant', content: 'A neural network learns patterns.' }, { role: 'user', content: question }],
     localWorkspaceContext: local, callContext: { turnId: 'guidance', callRole: 'answer', profile: 'medium' }

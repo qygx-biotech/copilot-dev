@@ -3,7 +3,7 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path');
 const { ContextRecovery } = require('../context-recovery.js');
 const lifecycle = require('../provider-lifecycle.js');
-const { BOUNDS, tokens, splitUnit } = require('../corpus-card-reduction.js');
+const { BOUNDS, tokens, splitUnit } = require('../../shared/agent/corpus-card-reduction.js');
 const config = { api: 'responses', endpoint: 'https://offline.invalid/v1/responses', apiKey: 'offline', model: 'fixture', reasoning: { effort: 'high' } };
 const success = { ok: true, attempts: 1, message: { content: 'Overview.' } };
 const rejection = { ok: false, status: 400, attempts: 1, error: { code: 'context_length_exceeded', details: { max_input_tokens: 60000 } } };
@@ -29,7 +29,6 @@ async function fixture(t, extra = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'corpus-reduce-')); t.after(() => fs.rm(root,{recursive:true,force:true}));
   return new ContextRecovery({ model: 'fixture', providerProfile: lifecycle.profile(config), ...extra, config: { root, safety: 64, outputTokens: 1024, maxAttempts: 2, ...extra.config } });
 }
-function remote() { const map = new Map(); return { map, put: async (k,v) => { map.set(k,v); }, get: async k => map.get(k), claim: async (k,v) => { if (map.has(k)) return false; map.set(k,v); return true; } }; }
 function generic(manager) { let count=0; const compact=manager.compact.bind(manager); manager.compact = async (...args) => { count++; return compact(...args); }; return () => count; }
 
 test('actual native bodies: mixed -> complete cards -> isolated summary -> attributed compressed result', async t => {
@@ -107,19 +106,19 @@ test('revocation and changed versions after asynchronous summarization remove de
 });
 
 test('cold old checkpoint reuses accepted artifact, preserves targets and filters stale cards',async t=>{
-  const store=remote(),m=await fixture(t,{archiveStorage:store});let old,main=0;
+  const m=await fixture(t);let old,main=0;
   const result=await m.run(input(),async r=>{if(r.stage==='corpus-summary')return summary(r,30);if(++main===1)old=m.snapshot();return main<=2?rejection:success;});assert(result.ok);
-  const cold=await fixture(t,{archiveStorage:store,state:old});let calls=0;
+  const cold=await fixture(t,{config:{root:m.config.root},state:old});let calls=0;
   const options=input();options.corpusSourceBindings[0].cardStatus='stale';
   const resumed=await cold.run(options,async r=>{calls++;assert.notEqual(r.stage,'corpus-summary');const view=JSON.parse(r.messages[3].content);assert.equal(view.basis,'compressed-derived-paper-cards');assert.equal(view.paperSummaries.length,2);assert.equal(view.synthesis.length,0);return success;});
   assert(resumed.ok);assert.equal(calls,1);
 });
 
 test('uncertain internal request is never replayed after reconstruction from an older checkpoint',async t=>{
-  const store=remote(),m=await fixture(t,{archiveStorage:store});let old,main=0,summaryCalls=0;
+  const m=await fixture(t);let old,main=0,summaryCalls=0;
   const result=await m.run(input(),async r=>{if(r.stage==='corpus-summary'){summaryCalls++;throw new Error('transport interrupted after dispatch');}if(++main===1)old=m.snapshot();return rejection;});
   assert(!result.ok);assert.equal(summaryCalls,1);
-  const cold=await fixture(t,{archiveStorage:store,state:old}),compact=generic(cold);
+  const cold=await fixture(t,{config:{root:m.config.root},state:old}),compact=generic(cold);
   const resumed=await cold.run(input(),async ()=>assert.fail('No request without a useful corpus summary'));
   assert(!resumed.ok);assert.equal(compact(),0);assert.equal(summaryCalls,1);
 });
@@ -161,47 +160,16 @@ test('individual oversized cards split semantic fields with identity on every pa
 });
 
 test('cancellation during summary leaves a nonreplayable intent and never retries main',async t=>{
- const store=remote(),controller=new AbortController(),m=await fixture(t,{archiveStorage:store});let old,main=0;
+ const controller=new AbortController(),m=await fixture(t);let old,main=0;
  await assert.rejects(m.run({...input(),signal:controller.signal},async r=>{if(r.stage==='corpus-summary'){controller.abort();return summary(r);}if(++main===1)old=m.snapshot();return rejection;}),{code:'OPERATION_ABORTED'});
- const cold=await fixture(t,{archiveStorage:store,state:old});generic(cold);await cold.run(input(),async r=>{assert.notEqual(r.stage,'corpus-summary');return success;});assert.equal(main,2);
+ const cold=await fixture(t,{config:{root:m.config.root},state:old});generic(cold);await cold.run(input(),async r=>{assert.notEqual(r.stage,'corpus-summary');return success;});assert.equal(main,2);
 });
 
 test('changed provider profile cannot reuse compressed artifact or reset reduction budget',async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store});let main=0;
+ const m=await fixture(t);let main=0;
  await m.run(input(),async r=>r.stage==='corpus-summary'?summary(r):++main<=2?rejection:success);
- const cold=await fixture(t,{archiveStorage:store,state:m.snapshot(),providerProfile:'different-reasoning-config'});generic(cold);
+ const cold=await fixture(t,{config:{root:m.config.root},state:m.snapshot(),providerProfile:'different-reasoning-config'});generic(cold);
  const result=await cold.run(input(),async ()=>assert.fail('No request without a useful corpus summary'));assert(!result.ok);
-});
-
-for(const phase of ['before-dispatch','after-effect','stage-receipt'])test(`storage failure ${phase} cannot replay a paid summary after reconstruction`,async t=>{
-  const store=remote(),claim=store.claim,put=store.put;let broken=true,effects=0,old,main=0;
-  store.claim=async(k,v)=>{const value=JSON.parse(v);if(broken&&phase==='before-dispatch'&&value.profile&&value.requestHash)throw new Error('claim storage down');if(broken&&phase==='stage-receipt'&&value.status==='completed'&&value.reference)throw new Error('receipt storage down');return claim(k,v);};
-  store.put=async(k,v)=>{if(broken&&phase==='after-effect'&&effects&&JSON.parse(v)?.papers)throw new Error('artifact storage down');return put(k,v);};
-  const m=await fixture(t,{archiveStorage:store});
-  const first=await m.run(input(),async r=>{if(r.stage==='corpus-summary'){effects++;return summary(r);}if(++main===1)old=m.snapshot();return rejection;});
-  assert(!first.ok);assert.equal(effects,phase==='before-dispatch'?0:1);broken=false;
-  const cold=await fixture(t,{archiveStorage:store,state:old});generic(cold);
-  const result=await cold.run(input(),async ()=>assert.fail('Uncertain receipt cannot dispatch'));assert(!result.ok);assert.equal(effects,phase==='before-dispatch'?0:1);
-});
-
-test('completed artifact resumes before an unadmitted main retry without repeating summarization',async t=>{
- const store=remote(),claim=store.claim;let broken=true,old,main=0,effects=0;
- store.claim=async(k,v)=>{const value=JSON.parse(v);if(broken&&value.status==='pending'&&value.requestHash&&!value.profile)throw new Error('main admission storage down');return claim(k,v);};
- const m=await fixture(t,{archiveStorage:store});
- await m.run(input(),async r=>{if(r.stage==='corpus-summary'){effects++;return summary(r);}if(++main===1)old=m.snapshot();return rejection;});
- broken=false;const cold=await fixture(t,{archiveStorage:store,state:old});cold.compact=()=>assert.fail('Completed artifact is available');
- const result=await cold.run(input(),async r=>{assert.notEqual(r.stage,'corpus-summary');assert.equal(JSON.parse(r.messages[3].content).basis,'compressed-derived-paper-cards');return success;});assert(result.ok);assert.equal(effects,1);
-});
-
-test('cold resume after a recorded reduced rejection advances target without retrying the rejected projection',async t=>{
- const store=remote(),claim=store.claim,get=store.get;let interrupted=false,broken=true,old,main=0;const targets=[];let firstActual,time=1800000000000;
- store.claim=async(k,v)=>{const result=await claim(k,v);if(broken&&JSON.parse(v).status==='rejected')interrupted=true;return result;};
- store.get=async k=>{if(interrupted&&broken)throw new Error('cold handoff');return get(k);};
- const m=await fixture(t,{archiveStorage:store,now:()=>time,monotonic:()=>time});
- await m.run(input(),async r=>{if(r.stage==='corpus-summary'){targets.push(data(r).targetTokens);const out=summary(r,50);firstActual=tokens(JSON.parse(out.message.content));return out;}if(++main===1)old=m.snapshot();return rejection;});
- broken=false;time+=86400000;const cold=await fixture(t,{archiveStorage:store,state:old,now:()=>time,monotonic:()=>time});cold.compact=()=>assert.fail('Next reduction stage should run');
- const result=await cold.run(input(),async r=>{if(r.stage==='corpus-summary'){targets.push(data(r).targetTokens);return summary(r,10);}assert.equal(JSON.parse(r.messages[3].content).reduction.stage,2);return success;});
- assert(result.ok,JSON.stringify(result));assert.equal(targets.length,2);assert(targets[1]<Math.floor(targets[0]/2));assert.equal(targets[1],Math.floor(firstActual/2));
 });
 
 for(const hard of [false,true])test(`${hard?'hard deadline':'per-call timeout'} during internal request prevents another provider call`,async t=>{
@@ -243,11 +211,11 @@ test('a source revoked during a shared cooldown is absent from the actual compre
 });
 
 test('adding a corpus result does not expand an already compressed result, including an older cold checkpoint',async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store}),options=input();let main=0,old;
+ const m=await fixture(t),options=input();let main=0,old;
  await m.run(options,async r=>{if(r.stage==='corpus-summary')return summary(r);if(++main===1)old=m.snapshot();return main<=2?rejection:success;});
  const expanded=input(),other=structuredClone(expanded.messages[3]);other.tool_call_id='corpus2';
  expanded.messages.push({role:'assistant',tool_calls:[{id:'corpus2',type:'function',function:{name:'run_corpus_workflow',arguments:'{}'}}]},other);
- const cold=await fixture(t,{archiveStorage:store,state:old});let calls=0;
+ const cold=await fixture(t,{config:{root:m.config.root},state:old});let calls=0;
  const result=await cold.run(expanded,async r=>{
    calls++;assert.notEqual(r.stage,'corpus-summary');assert.equal(JSON.parse(r.messages[3].content).basis,'compressed-derived-paper-cards');
    const second=JSON.parse(r.messages.at(-1).content);
@@ -257,19 +225,19 @@ test('adding a corpus result does not expand an already compressed result, inclu
 });
 
 test('a non-size failure of a compressed main request does not authorize another reduction on cold resume',async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store});let main=0,old;
+ const m=await fixture(t);let main=0,old;
  const first=await m.run(input(),async r=>{if(r.stage==='corpus-summary')return summary(r);if(++main===1)old=m.snapshot();return main<=2?rejection:{ok:false,status:401,error:{code:'authentication_error'},attempts:1};});
  assert.equal(first.status,401);
- const cold=await fixture(t,{archiveStorage:store,state:old});cold.compact=()=>assert.fail('Authentication failure must not trigger recovery');
+ const cold=await fixture(t,{config:{root:m.config.root},state:old});cold.compact=()=>assert.fail('Authentication failure must not trigger recovery');
  const result=await cold.run(input(),async r=>{assert.notEqual(r.stage,'corpus-summary');assert.equal(JSON.parse(r.messages[3].content).basis,'compressed-derived-paper-cards');return success;});assert(result.ok);
 });
 
 test('old cold checkpoint restores the durable absolute quota reset without restarting its full delay',async t=>{
- const store=remote();let time=1800000000000,old,main=0,waited=0;
- const m=await fixture(t,{archiveStorage:store,now:()=>time,monotonic:()=>time});
+ let time=1800000000000,old,main=0,waited=0;
+ const m=await fixture(t,{now:()=>time,monotonic:()=>time});
  const first=await m.run({...input(),deadlineAt:time+1000},async r=>{assert.notEqual(r.stage,'corpus-summary');if(++main===1){old=m.snapshot();return rejection;}return {...quota,error:{...quota.error,details:{input_token_limit:60000,retry_after_ms:5000}}};});
  assert(!first.ok);time+=2000;
- const cold=await fixture(t,{archiveStorage:store,state:old,now:()=>time,monotonic:()=>time,sleep:async ms=>{time+=ms;waited+=ms;}});generic(cold);
+ const cold=await fixture(t,{config:{root:m.config.root},state:old,now:()=>time,monotonic:()=>time,sleep:async ms=>{time+=ms;waited+=ms;}});generic(cold);
  const restored=[],record=cold.quota.record.bind(cold.quota);cold.quota.record=info=>{restored.push(info);return record(info);};
  const result=await cold.run(input(),async ()=>assert.fail('No valid summary before interrupted quota wait'));
  assert(!result.ok);assert(restored.some(q=>q.retryAfterMs===3000));assert.equal(waited,0);
@@ -287,13 +255,13 @@ test('managed corpus cannot be replaced by a generic preview even if a compactor
 });
 
 test('legacy managed archive preview restores the latest domain summary on cold start',async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store});let main=0;
+ const m=await fixture(t);let main=0;
  const result=await m.run(input(),async r=>r.stage==='corpus-summary'?summary(r):++main<=2?rejection:success);
  assert(result.ok);
  const legacy=input(),reference=await m.store(legacy.messages[3].content);
  delete legacy.messages[3].corpus_card_fallback;
  legacy.messages[3].content=JSON.stringify({contextArchive:reference,preview:'obsolete sliced content'});
- const cold=await fixture(t,{archiveStorage:store,state:m.snapshot()});let calls=0;
+ const cold=await fixture(t,{config:{root:m.config.root},state:m.snapshot()});let calls=0;
  const resumed=await cold.run(legacy,async r=>{calls++;assert.notEqual(r.stage,'corpus-summary');assert.equal(r.messages[3].content,result.contextMessages[3].content);return success;});
  assert(resumed.ok);assert.equal(calls,1);
 });
@@ -313,9 +281,9 @@ test('eligible prior assistant context is summarized while useful corpus and pen
 });
 
 test('revoking every summarized source fails before sending an empty substitute on cold resume',async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store});let main=0;
+ const m=await fixture(t);let main=0;
  await m.run(input(),async r=>r.stage==='corpus-summary'?summary(r):++main<=2?rejection:success);
- const cold=await fixture(t,{archiveStorage:store,state:m.snapshot()});
+ const cold=await fixture(t,{config:{root:m.config.root},state:m.snapshot()});
  const result=await cold.run({...input(),corpusSourceBindings:[]},()=>assert.fail('No empty summary request'));
  assert(!result.ok);assert.equal(result.recoveryStopReason,'corpus_summary_unavailable');
  assert.equal(JSON.parse(result.contextMessages[3].content).paperSummaries.length,0);
@@ -347,11 +315,11 @@ for(const mode of ['repair','batches'])test(`170s corpus ${mode} calls and reduc
 });
 
 test('cold recovery ignores old elapsed metadata and reuses a completed summary with a fresh call timer',async t=>{
- const store=remote();let time=1800000000000,main=0;
- const m=await fixture(t,{archiveStorage:store,now:()=>time,monotonic:()=>time});
+ let time=1800000000000,main=0;
+ const m=await fixture(t,{now:()=>time,monotonic:()=>time});
  const first=await m.run(input(),async r=>r.stage==='corpus-summary'?summary(r):++main<=2?rejection:success);
  assert(first.ok);const saved=m.snapshot();time+=86400000;
- const cold=await fixture(t,{archiveStorage:store,state:saved,now:()=>time,monotonic:()=>time});
+ const cold=await fixture(t,{config:{root:m.config.root},state:saved,now:()=>time,monotonic:()=>time});
  let requests=0;
  const result=await cold.run({...input(),deadlineAt:time+400000},async r=>{
   requests++;assert.notEqual(r.stage,'corpus-summary');assert.equal(r.deadlineAt-time,180000);
@@ -360,20 +328,20 @@ test('cold recovery ignores old elapsed metadata and reuses a completed summary 
 });
 
 test('timed-out summary remains uncertain across cold reconstruction and is never replayed',async t=>{
- const store=remote();let time=1800000000000,main=0,old,effects=0,aborted=false;
- const m=await fixture(t,{archiveStorage:store,now:()=>time,monotonic:()=>time});
+ let time=1800000000000,main=0,old,effects=0,aborted=false;
+ const m=await fixture(t,{now:()=>time,monotonic:()=>time});
  const first=await m.run({...input(),deadlineAt:time+1000000},async r=>{
   if(r.stage==='corpus-summary'){effects++;r.signal.addEventListener('abort',()=>aborted=true);time+=180001;return summary(r);}
   if(++main===1)old=m.snapshot();return rejection;
  });assert(!first.ok);assert.equal(first.recoveryStopReason,'provider_call_timeout');assert(aborted);
  time+=86400000;
- const cold=await fixture(t,{archiveStorage:store,state:old,now:()=>time,monotonic:()=>time});
+ const cold=await fixture(t,{config:{root:m.config.root},state:old,now:()=>time,monotonic:()=>time});
  const resumed=await cold.run(input(),()=>assert.fail('An uncertain provider call must not be replayed'));
  assert(!resumed.ok);assert.equal(effects,1);
 });
 
 for(const correct of [true,false])test(`non-shrinking final request uses only one bounded correction, successful=${correct}`,async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store}),original=m.tokens.bind(m);let summaries=0,main=0;
+ const m=await fixture(t),original=m.tokens.bind(m);let summaries=0,main=0;
  m.tokens=options=>{
   const row=options.messages?.find(x=>x.tool_call_id==='corpus');
   if(row&&JSON.parse(row.content).basis==='compressed-derived-paper-cards'&&(!correct||summaries===1))return 100000;
@@ -389,7 +357,7 @@ for(const correct of [true,false])test(`non-shrinking final request uses only on
  assert(result.corpusRecovery.events.some(e=>e.reason==='summary_no_measurable_reduction'));
  if(!correct)assert.equal(result.corpusRecovery.stopReason,'summary_no_measurable_reduction');
  else {
-  const snapshot=m.snapshot(),cold=await fixture(t,{archiveStorage:store,state:snapshot});let reused=0;
+  const snapshot=m.snapshot(),cold=await fixture(t,{config:{root:m.config.root},state:snapshot});let reused=0;
   const resumed=await cold.run(input(),async r=>{reused++;assert.notEqual(r.stage,'corpus-summary');assert.equal(r.messages[3].content,result.contextMessages[3].content);return success;});
   assert(resumed.ok);assert.equal(reused,1);
   assert.deepEqual(Object.values(cold.snapshot().corpusReductions).map(x=>[x.targetTokens,x.actualSummaryTokens]),Object.values(snapshot.corpusReductions).map(x=>[x.targetTokens,x.actualSummaryTokens]));
@@ -406,10 +374,10 @@ test('undersized first summary exhausts the next useful minimum without another 
 });
 
 test('cold resume never repeats a correction whose request outcome is uncertain',async t=>{
- const store=remote(),m=await fixture(t,{archiveStorage:store}),measure=m.tokens.bind(m);let old,summaries=0,main=0;
+ const m=await fixture(t),measure=m.tokens.bind(m);let old,summaries=0,main=0;
  m.tokens=options=>options.messages?.some(row=>row.tool_call_id==='corpus'&&JSON.parse(row.content).basis==='compressed-derived-paper-cards')?100000:measure(options);
  await m.run(input(),async r=>{if(r.stage==='corpus-summary'){if(++summaries===2)throw new Error('Lost correction outcome');return summary(r,120);}if(++main===1)old=m.snapshot();return rejection;});
- const cold=await fixture(t,{archiveStorage:store,state:old});
+ const cold=await fixture(t,{config:{root:m.config.root},state:old});
  const result=await cold.run(input(),()=>assert.fail('Uncertain correction cannot replay'));
  assert(!result.ok);assert.equal(summaries,2);
 });

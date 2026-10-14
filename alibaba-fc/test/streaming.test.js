@@ -2,7 +2,8 @@
 const test = require("node:test"), assert = require("node:assert/strict"), http = require("node:http");
 const { once } = require("node:events");
 const jwt = require("jsonwebtoken");
-const { readEvents, previewReply, readWorkbenchResponse } = require("../../shared/event-stream.js");
+const { readEvents, previewReply } = require("../../shared/event-stream.js");
+const agentChat = require("./helpers/agent-chat.js");
 const { readRequestyStream } = require("../requesty-stream.js");
 process.env.JWT_SECRET = "streaming-fixture-secret";
 process.env.ADMIN_ACCOUNT = "streaming-fixture";
@@ -35,14 +36,10 @@ test("provider tool-call fragments reassemble by index without exposing argument
   assert.deepEqual(result.choices[0].message.tool_calls, [{ id: "call-1", type: "function", function: { name: "list_papers", arguments: '{"scope":"all"}' } }]);
 });
 
-test("truncated provider and app streams cannot become completed answers", async () => {
+test("truncated provider streams cannot become completed answers", async () => {
   for (const text of [frame({ content: "partial" }), frame({ content: "truncated" }, "length") + done, 'data: {"error":{"message":"private failure"}}\n\n', 'data: {"choices":']) {
     await assert.rejects(readRequestyStream(response(text)));
   }
-  const events = [];
-  await assert.rejects(readWorkbenchResponse(response('event: delta\ndata: {"text":"partial"}\n\n'), { onEvent: event => events.push(event) }), { code: "STREAM_INTERRUPTED" });
-  assert.equal(events[0].text, "partial");
-  await assert.rejects(readWorkbenchResponse(response('event: error\ndata: {"code":"InvalidLlmResponse","message":"private details"}\n\n')), error => error.code === "STREAM_INTERRUPTED" && !error.message.includes("private"));
 });
 
 test("structured previews decode only the reply field, including incomplete escapes", () => {
@@ -54,14 +51,6 @@ test("structured previews decode only the reply field, including incomplete esca
   assert.equal(previewReply('```json\n{"reply":"Hello', true), "Hello");
 });
 
-test("the app supports the deployed JSON response and commits only a final SSE result", async () => {
-  const final = { reply: "Final answer", citations: [] };
-  assert.deepEqual(await readWorkbenchResponse(new Response(JSON.stringify(final), { headers: { "content-type": "application/json" } })), final);
-  const events = [];
-  assert.deepEqual(await readWorkbenchResponse(response('event: delta\ndata: {"text":"draft"}\n\nevent: reset\ndata: {}\n\nevent: complete\ndata: ' + JSON.stringify(final) + '\n\n'), { onEvent: event => events.push(event) }), final);
-  assert.deepEqual(events.map(event => event.type), ["delta", "reset"]);
-});
-
 async function serverFixture(run) {
   const server = http.createServer(adapter);
   server.listen(0, "127.0.0.1"); await once(server, "listening");
@@ -70,47 +59,31 @@ async function serverFixture(run) {
 }
 const chatBody = mode => ({ stream: true, mode, messages: [{ role: "user", content: "Summarize evidence" }] });
 
-test("debug timing correlates slow HTTP body receipt, provider calls and streamed completion", async t => {
-  const previous = process.env.CHAT_TIMING_DEBUG; process.env.CHAT_TIMING_DEBUG = "1";
-  t.after(() => previous === undefined ? delete process.env.CHAT_TIMING_DEBUG : process.env.CHAT_TIMING_DEBUG = previous);
-  const originalFetch = global.fetch, logs = [];
-  t.mock.method(console, "info", (name, data) => { if (name === "chat_timing") logs.push(data); });
-  t.mock.method(global, "fetch", async (url, options) => String(url).includes("router.requesty.ai")
-    ? new Response(JSON.stringify({ choices: [{ message: { content: "Private answer." } }] })) : originalFetch(url, options));
-  await serverFixture(async url => {
-    const text = JSON.stringify({ ...chatBody("side_chat"), timingRequestId: "11111111-2222-4333-8444-555555555555" });
-    const bytes = new TextEncoder().encode(text);
-    const body = new ReadableStream({ start(controller) {
-      controller.enqueue(bytes.slice(0, 20));
-      setTimeout(() => { controller.enqueue(bytes.slice(20)); controller.close(); }, 50);
-    } });
-    const response = await fetch(url + "/chat", { method: "POST", duplex: "half", body,
-      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" } });
-    const data = await readWorkbenchResponse(response);
-    assert.equal(data.reply, "Private answer."); assert.ok(data.chatTiming.bodyReadMs > 0);
-    assert.equal(data.chatTiming.clientRequestId, "11111111-2222-4333-8444-555555555555");
-    const correlated = logs.filter(event => event.requestId === data.chatTiming.requestId);
-    for (const stage of ["http_entry", "http_body_read_end", "handler_entry", "provider_fetch_end", "provider_body_end", "http_result_ready"])
-      assert.ok(correlated.some(event => event.stage === stage), stage);
-    assert.doesNotMatch(JSON.stringify(logs), /Private answer|Summarize evidence|Bearer|streaming-fixture-key/);
-  });
-});
+const turnBody = { version: 1, surface: "side_chat", stage: "local-tools", stream: true, messages: [{ role: "user", content: "Summarize evidence" }],
+  callContext: { turnId: "stream-turn", callRole: "answer", profile: "medium" } };
+// One streamed agent turn on the desktop loop; the proxy streams provider text as it arrives.
+async function streamedTurn(body, { signal, onEvent = () => {} } = {}) {
+  const events = [];
+  const response = await agentChat.post({ ...body }, token, { signal, emit: async (type, data) => { events.push({ ...data, type }); await onEvent({ ...data, type }); } });
+  return { status: response.statusCode, data: JSON.parse(response.body), events };
+}
 
 test("the HTTP streaming adapter preserves authentication and validation before opening SSE", async () => {
   await serverFixture(async url => {
-    const denied = await fetch(url + "/chat", { method: "POST", body: JSON.stringify(chatBody("side_chat")) });
+    const denied = await fetch(url + "/api/model/turn", { method: "POST", body: JSON.stringify(turnBody) });
     assert.equal(denied.status, 401);
     assert.doesNotMatch(denied.headers.get("content-type"), /event-stream/);
     const health = await (await fetch(url + "/health")).json();
     assert.equal(health.streamingSupported, true);
-    const invalid = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...chatBody("side_chat"), localWorkspaceContext: [] }) });
+    const invalid = await fetch(url + "/api/model/turn", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...turnBody, messages: [] }) });
     assert.equal(invalid.status, 400);
+    assert.doesNotMatch(invalid.headers.get("content-type"), /event-stream/);
   });
 });
 
-test("real HTTP delivery streams before completion, runs tool calls, and finalizes verified citations", async () => {
+test("a turn streams before completion, runs tool calls, and finalizes verified citations", async () => {
   const originalFetch = global.fetch;
-  const requests = [], events = [];
+  const requests = [];
   let finishProvider;
   global.fetch = async (url, options) => {
     if (!String(url).includes("router.requesty.ai")) return originalFetch(url, options);
@@ -122,15 +95,10 @@ test("real HTTP delivery streams before completion, runs tool calls, and finaliz
       finishProvider = () => { controller.enqueue(new TextEncoder().encode(frame({ content: "[[cite:paper-a]]" }, "stop") + done)); controller.close(); };
     } }), { headers: { "content-type": "text/event-stream" } });
   };
-  try { await serverFixture(async url => {
-    const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ ...chatBody("side_chat"), localWorkspaceContext: { project: { workspaceName: "Project" }, inventory: [{ paperId: "paper-a", relativePath: "literature/paper.pdf", extension: "pdf" }] } }) });
-    assert.match(res.headers.get("content-type"), /event-stream/);
-    assert.equal(res.headers.get("transfer-encoding"), "chunked");
+  try {
     let observedBeforeComplete = false;
-    const result = await readWorkbenchResponse(res, { onEvent(event) {
-      events.push(event);
-      if (event.type === "delta") { observedBeforeComplete = true; finishProvider?.(); finishProvider = null; }
-    } });
+    const { data: result, events } = await streamedTurn({ ...chatBody("side_chat"), localWorkspaceContext: { project: { workspaceName: "Project" }, inventory: [{ paperId: "paper-a", relativePath: "literature/paper.pdf", extension: "pdf" }] } },
+      { onEvent: event => { if (event.type === "delta") { observedBeforeComplete = true; finishProvider?.(); finishProvider = null; } } });
     assert.equal(observedBeforeComplete, true);
     assert.equal(requests.length, 2);
     assert.ok(requests[1].messages.some(message => message.role === "tool" && message.name === "list_papers"));
@@ -139,7 +107,7 @@ test("real HTTP delivery streams before completion, runs tool calls, and finaliz
     assert.match(result.reply, /biodesign-citation:citation-1/);
     assert.equal(result.citations[0].sourceId, "paper-a");
     assert.equal(result.fallback, false);
-  }); } finally { global.fetch = originalFetch; }
+  } finally { global.fetch = originalFetch; }
 });
 
 test("Agent Work streams plain text on its selected model without structured-answer validation", async () => {
@@ -152,20 +120,18 @@ test("Agent Work streams plain text on its selected model without structured-ans
     requests.push(JSON.parse(options.body));
     return response(frame({ content: 'Readable analysis ' }) + frame({ content: '中文' }, "stop") + done);
   };
-  try { await serverFixture(async url => {
-    const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...chatBody("agent_instruction"), model }) });
-    const deltas = [];
-    const result = await readWorkbenchResponse(res, { onEvent: event => { if (event.type === "delta") deltas.push(event.text); } });
-    assert.equal(deltas.join(""), resultBody.reply);
+  try {
+    const { data: result, events } = await streamedTurn({ ...chatBody("agent_instruction"), model });
+    assert.equal(events.filter(event => event.type === "delta").map(event => event.text).join(""), resultBody.reply);
     assert.equal(result.reply, resultBody.reply);
     assert.equal(result.project, undefined);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].model, model);
     assert.equal(requests[0].stream, true);
-  }); } finally { global.fetch = originalFetch; }
+  } finally { global.fetch = originalFetch; }
 });
 
-test("disconnecting the app aborts the in-flight provider request", async () => {
+test("stopping a turn aborts the in-flight provider request", async () => {
   const originalFetch = global.fetch;
   let providerAborted;
   const cancelled = new Promise(resolve => { providerAborted = resolve; });
@@ -176,29 +142,27 @@ test("disconnecting the app aborts the in-flight provider request", async () => 
       options.signal.addEventListener("abort", () => { providerAborted(); controller.error(new Error("cancelled")); }, { once: true });
     } }), { headers: { "content-type": "text/event-stream" } });
   };
-  try { await serverFixture(async url => {
+  try {
     const controller = new AbortController();
-    const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(chatBody("side_chat")), signal: controller.signal });
-    await assert.rejects(readWorkbenchResponse(res, { signal: controller.signal, onEvent: event => { if (event.type === "delta") controller.abort(); } }), { code: "OPERATION_ABORTED" });
+    const { status } = await streamedTurn(chatBody("side_chat"), { signal: controller.signal, onEvent: event => { if (event.type === "delta") controller.abort(); } });
+    assert.equal(status, 500, "The turn ends as cancelled");
     await cancelled;
-  }); } finally { global.fetch = originalFetch; }
+  } finally { global.fetch = originalFetch; }
 });
 
-test("a truncated provider reply produces an HTTP stream error, never a completed fallback", async () => {
+test("a truncated provider reply never becomes a completed answer", async () => {
   const originalFetch = global.fetch;
   global.fetch = async (url, options) => String(url).includes("router.requesty.ai")
     ? response(frame({ content: "Incomplete answer" })) : originalFetch(url, options);
-  try { await serverFixture(async url => {
-    const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(chatBody("side_chat")) });
-    const events = [];
-    await readEvents(res, event => events.push(event));
-    assert.ok(events.some(event => event.event === "delta"));
-    assert.equal(events.at(-1).event, "error");
-    assert.ok(!events.some(event => event.event === "complete"));
-  }); } finally { global.fetch = originalFetch; }
+  try {
+    const { data, events } = await streamedTurn(chatBody("side_chat"));
+    assert.ok(events.some(event => event.type === "delta"));
+    assert.equal(data.fallback, true); assert.equal(data.taskOutcome.status, "incomplete");
+    assert.doesNotMatch(data.reply, /^Incomplete answer$/);
+  } finally { global.fetch = originalFetch; }
 });
 
-test("the built-in FC handler stays JSON compatible when a new app asks for streaming", async () => {
+test("the model proxy stays JSON compatible when a client asks for streaming without a stream transport", async () => {
   const originalFetch = global.fetch;
   global.fetch = async (_url, options) => {
     const request = JSON.parse(options.body);
@@ -207,9 +171,9 @@ test("the built-in FC handler stays JSON compatible when a new app asks for stre
   };
   try {
     const { handler } = require("../index.js");
-    const res = await handler({ requestContext: { http: { method: "POST", path: "/chat" } }, headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(chatBody("side_chat")) });
+    const res = await handler({ requestContext: { http: { method: "POST", path: "/api/model/turn" } }, headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(turnBody) });
     assert.equal(res.statusCode, 200);
-    assert.equal(JSON.parse(res.body).reply, "Buffered answer");
+    assert.equal(JSON.parse(res.body).result.message.content, "Buffered answer");
   } finally { global.fetch = originalFetch; }
 });
 
@@ -223,50 +187,10 @@ test("cancellation stops a provider quota retry wait promptly without issuing an
     return new Response(JSON.stringify({ error: { message: "Rate limit exceeded. Please retry in 60s." } }), { status: 429, headers: { "Retry-After": "60" } });
   };
   try {
-    const { handler } = require("../index.js");
     const started = Date.now();
-    await handler({ requestContext: { http: { method: "POST", path: "/chat" } }, headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(chatBody("side_chat")) }, {}, { signal: controller.signal, start: async () => {}, emit: async () => {} });
+    await streamedTurn(chatBody("side_chat"), { signal: controller.signal });
     assert.equal(controller.signal.aborted, true);
     assert.equal(attempts, 1);
     assert.ok(Date.now() - started < 1000, "Cancellation waited for the quota retry delay");
   } finally { global.fetch = originalFetch; }
-});
-
-test("HTTP streaming yields one recovery event, resumes with the same question/model, and completes one cited answer", async () => {
-  const { followUpFixture } = require("./helpers/follow-up-fixture.js");
-  const f = followUpFixture();
-  f.literature.preparation.readSourceBytesForUse = async () => {};
-  const local = { files: [], notices: [], literature: { explicitPaperIds: ["P2"] }, sourceMap: { paperSources: f.sources.map(s => ({ ...s })) } };
-  const originalFetch = global.fetch, providerRequests = [], terminalEvents = [], httpBodies = [];
-  const model = process.env.REQUESTY_MODEL;
-  global.fetch = async (url, options) => {
-    if (!String(url).includes("router.requesty.ai")) return originalFetch(url, options);
-    const body = JSON.parse(options.body); providerRequests.push(body);
-    if (providerRequests.length <= 2) return response(frame({ tool_calls: [{ index: 0, id: `read-${providerRequests.length}`, function: { name: "read_paper_evidence", arguments: '{"paper_id":"P2","query":"license"}' } }] }, "tool_calls") + done);
-    const output = JSON.parse(body.messages.findLast(m => m.role === "tool").content);
-    assert.equal(output.content_available, true); assert.match(output.content, /license is restrictive/);
-    return response(frame({ content: "The paper reports a restrictive license [[cite:P2:p4:original]]." }, "stop") + done);
-  };
-  try { await serverFixture(async url => {
-    const result = await f.service.answerWithEvidenceRecovery({ localWorkspaceContext: local,
-      callContext: { turnId: "stream-recovery", model },
-      request: async context => {
-        const body = { ...chatBody("side_chat"), model, messages: [{ role: "user", content: "Does it provide source code?" }],
-          localWorkspaceContext: context, callContext: { turnId: "stream-recovery", callRole: "answer", profile: "medium" } };
-        httpBodies.push(body);
-        const res = await fetch(url + "/chat", { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) });
-        // Read the actual adapter frames, then feed those same frames through the production reader.
-        const frames = await res.text();
-        terminalEvents.push(...[...frames.matchAll(/^event: (complete|evidence-recovery)$/gm)].map(m => m[1]));
-        return readWorkbenchResponse(response(frames));
-      } });
-    assert.deepEqual(terminalEvents, ["evidence-recovery", "complete"]);
-    assert.equal(httpBodies.length, 2); assert.equal(providerRequests.length, 3);
-    assert.deepEqual(httpBodies[0].messages, httpBodies[1].messages);
-    assert.deepEqual(httpBodies[0].callContext, httpBodies[1].callContext);
-    assert.ok(providerRequests.every(request => request.model === model && request.stream === true));
-    assert.equal(result.citations[0].sourceId, "P2"); assert.equal(result.citations[0].page, 4);
-    assert.equal(result.citations[0].contentHash, "hash-P2");
-    assert.equal(result.evidenceRecoveryStatus.cycle, 1);
-  }); } finally { global.fetch = originalFetch; }
 });

@@ -5,7 +5,9 @@ const assert = require("node:assert/strict");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const OSS = require("ali-oss");
-const { handler, _test } = require("../index.js");
+const { _test } = require("../index.js");
+// Agent turns (/chat) run on the agent loop; every other route is the FC handler.
+const { handler } = require("./helpers/agent-chat.js");
 
 const password = " Original beta password! ";
 const hash = bcrypt.hashSync(password, 4);
@@ -88,7 +90,8 @@ const providerRoutes = [
 ];
 const protectedRoutes = [
   ["GET", "/api/me"], ["GET", "/api/knowledge/config"], ["GET", "/api/literature/config"],
-  ...providerRoutes.map(([path, body]) => ["POST", path, body]), ["POST", "/chat", chat],
+  ...providerRoutes.map(([path, body]) => ["POST", path, body]),
+  ["POST", "/api/model/capabilities", { version: 1 }], ["POST", "/api/model/turn", { version: 1, surface: "side_chat", stage: "local-tools", messages: chat.messages }],
   ["POST", "/api/test-oss"], ["GET", "/api/documents"], ["POST", "/api/documents/upload-url"],
   ["POST", "/api/documents/delete"], ["POST", "/api/documents/review"]
 ];
@@ -349,7 +352,7 @@ function fixturePdf() {
   return Buffer.from(pdf + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
 }
 
-test("legacy OSS PDF workers use the beta key and keep account ownership for reviews, chat, uploads, listing and deletion", async t => {
+test("legacy OSS PDF workers use the beta key and keep account ownership for reviews, uploads, listing and deletion", async t => {
   const objects = new Map();
   const accesses = [];
   t.mock.method(OSS.prototype, "getObjectMeta", async key => {
@@ -372,11 +375,6 @@ test("legacy OSS PDF workers use the beta key and keep account ownership for rev
   assert.equal(review.status, 200, JSON.stringify(review.body));
   assert.ok(providerRequests.length >= 2, "legacy chunk and synthesis must both call the provider");
   assert.ok(providerRequests.every(request => request.key === `Bearer ${baseEnv.REQUESTY_KEY_BETA01}`));
-  providerRequests.length = 0;
-  const ownChat = await invoke("POST", "/chat", { ...chat, storedDocuments: [{ objectKey: ownKey }], selectedDocumentKeys: [ownKey] }, betaToken());
-  assert.equal(ownChat.status, 200); assert.equal(ownChat.body.fallback, false);
-  assert.deepEqual(ownChat.body.documentScope.objectKeys, [ownKey]);
-  assert.ok(providerRequests.length > 0); assert.ok(providerRequests.every(request => request.key === `Bearer ${baseEnv.REQUESTY_KEY_BETA01}`));
   const upload = await invoke("POST", "/api/documents/upload-url", { filename: "new.pdf", contentType: "application/pdf", size: 100,
     account: users[1].account, user: { account: users[1].account } }, betaToken());
   assert.equal(upload.status, 200); assert.equal(_test.isOwnedPdfObjectKey(upload.body.objectKey, users[0].account), true);
@@ -389,14 +387,6 @@ test("legacy OSS PDF workers use the beta key and keep account ownership for rev
     assert.equal(result.status, 403, `${path}: ${JSON.stringify(result.body)}`);
   }
   assert.equal(providerRequests.length, 0); assert.equal(accesses.length, 0);
-  // Chat's existing ownership boundary discards foreign descriptors, allowing
-  // the conversation to continue without retrieving or exposing those files.
-  const foreignChat = await invoke("POST", "/chat", { ...chat, account: users[1].account,
-    storedDocuments: [{ objectKey: otherKey }], selectedDocumentKeys: [otherKey] }, betaToken());
-  assert.equal(foreignChat.status, 200); assert.deepEqual(foreignChat.body.documentScope.objectKeys, []);
-  assert.equal(accesses.length, 0); assert.equal(providerRequests.length, 1);
-  assert.equal(providerRequests[0].key, `Bearer ${baseEnv.REQUESTY_KEY_BETA01}`);
-  assert.equal(JSON.stringify(providerRequests[0].body).includes(otherKey), false);
   assert.equal((await invoke("POST", "/api/documents/delete", { objectKey: ownKey }, betaToken())).status, 200);
   assert.equal(objects.has(ownKey), false); assert.equal(objects.has(otherKey), true);
 });

@@ -1,8 +1,8 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
-const { runSideChatAgent } = require("../side-chat-agent.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js");
 const { requestRequestyMessage } = require("../index.js")._test;
-const continuation = require("../agent-continuation.js");
+const { withResults } = require("../../shared/agent/receipt-admission.js");
 const academic = require("../../shared/academic-tools.js");
 const { ProjectContextService } = require("../../docs/project-context-service.js");
 const { createFixture } = require("./helpers/preflight-fixture.js");
@@ -44,7 +44,7 @@ async function fixture(t, query, candidates = papers) {
         else results.push(await service.executeAgentTool(call, { turnId: "main-academic" }));
       }
       const binding = { originalRequest: query, permission };
-      resume = continuation.withResults(continuation.open(continuation.seal(result.continuationState, binding, "secret"), binding, "secret"), results);
+      resume = withResults(result.continuationState, results);
     }
     assert.fail("Workflow did not finish within the existing handoff bound");
   };
@@ -188,7 +188,7 @@ test("legacy semantic routing cannot hide academic tools or veto explicit saving
     assert.ok(tools.some(x => x.function.name === "download_papers"));
     return { ok: true, message: calls(tool("plan_literature_search", plan()), search()) };
   });
-  resume = continuation.withResults(found.continuationState, [{ id: found.data.desktopToolCalls[0].id, result: { version: 1, status: "completed", papers } }]);
+  resume = withResults(found.continuationState, [{ id: found.data.desktopToolCalls[0].id, result: { version: 1, status: "completed", papers } }]);
   const pending = await run(async () => ({ ok: true, message: calls(tool("select_literature_papers", selection([refs[0]])), tool("download_papers", { paper_refs: [refs[0]] })) }));
   assert.equal(pending.data.desktopToolCalls[0].name, "download_papers");
 });

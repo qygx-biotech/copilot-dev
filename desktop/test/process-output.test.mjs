@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { ScratchRuntime, outputChunk } from '../services/scratch-runtime.mjs';
 import { AdvancedRuntimeService } from '../services/advanced-runtime-service.mjs';
 import { ProjectFilesystem } from '../services/project-filesystem.mjs';
-import continuation from '../../alibaba-fc/agent-continuation.js';
+import receipts from '../../shared/agent/receipt-admission.js';
 const native = process.env.BIODESIGN_SANDBOX_TEST === '1';
 
 test('serialized chunks respect escaped text and Unicode boundaries and support exact rereads', () => {
@@ -48,7 +48,7 @@ test('large completed commands retain status and cursor across receipts, retries
     const request = { id: `poll-${polls}`, name: 'write_stdin', args: poll };
     const receipt = { id: request.id, result: { ok: true, runtimeCall: request, value: result } };
     assert(JSON.stringify(receipt).length < 80000);
-    continuation.withResults({ runtimeVersion: 1, totalToolCalls: 0, pending: [request], agentMessages: [{ role: 'tool', tool_call_id: request.id, content: 'pending' }] }, [receipt]);
+    receipts.withResults({ runtimeVersion: 1, totalToolCalls: 0, pending: [request], agentMessages: [{ role: 'tool', tool_call_id: request.id, content: 'pending' }] }, [receipt]);
     output += result.output;
   }
   assert.equal(output, '🧬漢\t\u0001'.repeat(12000)); assert(!output.includes('\uFFFD'));

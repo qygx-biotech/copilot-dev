@@ -2,7 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const { createFixture } = require('./helpers/preflight-fixture.js');
 const { ProjectContextService } = require('../../docs/project-context-service.js');
-const agent = require('../side-chat-agent.js'), backend = require('../index.js'), continuation = require('../agent-continuation.js');
+const agent = require('../../shared/agent/side-chat-agent.js'), backend = require('../index.js'), { withResults } = require('../../shared/agent/receipt-admission.js');
 const wikiContract = require('../../shared/literature-wiki.js');
 const model = 'fixture-model';
 async function setup(question = 'Explain enzyme engineering.', options = {}) {
@@ -20,7 +20,7 @@ async function setup(question = 'Explain enzyme engineering.', options = {}) {
   f.context = await f.service.buildContext(f.options);
   f.ids = f.context.sourceMap.paperSources.map(s => s.sourceId);
   f.execute = (call, signal) => f.service.executeAgentTool(call, { turnId: f.options.turnId, signal });
-  f.loop = (requestTurn, resume) => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(f.context, f.options.question) },
+  f.loop = (requestTurn, resume) => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(f.context, f.options.question) },
     originalRequest: f.options.question, conversationMessages: [...(f.options.conversation?.messages || []), { role: 'user', content: f.options.question }],
     turnId: f.options.turnId, model, systemPrompt: 'Answer from sufficient evidence.', parseFinalAnswer: reply => reply ? { reply } : null,
     projectToolsEnabled: true, supportsTools: true, requestTurn, resume });
@@ -33,8 +33,7 @@ async function tool(f, name, args, id = name) {
   assert.ok(call, JSON.stringify(first));
   const result = await f.execute(call);
   assert.equal(result.result.ok, true, JSON.stringify(result));
-  const signed = continuation.seal(first.continuationState, { project: 'P' }, 'fixture');
-  return { result: result.result, resume: continuation.withResults(continuation.open(signed, { project: 'P' }, 'fixture'), [result]), call };
+  return { result: result.result, resume: withResults(first.continuationState, [result]), call };
 }
 test('main model first: general question and conversational follow-up require only metadata; no preparation or generation', async () => {
   const f = await setup('What is a neural network?'); let calls = 0;
@@ -142,8 +141,7 @@ test('cold catalog handles can request lazy preparation and retain signed identi
   });
   const result = await f.execute(first.data.desktopToolCalls[0]);
   assert.equal(result.result.ok, true, JSON.stringify(result));
-  const token = continuation.seal(first.continuationState, { project: 'P' }, 'fixture');
-  const resumed = continuation.withResults(continuation.open(token, { project: 'P' }, 'fixture'), [result]);
+  const resumed = withResults(first.continuationState, [result]);
   const next = await f.loop(async () => choose('read_paper_evidence', { item_id: handle, query: 'thermostability' }, 'warm-handle'), resumed);
   const warm = await f.execute(next.data.desktopToolCalls[0]);
   assert.equal(warm.result.ok, true, JSON.stringify(warm)); assert.equal(f.calls.cards, 0);

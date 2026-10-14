@@ -2,7 +2,7 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const { ProjectContextService } = require("../../docs/project-context-service.js");
-const backend = require("../index.js"), agent = require("../side-chat-agent.js"), continuation = require("../agent-continuation.js");
+const backend = require("../index.js"), agent = require("../../shared/agent/side-chat-agent.js"), { withResults } = require("../../shared/agent/receipt-admission.js");
 const transcript = require("../../shared/conversation-transcript.js"), tools = require("../../shared/side-chat-tools.js");
 const model = "google/gemma-4-31b-it", query = "帮我总结所有文献，写个综述。";
 const call = (name, args = {}, id = "tool-1") => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } });
@@ -17,7 +17,7 @@ async function host() {
   const context = await service.buildContext(options);
   return { ...f, service, context, options };
 }
-const run = (local, requestTurn, extra = {}) => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: backend._test.sanitizeLocalWorkspaceContext(local, query) },
+const run = (local, requestTurn, extra = {}) => agent.runSideChatAgent({ workspaceContext: { localWorkspaceContext: require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(local, query) },
   originalRequest: query, conversationMessages: [{ role: "user", content: query }], conversationTranscript: transcript.normalize(), turnId: "direct-turn", model,
   systemPrompt: "Answer from current evidence.", parseFinalAnswer: reply => reply ? { reply } : null, projectToolsEnabled: true, requestTurn, ...extra });
 
@@ -89,8 +89,7 @@ test("model-selected original evidence survives signed continuation, keeps citat
   assert.equal(result.result.ok, true, JSON.stringify(result));
   assert.match(result.result.files[0].content, /code availability/);
   assert.equal(f.calls.cards, 0);
-  const token = continuation.seal(first.continuationState, { project: "P" }, "fixture");
-  const resumed = continuation.withResults(continuation.open(token, { project: "P" }, "fixture"), [result]);
+  const resumed = withResults(first.continuationState, [result]);
   const reference = f.context.citationEvidence[0].reference;
   const second = await run(f.context, async request => {
     const response = request.messages.find(message => message.role === "tool" && message.tool_call_id === tool.id);
@@ -116,7 +115,7 @@ test("corpus tool preserves both Chinese actions and reports real workflow cover
   assert.equal(observed.question, query); assert.equal(observed.options.language, "zh"); assert.equal(observed.options.callContext.model, model);
   assert.equal(result.result.ok, true, JSON.stringify(result));
   assert.equal(result.result.coverage.papersIncludedInSnapshot, 2);
-  const second = await run(f.context, async () => ({ ok: true, message: { content: "文献综述：根据已完成的逐篇分析讨论方法，并说明缺失证据。" } }), { resume: continuation.withResults(first.continuationState, [result]) });
+  const second = await run(f.context, async () => ({ ok: true, message: { content: "文献综述：根据已完成的逐篇分析讨论方法，并说明缺失证据。" } }), { resume: withResults(first.continuationState, [result]) });
   assert.equal(second.data.corpusCoverage.includedPaperIds.length, 2);
   assert.ok(second.data.reply.includes("本次文献覆盖"));
   assert.equal(f.calls.cards, 2, "Only the fixture explicitly prepared cards");
@@ -148,7 +147,7 @@ test("original image/question reach the selected main model directly; no extract
   const png = "data:image/png;base64," + Buffer.from([137,80,78,71,13,10,26,10,...Array(20).fill(0)]).toString("base64");
   const question = "这张图片里的公式是什么意思？";
   const token = jwt.sign({ account: "direct", role: "admin" }, "fixture");
-  const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
+  const result = await require("./helpers/agent-chat.js").handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
     mode: "side_chat", model, originalRequest: question, messages: [{ role: "user", content: question }],
     images: [{ name: "formula.png", dataUrl: png }], conversationTranscript: transcript.normalize(),
     localWorkspaceContext: { project: { workspaceId: "P" }, agentLoop: { version: 1 }, semantic: { ir: { INVALID: true } } },
@@ -209,13 +208,12 @@ test("capability resolution fails closed for unknown models; unsupported tools c
   assert.equal(result.data.conversationTurn.model, model);
 });
 
-test("production renderer and authenticated FC resume the same signed project-tool loop without a planner or write permission", async t => {
-  const fs = require("node:fs"), vm = require("node:vm"), jwt = require("jsonwebtoken"), previous = { ...process.env };
-  Object.assign(process.env, { JWT_SECRET: "direct-renderer", ADMIN_ACCOUNT: "direct-renderer", REQUESTY_API_KEY: "renderer-fixture-key", REQUESTY_MODEL: model });
-  t.after(() => { for (const key of ["JWT_SECRET", "ADMIN_ACCOUNT", "REQUESTY_API_KEY", "REQUESTY_MODEL"]) previous[key] === undefined ? delete process.env[key] : process.env[key] = previous[key]; });
+test("the production renderer resumes the same project-tool loop at its host boundary without a planner or write permission", async t => {
+  const jwt = require("jsonwebtoken"), { withEnv, desktopRenderer } = require("./helpers/desktop-renderer.js");
+  withEnv(t, { JWT_SECRET: "direct-renderer", ADMIN_ACCOUNT: "direct-renderer", REQUESTY_API_KEY: "renderer-fixture-key", REQUESTY_MODEL: model });
   const token = jwt.sign({ account: "direct-renderer", role: "admin" }, "direct-renderer");
   const f = await host(), paper = f.context.sourceMap.paperSources.find(source => /SurfDock/.test(source.path));
-  const requests = [], exchanges = [], checkpoints = [];
+  const requests = [], checkpoints = [];
   t.mock.method(globalThis, "fetch", async (url, options) => {
     if (url.endsWith("/models")) return new Response(JSON.stringify({ data: [] }));
     const request = JSON.parse(options.body); requests.push(request);
@@ -226,32 +224,12 @@ test("production renderer and authenticated FC resume the same signed project-to
     const ref = result.files[0].content.match(/\[\[cite:([^\]]+)\]\]/)[1];
     return new Response(JSON.stringify({ choices: [{ message: { content: `论文提供源码。[[cite:${ref}]]` }, finish_reason: "stop" }] }));
   });
-  const source = fs.readFileSync(require.resolve("../../docs/app.js"), "utf8");
-  const functions = ["sendWorkbenchRequest", "sendWorkbenchRequestOnce"].map(name => source.match(new RegExp(`^async function ${name}\\([\\s\\S]*?^}$`, "m"))[0]).join("\n");
-  const sandbox = vm.createContext({ Response, projectContextService: f.service, workspaceManager: f.workspace, workspaceAbortController: null, authToken: token,
-    selectedWorkspacePaths: new Set(), getSelectedPaperIds: () => [], experimentModuleCards: [], referenceDocuments: [], activeSideChatDocumentKeys: [],
-    MAX_BROWSER_REFERENCE_FILES: 1, TOTAL_REFERENCE_TEXT_LIMIT: 100, runtimeLog: null, literatureModule: null,
-    buildExperimentModulesForRequest: () => ({}), buildFlattenedExperimentDocumentsForRequest: () => [], collectExperimentNotesForRequest: () => [],
-    collectSelectedStoredDocumentKeys: () => [], collectStoredDocumentsForRequest: () => [], buildDocumentsForRequest: () => [], getProjectContext: () => "",
-    backendUrl: path => path, getAuthHeaders: headers => ({ ...headers, authorization: `Bearer ${token}` }), requireLoginForUnauthorized: () => {}, t: key => key,
-    fetch: async (route, options) => {
-      assert.equal(route, "/chat"); exchanges.push(JSON.parse(options.body));
-      const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: options.headers, body: options.body }, {});
-      assert.equal(result.statusCode, 200, result.body);
-      return new Response(result.body, { status: result.statusCode });
-    },
-    window: { BioDesignEventStream: require("../../shared/event-stream.js"), BioDesignConversationTranscript: transcript },
-  });
-  vm.runInContext(functions, sandbox);
+  const { sandbox, starts, replies } = await desktopRenderer(t, { token, service: f.service, globals: { workspaceManager: f.workspace } });
   const result = await sandbox.sendWorkbenchRequest({ mode: "side_chat", model, originalRequest: "SurfDock有代码吗？", messages: [{ role: "user", content: "SurfDock有代码吗？" }],
     conversationTranscript: transcript.normalize(), onTranscript: turn => checkpoints.push(turn), localWorkspaceContext: f.context, callContext: { turnId: "direct-turn", callRole: "answer", profile: "medium" } });
-  assert.equal(requests.length, 2); assert.equal(exchanges.length, 2); assert.ok(exchanges[1].desktopContinuation);
-  assert.equal(exchanges[0].desktopTools, undefined); assert.equal(result.citations[0].sourceId, paper.sourceId); assert.equal(result.citations[0].page, 1);
+  assert.equal(requests.length, 2); assert.equal(starts.length, 1, "One loop turn");
+  assert.equal(replies.filter(reply => reply?.desktopToolResults?.length).length, 1, "The host answers one tool boundary");
+  assert.equal(starts[0].body.desktopTools, undefined); assert.equal(result.citations[0].sourceId, paper.sourceId); assert.equal(result.citations[0].page, 1);
   assert.equal(result.semanticTelemetry.cloudCalls.answer, 2); assert.equal(checkpoints.at(-1).status, "completed");
   assert.deepEqual(checkpoints.at(-1).messages.map(message => message.role), ["user", "assistant", "tool", "assistant"]);
-  for (const change of [body => { body.model = "google/gemini-3.1-flash-lite:flex"; }, body => { body.localWorkspaceContext.literature.selectedPaperIds = ["different"]; }, body => { body.mode = "agent_instruction"; }]) {
-    const body = structuredClone(exchanges[1]); change(body);
-    const denied = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify(body) }, {});
-    assert.equal(denied.statusCode, 400); assert.equal(requests.length, 2);
-  }
 });

@@ -14,14 +14,25 @@
       if (ended || !isCurrent()) throw Object.assign(new Error('The request has ended.'), { code: 'OPERATION_ABORTED' });
       if (panel?.isConnected) return;
       panel = element('section'); panel.className = 'runtime-interaction'; panel.setAttribute('aria-label', 'Agent interaction');
-      panel.style.cssText = 'position:fixed;right:24px;bottom:24px;z-index:1000;width:min(440px,90vw);max-height:65vh;overflow:auto;background:Canvas;color:CanvasText;border:1px solid #888;border-radius:12px;padding:16px;box-shadow:0 4px 20px #0003';
+      panel.style.cssText = 'width:min(440px,90vw);max-height:65vh;overflow:auto;background:Canvas;color:CanvasText;border:1px solid #888;border-radius:12px;padding:16px;box-shadow:0 4px 20px #0003';
       panel.append(element('h3', title.slice(0, 160)));
       content = element('div'); content.setAttribute('aria-live', 'polite'); panel.append(content);
       panel.append(button('Dismiss', () => {
         for (const question of questions) question.close();
         panel.remove(); planNode = null;
       }));
-      document.body.append(panel);
+      stack().append(panel);
+    }
+    // Agent Work tasks running in parallel each ask in their own panel; the
+    // panels stack in the corner instead of covering one another.
+    function stack() {
+      let host = document.querySelector('.runtime-interactions');
+      if (!host) {
+        host = element('div'); host.className = 'runtime-interactions';
+        host.style.cssText = 'position:fixed;right:24px;bottom:24px;z-index:1000;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:12px;max-height:calc(100vh - 48px);overflow:auto';
+        document.body.append(host);
+      }
+      return host;
     }
     function confirm({ title, signal }) {
       ensure();

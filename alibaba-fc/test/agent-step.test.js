@@ -1,10 +1,10 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { capture, normalizeHistory } = require('../agent-step.js');
-const { runSideChatAgent } = require('../side-chat-agent.js');
+const { capture, normalizeHistory } = require('../../shared/agent/agent-step.js');
+const { runSideChatAgent } = require('../../shared/agent/side-chat-agent.js');
 const call = (name, id = name) => ({ id, type: 'function', function: { name, arguments: '{}' } });
-const run = (requestTurn, extra = {}) => runSideChatAgent({ conversationMessages: [{ role: 'user', content: 'Inspect metadata.' }],
+const run = (requestTurn, extra = {}) => runSideChatAgent({ loopBudget: { maxSteps: 8, maxToolCalls: 24 }, conversationMessages: [{ role: 'user', content: 'Inspect metadata.' }],
   originalRequest: 'Inspect metadata.', workspaceContext: {}, systemPrompt: 'Read only.', requestTurn,
   parseFinalAnswer: content => ({ reply: content }), ...extra });
 
@@ -67,7 +67,7 @@ test('canonical runtime images become model pixels without replacing stored rece
   const data = Buffer.from([137,80,78,71,13,10,26,10]).toString('base64');
   const original = [{role:'assistant',tool_calls:[{id:'image',type:'function',function:{name:'view_image',arguments:'{"path":"plot.png"}'}}]},
     {role:'tool',tool_call_id:'image',content:JSON.stringify({ok:true,runtimeCall:{name:'view_image'},value:{content:[{type:'image',mimeType:'image/png',data}]}})}];
-  const projected = require('../agent-step.js').projectImages(require('../agent-step.js').normalizeHistory(original));
+  const projected = require('../../shared/agent/agent-step.js').projectImages(require('../../shared/agent/agent-step.js').normalizeHistory(original));
   assert.equal(projected[2].content[1].image_url.url, 'data:image/png;base64,'+data);
   assert.equal(JSON.parse(original[1].content).value.content[0].data,data);
   assert.equal(projected[1].tool_call_id,'image');
@@ -88,15 +88,15 @@ test('advanced execution schemas respect surfaces and image capabilities at actu
 });
 
 test('nested tool cost is charged to the existing signed continuation budget', () => {
-  const continuation=require('../agent-continuation.js');
+  const { withResults } = require('../../shared/agent/receipt-admission.js');
   const state={runtimeVersion:1,totalToolCalls:3,pending:[{id:'code',name:'run_code',args:{code:'fixture'}}],agentMessages:[{role:'tool',tool_call_id:'code',content:'pending'}]};
   const result={id:'code',result:{ok:true,runtimeCall:{name:'run_code',args:{code:'fixture'}},nestedToolCalls:2,value:{status:'completed'}}};
-  assert.equal(continuation.withResults(structuredClone(state),[result]).totalToolCalls,5);
-  assert.throws(()=>continuation.withResults({...structuredClone(state),totalToolCalls:23},[result]),{code:'INVALID_TOOL_CONTINUATION'});
+  assert.equal(withResults(structuredClone(state),[result]).totalToolCalls,5);
+  assert.throws(()=>withResults({...structuredClone(state),totalToolCalls:23},[result]),{code:'INVALID_TOOL_CONTINUATION'});
 });
 
 test('image delivery retains structured attachments, attributes calls and explicitly omits limits without mutating receipts', () => {
-  const { projectImages } = require('../agent-step.js');
+  const { projectImages } = require('../../shared/agent/agent-step.js');
   const images = Array.from({ length: 6 }, (_, i) => ({ type: 'image', mimeType: 'image/png', data: Buffer.from(`image${i}`).toString('base64') }));
   const history = [{ role: 'user', content: [{ type: 'text', text: 'Compare' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,cHJpb3I=' } }] },
     ...images.flatMap((image, i) => [{ role: 'assistant', tool_calls: [call('view_image', `image${i}`)] }, { role: 'tool', tool_call_id: `image${i}`, content: JSON.stringify({ ok: true, value: { content: [image] } }) }])];
@@ -118,11 +118,11 @@ test('image delivery retains structured attachments, attributes calls and explic
   assert.deepEqual(JSON.parse(invalid[0].content).value.content.map(i => i.omission_reason), ['IMAGE_DELIVERY_SIZE_LIMIT', 'INVALID_IMAGE_CONTENT']);
 });
 
-test('two bounded runtime receipts survive the transport without losing completed process handles', () => {
+test('two bounded runtime receipts are admitted without losing completed process handles', () => {
   const pending = ['a', 'b'].map(id => ({ id, name: 'write_stdin', args: { process_id: `process:${id}`, chars: 'x'.repeat(20000) } }));
   const state = { runtimeVersion: 1, pending, agentMessages: pending.map(call => ({ role: 'tool', tool_call_id: call.id, content: 'pending' })) };
   const results = pending.map(call => ({ id: call.id, result: { ok: true, runtimeCall: call, value: { process_id: call.args.process_id, status: 'completed', exit_code: 0, output: 'a'.repeat(15998), output_cursor: 15998, output_remaining: 20 } } }));
   assert(JSON.stringify(results).length > 60000);
-  const accepted = require('../agent-continuation.js').withResults(state, results);
+  const accepted = require('../../shared/agent/receipt-admission.js').withResults(state, results);
   assert.deepEqual(accepted.agentMessages.map(m => JSON.parse(m.content).value.status), ['completed', 'completed']);
 });

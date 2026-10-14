@@ -123,16 +123,18 @@ export class ProjectSessionManager extends EventEmitter {
       catch { advancedConfig = { unavailable: 'INVALID_RUNTIME_PROVIDER_CONFIG' }; }
     }
     active.advancedRuntime = new AdvancedRuntimeService({ filesystem, apps: active.apps,
-      config: advancedConfig, imagePreview: this.advancedOptions.imagePreview, signal: active.sourceDownloads.signal,
+      config: advancedConfig, imagePreview: this.advancedOptions.imagePreview, runtime: this.advancedOptions.runtime || null, signal: active.sourceDownloads.signal,
       dynamicTools: [{ definition: { type: 'function', function: { name: 'host_project_status', description: 'Read the active host project descriptor and whether its knowledge worker is initialized. Does not attest scientific evidence readiness.', parameters: { type: 'object', properties: {}, additionalProperties: false } } },
         validate: args => { if (!args || Object.keys(args).length) throw new ValidationError('INVALID_INPUT', 'No arguments accepted.'); },
         execute: async () => ({ project: filesystem.descriptor(), knowledgeWorkerInitialized: Boolean(active.qmd), projectOpen: this.active === active }) }, ...(this.advancedOptions.dynamicTools || [])] });
-    runtimeWorkflow('runtime_advanced_open', ['owner', 'surface', 'permission'], 'runtime_control', input => active.advancedRuntime.open(input));
-    runtimeWorkflow('runtime_advanced_grant', ['owner'], 'runtime_control', input => active.advancedRuntime.grant(input.owner));
+    runtimeWorkflow('runtime_advanced_open', ['owner', 'surface', 'permission', 'turnId', 'collaborationMode', 'taskFolder'], 'runtime_control', input => active.advancedRuntime.open(input));
+    runtimeWorkflow('runtime_advanced_grant', ['owner', 'capability'], 'runtime_control', input => active.advancedRuntime.grant(input.owner, input.capability));
     runtimeWorkflow('runtime_advanced_call', ['owner', 'call'], 'runtime_execution', input => active.advancedRuntime.call(input));
     runtimeWorkflow('runtime_advanced_reply', ['owner', 'cell_id', 'results'], 'runtime_execution', input => active.advancedRuntime.reply(input));
     runtimeWorkflow('runtime_advanced_install', ['owner', 'plugin_id', 'digest', 'call_id'], 'runtime_configuration', input => active.advancedRuntime.install(input));
     runtimeWorkflow('runtime_advanced_close', ['owner'], 'runtime_control', async input => { await active.advancedRuntime.closeOwner(input.owner); return { closed: true }; });
+    // The user's "undo" for a finished project-mode turn's changes to output/.
+    runtimeWorkflow('runtime_advanced_undo', ['turnId'], 'runtime_execution', input => active.advancedRuntime.undo(input));
     active.paperMcp = new PaperMcpClient(this.paperOptions);
     registerAcademicWorkflows(active, active.paperMcp, () => this.active === active);
     active.browserMcp = new PlaywrightMcpClient({ ...this.browserOptions, profileRoot: path.join(this.browserOptions.profileRoot, crypto.createHash('sha256').update(filesystem.root).digest('hex').slice(0, 24)) });

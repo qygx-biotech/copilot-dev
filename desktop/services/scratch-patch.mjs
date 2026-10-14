@@ -3,6 +3,7 @@ const fail = message => Object.assign(new Error(message), { code: 'INVALID_PATCH
 // rather than guessed; all files are validated before any write occurs.
 // Production scratch callers execute this module inside the OS sandbox. The
 // injected filesystem's path checks alone do not protect against rename races.
+// Each target is checked as writable before it is read, and all before any write.
 export async function applyPatch(fs, patch) {
   const lines = patch.replace(/\r\n/g, '\n').trimEnd().split('\n');
   if (lines.shift() !== '*** Begin Patch' || lines.pop() !== '*** End Patch') throw fail('Expected patch markers.');
@@ -10,13 +11,13 @@ export async function applyPatch(fs, patch) {
   while (lines.length) {
     const match = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(lines.shift());
     if (!match) throw fail('Expected file header.');
-    const [, action, name] = match; fs.candidate(name);
+    const [, action, name] = match; fs.candidate(name); fs.assertWritable?.(name);
     if (seen.has(name)) throw fail('Repeated file target.'); seen.add(name);
     const exists = await fs.exists(name), before = exists ? await fs.readText(name) : null;
     if ((action === 'Add') === exists) throw fail('Target existence does not match operation.');
     let target = name;
     if (action === 'Update' && lines[0]?.startsWith('*** Move to: ')) {
-      target = lines.shift().slice(13); fs.candidate(target);
+      target = lines.shift().slice(13); fs.candidate(target); fs.assertWritable?.(target);
       if (seen.has(target) || await fs.exists(target)) throw fail('Move target exists.'); seen.add(target);
     }
     const body = []; while (lines.length && !/^\*\*\* (Add|Update|Delete) File: /.test(lines[0])) body.push(lines.shift());
@@ -68,5 +69,5 @@ export async function applyPatch(fs, patch) {
     }
     throw error;
   }
-  return { applied: changes.map(({ action, name, target }) => ({ action: action.toLowerCase(), path: name, ...(target !== name ? { moved_to: target } : {}) })), scope: 'scratch', source_evidence: false };
+  return { applied: changes.map(({ action, name, target }) => ({ action: action.toLowerCase(), path: name, ...(target !== name ? { moved_to: target } : {}) })), scope: fs.scope || 'scratch', source_evidence: false };
 }

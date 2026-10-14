@@ -5,8 +5,10 @@ const { format } = require("node:util");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const OSS = require("ali-oss");
-const { handler, _test } = require("../index.js");
-const { createSideChatKnowledgeBase, executeSideChatTool } = require("../side-chat-agent.js");
+const { _test } = require("../index.js");
+// Agent turns (/chat) run on the agent loop; every other route is the FC handler.
+const { handler } = require("./helpers/agent-chat.js");
+const { createSideChatKnowledgeBase, executeSideChatTool } = require("../../shared/agent/side-chat-agent.js");
 
 // Every credential and document below is synthetic. Never load deployment env files.
 const privateText = "SYNTHETIC_PRIVATE_DOCUMENT_SENTINEL";
@@ -70,7 +72,7 @@ const chat = { mode: "side_chat", messages: [{ role: "user", content: "Explain t
 const protectedPaths = ["/api/me", "/api/knowledge/update-wiki", "/api/knowledge/config", "/api/literature/config", "/api/knowledge/plan-search", "/api/knowledge/rerank",
   "/api/literature/summarize-chunk", "/api/corpus/map-paper", "/api/literature/analyze-pdf-native", "/api/literature/create-paper-card-from-text",
   "/api/context/route", "/api/semantic/interpret", "/api/semantic/map-schema", "/api/literature/synthesize", "/api/chat/understand-images",
-  "/chat", "/api/sources/fetch", "/api/test-oss", "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"];
+  "/api/model/turn", "/api/model/capabilities", "/api/sources/fetch", "/api/test-oss", "/api/documents", "/api/documents/upload-url", "/api/documents/delete", "/api/documents/review"];
 
 test("debug is unavailable and cannot echo credentials, headers or document previews", async t => {
   const results = [];
@@ -110,11 +112,8 @@ test("cross-account and traversal object keys remain denied despite forged owner
       assert.equal(result.status, 403); assert.equal(result.body.error, "ObjectAccessDenied");
     }
   }
-  const result = await invoke("/chat", { ...chat, storedDocuments: [{ objectKey: foreign }], selectedDocumentKeys: [foreign], account: users[1].account });
-  assert.equal(result.body.fallback, false); assert.deepEqual(result.body.documentScope.objectKeys, []);
   assert.equal(storageCalls, 0);
-  assert.equal(providerRequests.length, 1);
-  assert.equal(providerRequests[0].body.includes(foreign), false);
+  assert.equal(providerRequests.length, 0);
 });
 
 test("forged models cannot select keys; valid beta and admin answer modes retain their server-authorized behavior", async () => {
@@ -189,9 +188,6 @@ test("schema capability fallback keeps its classification without exposing provi
 });
 
 test("unreducible context fails without leaking content; successful answers retain scientific text", async t => {
-  // Archive writes now reuse the configured OSS client. Keep this security
-  // fixture offline while exercising successful private archive persistence.
-  t.mock.method(OSS.prototype, 'put', async () => ({ res: { status: 200 } }));
   let calls = 0;
   global.fetch = async () => ++calls === 1
     ? new Response(JSON.stringify({ error: { message: `context_length_exceeded ${privateText}` } }), { status: 400 })

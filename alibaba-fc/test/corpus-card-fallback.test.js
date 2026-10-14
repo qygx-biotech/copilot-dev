@@ -72,15 +72,14 @@ for (const failure of [{ status: 401, error: { code: 'authentication_error' } },
   assert(Object.values(manager.state.corpusCardFallbacks).every(entry => !entry.active));
 });
 
-test('durable marker prevents repetition after cold start with an older checkpoint; revocation and version changes filter cards', async t => {
-  const remote = new Map(), store = { put: async (key, text) => remote.set(key, text), get: async key => remote.get(key) };
-  const manager = await fixture(t, { archiveStorage: store }); let saved;
+test('durable marker prevents repetition when resuming from an older checkpoint; revocation and version changes filter cards', async t => {
+  const manager = await fixture(t); let saved;
   let initialCalls = 0;
   await manager.run(options(), async () => { if (++initialCalls === 1) { saved = manager.snapshot(); return overflow; } return success; });
   assert(Object.values(saved.corpusCardFallbacks).every(entry => !entry.active));
-  // Snapshot deliberately predates fallback admission. The durable marker still records it.
-  // Use the same archive session on a different empty local filesystem.
-  const cold = await fixture(t, { archiveStorage: store, state: saved });
+  // Snapshot deliberately predates fallback admission. The durable marker in
+  // the project archive still records it.
+  const cold = await fixture(t, { config: { root: manager.config.root }, state: saved });
   let calls = 0;
   const result = await cold.run({ ...options(), corpusSourceBindings: [] }, async request => {
     calls++; const view = JSON.parse(request.messages[3].content);
@@ -110,18 +109,6 @@ test('cancellation after rejection prevents retry and expired deadline prevents 
   assert.equal(result.ok, false);
 });
 
-
-test('archive staging obeys cancellation and deadlines without dispatching a provider', async t => {
-  let started; const ready = new Promise(resolve => { started = resolve; });
-  const store = { put: async () => { started(); return new Promise(() => {}); }, get: async () => undefined };
-  const manager = await fixture(t, { archiveStorage: store }), controller = new AbortController();
-  const running = manager.run({ ...options(), signal: controller.signal }, () => assert.fail('No provider before staging'));
-  await ready; controller.abort();
-  await assert.rejects(running, { code: 'OPERATION_ABORTED' });
-  const deadline = await fixture(t, { archiveStorage: store });
-  const result = await deadline.run({ ...options(), deadlineAt: Date.now() + 25 }, () => assert.fail('No provider after deadline'));
-  assert.equal(result.ok, false); assert.equal(result.recoveryStopReason, 'hard_request_deadline_exhausted');
-});
 
 test('an unavailable durable card archive fails honestly and cannot restore mixed context', async t => {
   const manager = await fixture(t); let calls = 0;

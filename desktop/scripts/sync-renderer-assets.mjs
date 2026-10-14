@@ -11,6 +11,8 @@ const assets = [
   ["shared/runtime-concurrency.js", "runtime-concurrency.js"],
   ["shared/topic-navigation.js", "topic-navigation.js"],
   ["shared/turn-observability.js", "turn-observability.js"],
+  ["shared/collaboration-modes.js", "collaboration-modes.js"],
+  ["shared/redact-secrets.js", "redact-secrets.js"],
   ["shared/runtime-extensions.js", "runtime-extensions.js"],
   ["shared/runtime-tools.js", "runtime-tools.js"],
   ["shared/generic-subagent.js", "generic-subagent.js"],

@@ -8,7 +8,7 @@ const { LiteratureApiClient } = require("../../docs/literature-module.js");
 const { CLOUD_RETRIEVAL } = require("../../shared/retrieval-contract.js");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const { followUpFixture } = require("./helpers/follow-up-fixture.js");
-const { runSideChatAgent } = require("../side-chat-agent.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js");
 const backend = require("../index.js"), jwt = require("jsonwebtoken");
 const model = "google/gemini-3.1-flash-lite:flex";
 const url = "https://papers.example.org/new-paper.pdf";
@@ -120,7 +120,7 @@ for (const [question, scope, download] of cases) test(`scope routing: ${scope} �
   assert.equal(routing.downloadRequested, download);
   assert.ok(!JSON.stringify(routing).includes(question));
   // FC receives the production context; it must preserve scope and permissions.
-  const local = backend._test.sanitizeLocalWorkspaceContext(context, question);
+  const local = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(context, question);
   const result = await runSideChatAgent({ workspaceContext: { localWorkspaceContext: local }, conversationMessages: [{ role: "user", content: question }],
     surface: "agent_command", systemPrompt: "Answer the current request.", supportsWebSearch: true, desktopDownloads: true, downloadPermission: "workspace_write", parseFinalAnswer: text => ({ reply: text }),
     requestTurn: async request => {
@@ -162,7 +162,7 @@ test("reported Gemini IR enters hosted search instead of lexical planning, QMD, 
   assert.equal(decision.details.downloadRequested, true);
   assert.equal(log.entries().find(entry => entry.event === "retrieval.routing").details.workspaceRetrievalTriggered, false);
   assert.doesNotMatch(log.exportText(), /合成生物学|Bearer|scope-routing-fixture-key/);
-  const local = backend._test.sanitizeLocalWorkspaceContext(context, reported.query);
+  const local = require("../../shared/agent/request-context.js").sanitizeLocalWorkspaceContext(context, reported.query);
   const result = await runSideChatAgent({ surface: "agent_command", systemPrompt: "Complete the user task.",
     workspaceContext: { localWorkspaceContext: local }, conversationMessages: [{ role: "user", content: reported.query }],
     supportsWebSearch: true, desktopDownloads: true, downloadPermission: "workspace_write", parseFinalAnswer: text => ({ reply: text }),

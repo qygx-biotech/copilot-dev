@@ -1,7 +1,6 @@
 'use strict';
 const test=require('node:test'), assert=require('node:assert/strict');
 const lifecycle=require('../provider-lifecycle.js');
-const tickets=require('../stream-call-ticket.js');
 const transcript=require('../../shared/conversation-transcript.js');
 const config=lifecycle.configuration({AGENT_PROVIDER_ADAPTERS_JSON:JSON.stringify({alias:{api:'responses',endpoint:'https://provider.example/v1/responses',model:'native-model',apiKeyEnv:'KEY',supportsTools:true,reasoning:{effort:'high'}}}),KEY:'secret'},'alias');
 const chat={messages:[{role:'system',content:'Canonical authorization'},{role:'user',content:'Inspect.'}],tools:[],max_tokens:100};
@@ -41,15 +40,6 @@ test('opaque reasoning and explicit continuation survive transcript and subseque
  const body=lifecycle.requestBody({...chat,messages:[...chat.messages,...saved]},config);
  assert.deepEqual(body.input[2],reasoning);assert.equal(body.input[0].role,'system');
  assert.throws(()=>lifecycle.requestBody({...chat,messages:saved},{...config,model:'different'}),{code:'PROVIDER_CONTEXT_MISMATCH'});
-});
-test('stream tickets authenticate account, turn, model and exact call identity',()=>{
- const scope={turnId:'t',projectId:'p',model:'alias'},call={id:'call_1',name:'host_project_status',args:{}};
- const identity={step:{toolNames:['host_project_status']},authority:{surface:'agent_command',permission:'workspace_write'}};
- const envelope=tickets.seal(call,identity,scope,'account','secret');
- assert.deepEqual(tickets.verify(envelope.ticket,scope,'account','secret').call,call);
- assert.throws(()=>tickets.verify(envelope.ticket,scope,'other','secret'));
- assert.throws(()=>tickets.verify(envelope.ticket,{...scope,turnId:'other'},'account','secret'));
- assert.throws(()=>tickets.verify(envelope.ticket+'changed',scope,'account','secret'));
 });
 test('cancellation propagates through the provider stream and never retries',async()=>{
  const abort=new AbortController();let sends=0;

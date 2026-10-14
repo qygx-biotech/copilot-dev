@@ -2,8 +2,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
-const fs = require("node:fs");
-const vm = require("node:vm");
 process.env.JWT_SECRET = "chat-model-selection-fixture";
 process.env.ADMIN_ACCOUNT = "chat-model-fixture";
 process.env.REQUESTY_API_KEY = "fixture-private-key";
@@ -21,7 +19,7 @@ global.fetch = async (url, options) => {
   return new Response(JSON.stringify({ choices: [{ message: replies.shift() || finalMessage, finish_reason: "stop" }] }), { headers: { "Content-Type": "application/json" } });
 };
 function chat(extra = {}, transport) {
-  return backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` },
+  return require("./helpers/agent-chat.js").handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` },
     body: JSON.stringify({ mode: "side_chat", messages: [{ role: "user", content: "Summarize the papers" }], ...extra }) }, {}, transport);
 }
 test("old clients and Default model retain the configured FC model", async () => {
@@ -94,48 +92,28 @@ test("Side Chat supports the same Gemini option through every tool-loop turn", a
   assert.equal(requests.length, 2);
   assert.ok(requests.every(request => request.model === geminiFlex));
 });
-test("the production browser request forwards each surface's own model selection", async () => {
-  const app = fs.readFileSync(require.resolve("../../docs/app.js"), "utf8");
-  const source = ["sendWorkbenchRequest", "sendWorkbenchRequestOnce"].map(name => app.match(new RegExp(`^async function ${name}\\([\\s\\S]*?^}$`, "m"))[0]).join("\n");
-  const bodies = [];
-  const sandbox = vm.createContext({
-    projectContextService: null, workspaceAbortController: null, experimentModuleCards: [], referenceDocuments: [], activeSideChatDocumentKeys: [],
-    authToken: "fixture-session", selectedWorkspacePaths: new Set(), getSelectedPaperIds: () => [],
-    MAX_BROWSER_REFERENCE_FILES: 1, TOTAL_REFERENCE_TEXT_LIMIT: 100, runtimeLog: null, literatureModule: null,
-    buildExperimentModulesForRequest: () => ({}), buildFlattenedExperimentDocumentsForRequest: () => [],
-    collectExperimentNotesForRequest: () => [], collectSelectedStoredDocumentKeys: () => [], collectStoredDocumentsForRequest: () => [],
-    buildDocumentsForRequest: () => [], getProjectContext: () => "", backendUrl: path => path, getAuthHeaders: headers => headers,
-    requireLoginForUnauthorized: () => {}, t: key => key,
-    fetch: async (_url, options) => { bodies.push(JSON.parse(options.body)); return { ok: true, status: 200 }; },
-    window: { BioDesignEventStream: { readWorkbenchResponse: async () => ({ reply: "Answer" }) } },
-  });
-  vm.runInContext(source, sandbox);
-  await sandbox.sendWorkbenchRequest({ mode: "side_chat", model: nemotron, messages: [] });
-  await sandbox.sendWorkbenchRequest({ mode: "agent_instruction", model: geminiFlex, messages: [] });
-  await sandbox.sendWorkbenchRequest({ mode: "agent_instruction", messages: [] });
-  assert.equal(bodies[0].model, nemotron);
-  assert.equal(bodies[1].model, geminiFlex);
-  assert.equal(Object.hasOwn(bodies[2], "model"), false);
-  const recoveryContexts = [];
-  sandbox.projectContextService = { answerWithEvidenceRecovery: async options => {
-    recoveryContexts.push(options.callContext);
-    return options.request({});
-  } };
-  await sandbox.sendWorkbenchRequest({ mode: "agent_instruction", model: geminiFlex, messages: [], localWorkspaceContext: {} });
-  await sandbox.sendWorkbenchRequest({ mode: "side_chat", model: nemotron, messages: [], localWorkspaceContext: {} });
-  assert.equal(recoveryContexts[0].model, geminiFlex);
-  assert.equal(recoveryContexts[1].model, nemotron);
-  assert.equal(bodies[3].model, geminiFlex);
-  assert.equal(bodies[4].model, nemotron);
-  await sandbox.sendWorkbenchRequest({ mode: "agent_instruction", model: "default", messages: [], localWorkspaceContext: {} });
-  assert.equal(recoveryContexts[2].model, undefined);
+test("the production renderer forwards each surface's own model selection and reports rejections by code", async () => {
+  const { rendererSandbox } = require("./helpers/desktop-renderer.js");
+  // A preload-shaped agent API that records each turn's start.
+  const starts = []; let outcome = async () => ({ reply: "Answer" });
+  const agent = { start: async payload => { starts.push(payload); return outcome(payload); }, respond: async () => ({}), cancel: async () => ({}), onEvent: () => () => {} };
+  // The project service registers each turn's scope when it builds the turn's context.
+  const service = { workspace: { workspace: { workspaceId: "model-project" } }, agentTurns: new Map([["model-turn", {}]]) };
+  const sandbox = rendererSandbox({ token: "fixture.session.token", service, agent });
+  const send = request => sandbox.sendWorkbenchRequest({ messages: [{ role: "user", content: "Summarize" }],
+    localWorkspaceContext: { project: { workspaceId: "model-project" }, agentLoop: { version: 1 } }, callContext: { turnId: "model-turn", callRole: "answer", profile: "medium" }, ...request });
+  await send({ mode: "side_chat", model: nemotron });
+  await send({ mode: "agent_instruction", model: geminiFlex });
+  await send({ mode: "agent_instruction" });
+  assert.equal(starts[0].body.model, nemotron);
+  assert.equal(starts[1].body.model, geminiFlex);
+  assert.equal(Object.hasOwn(starts[2].body, "model"), false);
   const failures = [];
-  sandbox.projectContextService = null;
-  sandbox.runtimeLog = { begin: () => (status, details) => failures.push({ status, ...details }) };
+  sandbox.runtimeLog = { record: () => {}, begin: () => (status, details) => failures.push({ status, ...details }) };
   for (const error of ["INVALID_SEMANTIC_CONTEXT", "arbitrary-private-error"]) {
-    sandbox.fetch = async () => ({ ok: false, status: 400, json: async () => ({ error }) });
+    outcome = async () => { throw Object.assign(new Error(error), { code: error, status: 400 }); };
     const code = error === "INVALID_SEMANTIC_CONTEXT" ? error : "BACKEND_HTTP_ERROR";
-    await assert.rejects(sandbox.sendWorkbenchRequest({ mode: "agent_instruction", model: geminiFlex, messages: [] }), { code, status: 400 });
+    await assert.rejects(send({ mode: "agent_instruction", model: geminiFlex }), { code, status: 400 });
     assert.equal(failures.at(-1).code, code);
     assert.equal(failures.at(-1).status, 400);
   }

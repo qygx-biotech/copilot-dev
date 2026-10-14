@@ -5,7 +5,8 @@
   const id = type => `${type}:${globalThis.crypto.randomUUID()}`;
   const boardNames = ['create_channel','get_channels','list_threads','search_posts','read_thread','read_post','subscribe','unsubscribe','post'];
   function board() { return { channels: new Map(), threads: new Map(), posts: new Map(), subscribers: new Map(), closed: false }; }
-  function create({ owner, sharedBoard = board(), context, transcript, memory, saveMemory, notify = () => {} }) {
+  // conversationMemory: the project's memory from earlier conversations ({ search, read }), or null when off.
+  function create({ owner, sharedBoard = board(), context, transcript, memory, saveMemory, conversationMemory = null, notify = () => {} }) {
     const notes = new Map();
     const path = value => { if (typeof value !== 'string' || value.startsWith('/') || value.includes('\\') || value.split('/').some(p => !p || p === '.' || p === '..') || /[\x00-\x1f]/.test(value)) throw fail('INVALID_NOTE_PATH'); return value; };
     function memories() {
@@ -29,6 +30,10 @@
     return { board: sharedBoard,
       async call(name, args) {
         if (sharedBoard.closed) throw fail('RUNTIME_OWNER_EXPIRED');
+        if (name === 'conversation_memory_search' || name === 'conversation_memory_read') {
+          if (!conversationMemory) throw fail('MEMORY_DISABLED');
+          return name === 'conversation_memory_search' ? conversationMemory.search(args.query) : conversationMemory.read(args.path);
+        }
         if (name === 'memories_list') return { memories: limited(memories()) };
         if (name === 'memories_search') return { memories: limited(memories().filter(item => item.text.toLowerCase().includes(args.query.toLowerCase()))) };
         if (name === 'memories_read') { const item = memories().find(item => item.memory_id === args.memory_id); if (!item) throw fail('MEMORY_NOT_IN_SCOPE'); return item; }

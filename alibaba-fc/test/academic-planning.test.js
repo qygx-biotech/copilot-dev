@@ -1,7 +1,6 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
-const planning = require('../academic-planning.js'), academic = require('../academic-agent.js');
-const continuation = require('../agent-continuation.js');
+const planning = require('../../shared/agent/academic-planning.js'), academic = require('../../shared/agent/academic-agent.js');
 const ref = n => 'paper_' + String(n).padStart(24, '0');
 const paper = (n, extra = {}) => ({ paper_ref: ref(n), title: `Engineering paper ${n}`, authors: ['A'], doi: `10.1000/${n}`, abstract: 'Evidence about the requested method.', published_date: '2024-01-01', locations: [], providers: [], ...extra });
 const plan = { request_kind: 'topic', subtopics: ['design', 'validation'], synonyms: ['engineering'], queries: ['enzyme design', 'enzyme validation'], requested_count: 2, year_from: 2023, year_to: 2025 };
@@ -77,16 +76,13 @@ test('two low-yield pages stop new searches but preserve relevant shortlist rese
   assert.throws(() => planning.beforeTool(state, 'search_academic_papers', { query: 'again' }, 's', 2), { code: 'LITERATURE_SEARCH_DIMINISHING_RETURNS' });
   assert.doesNotThrow(() => planning.beforeTool(state, 'download_papers', { paper_refs: [ref(1)] }, 'd', 2));
 });
-test('signed continuation retains plan, shortlist, and measured usage; missing usage stays unknown', () => {
+test('academic state retains measured usage; missing usage stays unknown', () => {
   const state = prepared();
   planning.execute(state, 'select_literature_papers', { shortlist: [selection(1, 5, ['design'])], stop_reason: 'sufficient_candidates', remaining_gaps: ['validation'] }, 2);
   planning.recordModel(state, { usage: { prompt_tokens: 40, completion_tokens: 10 } }, 20);
-  const signed = continuation.seal({ academicState: state }, { project: 'p' }, 'test');
-  const opened = continuation.open(signed, { project: 'p' }, 'test').academicState;
-  assert.deepEqual(opened.plan, state.plan); assert.deepEqual(opened.shortlist, state.shortlist);
-  assert.equal(planning.modelMetrics(opened).input_tokens, 40);
-  planning.recordModel(opened, {}, 10);
-  assert.equal(planning.modelMetrics(opened).input_tokens, null); assert.equal(planning.modelMetrics(opened).cost_usd, null);
+  assert.equal(planning.modelMetrics(state).input_tokens, 40);
+  planning.recordModel(state, {}, 10);
+  assert.equal(planning.modelMetrics(state).input_tokens, null); assert.equal(planning.modelMetrics(state).cost_usd, null);
 });
 test('named papers can use exact lookup and selection without substituting topical queries', () => {
   const state = academic.initial();

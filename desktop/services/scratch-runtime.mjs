@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, realpath, rm, readFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, realpath, rm, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { validatePng } from './runtime-image.mjs';
+import { seatbeltArgs, projectPaths, projectPolicy, PROJECT_WRITABLE, PROJECT_HIDDEN, PROJECT_TASKS } from './sandbox-policy.mjs';
 const fail = code => Object.assign(new Error(code), { code });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const OUTPUT_LIMIT = 262144;
@@ -37,16 +38,21 @@ export function sandboxProfile(root, executable, worker = runner) {
 (allow file-read* file-write* (literal "/dev/null") (literal "/dev/urandom") (literal "/dev/random") (subpath ${quote(root)}))`;
 }
 export class ScratchRuntime {
-  constructor({ platform = process.platform, executable = process.env.BIODESIGN_SANDBOX_NODE || (process.versions.electron ? ['/opt/homebrew/bin/node', '/usr/local/bin/node'].find(existsSync) : process.execPath), preview } = {}) {
-    this.platform = platform; this.executable = executable; this.preview = preview; this.sessions = new Map(); this.openings = new Map(); this.closed = false;
+  // runtime: the downloaded execution runtime (desktop/services/execution-runtime.mjs);
+  // its Node runs cells and file tools, and its Python is on PATH in project mode.
+  constructor({ platform = process.platform, executable = process.env.BIODESIGN_SANDBOX_NODE || (process.versions.electron ? ['/opt/homebrew/bin/node', '/usr/local/bin/node'].find(existsSync) : process.execPath), preview, runtime = null } = {}) {
+    this.platform = platform; this.executable = executable; this.preview = preview; this.runtime = runtime; this.sessions = new Map(); this.openings = new Map(); this.closed = false;
+    this.probes = new Map();
   }
+  // Probed per Node executable, so scratch becomes available once the runtime is installed.
   async available() {
-    if (this.platform !== 'darwin' || !this.executable) return false;
+    if (this.platform !== 'darwin') return false;
+    const executable = await this.nodeExecutable().catch(() => null);
+    if (!executable) return false;
     // Probe the actual runtime under the same policy used by tool calls.
-    if (!this.probe) this.probe = (async () => {
+    if (!this.probes.has(executable)) this.probes.set(executable, (async () => {
       const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'biodesign-sandbox-probe-')));
       try {
-        const executable = await realpath(this.executable);
         const child = spawn('/usr/bin/sandbox-exec', ['-p', sandboxProfile(root, executable), executable, '-e', 'process.stdout.write("ready")'],
           { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], env: { HOME: root, TMPDIR: root, OPENSSL_CONF: '/dev/null', ELECTRON_RUN_AS_NODE: '1' } });
         return await new Promise(resolve => {
@@ -56,8 +62,8 @@ export class ScratchRuntime {
           child.on('close', code => { clearTimeout(timer); resolve(code === 0 && output === 'ready'); });
         });
       } finally { await rm(root, { recursive: true, force: true }); }
-    })().catch(() => false);
-    return this.probe;
+    })().catch(() => false));
+    return this.probes.get(executable);
   }
   async open(owner) {
     if (this.closed) throw fail('RUNTIME_CLOSED');
@@ -65,7 +71,7 @@ export class ScratchRuntime {
     const opening = (async () => {
       if (!(await this.available())) throw fail('SANDBOX_UNAVAILABLE');
       if (this.closed) throw fail('RUNTIME_CLOSED');
-      if (this.sessions.has(owner)) return;
+      if (this.sessions.has(owner)) { if (this.sessions.get(owner).mode !== 'scratch') throw fail('RUNTIME_OWNER_CONFLICT'); return; }
       const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'biodesign-scratch-')));
       try {
         if (this.closed) throw fail('RUNTIME_CLOSED');
@@ -77,11 +83,105 @@ export class ScratchRuntime {
           writeText: (path, text) => fs.writeBinary(path, Buffer.from(text)),
           exists: path => this.fileOperation(owner, 'exists', { path }),
         };
-        this.sessions.set(owner, { root, fs, processes: new Map(), cells: new Map(), fileWorkers: new Set(), queue: Promise.resolve(), controller: new AbortController(), closed: false });
+        this.sessions.set(owner, { mode: 'scratch', root, privateRoot: root, fs, processes: new Map(), cells: new Map(), fileWorkers: new Set(), queue: Promise.resolve(), controller: new AbortController(), closed: false });
       } catch (error) { await rm(root, { recursive: true, force: true }); throw error; }
     })();
     this.openings.set(owner, opening);
     try { return await opening; } finally { this.openings.delete(owner); }
+  }
+  // Probes /bin/sh under a project policy on a temporary project. Project mode
+  // needs no Node executable for commands; file tools and cells still do.
+  async projectAvailable() {
+    if (this.platform !== 'darwin') return false;
+    if (!this.projectProbe) this.projectProbe = (async () => {
+      const base = await realpath(await mkdtemp(path.join(os.tmpdir(), 'biodesign-project-probe-')));
+      try {
+        const project = path.join(base, 'project'), privateRoot = path.join(base, 'private');
+        await Promise.all([mkdir(project), mkdir(privateRoot)]);
+        const policy = projectPolicy({ ...await projectPaths(project), privateRoot });
+        const child = spawn('/usr/bin/sandbox-exec', seatbeltArgs(policy, '/bin/sh', ['-c', 'printf ready > output/probe && /bin/cat output/probe']),
+          { cwd: project, stdio: ['ignore', 'pipe', 'ignore'], env: { PATH: '/usr/bin:/bin', HOME: privateRoot, TMPDIR: privateRoot } });
+        return await new Promise(resolve => {
+          let output = ''; const timer = setTimeout(() => child.kill('SIGKILL'), 3000);
+          child.stdout.on('data', bytes => { output += bytes.toString(); });
+          child.on('error', () => { clearTimeout(timer); resolve(false); });
+          child.on('close', code => { clearTimeout(timer); resolve(code === 0 && output === 'ready'); });
+        });
+      } finally { await rm(base, { recursive: true, force: true }); }
+    })().catch(() => false);
+    return this.projectProbe;
+  }
+  // Project mode: the project root is the working directory, readable except
+  // .biodesign/; only output/ and a private HOME/TMPDIR folder are writable;
+  // child processes are allowed; no network. Closing the owner removes only the
+  // private folder, never project files.
+  // readOnly (plan mode): nothing in the project is writable, output/ included.
+  // task: a parallel Agent Work task writes only output/agent-tasks/<task>/.
+  // Otherwise output/agent-tasks/ is read-only except ownTask's folder.
+  async openProject(owner, { root, readOnly = false, task = null, ownTask = null }) {
+    if (this.closed) throw fail('RUNTIME_CLOSED');
+    if (this.openings.has(owner)) return this.openings.get(owner);
+    const opening = (async () => {
+      if (!(await this.projectAvailable())) throw fail('SANDBOX_UNAVAILABLE');
+      if (this.closed) throw fail('RUNTIME_CLOSED');
+      const paths = await projectPaths(root, { readOnly, task, ownTask });
+      const existing = this.sessions.get(owner);
+      if (existing) { if (existing.mode !== 'project' || existing.paths.project !== paths.project || existing.readOnly !== readOnly || existing.task !== task || existing.ownTask !== ownTask) throw fail('RUNTIME_OWNER_CONFLICT'); return; }
+      const privateRoot = await realpath(await mkdtemp(path.join(os.tmpdir(), 'biodesign-project-')));
+      try {
+        if (this.closed) throw fail('RUNTIME_CLOSED');
+        const fs = {
+          readBinary: async path => Buffer.from((await this.fileOperation(owner, 'read', { path })).data, 'base64'),
+          readText: async path => (await fs.readBinary(path)).toString('utf8'),
+          writeBinary: (path, bytes) => this.fileOperation(owner, 'write', { path, data: Buffer.from(bytes).toString('base64') }),
+          writeText: (path, text) => fs.writeBinary(path, Buffer.from(text)),
+          exists: path => this.fileOperation(owner, 'exists', { path }),
+        };
+        // Relative folders for the file worker and the turn's own reports.
+        const tasks = `${PROJECT_WRITABLE}/${PROJECT_TASKS}`;
+        const writable = readOnly ? null : task ? `${tasks}/${task}` : PROJECT_WRITABLE;
+        const scope = readOnly || task ? { protected: [], reopened: [] } : { protected: [tasks], reopened: ownTask ? [`${tasks}/${ownTask}`] : [] };
+        this.sessions.set(owner, { mode: 'project', readOnly, task, ownTask, writable, scope, root: paths.project, privateRoot, paths, fs, processes: new Map(), cells: new Map(), fileWorkers: new Set(), queue: Promise.resolve(), controller: new AbortController(), closed: false });
+      } catch (error) { await rm(privateRoot, { recursive: true, force: true }); throw error; }
+    })();
+    this.openings.set(owner, opening);
+    try { return await opening; } finally { this.openings.delete(owner); }
+  }
+  // sandbox-exec arguments and environment for one process of this session.
+  async launch(s, command, args) {
+    if (s.mode !== 'project') {
+      const executable = await this.nodeExecutable();
+      return { argv: ['-p', sandboxProfile(s.root, executable), command, ...args],
+        env: { PATH: '/usr/bin:/bin', HOME: s.root, TMPDIR: s.root, ELECTRON_RUN_AS_NODE: '1', OPENSSL_CONF: '/dev/null' } };
+    }
+    const node = await this.nodeExecutable().catch(() => null), installed = this.runtime?.current();
+    // Each session starts from the runtime's prebuilt Matplotlib font cache.
+    if (installed && !s.matplotlibSeeded) {
+      s.matplotlibSeeded = true;
+      await cp(path.join(installed.root, '.cache', 'matplotlib'), path.join(s.privateRoot, 'matplotlib'), { recursive: true }).catch(() => {});
+    }
+    return { argv: seatbeltArgs(projectPolicy({ ...s.paths, privateRoot: s.privateRoot, executables: node && !installed ? [node] : [], runtimes: installed ? [installed.root] : [] }), command, args),
+      // Rebuilt from an allowlist: nothing from the app's environment is inherited.
+      env: { PATH: [...(installed ? [installed.pythonBin, installed.nodeBin] : []), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(':'),
+        HOME: s.privateRoot, TMPDIR: s.privateRoot, LANG: 'en_US.UTF-8',
+        PYTHONDONTWRITEBYTECODE: '1', PYTHONNOUSERSITE: '1', MPLBACKEND: 'Agg', MPLCONFIGDIR: path.join(s.privateRoot, 'matplotlib'),
+        ELECTRON_RUN_AS_NODE: '1', OPENSSL_CONF: '/dev/null' } };
+  }
+  // Project processes run in their own process group, so background jobs and
+  // descendants end with the command, its cancellation or its timeout.
+  // After the command exits the group is released, so a later terminate can
+  // never signal a reused process-group ID.
+  kill(p) {
+    if (p.group && !p.groupReleased) { try { process.kill(-p.child.pid, 'SIGKILL'); } catch { /* The group has already exited. */ } }
+    p.child.kill('SIGKILL');
+  }
+  // Code cells and file tools run on Node inside the sandbox: the execution
+  // runtime's when installed, otherwise a configured system Node.
+  async nodeExecutable() {
+    const installed = this.runtime?.current() || await this.runtime?.load?.();
+    if (installed?.node) return installed.node;
+    if (this.executable) return realpath(this.executable).catch(() => { throw fail('CODE_RUNTIME_UNAVAILABLE'); });
+    throw fail(this.runtime?.state === 'installing' ? 'RUNTIME_PREPARING' : 'CODE_RUNTIME_UNAVAILABLE');
   }
   session(owner) { const s = this.sessions.get(owner); if (!s || s.closed) throw fail('RUNTIME_OWNER_EXPIRED'); return s; }
   withOwnerLock(owner, action) {
@@ -109,11 +209,12 @@ export class ScratchRuntime {
   async fileWorker(s, operation, args) {
     // Source is host-owned, including inside packaged ASARs. Only JSON data is
     // sent to stdin; neither user paths nor patches are interpolated into code.
-    const [worker, patch, executable] = await Promise.all([readFile(fileRunner, 'utf8'), readFile(patchRunner, 'utf8'), realpath(this.executable)]);
+    const [worker, patch, executable] = await Promise.all([readFile(fileRunner, 'utf8'), readFile(patchRunner, 'utf8'), this.nodeExecutable()]);
     if (s.closed || this.closed) throw fail('RUNTIME_OWNER_EXPIRED');
     const source = `${worker}\n${patch.replace('export async function applyPatch', 'async function applyPatch')}\nrunFileWorker(applyPatch);`;
-    const child = spawn('/usr/bin/sandbox-exec', ['-p', sandboxProfile(s.root, executable), executable, '--max-old-space-size=128', '-e', source], {
-      cwd: s.root, env: { HOME: s.root, TMPDIR: s.root, OPENSSL_CONF: '/dev/null', ELECTRON_RUN_AS_NODE: '1' }, stdio: ['pipe', 'pipe', 'pipe'],
+    const { argv } = await this.launch(s, executable, ['--max-old-space-size=128', '-e', source]);
+    const child = spawn('/usr/bin/sandbox-exec', argv, {
+      cwd: s.root, env: { HOME: s.privateRoot, TMPDIR: s.privateRoot, OPENSSL_CONF: '/dev/null', ELECTRON_RUN_AS_NODE: '1' }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     s.fileWorkers.add(child);
     try {
@@ -135,7 +236,7 @@ export class ScratchRuntime {
           catch (e) { reject(e.code ? e : fail('SCRATCH_FILE_FAILED')); }
         });
         if (s.controller.signal.aborted) abort();
-        else child.stdin.end(JSON.stringify({ operation, args }));
+        else child.stdin.end(JSON.stringify({ operation, args, ...(s.mode === 'project' ? { scope: { writable: s.writable, hidden: PROJECT_HIDDEN, ...s.scope } } : {}) }));
       });
     } finally { s.fileWorkers.delete(child); }
   }
@@ -144,15 +245,16 @@ export class ScratchRuntime {
   }
   async startLocked(s, owner, command, args, { kind = 'process', timeout_ms = 60000 } = {}) {
     const map = kind === 'cell' ? s.cells : s.processes;
-    const executable = await realpath(this.executable);
+    const { argv, env } = await this.launch(s, command, args);
     if (s.closed || this.closed) throw fail('RUNTIME_OWNER_EXPIRED');
     if ([...s.processes.values(), ...s.cells.values()].filter(p => !p.done).length >= 4 || map.size >= 64) throw fail('EXECUTION_LIMIT');
-    const child = spawn('/usr/bin/sandbox-exec', ['-p', sandboxProfile(s.root, executable), command, ...args], {
-      cwd: s.root, env: { PATH: '/usr/bin:/bin', HOME: s.root, TMPDIR: s.root, ELECTRON_RUN_AS_NODE: '1', OPENSSL_CONF: '/dev/null' }, stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    const id = `${kind}:${crypto.randomUUID()}`, p = { id, child, output: '', stderr: '', cursor: 0, stderrCursor: 0, done: false, calls: [], pending: new Map(), result: undefined, owner };
+    const group = s.mode === 'project';
+    const child = spawn('/usr/bin/sandbox-exec', argv, { cwd: s.root, env, stdio: ['pipe', 'pipe', 'pipe'], detached: group });
+    const id = `${kind}:${crypto.randomUUID()}`, p = { id, child, group, output: '', stderr: '', cursor: 0, stderrCursor: 0, done: false, calls: [], pending: new Map(), result: undefined, owner };
     map.set(id, p);
-    child.stdin.on('error', error => { if (!p.done) { p.error = error.code || 'PROCESS_INPUT_FAILED'; child.kill('SIGKILL'); } });
+    // Background jobs end with the command that started them.
+    if (group) child.on('exit', () => { this.kill(p); p.groupReleased = true; });
+    child.stdin.on('error', error => { if (!p.done) { p.error = error.code || 'PROCESS_INPUT_FAILED'; this.kill(p); } });
     let protocol = '';
     const retain = (key, text, limit) => {
       if (p[`${key}_truncated`]) return;
@@ -168,7 +270,7 @@ export class ScratchRuntime {
     child.stdout.on('data', bytes => {
       if (kind === 'process') return append(bytes.toString());
       protocol += bytes.toString();
-      if (protocol.length > 262144) { p.error = 'OUTPUT_LIMIT'; child.kill('SIGKILL'); return; }
+      if (protocol.length > 262144) { p.error = 'OUTPUT_LIMIT'; this.kill(p); return; }
       while (protocol.includes('\n')) {
         const i = protocol.indexOf('\n'), line = protocol.slice(0, i); protocol = protocol.slice(i + 1);
         try {
@@ -189,7 +291,7 @@ export class ScratchRuntime {
           }
           else if (message.type === 'error') p.error = String(message.error).slice(0, 1000);
           else throw fail('CELL_PROTOCOL');
-        } catch (error) { p.error = error.code || 'CELL_PROTOCOL'; child.kill('SIGKILL'); }
+        } catch (error) { p.error = error.code || 'CELL_PROTOCOL'; this.kill(p); }
       }
     });
     child.stderr.on('data', bytes => retain('stderr', bytes, 16000));
@@ -198,7 +300,7 @@ export class ScratchRuntime {
       child.on('error', error => { p.error = error.code || 'EXECUTION_FAILED'; finish(null); });
       child.on('close', (code, signal) => { if (signal && !p.error) p.error = `PROCESS_SIGNAL_${signal}`; finish(code); });
     });
-    p.timer = setTimeout(() => { p.error = 'EXECUTION_TIMEOUT'; child.kill('SIGKILL'); }, Math.min(300000, Math.max(1, timeout_ms)));
+    p.timer = setTimeout(() => { p.error = 'EXECUTION_TIMEOUT'; this.kill(p); }, Math.min(300000, Math.max(1, timeout_ms)));
     return p;
   }
   async poll(p, ms = 1000, cursors = {}) {
@@ -226,20 +328,20 @@ export class ScratchRuntime {
       const p = s.processes.get(args.process_id); if (!p) throw fail('PROCESS_NOT_FOUND');
       if (args.output_cursor !== undefined) outputChunk(p.output, args.output_cursor, 2);
       if (args.stderr_cursor !== undefined) outputChunk(p.stderr, args.stderr_cursor, 2);
-      if (args.terminate) p.child.kill('SIGKILL');
+      if (args.terminate) this.kill(p);
       else if (args.chars && !p.done) p.child.stdin.write(args.chars);
       if (args.close_stdin) p.child.stdin.end();
       return this.poll(p, args.yield_time_ms, args);
     }
     if (name === 'run_code') {
-      const p = await this.start(owner, await realpath(this.executable), ['--max-old-space-size=128', '-e', await readFile(runner, 'utf8')], { ...args, kind: 'cell' });
+      const p = await this.start(owner, await this.nodeExecutable(), ['--max-old-space-size=128', '-e', await readFile(runner, 'utf8')], { ...args, kind: 'cell' });
       p.child.stdin.write(JSON.stringify({ code: args.code }) + '\n'); return this.poll(p, args.yield_time_ms);
     }
     if (name === 'wait_code') {
       const p = s.cells.get(args.cell_id); if (!p) throw fail('CELL_NOT_FOUND');
       if (args.output_cursor !== undefined) outputChunk(p.output, args.output_cursor, 2);
       if (args.stderr_cursor !== undefined) outputChunk(p.stderr, args.stderr_cursor, 2);
-      if (args.terminate) p.child.kill('SIGKILL');
+      if (args.terminate) this.kill(p);
       return this.poll(p, args.yield_time_ms, args);
     }
     if (name === 'apply_patch') {
@@ -254,7 +356,9 @@ export class ScratchRuntime {
       if (!content) throw fail('IMAGE_DELIVERY_LIMIT');
       return { content: [content], path: args.path };
     }
-    if (name === 'wait_for_environment') return { status: 'ready', environment: 'isolated_scratch', network: false, project_access: false, child_processes: false };
+    if (name === 'wait_for_environment') return s.mode === 'project'
+      ? { status: 'ready', environment: 'project', network: false, project_access: 'read', writable: s.readOnly ? [] : [`${s.writable}/`, ...s.scope.reopened.map(folder => `${folder}/`)], ...(s.scope.protected.length ? { not_writable: s.scope.protected.map(folder => `${folder}/`) } : {}), hidden: [`${PROJECT_HIDDEN}/`], child_processes: true, ...(s.readOnly ? { read_only: true } : {}) }
+      : { status: 'ready', environment: 'isolated_scratch', network: false, project_access: false, child_processes: false };
     throw fail('RUNTIME_TOOL_NOT_ALLOWED');
   }
   async reply(owner, cellId, results) {
@@ -271,8 +375,9 @@ export class ScratchRuntime {
     s.closed = true;
     s.controller.abort();
     const ps = [...s.processes.values(), ...s.cells.values()];
-    for (const p of ps) if (!p.done) p.child.kill('SIGKILL');
-    await Promise.all([...ps.map(p => p.finished), s.queue]); await rm(s.root, { recursive: true, force: true }); this.sessions.delete(owner);
+    for (const p of ps) if (!p.done) this.kill(p);
+    // Only the session's private folder is removed; a project root never is.
+    await Promise.all([...ps.map(p => p.finished), s.queue]); await rm(s.privateRoot, { recursive: true, force: true }); this.sessions.delete(owner);
   }
   async close() { this.closed = true; await Promise.all([...this.openings.values()].map(p => p.catch(() => {}))); await Promise.all([...this.sessions.keys()].map(owner => this.closeOwner(owner))); }
 }

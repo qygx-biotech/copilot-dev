@@ -229,11 +229,10 @@ test("archive denies path traversal and reports missing host data without fabric
   assert.equal((await archive.read("a".repeat(64))).error, "ARCHIVE_UNAVAILABLE");
 });
 
-test("signed recovery state preserves pending parallel tool exchanges across a handoff", async t => {
+test("recovery state preserves pending parallel tool exchanges across a step boundary", async t => {
   const { manager, options } = await fixture(t);
   await manager.run({ messages: history() }, async () => ok("tool request"));
-  const signed = require("../agent-continuation.js");
-  const state = signed.open(signed.seal({ contextRecovery: manager.snapshot() }, { project: "P1" }, "fixture"), { project: "P1" }, "fixture");
+  const state = { contextRecovery: manager.snapshot() };
   const resumed = new ContextRecovery({ ...options, state: state.contextRecovery });
   const assistant = call("a"); assistant.tool_calls.push(call("b").tool_calls[0]);
   const delta = [assistant, tool("a", "fresh A"), tool("b", "fresh B"), { role: "user", content: "Latest correction: do not write." }];

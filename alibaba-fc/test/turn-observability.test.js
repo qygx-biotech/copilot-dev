@@ -1,8 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { runSideChatAgent } = require('../side-chat-agent.js');
-const continuation = require('../agent-continuation.js');
+const { runSideChatAgent } = require('../../shared/agent/side-chat-agent.js');
+const { withResults } = require('../../shared/agent/receipt-admission.js');
 
 const runtimeExtensions = { version: 1, skills: { catalog: '', active: [] }, genericSubagents: false, mcpTools: [] };
 const run = extra => runSideChatAgent({ conversationMessages: [{ role: 'user', content: 'Inspect project metadata.' }],
@@ -15,8 +15,7 @@ test('real model usage survives signed checkpoint resume without summing replaye
     usage: { prompt_tokens: 100, completion_tokens: 8, prompt_tokens_details: { cached_tokens: 50 } },
     message: { tool_calls: [{ id: 'metadata', type: 'function', function: { name: 'list_workspace_items', arguments: '{}' } }] } }) });
   assert.equal(first.ok, true); assert.equal(first.data.turnUsage.totals.inputTokens, 100);
-  const token = continuation.seal(first.continuationState, { turn: 'usage' }, 'test-key');
-  const resume = continuation.withResults(continuation.open(token, { turn: 'usage' }, 'test-key'), []);
+  const resume = withResults(first.continuationState, []);
   const second = await run({ resume, onProgress: event => progress.push(event), requestTurn: async () => ({ ok: true,
     usage: { input_tokens: 120, output_tokens: 9, input_tokens_details: { cached_tokens: 70 } }, message: { content: 'No registered items.' } }) });
   assert.deepEqual(second.data.turnUsage.totals, { inputTokens: 220, outputTokens: 17, cachedTokens: 120, totalTokens: 237 });
@@ -31,4 +30,19 @@ test('model-authored usage is discarded and missing provider metadata remains un
     requestTurn: async () => ({ ok: true, message: { content: 'A plain answer.' } }) });
   assert.equal(result.data.turnUsage.totals.inputTokens, null);
   assert.equal(result.data.turnUsage.coverage.requests, 1); assert.equal(result.data.turnUsage.complete, false);
+});
+
+test('project-mode receipts report output/ changes per call and per turn, and the totals persist', () => {
+  const contract = require('../../shared/turn-observability.js');
+  const { TurnObserver } = require('../../docs/turn-observability.js');
+  const observer = new TurnObserver({ turnId: 'output-turn' });
+  const changes = { created: ['output/report.md', 'output/plot.png'], changed: ['output/summary.md'], deleted: [], turn: { created: 2, changed: 1, deleted: 0 }, complete: true, undo_available: true };
+  observer.receipt({ id: 'run', name: 'exec_command' }, { id: 'run', result: { ok: true, value: { status: 'completed', exit_code: 0, output_changes: changes } } });
+  const details = observer.snapshot();
+  assert.deepEqual(details.activities[0].summary, { filesCreated: 2, filesChanged: 1, filesDeleted: 0 });
+  assert.deepEqual(details.outputChanges, { created: 2, changed: 1, deleted: 0, complete: true, undoAvailable: true });
+  assert.deepEqual(new TurnObserver({ turnId: 'output-turn', previous: details }).snapshot().outputChanges, details.outputChanges);
+  const base = { version: 1, turnId: 'output-turn', activities: [] };
+  for (const outputChanges of [{ created: -1, changed: 0, deleted: 0 }, { created: 1.5, changed: 0, deleted: 0 }, { created: 0, changed: 0, deleted: 0 }, { created: 1 }])
+    assert.equal(contract.normalizeDetails({ ...base, outputChanges }).outputChanges, undefined, JSON.stringify(outputChanges));
 });

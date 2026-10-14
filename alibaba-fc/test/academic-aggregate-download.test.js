@@ -1,9 +1,9 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
 const { mkdtemp, rm } = require("node:fs/promises"), os = require("node:os"), path = require("node:path");
-const { runSideChatAgent } = require("../side-chat-agent.js"), { requestRequestyMessage } = require("../index.js")._test;
-const continuation = require("../agent-continuation.js"), academic = require("../../shared/academic-tools.js");
-const planning = require("../academic-planning.js"), stateApi = require("../academic-agent.js"), compact = require("../academic-context.js");
+const { runSideChatAgent } = require("../../shared/agent/side-chat-agent.js"), { requestRequestyMessage } = require("../index.js")._test;
+const { withResults } = require("../../shared/agent/receipt-admission.js"), academic = require("../../shared/academic-tools.js");
+const planning = require("../../shared/agent/academic-planning.js"), stateApi = require("../../shared/agent/academic-agent.js"), compact = require("../../shared/agent/academic-context.js");
 const ref = n => "paper_" + String(n).padStart(24, "0");
 const paper = n => ({ paper_ref: ref(n), title: `Distinct enzyme study ${n}`, authors: ["A"], doi: `10.1000/${n}`, abstract: "Enzyme design evidence.", providers: [], locations: [{ url: `https://papers.example.org/${n}.pdf`, kind: "pdf_candidate" }] });
 const plan = count => ({ request_kind: "topic", subtopics: ["design"], queries: ["enzyme design", "enzyme validation"], synonyms: [], ...(count ? { requested_count: count } : {}) });
@@ -62,7 +62,7 @@ async function fixture(t, { fail = [], interrupt, total = 20, stallResolution = 
         const result = tool.name === "download_papers" ? await execute(tool.args, tool.deadlineAt) : { version: 1, status: "completed", papers: candidates.slice(0, 20), next_cursor: "pool:20" };
         outputs.push(result); results.push({ id: tool.id, result });
       }
-      resume = continuation.withResults(continuation.open(continuation.seal(output.continuationState, { query }, "secret"), { query }, "secret"), results);
+      resume = withResults(output.continuationState, results);
     }
     assert.fail("Exhausted handoff bound");
   };
@@ -116,7 +116,7 @@ test("100-reference upper bound, compact receipts and old five-reference continu
   for (const size of [5, 100]) {
     const selectedIds = ids.slice(0, size), receipt = { ...result, results: result.results.slice(0, size) };
     const pendingState = { academicState: { ...state, attemptedRefs: selectedIds }, pending: [{ id: "d", name: "download_papers", args: { paper_refs: selectedIds } }], agentMessages: [{ role: "tool", tool_call_id: "d", content: "pending" }] };
-    const resumed = continuation.withResults(continuation.open(continuation.seal(pendingState, {}, "secret"), {}, "secret"), [{ id: "d", result: receipt }]);
+    const resumed = withResults(pendingState, [{ id: "d", result: receipt }]);
     assert.equal(resumed.academicState.downloads.length, size);
   }
   assert.throws(() => academic.validateResult("download_papers", { ...result, results: [result.results[0], result.results[0]] }));

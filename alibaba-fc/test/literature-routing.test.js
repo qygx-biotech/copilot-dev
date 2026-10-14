@@ -5,8 +5,8 @@ const assert = require("node:assert/strict");
 const { ProjectContextService } = require("../../docs/project-context-service.js");
 const { LiteratureTools } = require("../../docs/source-system.js");
 const semantic = require("../../shared/semantic-intent.js");
-const { sanitizeLocalWorkspaceContext } = require("../index.js")._test;
-const sideChat = require("../side-chat-agent.js");
+const { sanitizeLocalWorkspaceContext } = require("../../shared/agent/request-context.js");
+const sideChat = require("../../shared/agent/side-chat-agent.js");
 
 function fixture(options = {}) {
   const documents = [

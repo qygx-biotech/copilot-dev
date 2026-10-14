@@ -1166,7 +1166,7 @@
               // only the locally resolved content and its original provenance.
               hits.push({ ...hit, paperId: null, qmdDoc: "", snippet: artifact.content.slice(0, this.limits.maxRetrievalSnippetCharacters), artifact });
               artifactCount++;
-            } else hits.push(hit);
+            } else hits.push(await this.labelGeneratedHit(hit));
           }
         } catch (error) {
           if (options.signal?.aborted || error?.code === "OPERATION_ABORTED" || error?.name === "AbortError") throw error;
@@ -1625,6 +1625,9 @@
       const selectedFiles = flattenWorkspaceTree(options.workspaceTree).filter(item => item.type === "file" && (paths.includes(item.relativePath) || (hardSelection && papers.some(source => source.path === item.relativePath))));
       const context = this.baseContext(options, hardSelection ? "files" : "project", selectedFiles);
       context.agentLoop = { version: 1, ...(options.academicAcquisition ? { academicAcquisition: true } : {}), answerLanguage: options.language, hardSelection, paperIds: papers.map(source => source.sourceId) };
+      // Memory from earlier conversations (docs/project-memory.js), when enabled for this project.
+      const memorySummary = await this.projectMemory?.summary?.().catch(() => "");
+      if (memorySummary) context.memory = { version: 1, summary: memorySummary };
       context.inventory = context.inventory.filter(item => !hardSelection || paths.includes(item.relativePath) || selected.includes(item.paperId));
       context.sourceMap = { selectedPaperIds: selected, activePaperIds: [], selectedExperimentIds: [], activeExperimentIds: [],
         paperSources: papers.map(source => ({ sourceId: source.sourceId, sourceKind: "paper", path: source.path, displayName: source.displayName,
@@ -1753,7 +1756,9 @@
         if (prior.fingerprint !== fingerprint) throw Object.assign(new Error("Tool identity changed."), { code: "INVALID_TOOL_CONTINUATION" });
         return prior.promise;
       }
-      if (++turn.calls > 24) throw Object.assign(new Error("Project tool limit reached."), { code: "TOOL_BUDGET_EXCEEDED" });
+      // The backend enforces the turn budget; this guards only a runaway loop
+      // at the largest configurable tool-call budget (alibaba-fc/agent-budget.js).
+      if (++turn.calls > 2048) throw Object.assign(new Error("Project tool limit reached."), { code: "TOOL_BUDGET_EXCEEDED" });
       const promise = (async () => {
         const previousContext = JSON.parse(JSON.stringify(turn.context));
         try {
@@ -3666,15 +3671,35 @@
         .forEach((file) => context.notices.push(file.error));
     }
 
+    // Whether this source's current content was written by Agent Work into
+    // output/ (see shared/retrieval-contract.js). Only output/ paths can be.
+    async generatedOutputOrigin(source) {
+      if (!source?.path?.startsWith("output/") || !savedArtifactApi.generatedOutputOrigin) return null;
+      let index = null;
+      try { index = savedArtifactApi.parseGeneratedOutputIndex(await (await this.workspace.readFile(savedArtifactApi.GENERATED_OUTPUT_INDEX)).text()); }
+      catch { return null; }
+      return savedArtifactApi.generatedOutputOrigin(index, source.path, source.contentHash);
+    }
+
+    async labelGeneratedHit(hit) {
+      const generated = await this.generatedOutputOrigin(hit.sourceId && this.sourceRegistry?.get(hit.sourceId));
+      if (!generated) return hit;
+      return { ...hit, origin: "generated",
+        snippet: `[${savedArtifactApi.GENERATED_OUTPUT_NOTICE}] ${hit.snippet}`.slice(0, this.limits.maxRetrievalSnippetCharacters) };
+    }
+
     async buildFileEvidence(file, options) {
       const extension = fileExtension(file.name);
       const documentSource = this.sourceRegistry?.getByPath(file.relativePath);
       if (documentSource && !["paper", "experiment"].includes(documentSource.sourceKind) &&
           documentSource.hashStatus === "ready" && documentSource.artifacts?.documentMarkdown?.contentHash === documentSource.contentHash) {
         const artifact = await this.workspace.readFile(documentSource.artifacts.documentMarkdown.path);
+        const generated = await this.generatedOutputOrigin(documentSource);
         return { name: file.name, relativePath: file.relativePath, extension, sourceId: documentSource.sourceId,
-          contentHash: documentSource.contentHash, analysisStatus: "processed", evidenceType: "project-document-evidence",
-          content: (await artifact.text()).slice(0, this.limits.maxSourceCharactersPerFile) };
+          contentHash: documentSource.contentHash, analysisStatus: "processed",
+          evidenceType: generated ? savedArtifactApi.GENERATED_OUTPUT_EVIDENCE : "project-document-evidence",
+          ...(generated ? { origin: "generated" } : {}),
+          content: `${generated ? `${savedArtifactApi.GENERATED_OUTPUT_NOTICE}\n\n` : ""}${await artifact.text()}`.slice(0, this.limits.maxSourceCharactersPerFile) };
       }
       if (extension !== "pdf") {
         const source = this.sourceRegistry?.getByPath(file.relativePath);

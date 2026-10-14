@@ -14,7 +14,7 @@ function actualFunction(name) {
   return match[0];
 }
 const functions = [
-  "t", "runAgentInstruction", "setAgentBusy", "getAgentModelOptions", "renderAnalysisPanels", "renderAgentMarkdown",
+  "t", "runAgentInstruction", "agentTurnsChanged", "agentTaskFolder", "getAgentModelOptions", "renderAnalysisPanels", "renderAgentMarkdown",
   "buildAgentResultContent", "createAgentResultActions", "createAnalysisActionButton", "addAnalysisPanel", "deleteAnalysisPanel", "createAnalysisPanel",
   "findAnalysisPanel", "getCurrentRecommendation", "getAnalysisPanelStatus", "focusAnalysisPanelInstruction",
   "normalizeStoredAnalysisPanel", "normalizeRecommendation", "createDefaultRecommendation", "saveAnalysisPanels", "saveCurrentRecommendation", "loadAnalysisPanels", "loadSessionJson", "cloneValue",
@@ -24,6 +24,8 @@ const functions = [
   "isMarkdownBlockStart", "isMarkdownTableDivider", "splitMarkdownTableRow", "appendSideChatInlineMarkdown", "appendSideChatMarkdownLines", "renderSideChatMath", "renderSideChatMarkdown",
 ].map(actualFunction).join("\n");
 const translations = source.slice(source.indexOf("const I18N ="), source.indexOf("let currentLanguage ="));
+// The running-turn registry exactly as declared in app.js.
+const agentTurns = source.slice(source.indexOf("const AGENT_TURN_LIMIT"), source.indexOf("let desktopActiveAgentId"));
 const events = source.slice(source.indexOf('addAnalysisPanelButton.addEventListener("click"'), source.indexOf("sideExampleButtons.forEach"));
 const setup = `
 const agentWorkApi = window.BioDesignAgentWork, sourceCitationApi = window.BioDesignSourceCitations;
@@ -32,8 +34,9 @@ const sideChatModelSelect = document.getElementById("sideChatModelSelect");
 const sideChatContextChips = document.getElementById("sideChatContextChips");
 const ANALYSIS_PANELS_STORAGE_KEY = "fixture-panels", RECOMMENDATION_STORAGE_KEY = "fixture-recommendation";
 let currentLanguage = "en", defaultSideChatModel = "google/default-fixture", agentWorkArea = null;
-let analysisPanels = [], currentRecommendation, activeAgentRequest = false, activeAgentPanelId = "";
-let activeAgentRuntime = null;
+let analysisPanels = [], currentRecommendation;
+const agentTranscripts = null;
+${agentTurns}
 const USE_BACKEND = true, authToken = "fixture", runtimeLog = null, knowledgeService = null;
 const contextRequests = [];
 let workspaceTree = {}, selectedWorkspacePaths = new Set(), referenceDocuments = [];

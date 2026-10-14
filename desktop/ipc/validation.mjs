@@ -87,5 +87,7 @@ export function sanitizeError(error) {
   return {
     code: String(error?.code || error?.name || "DESKTOP_OPERATION_FAILED").slice(0, 100),
     message,
+    // An HTTP-equivalent status (for example an agent-loop admission rejection).
+    ...(Number.isInteger(error?.status) && error.status >= 400 && error.status <= 599 ? { status: error.status } : {}),
   };
 }

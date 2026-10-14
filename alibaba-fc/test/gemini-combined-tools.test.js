@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const { withCombinedToolConfig } = require("../requesty-models.js");
 const { readRequestyStream } = require("../requesty-stream.js");
 const { assistantMessage, mergeContext } = require("../requesty-tool-context.js");
-const { compactSideChatAgentMessages, normalizeToolCalls } = require("../side-chat-agent.js");
+const { compactSideChatAgentMessages, normalizeToolCalls } = require("../../shared/agent/side-chat-agent.js");
 const webSearch = require("../../shared/web-search.js");
 const model = "google/gemini-3.1-flash-lite:flex";
 const url = "https://papers.example.org/ectd.pdf";
@@ -99,6 +99,7 @@ process.env.REQUESTY_MODEL = model;
 // Combined mode is retained only as an explicit compatibility experiment.
 process.env.REQUESTY_TOOL_MODE = "combined";
 const backend = require("../index.js");
+const agentChat = require("./helpers/agent-chat.js");
 const auth = jwt.sign({ account: process.env.ADMIN_ACCOUNT, role: "admin" }, process.env.JWT_SECRET);
 
 for (const streaming of [false, true]) test(`real FC ${streaming ? "streaming" : "JSON"} search/download/resume replays context and only executes local tools`, async () => {
@@ -123,7 +124,7 @@ for (const streaming of [false, true]) test(`real FC ${streaming ? "streaming" :
     desktopTools: { version: 1, permission: "workspace_write", projectId: "combined-project" },
     callContext: { turnId: "combined-move", callRole: "answer", profile: "medium" } };
   const send = async extra => {
-    const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` }, body: JSON.stringify({ ...body, ...extra }) }, {},
+    const result = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` }, body: JSON.stringify({ ...body, ...extra }) }, {},
       streaming ? { start: async () => {}, emit: async (event, data) => events.push({ event, data }), end: async () => {} } : undefined);
     return JSON.parse(result.body);
   };
@@ -131,7 +132,7 @@ for (const streaming of [false, true]) test(`real FC ${streaming ? "streaming" :
     const first = await send({});
     assert.equal(first.desktopToolCalls.length, 1);
     assert.equal(first.desktopToolCalls[0].id, "download-1");
-    const resumed = await send({ desktopContinuation: first.desktopContinuation,
+    const resumed = await send({ boundary: first.boundary,
       desktopToolResults: [{ id: "download-1", results: [{ url, status: "downloaded", path: "literature/ectd.pdf", resolvedUrl: url, contentType: "application/pdf", downloadMethod: "local" }] }] });
     assert.equal(resumed.reply, final.reply);
     assert.equal(resumed.webSearchSources[0].url, url);
@@ -153,7 +154,7 @@ test("gateway opt-in rejection is explicit, bounded and does not expose upstream
     return new Response(JSON.stringify({ error: { message: "Unknown field toolConfig: private-upstream-detail" } }), { status: 400 });
   };
   try {
-    const result = await backend.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` },
+    const result = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${auth}` },
       body: JSON.stringify({ mode: "agent_instruction", model, messages: [{ role: "user", content: "Search EctD papers" }] }) }, {});
     const data = JSON.parse(result.body);
     assert.equal(data.error, "GEMINI_COMBINED_TOOLS_UNSUPPORTED");

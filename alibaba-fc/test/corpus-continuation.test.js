@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test"), assert = require("node:assert/strict");
-const fs = require("node:fs"), vm = require("node:vm"), jwt = require("jsonwebtoken");
-const backend = require("../index.js"), agent = require("../side-chat-agent.js");
+const fs = require("node:fs"), jwt = require("jsonwebtoken");
+const backend = require("../index.js"), agent = require("../../shared/agent/side-chat-agent.js");
 const { createFixture } = require("./helpers/preflight-fixture.js");
 const { ProjectContextService } = require("../../docs/project-context-service.js");
 const { createRuntimeLogger } = require("../../docs/runtime-log.js");
@@ -87,26 +87,15 @@ async function run(t, respond, { quotaBeforeTool = false } = {}) {
     const final = () => reply(`逐篇总结与综述：三篇论文讨论了甲烷与渗透压。${evidence.findings.papers.map(paper => `[[cite:${paper.originalEvidence[0].reference}]]`).join(" ")}`);
     return respond ? respond(requests.length, request, final) : final();
   });
-  const source = fs.readFileSync(require.resolve("../../docs/app.js"), "utf8");
-  const functions = ["sendWorkbenchRequest", "sendWorkbenchRequestOnce"].map(name => source.match(new RegExp(`^async function ${name}\\([\\s\\S]*?^}$`, "m"))[0]).join("\n");
   const log = createRuntimeLogger({ sink: null, heartbeatMs: 0 });
-  const sandbox = vm.createContext({ Response, projectContextService: service, workspaceManager: f.workspace, workspaceAbortController: null, authToken: token,
-    selectedWorkspacePaths: new Set(), getSelectedPaperIds: () => [], experimentModuleCards: [], referenceDocuments: [], activeSideChatDocumentKeys: [],
-    MAX_BROWSER_REFERENCE_FILES: 1, TOTAL_REFERENCE_TEXT_LIMIT: 100, runtimeLog: log, literatureModule: null,
-    buildExperimentModulesForRequest: () => ({}), buildFlattenedExperimentDocumentsForRequest: () => [], collectExperimentNotesForRequest: () => [],
-    collectSelectedStoredDocumentKeys: () => [], collectStoredDocumentsForRequest: () => [], buildDocumentsForRequest: () => [], getProjectContext: () => "",
-    backendUrl: path => path, getAuthHeaders: headers => ({ ...headers, authorization: `Bearer ${token}` }), requireLoginForUnauthorized: () => {}, t: key => key,
-    fetch: async (route, options) => {
-      exchanges.push(JSON.parse(options.body));
-      const response = await backend.handler({ httpMethod: "POST", path: route, headers: options.headers, body: options.body });
-      return new Response(response.body, { status: response.statusCode });
-    }, window: { BioDesignEventStream: require("../../shared/event-stream.js"), BioDesignConversationTranscript: transcript },
-  });
-  vm.runInContext(functions, sandbox);
+  const { sandbox, starts, replies } = await require("./helpers/desktop-renderer.js").desktopRenderer(t, { token, service,
+    globals: { workspaceManager: f.workspace, runtimeLog: log } });
   const result = await sandbox.sendWorkbenchRequest({ mode: "side_chat", model, originalRequest: question, messages: [{ role: "user", content: question }],
     conversationTranscript: history, onTranscript: turn => checkpoints.push(turn), localWorkspaceContext: local,
     callContext: { turnId: "corpus-resume", callRole: "answer", profile: "medium" } });
-  assert.equal(exchanges.length, 2); assert.ok(exchanges[1].desktopContinuation);
+  // The turn's start and the host's one corpus-workflow receipt.
+  exchanges.push(...starts.map(start => start.body), ...replies.filter(reply => reply?.desktopToolResults?.length));
+  assert.equal(exchanges.length, 2); assert.equal(starts.length, 1);
   assert.equal(service.agentTurns.get("corpus-resume").calls, 1, "recovery must not reexecute collection");
   assert.equal(f.calls.cards, cards); assert.equal(cards, 3, "Fixture seeds cards explicitly; the request and tool generate none");
   assert.ok(f.workspace.writes.every(path => path.startsWith(".biodesign/")));
@@ -131,10 +120,7 @@ test("three-paper Chinese review sends collected evidence to the same model and 
   assert.ok(f.log.entries().some(item => item.event === "main-agent.partial" && item.details.stage === "tool_handoff"));
   assert.equal(f.log.entries().at(-1).details.stage, "final_answer");
   const timingStages = f.log.entries().filter(item => item.event === "chat.timing").map(item => item.details.stage);
-  for (const stage of ["request_serialization_end", "fetch_headers", "response_read_end", "json_parse_end", "transcript_save_end", "client_complete"])
-    assert.ok(timingStages.includes(stage), stage);
-  assert.ok(timingStages.indexOf("response_read_end") < timingStages.indexOf("transcript_save_start"));
-  assert.ok(f.exchanges.every(exchange => /^[a-f0-9-]{36}$/.test(exchange.timingRequestId)));
+  for (const stage of ["transcript_save_end", "client_complete"]) assert.ok(timingStages.includes(stage), stage);
 });
 
 test("quota recovery before handoff does not synthetically block fresh collection results", async t => {

@@ -39,7 +39,8 @@ function usePreference(key, initial) {
 
 function Activity({ run, zh }) {
   if (!run) return null;
-  if (run.turnDetails) return <TurnDetails details={run.turnDetails} zh={zh} />;
+  if (run.turnDetails) return <TurnDetails details={run.turnDetails} zh={zh}
+    onUndoOutput={turnId => adapter.command('output.undo', { projectId: adapter.getSnapshot().project?.id, turnId })} />;
   const label = { running: zh ? '进行中' : 'Working', completed: zh ? '已完成' : 'Completed', failed: zh ? '失败' : 'Failed', cancelled: zh ? '已停止' : 'Stopped' }[run.status];
   return <details className={`turn-activity is-${run.status}`}>
     <summary><span className="activity-dot" />{label}<span>{run.steps.length ? `${run.steps.length} ${zh ? '条活动' : 'activity events'}` : ''}</span></summary>
@@ -177,7 +178,7 @@ function Workbench() {
   }, [state]);
   useEffect(() => { if (state.revealSource) setLibrary(true); }, [state.revealSource?.sequence]);
   useEffect(() => {
-    const open = event => { if (['apps', 'skills', 'settings'].includes(event.detail?.tab)) setExtensions(event.detail.tab); };
+    const open = event => { if (['apps', 'skills', 'memory', 'settings'].includes(event.detail?.tab)) setExtensions(event.detail.tab); };
     window.addEventListener('biodesign:runtime-open', open);
     return () => window.removeEventListener('biodesign:runtime-open', open);
   }, []);
@@ -191,7 +192,10 @@ function Workbench() {
     void act('chat.open', { catalogId: project.id, role: chat.role, conversationId: chat.id });
     if (innerWidth < 1000) setSidebarOpen(false);
   };
-  const chatRows = project => <TopicRows project={project} currentCatalogId={state.catalogId} activeId={state.activeAgentId} query={search} archived={archived} sort={topicSort} zh={zh} disabled={state.projectBusy || state.sideBusy || state.agentBusy} select={selectChat} context={openChatMenu}
+  // Running Agent Work tasks belong to the open project: its conversations stay
+  // usable, but nothing may switch to another project until they finish.
+  const tasksPin = catalogId => state.agentTurnsRunning > 0 && catalogId !== state.catalogId;
+  const chatRows = project => <TopicRows project={project} currentCatalogId={state.catalogId} activeId={state.activeAgentId} query={search} archived={archived} sort={topicSort} zh={zh} disabled={state.projectBusy || state.sideBusy || tasksPin(project.id)} select={selectChat} context={openChatMenu}
     update={(project, chat, patch) => void act('topic.update', { catalogId: project.id, conversationId: chat.id, patch })}
     reorder={(project, keys) => void act('topic.reorder', { catalogId: project.id, keys })} />;
   const newChat = (catalogId = 'default', role = 'agent_command') => {
@@ -210,7 +214,7 @@ function Workbench() {
   };
   const openChatMenu = (event, chat, catalogId = state.catalogId) => {
     event.preventDefault(); event.stopPropagation();
-    if (busy || state.sideBusy || state.agentBusy) return;
+    if (busy || state.sideBusy || tasksPin(catalogId)) return;
     setProjectMenu(null);
     const rect = event.currentTarget.getBoundingClientRect();
     setChatMenu({ project: {}, trigger: event.currentTarget, chat, catalogId, projectId, agentPanelId: state.activeAgentId,
@@ -243,14 +247,14 @@ function Workbench() {
   return <div className={`copilot-workbench ${sidebarOpen ? '' : 'sidebar-closed'} ${split ? 'is-split' : 'is-single'}`} style={{ '--sidebar-width': `${Math.min(420, Math.max(230, sidebarWidth))}px`, '--pane-split': `${Math.min(70, Math.max(30, ratio))}%` }} data-focused-pane={focus}>
     <aside className="copilot-sidebar" id="copilot-sidebar" aria-label={zh ? '对话与项目' : 'Chats and projects'}>
       <div className="brand"><span className="brand-mark">b∙</span><strong>BioDesign</strong><button className="icon-button" aria-label="Collapse sidebar" onClick={() => setSidebarOpen(false)}>‹</button></div>
-      <button className="new-conversation" disabled={state.projectBusy || state.sideBusy} onClick={() => newChat()}><span>＋</span>{zh ? '新对话' : 'New chat'}</button>
+      <button className="new-conversation" disabled={state.projectBusy || state.sideBusy || tasksPin('default')} onClick={() => newChat()}><span>＋</span>{zh ? '新对话' : 'New chat'}</button>
       <nav className="runtime-navigation" aria-label="Runtime extensions"><button disabled={busy} onClick={() => setExtensions('apps')}>▦ {zh ? '应用' : 'Apps'}</button><button disabled={busy} onClick={() => setExtensions('skills')}>♧ {zh ? '技能' : 'Skills'}</button></nav>
       <label className="conversation-search"><span>⌕</span><input aria-label="Search conversations" placeholder={zh ? '搜索对话' : 'Search conversations'} value={search} onChange={event => setSearch(event.target.value)} /></label>
       <TopicNavigationControls archived={archived} setArchived={setArchived} sort={topicSort} setSort={setTopicSort} zh={zh} /><div className="sidebar-scroll">
         <nav aria-label="Chats"><div className="section-label">{zh ? '对话' : 'Chats'}</div>{groups.filter(project => project.managed).map(project => <div key={project.id}>{chatRows(project)}</div>)}</nav>
         <nav aria-label="Projects"><div className="section-label">{zh ? '项目' : 'Projects'}<button className="icon-button" aria-label="Add project" disabled={state.projectBusy} onClick={() => void act('project.choose')}>＋</button></div>
           {groups.filter(project => !project.managed).map(project => <div className="project-group" key={project.id}>
-            <div className="project-group-heading" onContextMenu={event => openProjectMenu(event, project)} onKeyDown={event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openProjectMenu(event, project); }}><button className="project-disclosure" aria-expanded={!collapsed[project.id]} title={project.path} onClick={() => setCollapsed(current => ({ ...current, [project.id]: !current[project.id] }))}><span>{collapsed[project.id] ? '▸' : '▾'}</span><span>▱</span><strong>{project.name}</strong></button><button className="icon-button" aria-label={`New chat in ${project.name}`} disabled={state.projectBusy || state.sideBusy} onClick={() => newChat(project.id)}>＋</button></div>
+            <div className="project-group-heading" onContextMenu={event => openProjectMenu(event, project)} onKeyDown={event => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openProjectMenu(event, project); }}><button className="project-disclosure" aria-expanded={!collapsed[project.id]} title={project.path} onClick={() => setCollapsed(current => ({ ...current, [project.id]: !current[project.id] }))}><span>{collapsed[project.id] ? '▸' : '▾'}</span><span>▱</span><strong>{project.name}</strong></button><button className="icon-button" aria-label={`New chat in ${project.name}`} disabled={state.projectBusy || state.sideBusy || tasksPin(project.id)} onClick={() => newChat(project.id)}>＋</button></div>
             {!collapsed[project.id] && <div className="project-chats">{chatRows(project)}</div>}
           </div>)}
         </nav>
@@ -280,7 +284,7 @@ function Workbench() {
       <p>{zh ? '确定要删除此对话吗？' : 'Are you sure you want to delete this chat?'}</p><p><strong>{deletion.chat.title}</strong></p>
       <p>{deletion.chat.role === 'agent_command' ? (zh ? '同时删除其所有 Side Chat。项目文件与研究结果将保留。' : 'This also deletes its Side Chats. Project files and research results are kept.') : (zh ? '此问答记录将被删除。' : 'This Side Chat history will be deleted.')}</p>
       {error && <p role="alert">{error}</p>}
-      <div className="dialog-actions"><button autoFocus className="secondary-button" disabled={busy} onClick={() => setDeletion(null)}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button delete-confirm" disabled={busy || state.sideBusy || state.agentBusy} onClick={confirmDelete}>{zh ? '删除' : 'Delete'}</button></div>
+      <div className="dialog-actions"><button autoFocus className="secondary-button" disabled={busy} onClick={() => setDeletion(null)}>{zh ? '取消' : 'Cancel'}</button><button className="primary-button delete-confirm" disabled={busy || state.sideBusy || deletion.chat?.status === 'running' || (deletion.chat?.role === 'side_chat' && state.agentBusy)} onClick={confirmDelete}>{zh ? '删除' : 'Delete'}</button></div>
     </Modal>}
     {projectMenu && <ProjectMenu menu={projectMenu} close={() => setProjectMenu(null)} zh={zh} edit={() => { const catalogId = projectMenu.project.id; setProjectMenu(null); void act('project.goal.edit', { catalogId }); }} />}
     {state.goalEditor && !state.pendingProject && <ProjectGoalEditor key={state.goalEditor.projectId} editor={state.goalEditor} busy={state.projectBusy} error={state.projectError || error} act={act} zh={zh} />}

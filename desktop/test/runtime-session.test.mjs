@@ -22,7 +22,7 @@ async function fixture(extra = {}) {
     calls: 0, receipts: new Map() };
   const service = { workspace: { workspace: project }, agentTurns: new Map([['turn-1', original]]),
     forkAgentTurn: projectApi.ProjectContextService.prototype.forkAgentTurn,
-    pruneAgentTurns: projectApi.ProjectContextService.prototype.pruneAgentTurns };
+    pruneAgentTurns: projectApi.ProjectContextService.prototype.pruneAgentTurns, ...extra.service };
   let current = true;
   const options = { mode: 'side_chat', model: 'default', originalRequest: 'Original user instruction $inspect',
     callContext: { turnId: 'turn-1' }, localWorkspaceContext: context, signal: controller.signal,
@@ -81,7 +81,7 @@ test('V2 agents fork scoped history, receive messages, and resume with a distinc
     }
     const conversationTurn = { turnId: child.taskId, messages: [{ role: 'user', content: child.originalRequest }, { role: 'assistant', content: 'Child evidence' }], bindings: [] };
     input.onTranscript(conversationTurn);
-    return { reply: 'Done', conversationTurn, desktopContinuation: 'private-token' };
+    return { reply: 'Done', conversationTurn, agentCheckpoint: { version: 1, final: true, marker: 'private-token' } };
   } });
   f.session.bindModel('selected/model'); f.session.observeTranscript(historical);
   const exec = (name, args, id = name) => f.session.execute({ id, name, args });
@@ -532,4 +532,24 @@ test('nested cell output stays bounded with a retained handle and reread cursor 
   assert(JSON.stringify(receipt.result.value.output).length <= 16000);
   assert.deepEqual(await f.session.execute(call), receipt);
   assert.deepEqual([starts, replies, reads], [1, 1, 1]);
+});
+
+test('conversation memory tools exist only while memory is on, and read through the project memory', async t => {
+  const searched = [];
+  const memory = { enabled: async () => true, read: async path => ({ path, content: 'remembered' }),
+    search: async query => { searched.push(query); return { results: [{ path: 'MEMORY.md', heading: '# Task Group: Fermentation', snippet: 'Report titres in g/L.' }] }; } };
+  const workflow = async id => {
+    if (id === 'runtime_skills_context') return { advancedRuntimeVersion: 1, catalog: [], active: [] };
+    if (id === 'runtime_advanced_open' || id === 'runtime_advanced_close') return {};
+  };
+  const on = await fixture({ service: { projectMemory: memory }, workflow });
+  t.after(() => on.session.close()); on.session.bindModel('fixture');
+  assert.ok(on.session.extensions.runtimeTools.includes('conversation_memory_search') && on.session.extensions.runtimeTools.includes('conversation_memory_read'));
+  const result = await on.session.execute({ id: 'remember', name: 'conversation_memory_search', args: { query: 'titre units' } });
+  assert.equal(result.result.value.results[0].snippet, 'Report titres in g/L.');
+  assert.deepEqual(searched, ['titre units']);
+  assert.equal((await on.session.execute({ id: 'open', name: 'conversation_memory_read', args: { path: 'MEMORY.md' } })).result.value.content, 'remembered');
+  const off = await fixture({ service: { projectMemory: { ...memory, enabled: async () => false } }, workflow });
+  t.after(() => off.session.close());
+  assert.ok(!off.session.extensions.runtimeTools.some(name => name.startsWith('conversation_memory_')));
 });

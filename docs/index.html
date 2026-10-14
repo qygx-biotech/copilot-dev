@@ -167,6 +167,7 @@
             </div>
             <button class="text-button" type="button" data-debug-open data-debug-label="open" aria-controls="debugConsole" aria-expanded="false">Debug Console</button>
             <button class="text-button about-trigger" type="button" data-i18n="aboutButton">About</button>
+            <button class="text-button" type="button" data-feedback-open data-i18n="reportProblemButton">Report a problem</button>
             <div class="account-chip" aria-label="Current account">
               <span id="currentAccountName" class="current-account">Not signed in</span>
               <button id="logoutButton" class="logout-button" type="button" data-i18n="logoutButton">
@@ -369,6 +370,11 @@
     <!-- KaTeX safely renders dollar-delimited math in Side Chat messages. -->
     <script src="vendor/katex/katex.min.js"></script>
     <script src="vendor/katex/auto-render.min.js"></script>
+    <script src="vendor/collaboration-modes.js"></script>
+    <script src="feedback-report.js"></script>
+    <script src="vendor/redact-secrets.js"></script>
+    <script src="project-memory.js"></script>
+    <script src="agent-transcripts.js"></script>
     <script src="agent-work-area.js"></script>
     <script src="vendor/runtime-concurrency.js"></script>
     <script src="vendor/advanced-tools.js"></script>
@@ -381,6 +387,7 @@
     <script src="runtime-interaction.js"></script>
     <script src="runtime-state-tools.js"></script>
   <script src="runtime-session.js"></script>
+  <script src="local-agent-transport.js"></script>
     <script src="composer-picker.js"></script>
     <script src="vendor/topic-navigation.js"></script>
     <script src="vendor/turn-observability.js"></script>

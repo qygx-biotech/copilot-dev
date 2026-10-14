@@ -23,6 +23,7 @@
       messageEdit: null,
       selectedModel: typeof chat.selectedModel === "string" ? chat.selectedModel : "default",
       selectedPermission: permissions.includes(chat.selectedPermission) ? chat.selectedPermission : "read_only",
+      collaborationMode: chat.collaborationMode === "plan" ? "plan" : "default",
       taskStatus: chat.taskStatus === "running" ? "waiting" : statuses.includes(chat.taskStatus) ? chat.taskStatus : messages.length ? "completed" : "idle",
       status: chat.taskStatus === "running" ? "" : chat.status,
       statusKey: chat.taskStatus === "running" ? "" : chat.statusKey,
@@ -36,6 +37,7 @@
       id, content: revision ? revision.content : chat.instruction.trim(),
       requestedModel: chat.selectedModel || "default", modelLabel,
       permission: chat.selectedPermission || "read_only",
+      collaborationMode: chat.collaborationMode === "plan" ? "plan" : "default",
       attachments: [...(revision ? revision.message.attachments || [] : chat.pendingAttachments || [])],
       createdAt: now,
     };
@@ -131,7 +133,9 @@
     if (footer.childNodes.length) article.append(footer);
   }
 
-  function createAgentWorkArea({ container, t, formatTime, getModels, renderMarkdown, resultActions, getProgress, isBusy }) {
+  // isBusy(chat): this conversation's turn is running. atLimit(): as many
+  // Agent Work turns as allowed (turnLimit) are running, so none can start.
+  function createAgentWorkArea({ container, t, formatTime, getModels, renderMarkdown, resultActions, getProgress, isBusy, atLimit = () => false, turnLimit = 3 }) {
     // Keep stream hosts alive across collapse/expand and progress renders.
     const streamHosts = new Map();
     const conversations = new Map();
@@ -195,6 +199,35 @@
       return chips;
     }
 
+    // A plan-mode reply: its <proposed_plan> as a card. The latest reply offers
+    // Codex's choices until one is taken: implement here, implement in a new
+    // conversation, or keep planning.
+    function createProposedPlan(chat, message, latestResult) {
+      const { before, plan, after } = root.BioDesignCollaborationModes.extractProposedPlan(message.content);
+      const fragment = document.createDocumentFragment();
+      if (before) { const text = element("div"); renderMarkdown(text, before, message.citations); fragment.append(text); }
+      const card = element("section", "proposed-plan");
+      card.setAttribute("aria-label", t("planProposedTitle"));
+      card.append(element("h4", "proposed-plan-title", t("planProposedTitle")));
+      const content = element("div", "proposed-plan-body");
+      renderMarkdown(content, plan, message.citations);
+      card.append(content);
+      const latestAssistant = chat.messages.findLast(item => item.role === "assistant");
+      if (message === latestAssistant && !message.planChoice && chat.taskStatus !== "running") {
+        const actions = element("div", "proposed-plan-actions");
+        for (const [name, key, className] of [["plan-implement", "planImplement", "primary-button"], ["plan-fresh", "planImplementFresh", "secondary-button"], ["plan-keep", "planKeep", "text-button"]]) {
+          const button = action(chat, name, t(key), className);
+          button.dataset.messageId = message.id;
+          button.disabled = isBusy(chat) || (name !== "plan-keep" && atLimit());
+          actions.append(button);
+        }
+        card.append(actions);
+      } else if (message.planChoice) card.append(element("p", "proposed-plan-choice", t(`planChoice_${message.planChoice}`)));
+      fragment.append(card);
+      if (after) { const text = element("div"); renderMarkdown(text, after, message.citations); fragment.append(text); }
+      return fragment;
+    }
+
     function createAgentMessage(chat, message, latestResult, latestUser) {
       const article = element("article", `side-message agent-message ${message.role === "user" ? "user" : "assistant"}`);
       article.append(element("strong", "", message.role === "user" ? t("sideChatUserLabel") : t("agentLabel")));
@@ -206,13 +239,17 @@
         input.value = chat.messageEdit.content;
         input.rows = 4;
         input.setAttribute("aria-label", t("editLastMessage"));
-        input.disabled = isBusy();
+        input.disabled = isBusy(chat);
         const actions = element("div", "side-message-edit-actions");
         const cancel = action(chat, "cancel-edit", t("cancelEdit"), "secondary-button");
         const save = action(chat, "save-edit", t("saveAndRegenerate"), "primary-button");
-        cancel.disabled = save.disabled = isBusy();
+        cancel.disabled = isBusy(chat);
+        save.disabled = isBusy(chat) || atLimit();
         actions.append(cancel, save);
         body.append(input, actions);
+      } else if (message.role === "assistant" && root.BioDesignCollaborationModes?.extractProposedPlan(message.content)) {
+        body.append(createProposedPlan(chat, message, latestResult));
+        root.BioDesignWebSearch?.renderSources(body, message.webSearchSources);
       } else {
         renderMarkdown(body, message.content, message.citations);
         root.BioDesignWebSearch?.renderSources(body, message.webSearchSources);
@@ -238,7 +275,7 @@
       if (message === latestUser && message.id && !message.injection && !chat.messageEdit) {
         const edit = action(chat, "edit", t("editLastMessage"), "side-message-edit-button");
         edit.dataset.messageId = message.id;
-        edit.disabled = isBusy();
+        edit.disabled = isBusy(chat);
         article.append(edit);
       }
       if (message === latestResult) article.append(resultActions(chat));
@@ -247,7 +284,7 @@
       article.append(copy);
       if (message.role === 'assistant' && root.BioDesignFrontend) {
         const fork = action(chat, 'fork-message', document.documentElement.lang.startsWith('zh') ? '从此回复创建分支' : 'Fork from this reply', 'message-fork-button');
-        fork.dataset.messageId = message.id; fork.disabled = isBusy(); article.append(fork);
+        fork.dataset.messageId = message.id; fork.disabled = isBusy(chat); article.append(fork);
       }
       decorateMessage(article, { createdAt: message.createdAt, copyLabel: t('copyMessage'), editLabel: t('editLastMessage') });
       if (message.role === 'assistant') article.prepend(createTurnClock({ elapsedMs: message.elapsedMs, label: t('turnElapsed') }).element);
@@ -331,11 +368,13 @@
       selectors.append(
         createSelector(chat, "selectedModel", t("agentModel"), getModels()),
         createSelector(chat, "selectedPermission", t("agentPermission"), permissions.map(value => ({ value, label: t(`agentPermission_${value}`) }))),
+        createSelector(chat, "collaborationMode", t("agentMode"), ["default", "plan"].map(value => ({ value, label: t(`agentMode_${value}`), title: t(`agentModeHint_${value}`) }))),
       );
       const actions = element("div", "agent-composer-actions");
       const run = element("button", "primary-button", chat.taskStatus === "running" ? (document.documentElement.lang.startsWith("zh") ? "加入当前任务" : "Add to current turn") : t("agentRun"));
       run.type = "submit";
-      run.disabled = isBusy() && chat.taskStatus !== "running";
+      const limited = chat.taskStatus !== "running" && !isBusy(chat) && atLimit();
+      run.disabled = chat.taskStatus !== "running" && (isBusy(chat) || limited);
       if (chat.taskStatus === "running") selectors.querySelectorAll("select").forEach(select => { select.disabled = true; });
       actions.append(createAttachmentPicker(chat), run);
       root.BioDesignAttachVoice?.(input, actions);
@@ -343,6 +382,7 @@
       const hint = element("p", "agent-composer-hint", t("agentKeyboardHint"));
       hint.id = `agentKeyboardHint-${chat.id}`;
       composer.append(controls, hint, element("p", "agent-composer-hint", t("agentUiOnlyHint")));
+      if (limited) composer.append(element("p", "agent-composer-hint agent-turn-limit", t("agentTurnLimit", { limit: turnLimit })));
       return composer;
     }
 

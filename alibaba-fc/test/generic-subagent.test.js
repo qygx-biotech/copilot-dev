@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const contract = require('../generic-subagent.js');
+const contract = require('../../shared/generic-subagent.js');
 const { SubagentManager } = require('../../docs/generic-subagents.js');
 const parent = (extra = {}) => ({ sessionId: 'chat-1', requestId: 'turn-1', projectId: 'project-1', model: 'selected/model',
   sourceScope: { type: 'selected_sources', sourceIds: ['paper-a'] }, sourceVersions: { 'paper-a': 'sha256-original' },
