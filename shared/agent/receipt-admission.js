@@ -2,7 +2,6 @@
 
 // Validation of host tool receipts before they enter the model context. The
 // loop keeps its state in memory and admits each step's receipts here.
-const academic = require("../academic-tools.js");
 const invalid = () => Object.assign(new Error("The desktop tool continuation is invalid."), { code: "INVALID_TOOL_CONTINUATION" });
 const canonical = value => JSON.stringify(value, (_, item) => item && typeof item === 'object' && !Array.isArray(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
@@ -42,17 +41,6 @@ function withResults(state, results, { receiptCharacters } = {}) {
       if (call.name === 'run_corpus_workflow' && matches[0].result.ok && matches[0].corpusCardFallback?.version === 1) {
         message.corpus_card_fallback = matches[0].corpusCardFallback;
       }
-      continue;
-    }
-    if (academic.isTool(call.name)) {
-      if (!state.academicState || matches.length !== 1) throw invalid();
-      try {
-        academic.validateInput(call.name, call.args);
-        const result = require("./academic-agent.js").recordResult(state.academicState, call, matches[0].result);
-        const message = state.agentMessages.find(item => item.role === "tool" && item.tool_call_id === call.id);
-        if (!message) throw invalid();
-        message.content = JSON.stringify(result);
-      } catch { throw invalid(); }
       continue;
     }
     if (matches.length !== 1 || !Array.isArray(matches[0].results) || matches[0].results.length !== call.args.sources.length) throw invalid();

@@ -14,12 +14,12 @@ test('a proposed plan is found with the text around it; anything else is not a p
 });
 
 test('in plan mode Agent Work may read and prepare evidence but not write sources, the recommendation or memory', () => {
-  for (const tool of ['retrieve_project_evidence', 'read_workspace_item', 'run_corpus_workflow', 'search_academic_papers', 'list_papers'])
+  for (const tool of ['retrieve_project_evidence', 'read_workspace_item', 'run_corpus_workflow', 'list_papers'])
     assert.equal(authorizeTool('agent_command', tool, 'full_access', 'plan').allowed, true, tool);
-  for (const [tool, effect] of [['update_recommendation', ToolEffect.RESULT_PRODUCING], ['download_sources', ToolEffect.SOURCE_WRITE], ['download_papers', ToolEffect.SOURCE_WRITE], ['update_project_memory', ToolEffect.INTERNAL_STATE]]) {
+  for (const [tool, effect] of [['update_recommendation', ToolEffect.RESULT_PRODUCING], ['download_sources', ToolEffect.SOURCE_WRITE], ['update_project_memory', ToolEffect.INTERNAL_STATE]]) {
     const result = authorizeTool('agent_command', tool, 'full_access', 'plan');
     assert.deepEqual([result.allowed, result.code, result.effect], [false, 'PLAN_MODE_READ_ONLY', effect], tool);
-    if (tool !== 'download_papers' && tool !== 'download_sources') assert.equal(authorizeTool('agent_command', tool, 'full_access').allowed, true, `${tool} outside plan mode`);
+    if (tool !== 'download_sources') assert.equal(authorizeTool('agent_command', tool, 'full_access').allowed, true, `${tool} outside plan mode`);
   }
   assert.equal(authorizeTool('side_chat', 'update_project_memory', 'read_only', 'plan').allowed, true, 'Plan mode applies to Agent Work only');
 });

@@ -3,6 +3,7 @@
 const http = require("node:http");
 const https = require("node:https");
 const dns = require("node:dns/promises");
+const zlib = require("node:zlib");
 const { isIP, BlockList } = require("node:net");
 
 const LIMITS = Object.freeze({ bytes: 20 * 1024 * 1024, fcBytes: 4 * 1024 * 1024,
@@ -44,13 +45,18 @@ async function resolvePublicTarget(url, lookup = dns.lookup) {
   return addresses[0];
 }
 
-function requestOnce(url, address, { signal, maxBytes, connectMs, readMs, hostHeaders = {} }) {
+const DEFAULT_ACCEPT = "application/pdf,text/*,application/json,application/xml;q=0.8,*/*;q=0.5";
+const DEFAULT_USER_AGENT = "BioDesign-Source-Downloader/1.0";
+const DECODERS = { gzip: () => zlib.createGunzip(), "x-gzip": () => zlib.createGunzip(), deflate: () => zlib.createInflate(), br: () => zlib.createBrotliDecompress() };
+
+function requestOnce(url, address, { signal, maxBytes, connectMs, readMs, hostHeaders = {}, decompress = false, userAgent = DEFAULT_USER_AGENT, accept = DEFAULT_ACCEPT }) {
   return new Promise((resolve, reject) => {
     // Pin the validated address while retaining the original Host and TLS SNI.
     // A second DNS lookup cannot turn a public validation into a private fetch.
     const request = (url.protocol === "https:" ? https : http).get(url, {
-      agent: false, signal,
-      headers: { Accept: "application/pdf,text/*,application/json,application/xml;q=0.8,*/*;q=0.5", "Accept-Encoding": "identity", "User-Agent": "BioDesign-Source-Downloader/1.0", ...hostHeaders },
+      // Standard ALPN, as every browser and HTTP library sends; some hosts refuse handshakes without it.
+      agent: false, signal, ...(url.protocol === "https:" ? { ALPNProtocols: ["http/1.1"] } : {}),
+      headers: { Accept: accept, "Accept-Encoding": decompress ? "gzip, deflate, br" : "identity", "User-Agent": userAgent, ...hostHeaders },
       lookup: (_hostname, options, callback) => options.all
         ? callback(null, [address]) : callback(null, address.address, address.family),
     });
@@ -63,21 +69,28 @@ function requestOnce(url, address, { signal, maxBytes, connectMs, readMs, hostHe
       clearTimeout(timer);
       const status = response.statusCode;
       const headers = response.headers;
+      const setCookie = Array.isArray(headers["set-cookie"]) ? headers["set-cookie"] : [];
       if ([301, 302, 303, 307, 308].includes(status)) {
-        response.destroy(); resolve({ redirect: headers.location }); return;
+        response.destroy(); resolve({ redirect: headers.location, setCookie }); return;
       }
-      if (status < 200 || status >= 300) { response.destroy(); reject(Object.assign(failure("HTTP_ERROR", `Source returned HTTP ${status}.`), { httpStatus: status })); return; }
+      if (status < 200 || status >= 300) { response.destroy(); reject(Object.assign(failure("HTTP_ERROR", `Source returned HTTP ${status}.`), { httpStatus: status, setCookie })); return; }
       if (Number(headers["content-length"]) > maxBytes) { response.destroy(); reject(failure("FILE_TOO_LARGE", "The source exceeds the download size limit.")); return; }
-      if (headers["content-encoding"] && headers["content-encoding"] !== "identity") { response.destroy(); reject(failure("UNSUPPORTED_ENCODING", "Compressed HTTP responses are not supported.")); return; }
+      const encoding = String(headers["content-encoding"] || "identity").trim().toLowerCase();
+      if (encoding !== "identity" && !(decompress && DECODERS[encoding])) { response.destroy(); reject(failure("UNSUPPORTED_ENCODING", "Compressed HTTP responses are not supported.")); return; }
+      // Bound the decoded size as well as the transferred size.
+      const body = encoding === "identity" ? response : response.pipe(DECODERS[encoding]());
       let size = 0; const chunks = [];
-      response.on("data", chunk => {
+      body.on("data", chunk => {
         size += chunk.length;
-        if (size > maxBytes) response.destroy(failure("FILE_TOO_LARGE", "The source exceeds the download size limit."));
-        else chunks.push(chunk);
+        if (size <= maxBytes) { chunks.push(chunk); return; }
+        const tooLarge = failure("FILE_TOO_LARGE", "The source exceeds the download size limit.");
+        if (body === response) response.destroy(tooLarge);
+        else { response.destroy(); body.destroy(tooLarge); }
       });
       response.once("error", reject);
-      response.once("end", () => resolve({ bytes: Buffer.concat(chunks), contentType: String(headers["content-type"] || "application/octet-stream").split(";", 1)[0].trim().toLowerCase(),
-        contentDisposition: String(headers["content-disposition"] || "").slice(0, 2000) }));
+      if (body !== response) body.once("error", error => reject(error.code === "FILE_TOO_LARGE" ? error : failure("INVALID_ENCODING", "The compressed response could not be decoded.")));
+      body.once("end", () => resolve({ bytes: Buffer.concat(chunks), contentType: String(headers["content-type"] || "application/octet-stream").split(";", 1)[0].trim().toLowerCase(),
+        contentDisposition: String(headers["content-disposition"] || "").slice(0, 2000), setCookie }));
     });
   });
 }
@@ -110,7 +123,14 @@ async function fetchSource(value, options = {}) {
           dnsTimer = setTimeout(() => reject(failure("CONNECT_TIMEOUT", "Source DNS resolution timed out.")), settings.connectMs);
         })]).finally(() => clearTimeout(dnsTimer));
         if (controller.signal.aborted) throw failure("OPERATION_ABORTED", "The source download was cancelled.");
-        const result = await (options.request || requestOnce)(url, address, { ...settings, signal: controller.signal });
+        // An optional per-session jar carries cookies across redirect hops.
+        const cookie = settings.cookieJar?.header(url);
+        let result;
+        try {
+          result = await (options.request || requestOnce)(url, address, { ...settings, signal: controller.signal,
+            ...(cookie ? { hostHeaders: { ...settings.hostHeaders, Cookie: cookie } } : {}) });
+        } catch (error) { if (error?.setCookie) settings.cookieJar?.store(url, error.setCookie); throw error; }
+        if (result.setCookie) settings.cookieJar?.store(url, result.setCookie);
         if (Object.hasOwn(result, "redirect")) {
           if (!result.redirect || redirects >= settings.maxRedirects) throw failure("REDIRECT_LIMIT", "The source exceeded the redirect limit or returned an invalid redirect.");
           let next; try { next = new URL(result.redirect, url); } catch { throw failure("INVALID_URL", "Invalid source redirect."); }
@@ -118,6 +138,9 @@ async function fetchSource(value, options = {}) {
           continue;
         }
         if (result.bytes.length > settings.maxBytes) throw failure("FILE_TOO_LARGE", "The source exceeds the download size limit.");
+        delete result.setCookie;
+        // API callers that parse the body themselves accept any declared type (S3 serves JSON as octet-stream).
+        if (settings.anyContentType) return { ...result, resolvedUrl: url.href };
         return { ...result, contentType: detectContentType(result.bytes, result.contentType), resolvedUrl: url.href };
       }
     };
@@ -125,7 +148,7 @@ async function fetchSource(value, options = {}) {
   } catch (error) {
     if (controller.signal.aborted) throw failure(options.signal?.aborted ? "OPERATION_ABORTED" : "DOWNLOAD_TIMEOUT", "The source download was cancelled or timed out.");
     if (["INVALID_URL", "UNSAFE_URL", "DNS_FAILED", "CONNECT_TIMEOUT", "READ_TIMEOUT", "HTTP_ERROR", "FILE_TOO_LARGE",
-      "UNSUPPORTED_ENCODING", "EMPTY_SOURCE", "INVALID_PDF", "UNSUPPORTED_CONTENT_TYPE", "REDIRECT_LIMIT"].includes(error.code)) throw error;
+      "UNSUPPORTED_ENCODING", "INVALID_ENCODING", "EMPTY_SOURCE", "INVALID_PDF", "UNSUPPORTED_CONTENT_TYPE", "REDIRECT_LIMIT"].includes(error.code)) { delete error.setCookie; throw error; }
     throw failure("NETWORK_ERROR", "The source could not be fetched.");
   } finally { clearTimeout(timeout); options.signal?.removeEventListener("abort", abort); }
 }

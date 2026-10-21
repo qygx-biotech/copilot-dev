@@ -1,5 +1,5 @@
-// Synthetic, hand-authored control cases. These are not citable publications.
-// Live mode uses only request/plan fields, never fixtures or gold annotations.
+// Request cases with predeclared search plans (collect mode). The fixtures are
+// synthetic, hand-authored controls and are not citable publications.
 const fixture = (id, title, abstract, topics, relevant = true, downloadable = true, year = 2024) => ({
   id, title, abstract, topics, relevant, downloadable, year,
 });
@@ -29,4 +29,24 @@ export const cases = [
     queries: ['machine learning ectoine hydroxylase substrate selectivity', 'EctD machine learning thermostability'],
     fixtures: [fixture('a', 'Ectoine production economics', 'Discusses manufacturing costs, not machine learning or hydroxylase engineering.', [], false),
       fixture('b', 'Learning hydroxylase substrate selectivity', 'A small study predicting EctD substrate selectivity; no thermostability evaluation.', ['substrate selectivity'])], selected: ['b'] },
+];
+
+// Frozen retrieval set: publishers with open copies, author manuscripts in PMC,
+// preprints, and subscription pages behind bot checks or institutional access.
+export const retrievalDois = [
+  { doi: '10.1038/s41586-021-03819-2', note: 'Nature, open access, PMC open data' },
+  { doi: '10.1093/bioinformatics/btp324', note: 'OUP, PMC open data' },
+  { doi: '10.1186/1471-2105-10-421', note: 'BMC, open access' },
+  { doi: '10.1371/journal.pmed.0020124', note: 'PLOS, open access' },
+  { doi: '10.1038/nature17946', note: 'Nature subscription, PMC author manuscript' },
+  { doi: '10.1016/j.cell.2019.05.031', note: 'Cell subscription behind bot checks; bioRxiv preprint' },
+  { doi: '10.1126/science.1225829', note: 'Science subscription behind bot checks' },
+  { doi: '10.1038/nbt.3519', note: 'Nature Biotechnology subscription' },
+  { doi: '10.1126/science.abj8754', note: 'Science, PMC author manuscript' },
+  { doi: '10.1101/2022.07.20.500902', note: 'bioRxiv preprint' },
+  { doi: '10.1093/nar/28.1.235', note: 'OUP, open on the publisher site' },
+  { doi: '10.1073/pnas.1208507109', note: 'PNAS behind bot checks' },
+  { doi: '10.1021/acs.jctc.5b00255', note: 'ACS, PDF text layer splits the title' },
+  { doi: '10.1002/pro.3943', note: 'Wiley behind bot checks' },
+  { doi: '10.48550/arXiv.1706.03762', title: 'Attention Is All You Need', authors: ['Ashish Vaswani'], year: 2017, note: 'arXiv DOI' },
 ];

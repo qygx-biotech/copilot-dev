@@ -74,7 +74,6 @@ async function runWorkspaceAgent({
     projectToolsEnabled: desktopContext.projectTools === true,
     imageCount: desktopContext.images?.length || 0,
     desktopDownloads: desktopContext.enabled === true,
-    desktopAcademic: desktopContext.academic === true,
     desktopLiterature: desktopContext.literature === true,
     downloadPermission: desktopContext.permission || "read_only",
     collaborationMode: desktopContext.collaborationMode || "default",

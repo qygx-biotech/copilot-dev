@@ -19,8 +19,9 @@ async function fixture(t, options = {}) {
   const filesystem = await ProjectFilesystem.open(root);
   let login = options.login || false;
   const browser = { tools: [{ name: 'browser_snapshot', description: 'Observe', inputSchema: { type: 'object', properties: {} } }], owner: null, async exclusive(id, fn) { if (this.owner && this.owner !== id) throw Object.assign(new Error(), { code: 'BROWSER_BUSY' }); this.owner = id; return fn(); }, async start() {}, async call() { return login ? { status: 'needs_login' } : { status: 'observed', snapshot: paper.title }; }, release(id) { if (this.owner === id) this.owner = null; }, async close() {}, async captureArticle() { return { bytes, resolvedUrl: paper.source_urls[0], contentType: 'application/pdf' }; } };
-  const active = { filesystem, sourceDownloads: new AbortController(), paperMcp: { async start() {}, tools: academic.tools.filter(t => !academic.isWrite(t.function.name)).map(t => ({ name: t.function.name, description: t.function.description, inputSchema: t.function.parameters })), async call() { return { version: 1, status: 'completed', papers: [] }; } } };
-  const service = new LiteratureWorkflows(active, browser, () => true, { parse, fetchSource: async url => ({ bytes, contentType: 'application/pdf', resolvedUrl: url }), ...options.dependencies });
+  const active = { filesystem, sourceDownloads: new AbortController(), paperMcp: { async start() {}, tools: academic.tools.map(t => ({ name: t.function.name, description: t.function.description, inputSchema: t.function.parameters })), async call() { return { version: 1, status: 'completed', papers: [] }; } } };
+  const service = new LiteratureWorkflows(active, browser, () => true, { parse, fetchSource: async url => ({ bytes, contentType: 'application/pdf', resolvedUrl: url }),
+    lookup: async item => ({ doi: item.doi, ids: {}, candidates: [], diagnostics: [] }), wait: async () => {}, ...options.dependencies });
   const policy = { model: 'selected/model', permission: 'workspace_write', authorization: { download: true }, scopePaths: null, libraryAccess: { url: 'https://example.org/library' } };
   const begin = (kind = 'retrieve_papers', task = { papers: [paper], accepted_versions: ['published'] }, extra = {}) => service.run({ action: 'begin', kind, task, ...policy, ...extra });
   const step = (job_id, name, args = {}) => service.run({ action: 'step', job_id, name, args, ...policy });
@@ -47,7 +48,8 @@ test('wrong identity/version goes into quarantine and is never presented as an i
   assert.equal(result.status, 'downloaded_unverified'); assert.match(result.file, /^\.biodesign\/literature-unverified\//); assert.equal(result.ingestion, 'not_ingested');
 });
 test('login persists job position and scope; resume reobserves; cancellation survives restart', async t => {
-  const f = await fixture(t, { login: true }); const first = await f.begin(); assert.equal(first.needs_login, true);
+  // Discovery opens the library page at once; retrieval opens it only when a paper needs it.
+  const f = await fixture(t, { login: true }); const first = await f.begin('discover_papers', { objective: 'enzyme', queries: ['enzyme'] }); assert.equal(first.needs_login, true);
   const stored = JSON.parse(await f.filesystem.readText(`.biodesign/literature-jobs/${first.job_id}.json`)); assert.equal(stored.position, 0); assert.equal(stored.status, 'needs_login');
   f.setLogin(false); const resumed = await f.service.run({ ...f.policy, action: 'resume', job_id: first.job_id }); assert(resumed.observation.includes(paper.title));
   await assert.rejects(f.service.run({ ...f.policy, model: 'other', action: 'resume', job_id: first.job_id }), { code: 'JOB_BINDING_CHANGED' });
@@ -94,8 +96,19 @@ test('skipped browser typing preserves feedback without recording searches or su
   assert.equal(login.needs_login, true); assert.equal(login.action_skipped, true);
   assert.equal(job.searches.length, 1); assert.equal(job.navigations, navigations + 1);
 });
+test('retrieval offers browser capture only after library browsing starts', async t => {
+  const f = await fixture(t), started = await f.begin();
+  assert(!started.tools.some(tool => ['capture_article', 'record_access', 'browser_snapshot'].includes(tool.function.name)));
+  assert.equal(started.access.deterministic, true); assert.equal(started.access.library_browsing, true);
+  assert.equal((await f.step(started.job_id, 'capture_article', { index: 0, target: 'e1' })).error, 'SPECIALIST_TOOL_NOT_ALLOWED');
+  const browsing = await f.step(started.job_id, 'start_browsing');
+  assert(browsing.tools.some(tool => tool.function.name === 'capture_article')); assert.equal(browsing.access.browsing, true);
+  const offline = await fixture(t), job = await offline.begin('retrieve_papers', { papers: [paper], accepted_versions: ['published'] }, { libraryAccess: { url: '' } });
+  assert.deepEqual((await offline.step(job.job_id, 'start_browsing')).result, { browsing: false, reason: 'NO_LIBRARY_URL' });
+});
 test('capture normalizes before contract validation, preserves skipped feedback and only verifies executed transfers', async t => {
-  const f = await fixture(t), started = await f.begin(), job = f.service.jobs.get(started.job_id);
+  const f = await fixture(t), begun = await f.begin(), job = f.service.jobs.get(begun.job_id);
+  const started = await f.step(job.id, 'start_browsing');
   const definition = started.tools.find(tool => tool.function.name === 'capture_article').function.parameters;
   assert.match(definition.properties.target.description, /\[ref=e45\] means target: "e45"/);
   contract.validate(definition, { index: 0, target: ' [ref=f1e45] ' });
@@ -115,6 +128,7 @@ test('capture normalizes before contract validation, preserves skipped feedback 
 });
 test('capture login feedback pauses retrieval without counting a download', async t => {
   const f = await fixture(t), started = await f.begin(), job = f.service.jobs.get(started.job_id);
+  await f.step(job.id, 'start_browsing');
   f.browser.captureArticle = async () => skippedReference('stale_reference', { status: 'needs_login' });
   const result = await f.step(job.id, 'capture_article', { index: 0, target: '[ref=e45]' });
   assert.equal(result.needs_login, true); assert.equal(job.status, 'needs_login');
@@ -142,7 +156,7 @@ test('dedup preserves original multilingual titles and normalizes DOI identities
   const found = contract.deduplicate([a, b]); assert.equal(found.length, 1); assert.equal(found[0].identity.title, '酶工程研究');
 });
 
-test('declining a required library choice disables browsing and limits discovery to open-access records', async t => {
+test('declining a required library choice disables browsing and marks, not omits, records without open-access evidence', async t => {
   const f = await fixture(t); const task = { objective: 'Enzymes', queries: ['enzyme'], library_url: 'https://model.example/library' };
   await assert.rejects(f.begin('discover_papers', task, { libraryAccess: undefined }), { code: 'LIBRARY_CHOICE_REQUIRED' });
   await assert.rejects(f.begin('discover_papers', task, { libraryAccess: { url: 'javascript:alert(1)' } }), { code: 'INVALID_LIBRARY_URL' });
@@ -154,7 +168,8 @@ test('declining a required library choice disables browsing and limits discovery
   const job = await f.begin('discover_papers', task, { libraryAccess: { url: '' } });
   assert.equal(starts, 0); assert.equal(job.access.open_access_only, true);
   assert(!job.tools.some(tool => tool.function.name.startsWith('browser_')));
-  assert.equal((await f.step(job.job_id, 'search_academic_papers', { query: 'enzyme' })).result.papers.length, 1);
+  const found = (await f.step(job.job_id, 'search_academic_papers', { query: 'enzyme' })).result.papers;
+  assert.deepEqual(found.map(item => item.open_access_evidence), [true, false]);
   assert.equal((await f.step(job.job_id, 'browser_snapshot')).error, 'SPECIALIST_TOOL_NOT_ALLOWED');
   f.service.jobs.clear();
   const resumed = await f.service.run({ ...f.policy, action: 'resume', job_id: job.job_id });

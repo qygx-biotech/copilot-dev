@@ -44,7 +44,7 @@ test("Agent Work returns fetch diagnostics to desktop logs even without cloud lo
   const result = await agentChat.handler({ httpMethod: "POST", path: "/chat", headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
     mode: "agent_instruction", messages: [{ role: "user", content: query }], originalRequest: query,
     localWorkspaceContext: { version: 1, agentLoop: { version: 1, academicAcquisition: true } },
-    desktopTools: { version: 1, academicVersion: 1, permission: "workspace_write", projectId: "fixture" },
+    desktopTools: { version: 1, permission: "workspace_write", projectId: "fixture" },
   }) }, {});
   const data = JSON.parse(result.body);
   assert.equal(data.error, "LlmRequestFailed"); assert.equal(data.failure.transportCode, "ECONNRESET");

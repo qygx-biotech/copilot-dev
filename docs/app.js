@@ -374,6 +374,10 @@ const I18N = {
     chatImageTimeout: "Image reading timed out. Edit the latest message to retry.",
     chatImageQuestionLong: "Keep questions with images under 12,000 characters.",
     streamInspecting: "Inspecting project evidence…",
+    streamRetrievingPaper: "Retrieving paper {current} of {total}…",
+    streamRetrieving: "Retrieving papers…",
+    streamLiteratureSearch: "Searching the literature…",
+    streamLibraryAccess: "Waiting for library sign-in or a website check…",
     streamSearching: "Searching external sources…",
     streamInterrupted: "Response interrupted. This draft is incomplete and has not been saved. Please retry.",
     sideChatTitle: "Side Chat",
@@ -814,6 +818,10 @@ const I18N = {
     chatImageTimeout: "图片解读超时，请编辑最后一条消息重试。",
     chatImageQuestionLong: "附带图片的问题请控制在 12,000 字符以内。",
     streamInspecting: "正在查阅项目证据…",
+    streamRetrievingPaper: "正在获取第 {current}/{total} 篇论文…",
+    streamRetrieving: "正在获取论文…",
+    streamLiteratureSearch: "正在检索文献…",
+    streamLibraryAccess: "正在等待图书馆登录或网站验证…",
     streamSearching: "正在搜索外部来源…",
     streamInterrupted: "回答已中断。此草稿不完整，尚未保存，请重试。",
     sideChatTitle: "侧边问答",
@@ -4321,11 +4329,17 @@ async function runAgentInstruction(panelId, revision = null) {
     response = await sendWorkbenchRequest({
       mode: "agent_instruction", runtimeQueue, turnObserver,
       livePermission: () => panel.selectedPermission,
+      // The download card may switch this conversation to Workspace write; never a reduction.
+      grantPermission: value => {
+        const rank = { read_only: 0, workspace_write: 1, full_access: 2 };
+        if ((rank[value] ?? -1) <= (rank[panel.selectedPermission] ?? 0)) return;
+        panel.selectedPermission = value; saveAnalysisPanels(); renderAnalysisPanels();
+      },
       outputTask: panel.outputFolder,
       ...(conversationTranscript ? { conversationTranscript, onTranscript: saveTranscriptTurn } : {}),
       originalRequest: instruction,
       model: turn.requestedModel,
-      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: turn.permission,
+      ...(window.biodesignDesktop?.execution?.runWorkflow ? { desktopTools: { version: 1, literatureVersion: 1, permission: turn.permission,
         ...(turn.collaborationMode === "plan" ? { collaborationMode: "plan" } : {}), projectId: workspaceManager?.workspace?.workspaceId || "" } } : {}),
       messages: [...await composerReferenceMessages(instruction), ...(preparedAttachments.context ? [{ role: 'user', content: preparedAttachments.context }] : []), ...buildAgentMessages(instruction, localWorkspaceContext?.requestUnderstanding?.answerLanguage, requestGoal, conversationTranscript ? [] : history)],
       images: preparedAttachments.images,
@@ -4465,6 +4479,7 @@ async function sendWorkbenchRequestOnce({
   desktopToolResults = null,
   libraryChoice = {},
   literatureSession = null,
+  grantPermission = null,
   runtimeSession = null,
   runtimeExtensions = null,
   runtimeInjections = [],
@@ -4472,7 +4487,7 @@ async function sendWorkbenchRequestOnce({
   localSession = null,
 }) {
   const ownsLiteratureSession = !literatureSession;
-  literatureSession ||= { jobs: new Map() };
+  literatureSession ||= { jobs: new Map(), grantPermission };
   const releaseLiterature = async action => {
     for (const [id, input] of literatureSession.jobs) {
       try {
@@ -4632,7 +4647,6 @@ async function sendWorkbenchRequestOnce({
     }
     if (data.desktopToolCalls) {
       const api = window.BioDesignSourceDownload;
-      const academic = window.BioDesignAcademicTools;
       if (!runtimeExtensions || !api || !window.biodesignDesktop?.execution?.runWorkflow || !localSession.atBoundary() || !Array.isArray(data.desktopToolCalls)) {
         throw Object.assign(new Error("Desktop tools are unavailable for this turn."), { code: "PERMISSION_DENIED" });
       }
@@ -4664,18 +4678,50 @@ async function sendWorkbenchRequestOnce({
         const domainHandler = async call => {
         if (call.name === 'literature_worker') {
           if (desktopTools.literatureVersion !== 1) throw Object.assign(new Error('Literature workers unavailable.'), { code: 'PERMISSION_DENIED' });
-          if (call.args.action === 'begin' && !call.args.task?.job_id && !libraryChoice.value) {
-            libraryChoice.value = await window.BioDesignLibrarySettings.edit({ account: currentAccount, language: currentLanguage, requiredChoice: true, signal });
+          const beginning = call.args.action === 'begin' && !call.args.task?.job_id;
+          // The library choice is asked once per account and remembered.
+          if (beginning && !libraryChoice.value) {
+            libraryChoice.value = window.BioDesignLibrarySettings.saved?.(currentAccount)
+              || await window.BioDesignLibrarySettings.edit({ account: currentAccount, language: currentLanguage, requiredChoice: true, signal });
             ensureCurrent();
           }
-          const authorization = { download: window.BioDesignLiteratureAgent.downloadAuthorized(originalRequest) };
-          const input = { ...call.args, execution_id: call.id, permission: desktopTools.permission, authorization, model,
-            ...(call.args.action === 'begin' && !call.args.task?.job_id ? { libraryAccess: libraryChoice.value } : {}),
+          // Download consent is a one-click card listing the papers, not a reading of the request's wording.
+          if (call.args.action === 'begin' && call.args.kind === 'retrieve_papers' && literatureSession.consent?.callId !== call.id) {
+            const decision = await window.BioDesignLiteratureLogin.confirmDownload({ papers: call.args.task?.papers || [], permission: literatureSession.permission || desktopTools.permission,
+              library: libraryChoice.value, language: currentLanguage, signal });
+            ensureCurrent();
+            if (!decision.approved) {
+              const papers = call.args.task?.papers || [];
+              return { id: call.id, result: { final: { version: 1, job_id: 'not_started', status: 'cancelled', user_declined: true, limitations: ['The user declined this download in the confirmation card.'],
+                results: papers.map(paper => ({ requested: paper, status: 'cancelled', document_version: 'unknown', attempts: [], reason: 'The user declined this download.' })) } } };
+            }
+            // Switching modes is the user's choice in the card; it also applies to later turns of this conversation.
+            if (decision.permission !== desktopTools.permission) { literatureSession.permission = decision.permission; literatureSession.grantPermission?.(decision.permission); }
+            literatureSession.consent = { callId: call.id, approved: true };
+          }
+          // One library browser profile per application account keeps sign-ins across projects.
+          if (call.args.action === 'begin' && !literatureSession.browserProfile && globalThis.crypto?.subtle && typeof TextEncoder === 'function') {
+            const hash = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(`biodesign-library-browser:${currentAccount || 'default'}`));
+            literatureSession.browserProfile = [...new Uint8Array(hash)].map(byte => byte.toString(16).padStart(2, '0')).join('').slice(0, 24);
+          }
+          const retrievalAuthorized = call.args.kind === 'retrieve_papers' ? literatureSession.consent?.approved === true : false;
+          const authorization = { download: retrievalAuthorized || Boolean(call.args.job_id && literatureSession.consent?.approved) };
+          const permission = literatureSession.permission || desktopTools.permission;
+          const input = { ...call.args, execution_id: call.id, permission, authorization, model,
+            ...(beginning ? { libraryAccess: { url: libraryChoice.value?.url || '', ...(libraryChoice.value?.proxy ? { proxy: libraryChoice.value.proxy } : {}) },
+              ...(literatureSession.browserProfile ? { browserProfile: literatureSession.browserProfile } : {}) } : {}),
             scopePaths: localWorkspaceContext?.agentLoop?.hardSelection ? [...new Set([...(localWorkspaceContext.sourceMap?.paperSources || []).map(f => f.path), ...(localWorkspaceContext.files || []).map(f => f.path)].filter(Boolean))] : null };
           const knownJobId = input.job_id || input.task?.job_id;
           if (knownJobId) literatureSession.jobs.set(knownJobId, input);
           const cancel = () => { if (input.job_id) void window.biodesignDesktop.execution.runWorkflow({ workflowId: 'literature_worker', input: { ...input, execution_id: undefined, action: 'cancel' } }).catch(() => {}); };
           signal?.addEventListener('abort', cancel, { once: true });
+          if (call.args.action === 'begin') literatureSession.kinds = { ...literatureSession.kinds, [call.id]: call.args.kind, papers: call.args.task?.papers?.length || 0 };
+          const retrieving = call.args.kind === 'retrieve_papers' || literatureSession.jobs.get(input.job_id)?.kind === 'retrieve_papers' || Number.isInteger(call.args.args?.index);
+          onStream({ type: 'reset' });
+          onStream(call.args.name === 'retrieve_next' && Number.isInteger(call.args.args?.index) && literatureSession.kinds?.papers
+            ? { type: 'status', stage: 'literature-retrieval', paper: call.args.args.index + 1, papers: literatureSession.kinds.papers }
+            : call.args.name === 'request_access' ? { type: 'status', stage: 'literature-access' }
+              : { type: 'status', stage: 'tool-running', capability: retrieving ? 'retrieve_papers' : 'discover_papers' });
           let result;
           try {
             result = await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input });
@@ -4683,9 +4729,12 @@ async function sendWorkbenchRequestOnce({
             if (signal?.aborted) cancel();
             while (result.needs_login) {
               ensureCurrent();
-              const resume = await window.BioDesignLiteratureLogin.wait({ jobId: result.job_id, signal });
+              const jobId = result.job_id || input.job_id;
+              // The host watches the browser and reports when sign-in or the check is done.
+              const autoCheck = async () => (await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { ...input, job_id: jobId, execution_id: undefined, action: 'await_attention' } }))?.cleared === true;
+              const resume = await window.BioDesignLiteratureLogin.wait({ jobId, signal, attention: result.attention || null, language: currentLanguage, autoCheck });
               ensureCurrent();
-              result = await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { ...input, execution_id: undefined, action: resume ? 'resume' : 'cancel' } });
+              result = await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { ...input, job_id: jobId, execution_id: undefined, action: resume ? 'resume' : 'cancel' } });
               if (!resume && !result.final) result = { final: result };
             }
           } finally { signal?.removeEventListener('abort', cancel); }
@@ -4698,20 +4747,6 @@ async function sendWorkbenchRequestOnce({
             isCurrent: () => { ensureCurrent(); return true; }, onProgress: event => { onStream.observer?.hostEvent(event); onStream({ type: "status", ...event }); } });
           ensureCurrent();
           return receipt;
-        }
-        if (academic?.isTool(call.name)) {
-          if (desktopTools.academicVersion !== 1 || !academic.allowed(call.name, "agent_command", desktopTools.permission) || (desktopTools.collaborationMode === "plan" && academic.isWrite(call.name))) throw Object.assign(new Error("Academic tool unavailable on this move."), { code: "PERMISSION_DENIED" });
-          const args = academic.validateInput(call.name, call.args);
-          onStream({ type: "reset" }); onStream({ type: "status", stage: "tool-running", capability: call.name });
-          let result;
-          try {
-            result = academic.validateResult(call.name, await window.biodesignDesktop.execution.runWorkflow({ workflowId: call.name, input: { args, surface: "agent_command", permission: desktopTools.permission, ...(Number.isFinite(call.deadlineAt) ? { deadlineAt: call.deadlineAt } : {}) } }));
-          } catch (error) {
-            if (error.code === "OPERATION_ABORTED") throw error;
-            result = academic.failure(error.code);
-          }
-          ensureCurrent();
-          return { id: call.id, result };
         }
         if (call.name !== "download_sources") throw Object.assign(new Error("Unknown desktop tool."), { code: "TOOL_NOT_ALLOWED" });
         if (!desktopTools || !api.allowed("agent_command", desktopTools.permission) || desktopTools.collaborationMode === "plan") throw Object.assign(new Error("Source writing is not allowed."), { code: "PERMISSION_DENIED" });
@@ -4814,7 +4849,12 @@ function createStreamingAnswer(container, scrollContainer = null) {
       }
       if (event.type === "status") {
         label.textContent = event.stage === "web-search" ? t("streamSearching") : t("streamingAnswer");
-        status.textContent = event.stage === "web-search" ? t("streamSearching") : event.stage === "tool-running" ? t("streamInspecting") : t("streamingAnswer");
+        // Literature work reports which step is running, including the paper count.
+        const literature = event.stage === "literature-retrieval" && Number.isInteger(event.paper) && Number.isInteger(event.papers) ? t("streamRetrievingPaper", { current: event.paper, total: event.papers })
+          : event.stage === "literature-access" ? t("streamLibraryAccess")
+            : event.stage === "literature-retrieval" || (event.stage === "tool-running" && event.capability === "retrieve_papers") ? t("streamRetrieving")
+              : event.stage === "literature-specialist" || (event.stage === "tool-running" && event.capability === "discover_papers") ? t("streamLiteratureSearch") : "";
+        status.textContent = literature || (event.stage === "web-search" ? t("streamSearching") : event.stage === "tool-running" ? t("streamInspecting") : t("streamingAnswer"));
       }
     },
     interrupt() {

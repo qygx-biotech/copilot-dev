@@ -30,6 +30,8 @@ async function fixture(t, { retrieve = false } = {}) {
   const dependencies = {
     parse: async () => ({ pages: 2, text: `${paper.title} Alice Smith 2024 DOI: 10.1234/enzyme Version of Record` }),
     fetchSource: async url => { transfers++; return { bytes, contentType: 'application/pdf', resolvedUrl: url }; },
+    // No open-access index lookups or politeness delays in these storage tests.
+    lookup: async item => ({ doi: item.doi, ids: {}, candidates: [], diagnostics: [] }), wait: async () => {},
   };
   const active = { filesystem: fs, sourceDownloads: new AbortController(), paperMcp: { tools: [], async start() {} } };
   const construct = filesystem => new LiteratureWorkflows({ ...active, filesystem }, browser, () => current, dependencies);

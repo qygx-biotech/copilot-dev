@@ -11,7 +11,6 @@ import { LocalExecutionService } from "./local-execution-service.mjs";
 import { downloadSources } from "./source-downloader.mjs";
 import { QmdWorkerClient } from "../workers/qmd-worker-client.mjs";
 import { PaperMcpClient } from "./paper-mcp-client.mjs";
-import { registerAcademicWorkflows } from "./academic-workflows.mjs";
 import { SkillsService } from "./skills-service.mjs";
 import { GenericMcpService } from "./generic-mcp-service.mjs";
 import { AppsService } from "./apps-service.mjs";
@@ -30,6 +29,14 @@ export class ProjectSessionManager extends EventEmitter {
     this.browserOptions = { profileRoot: options.browserProfileRoot || (options.qmdCacheRoot ? path.join(options.qmdCacheRoot, "library-browser") : path.join(os.tmpdir(), "biodesign-browser", crypto.randomUUID())), headless: options.browserHeadless === true };
     this.advancedOptions = options.advancedRuntime || {};
     this.active = null;
+    this.browser = null;
+  }
+
+  // One library browser for the application. It survives project switches so a
+  // university sign-in is reused; each account selects its own profile.
+  sharedBrowser() {
+    this.browser ||= new PlaywrightMcpClient({ ...this.browserOptions });
+    return this.browser;
   }
 
   async open(rootPath) {
@@ -136,9 +143,9 @@ export class ProjectSessionManager extends EventEmitter {
     // The user's "undo" for a finished project-mode turn's changes to output/.
     runtimeWorkflow('runtime_advanced_undo', ['turnId'], 'runtime_execution', input => active.advancedRuntime.undo(input));
     active.paperMcp = new PaperMcpClient(this.paperOptions);
-    registerAcademicWorkflows(active, active.paperMcp, () => this.active === active);
-    active.browserMcp = new PlaywrightMcpClient({ ...this.browserOptions, profileRoot: path.join(this.browserOptions.profileRoot, crypto.createHash('sha256').update(filesystem.root).digest('hex').slice(0, 24)) });
-    active.literature = new LiteratureWorkflows(active, active.browserMcp, () => this.active === active);
+    active.browserMcp = this.sharedBrowser();
+    active.literature = new LiteratureWorkflows(active, active.browserMcp, () => this.active === active,
+      { openAlexKey: process.env.BIODESIGN_OPENALEX_API_KEY || undefined });
     active.execution.register({ id: 'literature_worker', effect: 'bounded_specialist' }, input => active.literature.run(input));
     active.execution.register({ id: 'literature_jobs', effect: 'informational' }, input => {
       if (Object.keys(input).length) throw Object.assign(new Error('Invalid job listing'), { code: 'INVALID_INPUT' });
@@ -221,11 +228,19 @@ export class ProjectSessionManager extends EventEmitter {
     active.sourceDownloads.abort();
     await active.advancedRuntime?.close().catch(() => {});
     await active.genericMcp?.close().catch(() => {});
-    await active.browserMcp?.close().catch(() => {});
+    // Cancelling this project's jobs releases the shared browser; the browser itself stays open.
+    active.literature?.dispose();
     await active.paperMcp?.close().catch(() => {});
     await active.jobs.close().catch(() => {});
     await active.qmd?.close().catch(() => {});
     this.emit("closed");
     return { closed: true };
+  }
+
+  async shutdown() {
+    await this.close();
+    const browser = this.browser;
+    this.browser = null;
+    await browser?.close().catch(() => {});
   }
 }

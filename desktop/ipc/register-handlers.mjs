@@ -311,7 +311,7 @@ export function registerIpcHandlers(options) {
   });
   handle(channels.executionRun, async (event, rawPayload) => {
     const { active, payload } = projectPayload(sessionManager, rawPayload, ["workflowId", "input"]);
-    if (typeof payload.workflowId === "string" && (payload.workflowId.startsWith("runtime_") || ["literature_worker", "literature_jobs", "download_sources", "search_academic_papers", "get_academic_paper", "resolve_paper_full_text", "download_papers"].includes(payload.workflowId))) assertTrustedIpcSender(event, getWindow);
+    if (typeof payload.workflowId === "string" && (payload.workflowId.startsWith("runtime_") || ["literature_worker", "literature_jobs", "download_sources"].includes(payload.workflowId))) assertTrustedIpcSender(event, getWindow);
     return active.execution.run(boundedString(payload.workflowId, "workflowId", 100), assertRecord(payload.input || {}, "input"), { jobs: active.jobs, filesystem: active.filesystem });
   });
 

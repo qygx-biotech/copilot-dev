@@ -25,7 +25,6 @@ const rejected = (error, message) => ({ error: { status: 400, body: { error, ...
 function admitDesktopContext(body, { responseMode, originalRequest, localWorkspaceContext, account, signal, childModel }) {
   const desktopContext = { account, signal, originalRequest, enabled: responseMode !== "side_chat" && body.desktopTools?.version === 1,
     literature: responseMode !== "side_chat" && body.desktopTools?.version === 1 && body.desktopTools?.literatureVersion === 1,
-    academic: responseMode !== "side_chat" && body.desktopTools?.version === 1 && body.desktopTools?.academicVersion === 1,
     permission: ["workspace_write", "full_access"].includes(body.desktopTools?.permission) ? body.desktopTools.permission : "read_only",
     // Plan mode (Agent Work only): explore and propose, change nothing.
     collaborationMode: responseMode !== "side_chat" && body.desktopTools?.collaborationMode === "plan" ? "plan" : "default" };
@@ -34,7 +33,7 @@ function admitDesktopContext(body, { responseMode, originalRequest, localWorkspa
     if (body.conversationTranscript?.version !== 1) return rejected("INVALID_CONVERSATION_TRANSCRIPT");
     desktopContext.conversationTranscript = transcript.normalize(body.conversationTranscript);
   }
-  desktopContext.projectTools = localWorkspaceContext?.agentLoop?.version === 1 && (responseMode === "side_chat" || desktopContext.literature || (desktopContext.academic && localWorkspaceContext.agentLoop.academicAcquisition === true));
+  desktopContext.projectTools = localWorkspaceContext?.agentLoop?.version === 1 && (responseMode === "side_chat" || desktopContext.literature);
   if (body.images !== undefined) {
     try {
       desktopContext.images = images.validateImages(body.images);

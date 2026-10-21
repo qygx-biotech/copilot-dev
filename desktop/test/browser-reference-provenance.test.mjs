@@ -157,10 +157,11 @@ test('missing authoritative owner-frame mapping uses conservative page-document 
   assert.equal(response.diagnostics.frame_mapping, 'page_fallback'); assert.deepEqual(f.actions, []);
 });
 
-test('article capture uses identical document checks and never transfers a stale replacement', async t => {
+test('article capture uses identical document checks and never transfers a stale replacement', async () => {
   let transfers = 0;
-  t.mock.method(sourceFetch, 'fetchSource', async () => { transfers++; return {}; });
   const f = await referenceBrowserFixture();
+  // The transfer itself is an in-browser download of the exact observed link.
+  f.browser.capture = async () => { transfers++; return {}; };
   f.page.navigate(); f.page.addElement('e45');
   const response = await f.browser.captureArticle('job', '[ref=e45]');
   assert.equal(response.reason, 'target_document_navigated'); assert.equal(response.action_skipped, true);

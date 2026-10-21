@@ -71,20 +71,31 @@ export class BrowserReferenceState {
     return { reason, reference: target, ...this.metadata(), ...(entry ? { frame_id: entry.frame ? state.frames.get(entry.frame)?.id : null, frame_mapping: entry.frame ? 'element_owner_frame' : 'page_fallback' } : {}),
       ...(state ? { current_documents: this.versions(state) } : {}) };
   }
+  // Resolve the exact element behind one reference of the latest capture.
+  async entry(page, state, target) {
+    let handles = [];
+    try { handles = await page.locator(`aria-ref=${target}`).elementHandles(); } catch { /* snapshot raced element removal */ }
+    const handle = handles.length === 1 ? handles[0] : null;
+    if (!handle) handles.forEach(value => this.dispose(value));
+    let frame = null;
+    try { frame = await handle?.ownerFrame(); } catch { /* conservative page fallback */ }
+    if (frame && !state.frames.has(frame)) frame = null;
+    return { handle, frame, reason: handle ? null : 'target_not_found' };
+  }
+  async resolveAll(page, state, targets, entries, signal) {
+    const pending = [...targets];
+    // Bounded parallel lookups; each is an independent read of the same capture.
+    while (pending.length) {
+      if (signal?.aborted) throw Object.assign(new Error('Cancelled'), { code: 'OPERATION_ABORTED' });
+      const batch = pending.splice(0, 16);
+      const resolved = await Promise.all(batch.map(target => this.entry(page, state, target)));
+      batch.forEach((target, index) => entries.set(target, resolved[index]));
+    }
+  }
   async register(page, snapshot, before, revision, owner, signal) {
     const state = this.page(page), session = this.session, entries = new Map();
     try {
-      for (const target of new Set([...snapshot.matchAll(/\[ref=((?:f\d+)?e\d+)\]/g)].map(match => match[1]))) {
-        if (signal?.aborted) throw Object.assign(new Error('Cancelled'), { code: 'OPERATION_ABORTED' });
-        let handles = [];
-        try { handles = await page.locator(`aria-ref=${target}`).elementHandles(); } catch { /* snapshot raced element removal */ }
-        const handle = handles.length === 1 ? handles[0] : null;
-        if (!handle) handles.forEach(value => this.dispose(value));
-        let frame = null;
-        try { frame = await handle?.ownerFrame(); } catch { /* conservative page fallback */ }
-        if (frame && !state.frames.has(frame)) frame = null;
-        entries.set(target, { handle, frame, reason: handle ? null : 'target_not_found' });
-      }
+      await this.resolveAll(page, state, new Set([...snapshot.matchAll(/\[ref=((?:f\d+)?e\d+)\]/g)].map(match => match[1])), entries, signal);
       const after = await this.documents(page);
       if (signal?.aborted) throw Object.assign(new Error('Cancelled'), { code: 'OPERATION_ABORTED' });
       if (session !== this.session || this.pages.get(page) !== state || state.closed || page.isClosed() || revision !== state.revision || JSON.stringify(before) !== JSON.stringify(after)) return false;
@@ -93,6 +104,22 @@ export class BrowserReferenceState {
       return true;
     } finally {
       if (this.latest?.entries !== entries) for (const entry of entries.values()) this.dispose(entry.handle);
+    }
+  }
+  // Add references from the same capture (found by a text search) to the
+  // latest snapshot, only while its documents are unchanged.
+  async extend(page, targets, owner, signal) {
+    const snapshot = this.latest;
+    if (!snapshot || snapshot.page !== page || snapshot.owner !== owner || snapshot.session !== this.session || page.isClosed()) return false;
+    const state = this.page(page), revision = state.revision, entries = new Map();
+    try {
+      await this.resolveAll(page, state, [...new Set(targets)].filter(target => !snapshot.entries.has(target)), entries, signal);
+      const after = await this.documents(page);
+      if (this.latest !== snapshot || revision !== state.revision || JSON.stringify(after) !== JSON.stringify(snapshot.versions)) return false;
+      for (const [target, value] of entries) snapshot.entries.set(target, value);
+      return true;
+    } finally {
+      for (const [target, value] of entries) if (snapshot.entries.get(target) !== value) this.dispose(value.handle);
     }
   }
   async resolve(page, owner, target) {

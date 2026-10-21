@@ -232,27 +232,6 @@ test('Agent Work source downloads run through the host with authorization and re
   assert.deepEqual(receipt.map(item => [item.url, item.status, item.path]), [[url, 'downloaded', 'literature/enzyme.pdf']]);
 });
 
-test('academic discovery: inline planning and host search receipts through the academic recorder', async t => {
-  const ref = 'paper_' + 'a'.repeat(24);
-  const paper = { paper_ref: ref, title: 'EctD engineering', authors: ['A'], doi: '10.1000/ectd', abstract: 'Relevant abstract',
-    providers: [{ source: 'arxiv', paper_id: 'fixture' }], locations: [{ url: 'https://papers.example.org/ectd.pdf', kind: 'pdf_candidate' }] };
-  const host = async data => ({ desktopToolResults: (data.desktopToolCalls || []).map(call => ({ id: call.id, result: { version: 1, status: 'completed', papers: [paper] } })) });
-  const question = 'Find recent papers on EctD engineering.';
-  const run = await runTurn(t, {
-    prepare: async () => ({ payload: { mode: 'agent_instruction', originalRequest: question, messages: [{ role: 'user', content: question }],
-      desktopTools: { version: 1, academicVersion: 1, permission: 'read_only', projectId: 'loop-project' },
-      callContext: { turnId: 'academic-turn', callRole: 'answer', profile: 'medium' } }, host }),
-    respond: (request, index) => index === 1 ? { tool_calls: [
-      toolCall('plan_literature_search', { request_kind: 'topic', subtopics: ['EctD engineering'], synonyms: ['ectoine hydroxylase'], queries: ['EctD engineering', 'ectoine hydroxylase'] }, 'plan'),
-      toolCall('search_academic_papers', { query: 'EctD engineering', queries: ['ectoine hydroxylase'] }, 'search')] }
-      : { content: agentFinal('Found one relevant EctD engineering paper.') },
-  });
-  assert.deepEqual(run.boundaries[0].desktopToolCalls.map(call => call.name), ['search_academic_papers']);
-  const receipt = JSON.parse(run.requests[1].messages.find(message => message.tool_call_id === 'search').content);
-  assert.equal(receipt.papers[0].paper_ref, ref);
-  assert.equal(run.data.academicSources[0].paper_ref, ref);
-});
-
 test('the loop runs a whole step of host tools at once', async t => {
   const question = 'Check SurfDock, the other paper and the third paper.';
   const run = await runTurn(t, {
@@ -374,7 +353,7 @@ test('the production renderer runs a runtime turn on the loop: skills, MCP recei
     } });
   const body = { mode: 'agent_instruction', model: runtimeModel, originalRequest: question, messages: [{ role: 'user', content: question }], localWorkspaceContext,
     runtimeExtensions: { version: 1, skills: { catalog: 'review: Use selected evidence only.', active: [] }, genericSubagents: true, mcpTools: [fn('mcp_fixture_echo')] },
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'full_access', projectId: localWorkspaceContext.project.workspaceId },
+    desktopTools: { version: 1, literatureVersion: 1, permission: 'full_access', projectId: localWorkspaceContext.project.workspaceId },
     callContext: { turnId: 'renderer-local-turn', callRole: 'answer', profile: 'medium' } };
   const result = await sandbox.sendWorkbenchRequest({ ...body, runtimeQueue: queue });
   assert.match(result.reply, /Concise response/);
@@ -454,7 +433,7 @@ for (const inherited of [false, true]) test(`the production renderer runs a ${in
     } });
   const body = { mode: 'agent_instruction', model: runtimeModel, originalRequest: question, messages: [{ role: 'assistant', content: privateHistory }, { role: 'user', content: question }],
     localWorkspaceContext, runtimeExtensions: { version: 1, skills: { catalog: 'review: Use selected evidence only.', active: [] }, genericSubagents: true, mcpTools: [fn('mcp_fixture_echo')] },
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'full_access', projectId: localWorkspaceContext.project.workspaceId },
+    desktopTools: { version: 1, literatureVersion: 1, permission: 'full_access', projectId: localWorkspaceContext.project.workspaceId },
     callContext: { turnId: 'runtime-turn', callRole: 'answer', profile: 'medium' } };
   let completed = false;
   const pending = sandbox.sendWorkbenchRequest({ ...body, runtimeQueue: queue, onStream: event => events.push(event) }).then(result => { completed = true; return result; });

@@ -89,27 +89,35 @@ test('normalized targets still honor login and sensitive-field safeguards', asyn
   assert.deepEqual(f.actions, []); assert.deepEqual(f.lookups, []);
 });
 
-test('article capture shares normalization, captures once and retains hyperlink and URL restrictions', async t => {
+test('article capture shares normalization, captures once and retains hyperlink and URL restrictions', async () => {
   const transfers = [];
   const fetched = { bytes: Buffer.from('fixture'), contentType: 'application/pdf', resolvedUrl: 'https://example.org/paper.pdf' };
-  t.mock.method(sourceFetch, 'fetchSource', async url => { transfers.push(url); return fetched; });
+  // Captures download the observed link inside the browser session.
+  const browserTransfer = f => { f.browser.capture = async ({ url }) => { transfers.push(url); return fetched; }; };
   for (const target of equivalents) {
     const f = await referenceBrowserFixture(), count = transfers.length;
+    browserTransfer(f);
     assert.equal(await f.browser.captureArticle('job', target), fetched);
     assert.equal(transfers.length, count + 1);
+    assert.equal(transfers.at(-1), 'https://example.org/paper.pdf');
     assert.deepEqual(f.lookups, []);
     assert.deepEqual(f.actions, []);
   }
   const f = await referenceBrowserFixture(), count = transfers.length;
+  browserTransfer(f);
   f.elements.get('e45').href = null;
   await assert.rejects(f.browser.captureArticle('job', '[ref=e45]'), { code: 'ARTICLE_LINK_REQUIRED' });
   f.elements.get('e45').href = 'file:///private/article.pdf';
   await assert.rejects(f.browser.captureArticle('job', '[ref=e45]'));
+  f.elements.get('e45').href = 'https://sci-hub.se/10.1234/enzyme';
+  await assert.rejects(f.browser.captureArticle('job', '[ref=e45]'), { code: 'BLOCKED_SITE' });
   assert.equal(transfers.length, count);
   await assert.rejects(f.browser.captureArticle('job', 'latest_download'), { code: 'NO_OBSERVED_DOWNLOAD' });
-  f.browser.lastDownloads = ['https://example.org/paper.pdf'];
-  assert.equal(await f.browser.captureArticle('job', ' latest_download '), fetched);
-  assert.equal(transfers.length, count + 1);
+  f.browser.lastDownloads = [{ url: () => 'https://example.org/paper.pdf' }];
+  f.browser.readDownload = async () => ({ bytes: fetched.bytes, contentType: 'application/pdf' });
+  const latest = await f.browser.captureArticle('job', ' latest_download ');
+  assert.equal(latest.resolvedUrl, 'https://example.org/paper.pdf'); assert.deepEqual(latest.bytes, fetched.bytes);
+  assert.equal(transfers.length, count);
 });
 
 test('article capture skips malformed/stale targets, refreshes safely and preserves login interlocks', async t => {

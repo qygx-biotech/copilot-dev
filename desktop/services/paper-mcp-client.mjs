@@ -28,7 +28,9 @@ export class PaperMcpClient {
     if (this.starting) return this.starting;
     this.starting = (async () => {
       try { await access(this.command); } catch { throw error("PAPER_MCP_NOT_INSTALLED"); }
-      const transport = new StdioClientTransport({ command: this.command, args: this.args, stderr: "pipe", env: { PYTHONNOUSERSITE: "1", PYTHONDONTWRITEBYTECODE: "1" } });
+      // Only app-controlled settings reach the server: its contact address and an optional OpenAlex key.
+      const settings = Object.fromEntries(["BIODESIGN_CONTACT_EMAIL", "BIODESIGN_OPENALEX_API_KEY"].filter(name => process.env[name]).map(name => [name, process.env[name]]));
+      const transport = new StdioClientTransport({ command: this.command, args: this.args, stderr: "pipe", env: { PYTHONNOUSERSITE: "1", PYTHONDONTWRITEBYTECODE: "1", ...settings } });
       // Drain upstream diagnostics without putting paper text/URLs into application logs.
       transport.stderr?.resume();
       const client = new Client({ name: "biodesign-desktop", version: "1.0.0" }, { capabilities: {} });
@@ -53,8 +55,8 @@ export class PaperMcpClient {
   call(name, args, signal) {
     const run = async () => {
       if (signal?.aborted || this.closed) throw error("OPERATION_ABORTED");
+      if (!academic.isTool(name)) throw error("TOOL_NOT_ALLOWED");
       academic.validateInput(name, args);
-      if (academic.isWrite(name)) throw error("TOOL_NOT_ALLOWED");
       const client = await this.start();
       if (!this.validators.get(name)?.(args)) throw error("INVALID_ACADEMIC_INPUT");
       try {

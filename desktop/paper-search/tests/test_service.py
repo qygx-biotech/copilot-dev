@@ -69,6 +69,23 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('sci_hub', PROVIDERS)
         self.assertNotIn('ieee', PROVIDERS)
 
+    async def test_openalex_versions_ids_and_defaults(self):
+        from paper_search_mcp.academic_platforms.openalex import OpenAlexSearcher
+        from service import DEFAULT_PROVIDERS
+        raw = {'id': 'https://openalex.org/W2', 'title': 'Programmable editing of a target base in genomic DNA',
+               'doi': 'https://doi.org/10.1038/nature17946', 'publication_date': '2016-04-20',
+               'ids': {'pmid': 'https://pubmed.ncbi.nlm.nih.gov/27096365', 'pmcid': 'https://www.ncbi.nlm.nih.gov/pmc/articles/4873371'},
+               'open_access': {'is_oa': True}, 'locations': [
+                   {'landing_page_url': 'https://www.ncbi.nlm.nih.gov/pmc/articles/4873371', 'pdf_url': None, 'version': 'acceptedVersion', 'is_oa': True, 'license': 'other-oa'},
+                   {'landing_page_url': 'https://doi.org/10.1038/nature17946', 'pdf_url': None, 'version': 'publishedVersion', 'is_oa': False}]}
+        result = normalize(OpenAlexSearcher()._parse_item(raw))
+        self.assertEqual(result['identifiers'], {'pmid': '27096365', 'pmcid': 'PMC4873371'})
+        versions = {x['url']: (x.get('version'), x.get('is_oa')) for x in result['locations']}
+        self.assertEqual(versions['https://www.ncbi.nlm.nih.gov/pmc/articles/4873371'], ('accepted_manuscript', True))
+        self.assertEqual(versions['https://doi.org/10.1038/nature17946'], ('published', False))
+        self.assertEqual(DEFAULT_PROVIDERS[0], 'openalex')
+        self.assertNotIn('arxiv', DEFAULT_PROVIDERS)
+
     async def test_connector_string_dates_and_author_names_remain_structured(self):
         value = paper(source='hal')
         value.published_date = '2024'
@@ -110,7 +127,9 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         result = normalize(OpenAlexSearcher()._parse_item(raw))
         self.assertEqual(result['identifiers']['pmcid'], 'PMC9907219')
         self.assertTrue(result['access'][0]['is_open_access'])
-        self.assertIn('https://europepmc.org/articles/PMC9907219?pdf=render', [x['url'] for x in result['locations']])
+        # Bot-checked PDF endpoints are not advertised; the PMC article page is a landing location.
+        self.assertNotIn('https://europepmc.org/articles/PMC9907219?pdf=render', [x['url'] for x in result['locations']])
+        self.assertIn('https://pmc.ncbi.nlm.nih.gov/articles/PMC9907219/', [x['url'] for x in result['locations'] if x['kind'] == 'landing_page'])
         self.assertEqual(result['locations'][0]['url'], raw['locations'][0]['pdf_url'])
         self.assertIn('https://link.springer.com/a.pdf', [x['url'] for x in result['locations']])
 

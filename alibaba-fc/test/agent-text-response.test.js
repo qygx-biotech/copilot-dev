@@ -20,7 +20,7 @@ function setup(t, respond) {
   const send = async () => {
     const result = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({
       mode: 'agent_instruction', model, originalRequest: 'Reply in the requested format.', messages: [{ role: 'user', content: 'Reply in the requested format.' }],
-      desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'read_only', projectId: 'fixture' },
+      desktopTools: { version: 1, literatureVersion: 1, permission: 'read_only', projectId: 'fixture' },
     }) });
     assert.equal(result.statusCode, 200); return JSON.parse(result.body);
   };

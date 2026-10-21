@@ -5,6 +5,7 @@ import concurrent.futures
 import hashlib
 import importlib
 import json
+import os
 import re
 import threading
 import time
@@ -22,7 +23,12 @@ PROVIDERS = {
     'dblp': 'DBLPSearcher', 'openaire': 'OpenAiresearcher', 'citeseerx': 'CiteSeerXSearcher',
     'doaj': 'DOAJSearcher', 'zenodo': 'ZenodoSearcher', 'hal': 'HALSearcher', 'ssrn': 'SSRNSearcher',
 }
-DEFAULT_PROVIDERS = ['pubmed', 'europepmc', 'semantic', 'crossref', 'arxiv']
+# OpenAlex covers all disciplines and reports open-access locations with versions.
+# arXiv is requested explicitly for physics, mathematics and computing topics.
+DEFAULT_PROVIDERS = ['openalex', 'pubmed', 'europepmc', 'semantic', 'crossref']
+# The application's contact address for polite API use; never a user's address.
+CONTACT_EMAIL = os.environ.get('BIODESIGN_CONTACT_EMAIL') or 'biodesign-copilot@example.org'
+VERSION_NAMES = {'publishedVersion': 'published', 'acceptedVersion': 'accepted_manuscript', 'submittedVersion': 'preprint'}
 CONTEXT = threading.local()
 _request = requests.Session.request
 
@@ -34,6 +40,15 @@ def bounded_request(session, method, url, **kwargs):
     session.trust_env = False  # No netrc credentials, inherited proxies or .env configuration.
     kwargs['timeout'] = (5, 10)
     kwargs['stream'] = True
+    host = urlparse(str(url)).hostname or ''
+    if host == 'api.openalex.org':
+        # Identify the application; an optional key set by the desktop app raises the daily allowance.
+        params = dict(kwargs.get('params') or {})
+        params.setdefault('mailto', CONTACT_EMAIL)
+        if os.environ.get('BIODESIGN_OPENALEX_API_KEY'):
+            params['api_key'] = os.environ['BIODESIGN_OPENALEX_API_KEY']
+        kwargs['params'] = params
+        kwargs['headers'] = {**(kwargs.get('headers') or {}), 'User-Agent': f'BioDesign-Source-Downloader/1.1 (+mailto:{CONTACT_EMAIL})'}
     try:
         response = _request(session, method, url, **kwargs)
         chunks, size = [], 0
@@ -129,11 +144,27 @@ def normalize(paper):
     pmcid = str(extra.get('pmcid') or (native_id if provider == 'pmc' else '')).upper()
     if re.fullmatch(r'(?:PMC)?\d{1,12}', pmcid):
         identifiers['pmcid'] = 'PMC' + pmcid.removeprefix('PMC')
+    # OpenAlex lists identifiers as URLs; keep the bare PubMed and PMC IDs.
+    ids = extra.get('ids') if isinstance(extra.get('ids'), dict) else {}
+    pmid_url = re.search(r'(\d{1,12})/?$', str(ids.get('pmid') or ''))
+    if pmid_url and 'pmid' not in identifiers:
+        identifiers['pmid'] = pmid_url[1]
+    pmcid_url = re.search(r'(?:PMC)?(\d{1,12})/?$', str(ids.get('pmcid') or ''), re.I)
+    if pmcid_url and 'pmcid' not in identifiers:
+        identifiers['pmcid'] = 'PMC' + pmcid_url[1]
     locations = []
-    def add_location(url, kind):
+    def add_location(url, kind, version=None, is_oa=None, license_name=None):
         url = safe_url(url)
         if url:
-            locations.append({'url': url, 'kind': kind, 'provider': provider, 'verified_pdf': False})
+            location = {'url': url, 'kind': kind, 'provider': provider, 'verified_pdf': False}
+            # The source's own statement of the copy's version and access, when given.
+            if version in VERSION_NAMES:
+                location['version'] = VERSION_NAMES[version]
+            if isinstance(is_oa, bool):
+                location['is_oa'] = is_oa
+            if license_name:
+                location['license'] = str(license_name)[:100]
+            locations.append(location)
             pmcid = pmcid_from_url(url)
             if pmcid:
                 identifiers.setdefault('pmcid', pmcid)
@@ -141,18 +172,18 @@ def normalize(paper):
         add_location(data.get(field), kind)
     for item in (extra.get('locations') or [])[:30]:
         if isinstance(item, dict):
-            add_location(item.get('pdf_url'), 'pdf_candidate')
-            add_location(item.get('landing_page_url'), 'landing_page')
+            add_location(item.get('pdf_url'), 'pdf_candidate', item.get('version'), item.get('is_oa'), item.get('license'))
+            add_location(item.get('landing_page_url'), 'landing_page', item.get('version'), item.get('is_oa'), item.get('license'))
     full_text_urls = extra.get('full_text_urls') or []
     for item in full_text_urls if isinstance(full_text_urls, list) else [full_text_urls]:
         if isinstance(item, dict):
             add_location(item.get('url'), 'pdf_candidate' if item.get('documentStyle') == 'pdf' else 'landing_page')
     if identifiers.get('pmcid'):
         # PMC records can be free to read without belonging to the reusable OA subset.
-        # These are candidate endpoints, never a claim about license or PDF availability.
-        pmcid = identifiers['pmcid']
-        add_location(f'https://europepmc.org/articles/{pmcid}?pdf=render', 'pdf_candidate')
-        add_location(f'https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/pdf/', 'pdf_candidate')
+        # The article page is a landing location; its PDF endpoints answer scripts
+        # with a bot check, so the desktop host retrieves them through PMC's open
+        # data service or the library browser instead.
+        add_location(f"https://pmc.ncbi.nlm.nih.gov/articles/{identifiers['pmcid']}/", 'landing_page')
     access = extra.get('open_access') or {}
     is_oa = access.get('is_oa', extra.get('is_open_access')) if isinstance(access, dict) else None
     access_record = {'provider': provider, 'is_open_access': is_oa if isinstance(is_oa, bool) else None,
@@ -427,7 +458,8 @@ class PaperService:
                     for candidate in candidates:
                         if same_paper(record, candidate):
                             merge(record, candidate)
-            if not any(location_priority(x) == 0 for x in record['locations']):
+            # A PMC record is free full text already; no repository search is needed.
+            if not any(location_priority(x) == 0 for x in record['locations']) and not record.get('identifiers', {}).get('pmcid'):
                 queries = list(dict.fromkeys(x for x in [record['doi'], record['title']] if x))
                 candidates, repository_status = await self.collect(['europepmc', 'core', 'openaire', 'hal', 'pmc'], queries, 3, deadline=deadline)
                 statuses.update(repository_status)
@@ -435,5 +467,5 @@ class PaperService:
                     if same_paper(record, candidate):
                         merge(record, candidate)
             record['resolved_at'] = time.time()
-        return {'version': 1, 'status': 'completed' if any(x['kind'] == 'pdf_candidate' for x in record['locations']) else 'unavailable',
+        return {'version': 1, 'status': 'completed' if any(x['kind'] == 'pdf_candidate' for x in record['locations']) or record.get('identifiers', {}).get('pmcid') else 'unavailable',
                 'papers': [record], 'provider_status': statuses}

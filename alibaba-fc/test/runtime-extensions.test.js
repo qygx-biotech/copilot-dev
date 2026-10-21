@@ -49,7 +49,7 @@ async function setup(t, { surface = 'side_chat', permission = 'read_only', runti
   const body = { mode: surface === 'side_chat' ? 'side_chat' : 'agent_instruction', model, originalRequest: question,
     messages: [{ role: 'user', content: question }], localWorkspaceContext, runtimeExtensions,
     ...(surface === 'side_chat' ? { conversationTranscript: { version: 1, turns: [] } } : {}),
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission, projectId: localWorkspaceContext.project.workspaceId },
+    desktopTools: { version: 1, literatureVersion: 1, permission, projectId: localWorkspaceContext.project.workspaceId },
     callContext: { turnId: 'runtime-turn', callRole: 'answer', profile: 'medium' } };
   const post = async (input = body, authToken = token) => {
     const response = await agentChat.handler({ httpMethod: 'POST', path: '/chat', headers: { authorization: `Bearer ${authToken}` }, body: JSON.stringify(input) }, {});

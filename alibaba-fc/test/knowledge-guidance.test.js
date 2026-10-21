@@ -106,14 +106,15 @@ test('definitions and selection guidance reach the authenticated production main
 test('Agent Work acquisition receives consistent optional evidence guidance without requiring existing knowledge preparation', async () => {
   const question = 'Find papers on machine learning.';
   let calls = 0;
-  await agent.runSideChatAgent({ surface: 'agent_command', desktopAcademic: true, downloadPermission: 'read_only', projectToolsEnabled: true, supportsTools: true,
+  await agent.runSideChatAgent({ surface: 'agent_command', desktopLiterature: true, downloadPermission: 'read_only', projectToolsEnabled: true, supportsTools: true,
     model, turnId: 'guidance-acquisition', originalRequest: question, conversationMessages: [{ role: 'user', content: question }],
     workspaceContext: { localWorkspaceContext: { project: { workspaceId: 'guidance' }, agentLoop: { version: 1, academicAcquisition: true }, sourceMap: { paperSources: [], availableSourceTools: true } } },
     systemPrompt: 'Answer the request.', parseFinalAnswer: reply => ({ reply }), requestTurn: async request => {
       calls++; checkGuidance(request); const tools = checkTools(request);
-      assert.ok(tools.plan_literature_search); assert.ok(tools.search_academic_papers); assert.equal(tools.download_papers, undefined);
+      // Literature work is delegated; downloads are proposed through retrieve_papers and confirmed by the user.
+      assert.ok(tools.discover_papers); assert.ok(tools.retrieve_papers); assert.equal(tools.download_papers, undefined); assert.equal(tools.plan_literature_search, undefined);
       assert.match(request.messages.map(m => m.content).join('\n'), /does not require existing-PDF preparation/);
-      assert.doesNotMatch(request.messages.map(m => m.content).join('\n'), /Existing ingestion runs on the next request/);
+      assert.match(request.messages.map(m => m.content).join('\n'), /one-click confirmation card/);
       return { ok: true, message: { content: 'No search has been performed in this controlled test.' } };
     }
   });

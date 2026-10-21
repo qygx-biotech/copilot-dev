@@ -396,11 +396,12 @@ app.on("activate", () => {
 
 app.on("before-quit", (event) => {
   updaterController?.stop();
-  if (!sessionManager?.active) return;
+  // The library browser outlives projects, so it is closed here even with no project open.
+  if (!sessionManager?.active && !sessionManager?.browser) return;
   event.preventDefault();
   const manager = sessionManager;
   sessionManager = null;
-  manager.close().finally(() => app.quit());
+  manager.shutdown().finally(() => app.quit());
 });
 
 app.on("window-all-closed", () => {

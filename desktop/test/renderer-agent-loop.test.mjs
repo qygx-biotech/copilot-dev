@@ -225,7 +225,7 @@ test("Agent Work runtime interaction, approvals and steering run on the agent lo
       return { content: "Run strain A; scratch analysis was approved." };
     };
     const body = { mode: "agent_instruction", model, originalRequest: question, messages: [{ role: "user", content: question }], localWorkspaceContext,
-      desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: "workspace_write", projectId: localWorkspaceContext.project.workspaceId },
+      desktopTools: { version: 1, literatureVersion: 1, permission: "workspace_write", projectId: localWorkspaceContext.project.workspaceId },
       callContext: { turnId: "renderer-agent", callRole: "answer", profile: "medium" } };
     runs[name] = await runTurn(t, { body, service: fixture.service, selected: fixture.selected, token, baseUrl, queue, interaction,
       workflows: (workflowId, input) => {
@@ -272,7 +272,7 @@ async function projectExecutionTurn(t, advancedWorkflow, { plan = false, task = 
     : round === 2 ? { content: null, tool_calls: [toolCall("exec_command", { cmd: command, yield_time_ms: 5000 }, "run")] }
       : { content: "Wrote output/report.md." };
   const body = { mode: "agent_instruction", model, originalRequest: question, messages: [{ role: "user", content: question }], localWorkspaceContext,
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: "workspace_write", projectId: localWorkspaceContext.project.workspaceId,
+    desktopTools: { version: 1, literatureVersion: 1, permission: "workspace_write", projectId: localWorkspaceContext.project.workspaceId,
       ...(plan ? { collaborationMode: "plan" } : {}) },
     ...(task ? { outputTask: task } : {}),
     callContext: { turnId: "project-run", callRole: "answer", profile: "medium" } };

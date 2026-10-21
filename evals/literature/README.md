@@ -1,28 +1,50 @@
-# Literature acquisition benchmark
+# Literature benchmarks
 
-Run from the repository root with the supported Node 22–24 runtime. The four representative requests cover broad AI/synthetic-biology coverage, narrow enzyme-method comparison, Chinese date-constrained retrieval, and sparse evidence where the requested count cannot be met. The suite freezes requests and criteria; it does not impose those topics on production users.
+Two model-free checks for the literature pipeline. Run from the repository root
+with Node 22–24 after `npm run paper:build`.
 
 ```sh
-npm run eval:literature -- --mode=replay --out=/tmp/literature-replay
-npm run paper:build
+npm run eval:literature -- --mode=retrieval --out=/tmp/literature-retrieval
+npm run eval:literature -- --mode=retrieval --headed --proxy=https://ezproxy.example.edu/login?url= --out=/tmp/with-proxy
 npm run eval:literature -- --mode=collect --out=/tmp/literature-collection
-npm run eval:literature -- --mode=live --model=YOUR_CONFIGURED_MODEL --out=/tmp/literature-live
 ```
 
-Replay exercises the production Agent harness with synthetic records and scripted model decisions. It verifies planning, shortlist gating, pagination, dates, recovery, honest partial completion and metric plumbing. Its relevance scores describe the controlled fixtures, not live LLM quality; downloads are simulated and latency is local test overhead. No paid model is called.
+**Retrieval** runs the production host retrieval sequence (`LiteratureWorkflows`:
+local PDFs → official open copies → publisher pages in the library browser) on the
+frozen DOI set in `cases.mjs` (`retrievalDois`), or on `--dois=a,b,c`. Metadata
+comes from OpenAlex, as discovery would hand it over. The report lists each
+paper's host-verified status, route, version and time, the access request the job
+would show, and a summary (`score.mjs`). Chrome runs headless unless `--headed`;
+headless Chrome is flagged by some bot checks that a visible window passes.
+`--library-url` and `--proxy` set library access as the app's settings would.
+Results depend on the network: an institutional network reaches subscription PDFs
+without any sign-in.
 
-Collect runs the rebuilt local stdio MCP against anonymous public providers. It executes the predeclared complementary query plan and one cached next page, recording candidate metadata, per-provider status, collection/page latency, query coverage and deduplicated counts. It makes no LLM calls and performs no downloads. This separates provider behavior from model quality and cost.
+**Collect** runs the four predeclared search plans through the local paper MCP and
+one cached next page, recording candidates, provider status and latency.
 
-Live uses the production Agent harness, local MCP and Electron download workflow, with an actual model selected by `--model`. It requires `REQUESTY_API_KEY` in the environment; it never reads credential files or prints credentials. The key is for the existing LLM transport, not a paper provider. Public benchmark requests and metadata are sent to that model. PDFs are saved in an isolated temporary project whose path is recorded in the report. The live model receives neither fixture selections nor gold labels. Use `--case=ai-synthetic-biology` to bound a live run to one request. Existing Agent and paper I/O budgets apply.
+Neither mode calls a model or records relevance judgments. Model behavior is
+covered by `alibaba-fc/test/literature-*.test.js` with scripted models.
+`RESULTS-2026-09-13.md` documents the earlier, removed `download_papers` route.
 
-`report.json` contains observations and raw tool results. Keep baseline and candidate reports in separate new directories, using the same model, prices, request suite and repeat count. Anonymous provider responses vary; record run dates and compare repeated cold runs rather than treating one run as a speed or quality guarantee. Frozen tool transcripts can support review without re-querying providers.
+## Model-in-the-loop bridge
 
-Metrics include shortlist relevance precision, topic coverage, duplicate rate, saved/attempted download rate, wall/search/model latency, model calls and observed input/output tokens. Relevance and coverage stay `null` until every shortlisted DOI (or handle when DOI is absent) has a reviewed label. Do not use the selector's own relevance scores as gold. Supply `--judgments=FILE` for a live run, or rescore a saved report without calling providers:
+`model-bridge.cjs` runs one Agent Work turn through the production renderer turn
+code, agent loop, FC model proxy, literature host, paper MCP and Chrome, with the
+model replaced by a loopback HTTP queue. Whoever stands in for the model reads each
+request with `GET /pending` and answers with `POST /respond`. The confirmation card
+is approved automatically; `WAIT_MODE=continue` also continues access dialogs.
 
 ```sh
-node evals/literature/rescore.mjs --report=/tmp/literature-live/report.json --judgments=/tmp/reviewed-labels.json --out=/tmp/literature-scored.json
+QUERY="Find 3 recent papers on machine-learning-guided enzyme engineering and download them." \
+  node evals/literature/model-bridge.cjs
+LIBRARY='{"url":"https://library.example.edu","proxy":"https://ezproxy.example.edu/login?url="}' WAIT_MODE=continue \
+  QUERY="Download doi 10.1126/science.1225829." node evals/literature/model-bridge.cjs
 ```
 
-Judgment format: `{ "case-id": { "10.example/doi": { "relevant": true, "topics": ["exact topic from cases.mjs"] } } }`. Review titles and abstracts against the original request, publication dates and topic criteria. Record excluded and uncertain cases as well as selected papers; double-review disagreements when comparing models. Missing labels are unknown, not irrelevant. Empty shortlists have undefined precision. A sparse but relevant shortlist may have high precision and low coverage/completion; inspect all metrics together.
-
-For token-based estimates, pass `--input-usd-per-million=NUMBER --output-usd-per-million=NUMBER` to live or rescore. Rates must come from the model configuration being evaluated. Incomplete usage leaves cost unknown. These are estimates, not billing invoices; no price is inferred from text length, latency or a model's name. Provider-query jobs, download attempts, and model calls are distinct counters.
+The log (`BRIDGE_LOG`, default in the temporary directory) records every model
+answer, host step, card, access dialog and the final outcome. On 2026-10-14 a
+Claude Haiku stand-in completed both flows above: three open-access papers
+discovered and saved (5 model calls, 124 s), and, for two named papers behind
+publisher bot checks in headless Chrome, three access rounds followed by catalogue
+browsing in the library and an accurate report that both still needed a check.

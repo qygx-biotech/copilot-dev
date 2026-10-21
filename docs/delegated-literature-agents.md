@@ -1,207 +1,190 @@
-# General agent and delegated literature work
+# Finding and downloading papers in Agent Work
 
-The desktop advertises `desktopTools.literatureVersion = 1`. The existing main
-agent then chooses ordinary project tools, general web search, a direct answer,
-or the new `discover_papers` / `retrieve_papers` operations. There is no compulsory
-intent-classification inference. Older clients retain the existing academic
-workflow. The main agent still owns the final user answer/report.
+The desktop advertises `desktopTools.literatureVersion = 1`. The main agent then
+chooses ordinary project tools, general web search, a direct answer, or two
+literature tools:
 
-## Components and boundaries
+- `discover_papers` hands discovery to a search specialist with its own context.
+- `retrieve_papers` downloads selected papers. The host runs a fixed retrieval
+  sequence for every paper; a model is involved only at the end, for library
+  catalogue browsing, and only when the user configured a library page.
+
+The main agent owns the final answer. The former `download_papers` academic route
+and its planning/shortlist modules were removed; the paper MCP's read-only tools
+now serve only the discovery specialist.
+
+## Components
 
 | File | Responsibility |
 | --- | --- |
-| `shared/agent-prompts.js` | Reusable general, discovery, retrieval, and browser instructions |
-| `shared/literature-agent.js` | Task/result JSON schemas, validation, identity normalization and deduplication |
-| `alibaba-fc/literature-specialist.js` | Bounded specialist model loop and separate messages |
-| `alibaba-fc/side-chat-agent.js` | General main-loop delegation and compact result integration |
-| `alibaba-fc/agent-continuation.js` | Existing signed handoff, extended to specialist receipts |
-| `desktop/services/literature-workflows.mjs` | Host authorization, jobs, budgets, routes, receipts and checkpoints |
-| `desktop/services/playwright-mcp-client.mjs` | Local MCP lifecycle, browser ownership, runtime schemas and filtered observations |
-| `desktop/services/paper-verification.mjs` | PDF parsing, identity/version checks and hashes |
-| `desktop/workers/pdf-verification-worker.mjs` | Isolated parser with a time and memory bound |
-| `docs/literature-login.js` | Login handoff and persisted-job UI |
+| `shared/agent-prompts.js` | Main, discovery, retrieval and browser instructions |
+| `shared/literature-agent.js` | Task/result schemas (up to 20 papers per retrieval), validation, identity normalization |
+| `shared/agent/literature-specialist.js` | Discovery model loop; deterministic retrieval driver; bounded library browsing |
+| `shared/agent/side-chat-agent.js` | Exposes the two tools, integrates results, one completion check |
+| `desktop/services/literature-workflows.mjs` | Host jobs, receipts, the per-paper retrieval sequence, access rounds |
+| `desktop/services/open-access-sources.mjs` | Official open-access lookups: PMC open data, arXiv, bioRxiv, OpenAlex, Unpaywall, NCBI ID converter, DOI registry |
+| `desktop/services/paper-acquisition.mjs` | Direct HTTP stage: candidates, publisher `citation_pdf_url`, browser targets |
+| `desktop/services/browser-article-capture.mjs` | Scripted capture in the library browser: sign-in, check and paywall detection, PDF download |
+| `desktop/services/playwright-mcp-client.mjs` | Shared library browser, profiles, navigation guard, snapshots, model-directed tools |
+| `desktop/services/paper-verification.mjs` | PDF parsing, identity and version receipts |
+| `shared/source-fetch.js`, `shared/cookie-jar.js` | Bounded public HTTP transport with an optional per-session cookie jar |
+| `docs/literature-login.js` | Library settings, download confirmation card, sign-in/check dialog |
 
-The model remains behind the existing backend/provider boundary. Specialists use
-the same `requestTurn` closure and selected model. They cannot access provider
-credentials. Browser snapshots stay in specialist messages within signed
-continuations; only validated compact outcomes enter the main model context.
-Specialist prose is not streamed as a main-agent answer. Existing model capability
-checks apply; unsupported tool calling does not trigger a model substitution.
+## What the user does
 
-Playwright MCP is embedded through its `createConnection` API, connected to an
-SDK client using `InMemoryTransport`. This is a real local MCP server/client
-connection, without an HTTP listener or a renderer-accessible browser endpoint.
-The Electron host owns the Playwright `BrowserContext` through `contextGetter`.
-The browser service is general purpose; literature-specific task policies are in
-the host workflow. No arbitrary JavaScript, network headers, cookies, filesystem
-operations or page-registered WebMCP tools are exposed to workers.
+1. Asks in Agent Work, for example "find recent papers on X and download the best five".
+2. The first time literature work runs for an account, chooses library access once:
+   a library website (for catalogue browsing) and, optionally, a proxy prefix such
+   as EZproxy's `https://ezproxy.example.edu/login?url=`. "Continue without
+   library" is also remembered. Change it later under **Account → Library URL**.
+3. Confirms the download card that lists the papers. In Read-only mode the card
+   offers **Switch to Workspace write and download**; that switches the
+   conversation's mode. "Not now" ends the retrieval without failing the turn.
+4. Only if a site needs it: signs in to the university, or completes a "verify you
+   are human" check, in the separate library browser window. All waiting papers are
+   gathered into one request; each site has its own open tab, and the download
+   continues automatically when the tabs clear (or on **Continue after sign-in**).
 
-## Setup and behavior
+Download consent is the card, not the wording of the request. Plan mode never
+offers `retrieve_papers`.
 
-The sidebar's bottom-left **Account → Library URL** control opens a centered
-editor. The saved URL is local to the current application account on this device;
-users can edit it or clear it with Save. English and Chinese dialog copy is
-supported. At the first literature delegation of each new request, the renderer
-pauses before starting a host job and displays the saved URL with **Save and
-continue**, **Continue without library**, and **Cancel**. Later delegations in
-that request reuse the choice. Skipping applies to that request and preserves
-the saved preference. Cancelling stops the request. Ordinary non-literature
-requests do not show this prompt.
+## Retrieval sequence (per paper, no model calls)
 
-The host requires an explicit library choice for new jobs. An empty choice
-disables browser/institutional tools, requests open-access preference from paper
-providers, and filters discovery records to provider-confirmed open access or
-recognized public repositories. Records without evidence are omitted with a
-coverage limitation. Public search providers may still search mixed metadata
-indexes before this host filtering. Web search is scoped to open-access full
-text, and uncorroborated/non-repository web candidates are omitted. This explicit
-user choice overrides broad discovery for that job. Saved jobs retain their
-original access choice when resumed; changing the account URL affects new jobs.
-The URL-setting change passed 116 focused backend/host tests and 165 checks in
-the actual Electron renderer, including save/reopen, invalid input, waiting,
-skip and cancellation. The renderer build and syntax checks also passed.
+1. **Local copy.** In-scope project PDFs are parsed once per job and checked
+   against every requested paper (`already_present`).
+2. **Identity.** A paper without a DOI is looked up by exact title through the
+   paper MCP.
+3. **Official open copies** (`open-access-sources.mjs`): PMC's open-data bucket
+   (its JSON states whether the copy is an author manuscript), arXiv, the bioRxiv/
+   medRxiv API, and OpenAlex and Unpaywall locations with their declared versions.
+   Preprint servers are always labeled `preprint`. Single-DOI lookups are cached
+   for 30 minutes and spaced per host.
+4. **Direct HTTP stage** (`paper-acquisition.mjs`): candidates in version order
+   (published, accepted manuscript, unknown, preprint), then the publisher page
+   resolved through the DOI registry and its `citation_pdf_url`. A session cookie
+   jar, up to 10 redirects, gzip/deflate/br and standard TLS ALPN are used with the
+   app's downloader name (`BioDesign-Source-Downloader/1.1`). Supplementary files
+   are never candidates. Hosts that answer scripts with bot checks or 403s
+   (PMC and Europe PMC web pages, ScienceDirect/Cell, Wiley, OUP, Science, PNAS, …)
+   are not fetched here; they become browser targets. A PDF that fails
+   verification does not stop the sequence.
+5. **Library browser stage** (`browser-article-capture.mjs`): up to four targets
+   per paper, version of record first and bot-checked repositories last. Publisher
+   pages open through the proxy prefix when one is set. The host reads the
+   article's own PDF declaration (or Atypon `pdfdirect`/`?download=true`
+   variants), Chrome downloads the file (`plugins.always_open_pdf_externally`),
+   and the host verifies it. Sign-in pages and human checks are detected and the
+   paper is deferred; later papers on a site that is already waiting are not
+   visited again in that round. Without library access a sign-in page leaves the
+   paper `unresolved`; human checks are still offered.
+6. **Access round.** After every paper ran once, the driver issues
+   `request_access` (at most three rounds). The renderer shows one dialog naming
+   every waiting site and polls `await_attention`, which watches the waiting tabs.
+   After the user acts, the deferred papers run their browser routes again.
+7. **Library catalogue browsing** (only with a library website, only for papers
+   still missing): the browser opens the library page and the retrieval specialist
+   model gets a summary of the remaining papers, browser tools and
+   `capture_article`. It is bounded to 20 model turns, then finishes. Element
+   references are valid only for the latest page, so earlier full snapshots in
+   this conversation are replaced by a short note before each model turn.
+8. `finish_retrieval` returns host receipts. The main agent receives each paper's
+   outcome with its last four attempts; the full receipt stays in
+   `.biodesign/literature-jobs/`.
 
-Install repository dependencies normally. `@playwright/mcp` is pinned to `0.0.83`,
-including its exact Playwright alpha dependencies. Development still uses the
-existing `paper:build` / `desktop:dev` scripts for the paper MCP executable. The
-browser currently uses an installed Google Chrome (`channel: chrome`); it does
-not install browsers or attach to the user's everyday profile. A missing Chrome
-or unavailable paper MCP produces an explicit limitation while other supported
-routes remain usable.
+Verified files go to `literature/` (or the task destination) with provenance
+sidecars and `ingestion: pending`; unverified PDFs are quarantined under
+`.biodesign/literature-unverified/`.
 
-Sessions are headed by default. `ProjectSessionManager` accepts
-`browserHeadless: true` for controlled deployments after authentication permits
-it. Profiles live in the application's cache under `library-browser/<project
-hash>/profile`, outside the research project. The profile root is created with
-owner-only permissions. Closing the project closes its browser and MCP services.
-The service has one exclusive worker owner per session, including observation
-and navigation. Login pauses retain that ownership. Other workers receive a
-busy/unavailable limitation instead of operating the same tabs.
+## Verification
 
-Users enter university credentials/MFA directly in Chrome. Auth pages and frames
-are withheld from snapshots; input values, URL queries/fragments and common
-secret patterns are removed from returned observations. Network/console/storage
-tools are absent. Login produces a persisted `needs_login` checkpoint and a
-dialog with Continue and Cancel controls. Continue rechecks the library or
-requested-paper URL before resuming. `Library jobs` also lists unfinished jobs
-after restart; Resume starts a fresh signed model flow with the original task,
-model, permission and local source scope. It does not replay stale element refs.
-The existing signed continuation expiry remains 15 minutes: after an unusually
-long login pause, use the saved-job Resume action to obtain a fresh continuation.
+Identity is accepted when the PDF text or metadata carries the requested title
+(exact, spacing-insensitive for text-layer splits such as "ff 14SB", or with number
+words normalized, "three-track" ↔ "3-track") together with the DOI, or the
+first page/metadata carries the paper's own DOI with an author or most title
+words, or the title matches with an author (and year for token matches).
+A cited DOI in references alone, and one- or two-page correction or retraction
+notices, are not identity. The version comes from the supplying source when it
+declares one, otherwise from first-page wording, otherwise from the route (a
+publisher's own PDF is the version of record). Receipts record `version_basis`
+and `title_match`.
 
-Discovery can use local paper MCP, provider-supported general web search, and
-library pages. It cannot call retrieval tools. Paper MCP and browser tool schemas
-come from runtime `listTools`; their inputs are validated locally. Discovery
-preserves original host metadata, corroborates browser/web candidates against
-observations, and separates relevance from availability. Metadata/abstracts are
-not reported as verified full-text evidence. Provider failures are coverage
-limitations, not proof that a paper does not exist.
+## Library browser
 
-Retrieval checks up to 100 in-scope local PDFs, then reuses the public resolver
-and acquisition pipeline, then permits institutional navigation. Exact requested
-identities and accepted document versions remain fixed. The host requires the
-existing workspace write permission and explicit download authorization derived
-from the original user request; a report request is insufficient. A hard empty
-source selection does not become permission to read all files.
+`ProjectSessionManager` owns one browser for the application: it survives project
+switches (keeping session sign-ins) and is closed when the app quits. Each
+account uses its own Chrome profile (`library-browser/<account key>/profile`),
+selected with a hash of the app account. Downloads are accepted into Playwright's
+temporary artifacts directory; only the host reads, verifies and saves them.
 
-Browser automatic downloads are disabled (`acceptDownloads: false`) in both
-specialists. `capture_article` can transfer an observed hyperlink, or
-`target: "latest_download"` for the latest observed browser download event.
-Its authenticated GET uses browser cookies only inside the local host and
-recomputes cookies per redirect origin. The existing fetcher enforces public
-targets, DNS pinning, redirect/time/byte bounds. It never sends cookies to the
-model or stores them in article metadata. Links that yield HTML, a resolver,
-or a login page remain unresolved until further navigation establishes a PDF.
-`browser_pdf_save` is never exposed or used.
+The navigation guard allows library proxy ports but blocks local, private and
+metadata addresses, URLs with credentials, and shadow-library sites (Sci-Hub,
+LibGen, Anna's Archive, Z-Library). Only navigations are DNS-checked; page
+subresources are checked by URL. A detached frame, slow navigation or other page
+event no longer closes the browser; only a closed or disconnected browser ends the
+session. Snapshots shown to a model are capped at 60,000 characters with actionable
+lines and headings kept first; `browser_find` searches the full capture and
+registers the references it returns. Only actionable lines carry references.
 
-The host parses PDFs in a worker, rejects HTML and malformed files, computes a
-SHA-256 hash, and checks DOI plus title or title/author/year evidence. Document
-version is conservative: explicit first-page signals identify a published,
-accepted-manuscript or preprint version; otherwise it is `unknown`. Success
-requires a verified identity and an accepted version. Unverified PDFs are saved
-under `.biodesign/literature-unverified/` and excluded from ordinary source
-ingestion. Verified files use the existing confined source writer and provenance
-sidecars. They have `ingestion: pending`; the normal next-request preflight picks
-them up. Existing verified local files have `already_present`, not a new-download
-claim. No retrieval outcome claims the paper has been scientifically analyzed.
+## Discovery
 
-Jobs and idempotent execution receipts live under `.biodesign/literature-jobs/`.
-Reusing a receipt ID with different arguments is rejected. Checkpoints keep the
-paper position, attempts and completed receipts; credentials and live element
-handles are not persisted as reusable browser state. Resume validates the saved
-task, selected model, permissions and source paths. Cancellation interrupts the
-active fetch/parser/browser action and persists a cancelled state.
+Discovery uses the paper MCP (default providers OpenAlex, PubMed, Europe PMC,
+Semantic Scholar and Crossref; arXiv when requested), optional model web search,
+and the library catalogue in the browser when a library website is configured.
+Without library access, candidates without open-access evidence are marked
+(`open_access_evidence: false`), not omitted. The discovery specialist has no hard
+turn cap by design; its results are handed to the main agent as authored.
 
-## Bounds and outcome meanings
+## Bounds
 
-- Main loop: existing eight iterations / 24 tool calls.
-- Specialist: 24 model turns / 36 calls / 12-minute wall-clock limit; only one
-  function per specialist turn. A 250,000-character context limit terminates with
-  a partial host result instead of silently dropping observations.
-- Host job: four minutes of active execution, 36 steps, 18 page-changing
-  operations, ten acquisition attempts, five selected papers per retrieval task.
-- Provider web discovery: at most three model-selected searches per specialist.
-- Article transfer: 32 MiB / 45 seconds for institutional transfers; public
-  acquisition retains its existing bounded multi-location resolver.
-- PDF parser: 20 seconds, 256 MiB worker heap and at most 1,000 pages.
-- Source outcomes: `already_present`, `downloaded`, `needs_login`,
-  `access_unavailable`, `unresolved`, `downloaded_unverified`, `failed`, `cancelled`.
-  `access_unavailable` requires an explicit observed restriction; an unfamiliar
-  language or a failed link alone yields `unresolved`.
+- Retrieval: 20 papers per call; 75 s direct stage per paper; 4 browser targets
+  per paper; 60 browser captures per job; 3 access rounds; 20 library-browsing turns.
+- Browser capture: 30 s navigation, 8 s for an automatic check to clear, 32 MiB.
+- Model-facing results: 150,000 characters (observations are shortened, not failed).
+- PDF parser: 20 s, 256 MiB worker heap, 1,000 pages.
 
-## Confirmed interfaces and verification
+## Measurements (2026-10-14, Columbia network, no library configured, headless Chrome)
 
-The original ignored `playwright-mcp/` checkout was inspected in the primary
-workspace: README, package/config/type declarations, CLI, source-location note,
-and CLI/core/click/capability/library/client fixtures. It is a wrapper around
-`playwright-core/lib/coreBundle`. The installed pinned package was then exercised,
-so implementation does not depend on assumptions about upstream `main`.
+Fifteen DOIs across PLOS, BMC, Nature, Cell, Science, PNAS, OUP, ACS, Wiley,
+bioRxiv and arXiv, through the production host (`literature_worker`), no model:
 
-Confirmed against the pinned runtime:
+| Outcome | Before | Now |
+| --- | --- | --- |
+| Verified PDF saved | 3 of 14 | 11 of 15 |
+| Wrong file saved (supplementary PDF) | 2 | 0 |
+| Waiting for a one-time human check (Cell, Science, PNAS, Wiley) | — | 4, in one request naming the four sites |
+| Total time | — | 146 s (open copies 1–4 s each) |
 
-- `createConnection(config, contextGetter)` and SDK in-memory transport.
-- Runtime `listTools`, JSON Schema **2020-12**, and tool input validation.
-- Snapshot `[ref=eN]` values are passed as **`target`**, not `ref`.
-- `browser_snapshot`, `browser_type`, navigation, click, tabs, select, find and
-  wait interfaces. Unsafe code exists upstream but is filtered out locally.
-- Real headless Chrome fixture with Chinese labels, semantic typing, password
-  page suppression, and the Continue-after-sign-in dialog.
-- Actual PDF parsing of a generated valid PDF and malformed-PDF rejection.
+Headless Chrome is flagged by Cloudflare; in the default visible window Wiley
+downloaded without any check, while Science and PNAS still asked for one.
 
-Tests cover the production renderer request wrapper, authenticated backend,
-selected-model specialist dispatch, signed continuations, host checkpoints,
-main-context isolation, authorizations, source scope, quarantine, deduplication,
-login/resume and cancellation. Browser tests use an in-memory HTML fixture:
+With a Claude Haiku model standing in through `evals/literature/model-bridge.cjs`
+(production renderer, loop, host, paper MCP and Chrome): a topic request ran
+discovery, the card, and retrieval of three open-access PDFs in 5 model calls and
+124 s; a request for two papers behind bot checks ran three access rounds, then
+catalogue browsing in Columbia's CLIO, and the final answer reported both papers as
+waiting for a website check.
+
+## Verification commands
 
 ```sh
-node alibaba-fc/scripts/sync-shared.mjs
+node --test desktop/test/paper-acquisition.test.mjs desktop/test/source-session.test.mjs desktop/test/literature-retrieval.test.mjs
+node --test desktop/test/literature-workflows.test.mjs desktop/test/literature-receipts.test.mjs desktop/test/literature-ownership.test.mjs
 node --test alibaba-fc/test/literature-*.test.js
-node --test desktop/test/literature-workflows.test.mjs desktop/test/playwright-mcp.test.mjs
-PLAYWRIGHT_MCP_SMOKE=1 node --test desktop/test/playwright-mcp.test.mjs
+PLAYWRIGHT_MCP_SMOKE=1 node --test desktop/test/playwright-mcp.test.mjs desktop/test/browser-capture.test.mjs
 ```
 
-## Remaining integration limits
+## Limits
 
-No real university catalogue, institutional SSO/MFA, subscription entitlement,
-campus VPN, publisher download or live model inference was tested. Those require
-site-specific validation with authorized accounts. Browser DNS routing checks
-are guardrails, not an OS network sandbox. Screenshot/coordinate tools are not
-enabled in this initial text-based worker; inaccessible canvas/scanned interfaces
-return limitations. The article transfer path supports authenticated GET;
-POST-only exports, browser-bound tokens and DRM viewers may remain unresolved.
-No OCR is performed, so scans without extractable identity text are unverified.
-Version and identity checks are deliberately conservative and do not replace a
-publisher metadata adapter. Session auth heuristics may require the user to close
-an obsolete login tab or navigate back to the catalogue before resuming.
-
-Final focused tests under Electron's Node 24.18.1 passed: 27 passing, one opt-in
-Chrome fixture skipped. The separate real Chrome run passed all three browser/
-parser tests. Renderer synchronization/build and `git diff --check` passed.
-The broader backend and relevant desktop regression run had 1,125 passing,
-five skips and three failures in existing `alibaba-fc/test/security-boundaries.test.js`.
-All three failures were reproduced from an unchanged archive of the branch base
-under the same Electron runtime. A separate desktop security scan also rejects
-an official provider documentation URL already present in unchanged
-`docs/sidechat-direct-agent-loop.md`. These existing failures remain unresolved;
-the full suite is not claimed green. No deployment, publishing, production login
-or remote browser connection was performed.
+- Sites protected by Cloudflare or reCAPTCHA may ask the user to complete a check
+  in the visible window; the app does not try to defeat these checks. PMC's
+  "Preparing to download" proof-of-work page is handled only by the browser.
+- No real university single sign-on was exercised in automated tests; sign-in
+  handling is covered with fixtures and the classification of real pages.
+- The proxy prefix must be the library's own (EZproxy `login?url=`,
+  `login?qurl=`, or an OpenAthens redirector).
+- Author manuscripts that PMC provides only as XML or text are not converted to PDF.
+- No OCR: scanned PDFs without extractable identity text are quarantined.
+- The contact address sent to OpenAlex, Unpaywall and NCBI defaults to a
+  placeholder (`biodesign-copilot@example.org`); set the application's support
+  address with `BIODESIGN_CONTACT_EMAIL`. `BIODESIGN_OPENALEX_API_KEY` raises the
+  OpenAlex daily allowance.

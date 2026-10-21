@@ -223,67 +223,6 @@ scenario({
   },
 });
 
-const paperRef = 'paper_' + 'a'.repeat(24);
-const paper = { paper_ref: paperRef, title: 'EctD engineering', authors: ['A'], doi: '10.1000/ectd', abstract: 'Relevant abstract',
-  providers: [{ source: 'arxiv', paper_id: 'fixture' }], locations: [{ url: 'https://papers.example.org/ectd.pdf', kind: 'pdf_candidate' }] };
-scenario({
-  name: 'academic search and download',
-  setup: async ({ t, run }) => {
-    const { ProjectFilesystem } = await import('../../desktop/services/project-filesystem.mjs');
-    const { LocalExecutionService } = await import('../../desktop/services/local-execution-service.mjs');
-    const { registerAcademicWorkflows } = await import('../../desktop/services/academic-workflows.mjs');
-    const root = await temporaryDirectory(t, 'academic');
-    const filesystem = await ProjectFilesystem.open(root);
-    const active = { execution: new LocalExecutionService(), sourceDownloads: new AbortController() };
-    registerAcademicWorkflows(active, { call: async () => ({ version: 1, status: 'completed', papers: [paper] }) }, () => true,
-      { fetchSource: async url => ({ bytes: Buffer.from('%PDF-1.7\nfixture'), contentType: 'application/pdf', resolvedUrl: url }) });
-    const workspace = new SyncWorkspace(); workspace.workspace.workspaceId = 'project-1';
-    const f = await createFixture({ workspace, cardFailure: () => true });
-    f.workspace.set('literature/existing.pdf', 'An existing PDF with no Paper Card');
-    const service = new ProjectContextService({ workspace: f.workspace, literature: f.literature, sourceSystem: f.system, requestPipeline: f.pipeline });
-    const question = 'Search EctD and download 1 relevant PDF';
-    const context = await service.buildContext({ surface: 'agent_command', turnId: 'academic-turn', question, callContext: { model } });
-    run.root = root;
-    return { service, workflow: (id, input) => active.execution.run(id, input, { filesystem }),
-      body: { mode: 'agent_instruction', originalRequest: question, messages: [{ role: 'user', content: question }], localWorkspaceContext: context,
-        desktopTools: { version: 1, academicVersion: 1, permission: 'workspace_write', projectId: 'project-1' },
-        callContext: { turnId: 'academic-turn', callRole: 'answer', profile: 'medium' } } };
-  },
-  respond: (request, index) => {
-    if (index === 1) return { tool_calls: [toolCall('plan_literature_search', { request_kind: 'topic', subtopics: ['EctD engineering'], synonyms: ['ectoine hydroxylase'],
-      queries: ['EctD engineering', 'ectoine hydroxylase'] }, 'plan'), toolCall('search_academic_papers', { query: 'EctD engineering', queries: ['ectoine hydroxylase'] }, 'search')] };
-    if (index === 2) return { tool_calls: [toolCall('select_literature_papers', { shortlist: [{ paper_ref: paperRef, relevance: 5, covers: ['subtopic_1'],
-      reason: 'Studies EctD engineering.', evidence: 'title_abstract' }], stop_reason: 'sufficient_candidates', remaining_gaps: [] }, 'select'),
-      toolCall('download_papers', { paper_refs: [paperRef] }, 'download')] };
-    return { content: 'Saved the selected EctD paper.' };
-  },
-  check: async runs => {
-    assert.deepEqual(runs.local.hostCalls.map(call => call.name), ['search_academic_papers', 'download_papers']);
-    assert.equal(runs.local.result.taskOutcome.status, 'completed');
-    assert.equal(runs.local.result.downloadResults[0].status, 'downloaded');
-    for (const run of [runs.local]) {
-      const saved = runs.local.result.downloadResults[0].path;
-      assert.equal(await fs.readFile(path.join(run.root, saved), 'utf8'), '%PDF-1.7\nfixture');
-    }
-  },
-});
-
-const overflow = () => json(400, { error: { code: 'context_length_exceeded',
-  message: "This model's maximum context length is 6000 tokens. However, your messages resulted in 9000 tokens." } });
-scenario({
-  name: 'context overflow recovery',
-  env: { CONTEXT_MODEL_WINDOWS: JSON.stringify({ [model]: 32000 }) },
-  setup: async () => {
-    const question = 'Summarize the current fermentation status.';
-    const { service, context } = await projectFixture({ question, turnId: 'overflow-turn' });
-    return { service, body: sideChat(question, context, 'overflow-turn', longHistory(question)) };
-  },
-  respond: (request, index) => index === 1 ? overflow() : isSummary(request) ? { content: 'Checkpoint: titre stable, pH 7.2.' } : { content: 'Fermentation is stable at pH 7.2.' },
-  check: (runs, traces) => {
-    assert.ok(traces.local.compaction.compactionCount >= 1, 'A reactive compaction ran');
-    assert.ok(JSON.stringify(runs.local.requests.at(-1)).length < JSON.stringify(runs.local.requests[0]).length);
-  },
-});
 
 scenario({
   name: 'input-quota recovery (wait, then compaction)',
@@ -448,7 +387,7 @@ scenario({
     const question = 'Have a subagent check the reactor conditions, then summarize.';
     const { service, context } = await projectFixture({ question, turnId: 'parent-turn' });
     return { service, body: { mode: 'agent_instruction', originalRequest: question, messages: [{ role: 'user', content: question }], localWorkspaceContext: context,
-      desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'full_access', projectId: context.project.workspaceId },
+      desktopTools: { version: 1, literatureVersion: 1, permission: 'full_access', projectId: context.project.workspaceId },
       callContext: { turnId: 'parent-turn', callRole: 'answer', profile: 'medium' } } };
   },
   respond: request => {

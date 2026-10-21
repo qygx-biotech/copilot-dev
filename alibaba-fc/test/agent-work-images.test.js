@@ -28,7 +28,7 @@ function setup(t, { supportsImages = true, respond } = {}) {
   });
   const token = jwt.sign({ account: env.ADMIN_ACCOUNT, role: 'admin' }, env.JWT_SECRET);
   const body = { mode: 'agent_instruction', model, originalRequest: question, messages: [{ role: 'user', content: question }], images: [image],
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'read_only', projectId: 'image-project' },
+    desktopTools: { version: 1, literatureVersion: 1, permission: 'read_only', projectId: 'image-project' },
     localWorkspaceContext: { project: { workspaceId: 'image-project' }, agentLoop: { version: 1 } },
     callContext: { turnId: 'agent-image-turn', callRole: 'answer', profile: 'medium' } };
   const post = async (input = body) => {

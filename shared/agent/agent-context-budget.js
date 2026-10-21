@@ -48,28 +48,11 @@ function compactResult(content, limit, trigger) {
   };
   return JSON.stringify(result);
 }
-function restoreAcademicReceipts(messages, state, aggressive = false) {
+function compactMessages(messages, _activeRequest, characterLimit = Infinity, _reserved = null, trigger = "provider-context-size") {
   const result = JSON.parse(JSON.stringify(messages));
-  if (!state) return result;
-  const planning = require("./academic-planning.js"), context = require("./academic-context.js");
-  const names = new Map(result.flatMap(message => (message.tool_calls || []).map(call => [call.id, call.function?.name])));
-  for (const message of result) {
-    if (message.role !== "tool") continue;
-    const name = message.name || names.get(message.tool_call_id);
-    if (!planning.isTool(name) && !require("../academic-tools.js").isTool(name)) continue;
-    let value; try { value = JSON.parse(message.content); } catch { /* Legacy sliced receipts. */ }
-    if (name === "plan_literature_search" && state.plan && value?.status !== "failed")
-      message.content = JSON.stringify({ ...planning.planReceipt(state), compacted: true, recovered_from: "host_state" });
-    else if (!value || aggressive && !value.historical_membership_unknown) message.content = JSON.stringify(context.compactResult(name, value, state, message.tool_call_id, aggressive));
-  }
-  return result;
-}
-function compactMessages(messages, _activeRequest, characterLimit = Infinity, academicState = null, trigger = "provider-context-size") {
-  let result = restoreAcademicReceipts(messages, academicState);
   // First remove redundant corpus copies without shortening any passage.
   for (const message of result) if (message.role === "tool") message.content = compactCorpusReceipt(message.content) || message.content;
   if (size(result) <= characterLimit) return result;
-  if (academicState) result = restoreAcademicReceipts(result, academicState, true);
   const tools = result.filter(message => message.role === "tool");
   const newestCall = result.findLast(message => message.role === "assistant" && message.tool_calls?.length);
   const freshIds = new Set((newestCall?.tool_calls || []).map(call => call.id));
@@ -84,4 +67,4 @@ function compactMessages(messages, _activeRequest, characterLimit = Infinity, ac
   // The one retry decides acceptance; never destroy them to enforce a guess.
   return result;
 }
-module.exports = { compactMessages, restoreAcademicReceipts };
+module.exports = { compactMessages };

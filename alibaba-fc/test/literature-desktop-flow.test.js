@@ -30,12 +30,12 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
   const context = await f.service.buildContext({ ...f.options, question: query, turnId: 'literature-e2e', callContext: { model } });
   const noPreparation = () => { assert.equal(f.calls.cards, 0); assert.equal(f.calls.parses, 0); assert.equal(f.calls.indexing, 0); assert.equal(f.workspace.rawReads, 0); };
   noPreparation();
-  let models = 0, specialistRequests = 0, beforeQuota; const stages = [];
+  let models = 0, specialistRequests = 0, beforeQuota, lastMain; const stages = [];
   t.mock.method(globalThis, 'fetch', async (_url, options) => {
     const request = JSON.parse(options.body); noPreparation(); assert.equal(request.model, model); models++;
     let message;
     if (request.tools.some(tool => tool.function?.name === 'discover_papers')) {
-      assert(!JSON.stringify(request.messages).includes('RAW_BROWSER_SNAPSHOT')); stages.push('main');
+      assert(!JSON.stringify(request.messages).includes('RAW_BROWSER_SNAPSHOT')); stages.push('main'); lastMain = request;
       if (models === 1) message = { tool_calls: [call('discover_papers', { objective: 'Find enzyme evidence', queries: ['enzyme'] })] };
       else {
         if (scenario === 'raw-finish') {
@@ -92,7 +92,7 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
   }
   const pending = sandbox.sendWorkbenchRequest({ signal: requestController.signal, mode: 'agent_instruction', model, messages: [{ role: 'user', content: query }], originalRequest: query,
     localWorkspaceContext: context,
-    desktopTools: { version: 1, academicVersion: 1, literatureVersion: 1, permission: 'workspace_write', projectId: context.project.workspaceId }, callContext: { turnId: 'literature-e2e', callRole: 'answer', profile: 'medium' } });
+    desktopTools: { version: 1, literatureVersion: 1, permission: 'workspace_write', projectId: context.project.workspaceId }, callContext: { turnId: 'literature-e2e', callRole: 'answer', profile: 'medium' } });
   await libraryPrompted; noPreparation(); assert.equal(host.jobs.size, competing ? 1 : 0); assert.deepEqual(stages, ['main']);
   allowLibrary({ url: 'https://example.org/library' });
   if (['transport', 'cancel'].includes(scenario)) {
@@ -128,7 +128,9 @@ for (const scenario of ['single', 'batch', 'failure', 'transport', 'cancel', 'bu
     assert(resumed.tools); assert.equal(browser.owner, job.id);
     return;
   }
-  assert.equal(result.reply, 'Completed report with explicit coverage limits.'); assert.deepEqual(stages, scenario === 'input-quota' ? ['main', 'specialist', 'specialist', 'specialist', 'main'] : ['main', 'specialist', 'main']);
+  // The request also asks to download; a report without a proposed retrieval gets one corrective main turn.
+  assert.equal(result.reply, 'Completed report with explicit coverage limits.'); assert.deepEqual(stages, scenario === 'input-quota' ? ['main', 'specialist', 'specialist', 'specialist', 'main', 'main'] : ['main', 'specialist', 'main', 'main']);
+  assert.match(JSON.stringify(lastMain.messages), /Completion check: the original request asks for papers to be downloaded/);
   assert.equal(requests().length, batch || scenario === 'input-quota' ? 5 : 3);
   assert.deepEqual(browserCalls, batch || scenario === 'input-quota' ? ['browser_navigate', 'browser_snapshot', 'browser_snapshot', 'browser_snapshot'] : ['browser_navigate', 'browser_snapshot']);
   if (batch) {

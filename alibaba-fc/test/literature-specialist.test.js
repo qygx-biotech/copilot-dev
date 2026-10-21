@@ -9,10 +9,14 @@ const run = (requestTurn, extra = {}) => runSideChatAgent({ originalRequest: 'Fi
   workspaceContext: { localWorkspaceContext: { project: { workspaceId: 'project-1' }, agentLoop: { version: 1 } } }, model: 'selected/model', surface: 'agent_command', desktopLiterature: true, desktopAcademic: true,
   systemPrompt: 'Complete the user deliverable.', parseFinalAnswer: reply => ({ reply }), requestTurn, ...extra });
 
-test('general main answers without a classification or mandatory literature call; retrieval not exposed for report request', async () => {
+test('general main answers without a classification or mandatory literature call; retrieval is offered behind the confirmation card, never in plan mode', async () => {
   let count = 0;
-  const result = await run(async request => { count++; assert(request.tools.some(t => t.function?.name === 'discover_papers')); assert(!request.tools.some(t => t.function?.name === 'retrieve_papers')); assert(!request.tools.some(t => t.function?.name === 'plan_literature_search')); return { ok: true, message: { content: 'A direct answer.' } }; }, { originalRequest: 'Rewrite this sentence.' });
+  // Consent is the renderer's one-click card, so wording no longer decides whether retrieval is offered.
+  const result = await run(async request => { count++; assert(request.tools.some(t => t.function?.name === 'discover_papers')); assert(request.tools.some(t => t.function?.name === 'retrieve_papers')); assert(!request.tools.some(t => t.function?.name === 'plan_literature_search')); return { ok: true, message: { content: 'A direct answer.' } }; }, { originalRequest: 'Rewrite this sentence.' });
   assert.equal(count, 1); assert.equal(result.data.reply, 'A direct answer.');
+  const planned = await run(async request => { assert(request.tools.some(t => t.function?.name === 'discover_papers')); assert(!request.tools.some(t => t.function?.name === 'retrieve_papers')); return { ok: true, message: { content: 'A plan.' } }; },
+    { originalRequest: 'Plan a literature review and download papers.', collaborationMode: 'plan', downloadPermission: 'workspace_write' });
+  assert.equal(planned.data.reply, 'A plan.');
 });
 
 test('signed handoffs keep browser snapshots in the specialist and main completes the report', async () => {
@@ -77,7 +81,7 @@ test('specialist handoff keeps schemas and access rules outside the observation-
   });
   assert.equal(state.schemas, tools);
   assert.equal(state.openAccessOnly, true);
-  assert.match(state.messages.at(-2).content, /search only open-access papers/);
+  assert.match(state.messages.at(-2).content, /institutional browsing is disabled/); assert.match(state.messages.at(-2).content, /do not omit strong candidates/);
   assert.deepEqual(JSON.parse(state.messages.at(-1).content), { observation: 'Refreshed library snapshot [ref=e2]' });
   state.pendingModelCall = { id: 'click' };
   const receipt = { status: 'stale_reference', snapshot: 'Updated snapshot [ref=e3]', generation: 2 };
@@ -295,4 +299,107 @@ test('thrown input quota errors recover, and cancellation after compaction preve
     requestTurn: async () => { requests++; return inputLimit(); },
   }), { code: 'OPERATION_ABORTED' });
   assert.equal(requests, 1); assert.equal(cancelled.pending, null);
+});
+
+// Deterministic retrieval: the host works through every paper without model turns.
+const retrievalTools = names => names.map(name => contract.tool(name, name, contract.object({})));
+const retrievalPaper = title => ({ title, authors: ['A. Author'], year: 2024, source_urls: [] });
+const retrievalState = (count, access) => {
+  const state = specialist.create('retrieve_papers', { papers: Array.from({ length: count }, (_, i) => retrievalPaper(`Paper ${i}`)), accepted_versions: ['published'] }, 'main');
+  specialist.accept(state, { job_id: 'lit_' + 'c'.repeat(24), tools: retrievalTools(['retrieve_next', 'finish_retrieval']), checkpoint: {}, observation: '',
+    access: { open_access_only: false, library_url: 'https://library.example.edu', deterministic: true, browsing: false, library_browsing: true, ...access } });
+  return state;
+};
+const noModel = { requestTurn: async () => assert.fail('The deterministic sequence must not call the model') };
+const outcome = status => ({ result: { requested: retrievalPaper('x'), status, document_version: 'unknown', attempts: [], reason: `${status} fixture` } });
+test('retrieval runs every paper, requests access once, retries, and browses the library only for papers still missing', async () => {
+  let state = retrievalState(3), progress = [];
+  const steps = [];
+  const drive = async (receipt, options = noModel) => {
+    await specialist.advance(state, { ...options, onProgress: async event => progress.push(event) });
+    steps.push(state.pending.name + (Number.isInteger(state.pending.args.index) ? `:${state.pending.args.index}` : ''));
+    state = restoreWithReceipt(state, receipt);
+  };
+  await drive(outcome('downloaded'));
+  await drive(outcome('needs_login'));
+  await drive(outcome('unresolved'));
+  // The resumed job after the user signed in.
+  await drive({ job_id: state.jobId, tools: retrievalTools(['retrieve_next', 'finish_retrieval']), checkpoint: {}, observation: '', access: { deterministic: true }, resumed: true });
+  await drive(outcome('downloaded'));
+  await drive({ job_id: state.jobId, tools: retrievalTools(['browser_snapshot', 'capture_article', 'record_access', 'finish_retrieval']), checkpoint: {}, observation: 'Library home [ref=e1]', access: { deterministic: true, browsing: true } });
+  assert.deepEqual(steps, ['retrieve_next:0', 'retrieve_next:1', 'retrieve_next:2', 'request_access', 'retrieve_next:1', 'start_browsing']);
+  assert.deepEqual(progress.filter(event => event.paper).map(event => `${event.paper}/${event.papers}`), ['1/3', '2/3', '3/3', '2/3']);
+  // Per-paper receipts stay out of the model conversation; only the open papers' summary is given for browsing.
+  assert(!state.messages.some(message => message.role !== 'system' && /fixture/.test(message.content)));
+  assert(!state.messages.some(message => /downloaded fixture|needs_login fixture/.test(message.content)));
+  let models = 0;
+  await specialist.advance(state, { requestTurn: async request => {
+    models++;
+    const summary = request.messages.find(message => message.role === 'system' && message.content.includes('Papers still without a verified download'));
+    assert.match(summary.content, /"index":2/); assert.doesNotMatch(summary.content, /"index":[01]/);
+    assert.equal(JSON.parse(request.messages.at(-1).content).observation, 'Library home [ref=e1]');
+    assert.deepEqual(request.tools.map(tool => tool.function.name), ['browser_snapshot', 'capture_article', 'record_access', 'finish_retrieval']);
+    return { ok: true, message: { tool_calls: [call('finish_retrieval', {})] } };
+  } });
+  assert.equal(models, 1); assert.equal(state.pending.name, 'finish_retrieval');
+  const results = ['downloaded', 'downloaded', 'unresolved'].map((status, i) => ({ requested: retrievalPaper(`Paper ${i}`), status, document_version: 'unknown',
+    attempts: Array.from({ length: 10 }, (_, n) => ({ route: 'open_access', reason: `attempt ${n}` })), reason: 'fixture' }));
+  state = restoreWithReceipt(state, { final: { version: 1, job_id: state.jobId, status: 'partial', results, limitations: [] } });
+  assert.equal(state.final.status, 'partial'); assert.equal(state.final.results[2].attempts.length, 4);
+});
+test('without library browsing the sequence finishes after its access round with no model call', async () => {
+  let state = retrievalState(2, { library_browsing: false, open_access_only: true }), steps = [];
+  for (const receipt of [outcome('downloaded'), outcome('unresolved')]) {
+    await specialist.advance(state, noModel); steps.push(state.pending.name); state = restoreWithReceipt(state, receipt);
+  }
+  await specialist.advance(state, noModel); steps.push(state.pending.name);
+  assert.deepEqual(steps, ['retrieve_next', 'retrieve_next', 'finish_retrieval']);
+  assert(!state.messages.some(message => message.role === 'system' && /search only open-access papers|institutional browsing is disabled/.test(message.content)), 'Discovery access rules do not apply to retrieval');
+});
+test('an access round the user skips ends the job with the papers already saved', async () => {
+  let state = retrievalState(1, { library_browsing: false });
+  await specialist.advance(state, noModel); state = restoreWithReceipt(state, outcome('needs_login'));
+  await specialist.advance(state, noModel); assert.equal(state.pending.name, 'request_access');
+  const results = [{ requested: retrievalPaper('Paper 0'), status: 'needs_login', document_version: 'unknown', attempts: [], reason: 'Sign in' }];
+  state = restoreWithReceipt(state, { final: { version: 1, job_id: state.jobId, status: 'cancelled', results, limitations: [] } });
+  assert.equal(state.final.status, 'cancelled'); assert.equal(state.pending, null);
+});
+test('model-directed library browsing is bounded and finishes with host receipts', async () => {
+  let state = retrievalState(1);
+  await specialist.advance(state, noModel); state = restoreWithReceipt(state, outcome('unresolved'));
+  await specialist.advance(state, noModel); assert.equal(state.pending.name, 'start_browsing');
+  state = restoreWithReceipt(state, { job_id: state.jobId, tools: retrievalTools(['browser_snapshot', 'finish_retrieval']), checkpoint: {}, observation: 'Library', access: { deterministic: true } });
+  state.driver.modelTurns = 20;
+  await specialist.advance(state, noModel);
+  assert.equal(state.pending.name, 'finish_retrieval');
+});
+test('oversized page observations are shortened instead of failing the specialist', () => {
+  const state = ready();
+  state.pendingModelCall = { id: 'snapshot' };
+  specialist.accept(state, { result: { status: 'observed', snapshot: '- paragraph "row"\n'.repeat(12000) } });
+  const message = state.messages.at(-1);
+  assert(message.content.length < 150000); assert.match(message.content, /shortened by the host; use browser_find/);
+});
+test('library browsing keeps only the latest page observation in full; earlier ones become a short note', async () => {
+  let state = retrievalState(1);
+  await specialist.advance(state, noModel); state = restoreWithReceipt(state, outcome('unresolved'));
+  await specialist.advance(state, noModel);
+  const tools = retrievalTools(['browser_snapshot', 'browser_click', 'finish_retrieval']);
+  state = restoreWithReceipt(state, { job_id: state.jobId, tools, checkpoint: {}, observation: 'Library', access: { deterministic: true } });
+  const page = n => `- link "Result ${n}" [ref=e${n}]\n` + '- paragraph "Catalogue record details"\n'.repeat(200);
+  let turn = 0;
+  const options = { requestTurn: async request => {
+    turn++;
+    const observations = request.messages.filter(message => message.role === 'tool').map(message => JSON.parse(message.content));
+    if (turn === 3) {
+      assert.equal(observations.length, 2);
+      assert.match(observations[0].snapshot, /Earlier page observation omitted/); assert.equal(observations[0].status, 'observed');
+      assert.match(observations[1].snapshot, /Result 2/);
+      return { ok: true, message: { tool_calls: [call('finish_retrieval', {}, `finish`)] } };
+    }
+    return { ok: true, message: { tool_calls: [call('browser_click', { target: `e${turn}` }, `click_${turn}`)] } };
+  } };
+  for (const n of [1, 2]) { await specialist.advance(state, options); state = restoreWithReceipt(state, { result: { status: 'observed', snapshot: page(n) } }); }
+  await specialist.advance(state, options);
+  assert.equal(state.pending.name, 'finish_retrieval'); assert.equal(turn, 3);
 });
